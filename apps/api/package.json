@@ -26,6 +26,7 @@
     "@nestjs/common": "^11.0.1",
     "@nestjs/core": "^11.0.1",
     "@nestjs/platform-fastify": "^11.1.18",
+    "@prisma/client": "^6.19.3",
     "@social-manager/types": "workspace:*",
     "fastify": "^5.8.4",
     "reflect-metadata": "^0.2.2",
