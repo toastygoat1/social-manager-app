@@ -1,15 +1,21 @@
-import { Controller, Get, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, UseGuards, Request } from '@nestjs/common';
 import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
+import { AuthService } from './auth.service.js';
 
 @Controller('auth')
 export class AuthController {
-  
+  constructor(private readonly authService: AuthService) {}
+
   @UseGuards(JwtAuthGuard)
   @Get('me')
   getProfile(@Request() req) {
-    return {
-      message: 'Token berhasil diverifikasi!',
-      user: req.user,
-    };
+    return req.user;
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('sync')
+  async syncUser(@Request() req) {
+
+    return this.authService.syncUser(req.user.userId, req.user.email);
   }
 }
