@@ -4,6 +4,7 @@ import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { AuthModule } from './auth/auth.module.js';
+import { InstagramModule } from './instagram/instagram.module.js';
 
 @Module({
   imports: [ 
@@ -14,6 +15,7 @@ import { AuthModule } from './auth/auth.module.js';
     
     PrismaModule,
     AuthModule,
+    InstagramModule,
   ],
   controllers: [AppController],
   providers: [AppService],
