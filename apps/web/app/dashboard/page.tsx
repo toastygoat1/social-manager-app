@@ -4,6 +4,15 @@ import { signOut } from "@/app/auth/actions";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function DashboardPage() {
+  const hasSupabaseEnv = Boolean(
+    process.env.NEXT_PUBLIC_SUPABASE_URL &&
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+  )
+
+  if (!hasSupabaseEnv) {
+    redirect("/?message=" + encodeURIComponent("no env variable"));
+  }
+
   const supabase = await createClient();
   const {
     data: { user },

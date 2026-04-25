@@ -50,14 +50,23 @@ export async function signUp(formData: FormData) {
   }
 
   const headersList = await headers();
-  const origin = headersList.get("origin") ?? "http://localhost:3000";
+  const forwardedHost = headersList.get("x-forwarded-host");
+  const forwardedProto = headersList.get("x-forwarded-proto") ?? "https";
+
+  const siteUrl =
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    (forwardedHost ? `${forwardedProto}://${forwardedHost}` : null);
+
+  if (!siteUrl) {
+    return redirectWithMessage("/", "url not found.");
+  }
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signUp({
     email,
     password,
     options: {
-      emailRedirectTo: `${origin}/auth/callback?next=/dashboard`,
+      emailRedirectTo: `${siteUrl}/auth/callback?next=/dashboard`,
     },
   });
 
