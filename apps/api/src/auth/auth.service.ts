@@ -6,18 +6,16 @@ export class AuthService {
   constructor(private prisma: PrismaService) {}
 
   async syncUser(userId: string, email: string) {
-    let user = await this.prisma.user.findUnique({
+    const user = await this.prisma.user.upsert({
       where: { id: userId },
+      update: { 
+        email: email,
+      },
+      create: {
+        id: userId,
+        email: email,
+      },
     });
-
-    if (!user) {
-      user = await this.prisma.user.create({
-        data: {
-          id: userId,
-          email: email,
-        },
-      });
-    }
 
     return {
       message: 'User berhasil disinkronisasi ke database internal',

@@ -141,7 +141,7 @@ model WebhookEvent {
   receivedAt         DateTime                @default(now()) @map("received_at")
   processedAt        DateTime?               @map("processed_at")
   errorMessage       String?                 @map("error_message")
-  instagramAccount   InstagramAccount?       @relation(fields: [instagramAccountId], references: [id])
+  instagramAccount   InstagramAccount?       @relation(fields: [instagramAccountId], references: [id], onDelete: SetNull)
 
   @@index([instagramAccountId])
   @@index([source, eventType])
@@ -240,7 +240,7 @@ model ChatbotSession {
   startedAt          DateTime          @default(now()) @map("started_at")
   lastActiveAt       DateTime          @default(now()) @map("last_active_at")
   messages           ChatbotMessage[]
-  instagramAccount   InstagramAccount? @relation(fields: [instagramAccountId], references: [id])
+  instagramAccount   InstagramAccount? @relation(fields: [instagramAccountId], references: [id], onDelete: SetNull)
   user               User              @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
