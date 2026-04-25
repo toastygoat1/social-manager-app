@@ -50,12 +50,13 @@ export async function signUp(formData: FormData) {
   }
 
   const headersList = await headers();
+  const origin = headersList.get("origin");
   const forwardedHost = headersList.get("x-forwarded-host");
   const forwardedProto = headersList.get("x-forwarded-proto") ?? "https";
 
   const siteUrl =
     process.env.NEXT_PUBLIC_SITE_URL ??
-    (forwardedHost ? `${forwardedProto}://${forwardedHost}` : null);
+    (forwardedHost ? `${forwardedProto}://${forwardedHost}` : null) ?? origin ?? "http://localhost:3000";
 
   if (!siteUrl) {
     return redirectWithMessage("/", "url not found.");
