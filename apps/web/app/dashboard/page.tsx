@@ -29,7 +29,7 @@ export default async function DashboardPage() {
         <p className="text-sm uppercase tracking-[0.2em] text-zinc-400">Dashboard</p>
         <h1 className="mt-3 text-3xl font-semibold">Authenticated Session</h1>
         <p className="mt-3 text-zinc-300">
-          Kamu berhasil login dengan Supabase Auth menggunakan email.
+          You have successfully logged in.
         </p>
 
         <div className="mt-6 rounded-xl border border-zinc-700 bg-zinc-900/50 p-4">
@@ -43,7 +43,7 @@ export default async function DashboardPage() {
             href="/"
             className="rounded-lg border border-zinc-600 px-4 py-2 text-sm font-medium text-zinc-200 transition hover:bg-zinc-700"
           >
-            Kembali ke beranda
+            Homepage
           </Link>
           <form action={signOut}>
             <button

@@ -26,7 +26,7 @@ export async function GET(request: Request) {
     !process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
   ) {
     return NextResponse.redirect(
-      `${origin}/?message=${encodeURIComponent("Konfigurasi Supabase belum lengkap.")}`,
+      `${origin}/?message=${encodeURIComponent("Supabase configuration is incomplete.")}`,
     );
   }
 
@@ -44,7 +44,7 @@ export async function GET(request: Request) {
 
     if (error) {
       return NextResponse.redirect(
-        `${origin}/?message=${encodeURIComponent("Tautan verifikasi tidak valid atau kadaluarsa.")}`,
+        `${origin}/?message=${encodeURIComponent("Invalid or expired verification link.")}`,
       );
     }
 
@@ -56,7 +56,7 @@ export async function GET(request: Request) {
 
     if (error) {
       return NextResponse.redirect(
-        `${origin}/?message=${encodeURIComponent("Tautan verifikasi tidak valid atau kadaluarsa.")}`,
+        `${origin}/?message=${encodeURIComponent("Invalid or expired verification link.")}`,
       );
     }
 
@@ -64,6 +64,6 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.redirect(
-    `${origin}/?message=${encodeURIComponent("Kode verifikasi tidak ditemukan.")}`,
+    `${origin}/?message=${encodeURIComponent("Invalid or expired verification link.")}`,
   );
 }

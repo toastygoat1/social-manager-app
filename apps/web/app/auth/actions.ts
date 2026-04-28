@@ -17,14 +17,14 @@ function hasSupabaseEnv() {
 
 export async function signIn(formData: FormData) {
   if (!hasSupabaseEnv()) {
-    return redirectWithMessage("/", "Konfigurasi Supabase belum lengkap.");
+    return redirectWithMessage("/", "Supabase configuration is incomplete.");
   }
 
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
 
   if (!email || !password) {
-    return redirectWithMessage("/", "Email dan password wajib diisi.");
+    return redirectWithMessage("/", "Email and password are required.");
   }
 
   const supabase = await createClient();
@@ -39,14 +39,14 @@ export async function signIn(formData: FormData) {
 
 export async function signUp(formData: FormData) {
   if (!hasSupabaseEnv()) {
-    return redirectWithMessage("/", "Konfigurasi Supabase belum lengkap.");
+    return redirectWithMessage("/", "Supabase configuration is incomplete.");
   }
 
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
 
   if (!email || !password) {
-    return redirectWithMessage("/", "Email dan password wajib diisi.");
+    return redirectWithMessage("/", "Email and password are required.");
   }
 
   const headersList = await headers();
@@ -75,7 +75,7 @@ export async function signUp(formData: FormData) {
     return redirectWithMessage("/", error.message);
   }
 
-  return redirectWithMessage("/", "Cek email kamu untuk verifikasi akun.");
+  return redirectWithMessage("/", "Check your email for account verification.");
 }
 
 export async function signOut() {

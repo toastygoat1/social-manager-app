@@ -36,7 +36,7 @@ export default async function Home({ searchParams }: HomePageProps) {
           Supabase Email Authentication
         </h1>
         <p className="mt-2 text-sm text-zinc-600">
-          Masuk dengan email untuk mengakses dashboard.
+          Sign in with your email.
         </p>
 
         {statusMessage ? (
@@ -47,21 +47,21 @@ export default async function Home({ searchParams }: HomePageProps) {
 
         {!hasSupabaseEnv ? (
           <p className="mt-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            Konfigurasi Supabase belum lengkap. Tambahkan{" "}
-            NEXT_PUBLIC_SUPABASE_URL dan NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
-            ke file .env.local.
+            Supabase configuration is incomplete. Please add{" "}
+            NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+            to your .env.local file.
           </p>
         ) : userEmail ? (
           <div className="mt-6 space-y-4">
             <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-              Login sebagai {userEmail}
+              Sign in as {userEmail}
             </p>
             <div className="flex flex-wrap gap-3">
               <Link
                 href="/dashboard"
                 className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-700"
               >
-                Buka dashboard
+                Open dashboard
               </Link>
               <form action={signOut}>
                 <button
