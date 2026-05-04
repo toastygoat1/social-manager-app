@@ -12,7 +12,7 @@ A social media management web app.
 - Docker for containerized development/production environments
 - pnpm + Turbo for monorepo management
 
-## Monorepo Structure
+## Monorepo Structure/
 
 ```txt
 apps/

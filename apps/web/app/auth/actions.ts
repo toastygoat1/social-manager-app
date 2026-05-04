@@ -78,6 +78,37 @@ export async function signUp(formData: FormData) {
   return redirectWithMessage("/", "Check your email for account verification.");
 }
 
+export async function signInWithGoogle() {
+  if (!hasSupabaseEnv()) {
+    return redirectWithMessage("/", "Supabase configuration is incomplete.");
+  }
+
+  const headersList = await headers();
+  const origin = headersList.get("origin");
+  const forwardedHost = headersList.get("x-forwarded-host");
+  const forwardedProto = headersList.get("x-forwarded-proto") ?? "https";
+
+  const siteUrl =
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    (forwardedHost ? `${forwardedProto}://${forwardedHost}` : null) ??
+    origin ??
+    "http://localhost:3000";
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: `${siteUrl}/auth/callback?next=/dashboard`,
+    },
+  });
+
+  if (error || !data.url) {
+    return redirectWithMessage("/", error?.message ?? "Google sign-in failed.");
+  }
+
+  return redirect(data.url);
+}
+
 export async function signOut() {
   if (!hasSupabaseEnv()) {
     return redirect("/");
