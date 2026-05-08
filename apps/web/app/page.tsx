@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { signIn, signInWithGoogle, signOut, signUp } from "@/app/auth/actions";
+import { signIn, signOut, signUp } from "@/app/auth/actions";
+import { GoogleSignInButton } from "@/app/auth/google-sign-in-button";
 import { createClient } from "@/lib/supabase/server";
 
 type HomePageProps = {
@@ -75,24 +76,7 @@ export default async function Home({ searchParams }: HomePageProps) {
           </div>
         ) : (
           <div className="mt-6 space-y-4">
-            <form action={signInWithGoogle}>
-              <button
-                type="submit"
-                className="flex w-full items-center justify-center gap-2 rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
-              >
-                <svg
-                  aria-hidden="true"
-                  viewBox="0 0 24 24"
-                  className="h-4 w-4"
-                >
-                  <path
-                    fill="#EA4335"
-                    d="M12 10.2v3.9h5.45c-.24 1.4-1.7 4.1-5.45 4.1-3.28 0-5.96-2.72-5.96-6.05S8.72 6.1 12 6.1c1.87 0 3.12.8 3.83 1.48l2.61-2.5C16.85 3.6 14.62 2.7 12 2.7 6.93 2.7 2.83 6.8 2.83 11.85S6.93 21 12 21c6.93 0 9.16-4.86 9.16-7.4 0-.5-.05-.88-.12-1.4H12z"
-                  />
-                </svg>
-                Continue with Google
-              </button>
-            </form>
+            <GoogleSignInButton />
 
             <div className="flex items-center gap-3">
               <div className="h-px flex-1 bg-zinc-200" />
