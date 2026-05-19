@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { ConflictException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { Prisma } from '@social-manager/database';
 import { AuthService } from './auth.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
@@ -43,7 +44,12 @@ describe('AuthService', () => {
     });
 
     it('throws ConflictException on P2002 unique violation', async () => {
-      prisma.user.upsert.mockRejectedValue({ code: 'P2002' });
+      prisma.user.upsert.mockRejectedValue(
+        new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+          code: 'P2002',
+          clientVersion: 'test',
+        }),
+      );
 
       await expect(service.syncUser(userId, email)).rejects.toBeInstanceOf(
         ConflictException,

@@ -15,8 +15,13 @@ describe('AppController', () => {
   });
 
   describe('root', () => {
-    it('should return "Hello World!"', () => {
-      expect(appController.getHello()).toBe('Hello World!');
+    it('should return the sample post summary', () => {
+      expect(appController.getHello()).toMatchObject({
+        id: 'post_1',
+        content: 'First scheduled post',
+        status: 'draft',
+        scheduledAt: null,
+      });
     });
   });
 });
