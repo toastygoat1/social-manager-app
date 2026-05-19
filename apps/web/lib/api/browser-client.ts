@@ -1,4 +1,7 @@
-import { createClient } from "@/lib/supabase/server";
+"use client";
+
+import { createClient } from "@/lib/supabase/client";
+import { ApiError } from "@/lib/api/client";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
@@ -7,16 +10,6 @@ type ApiFetchOptions = Omit<RequestInit, "body"> & {
   body?: unknown;
   auth?: boolean;
 };
-
-export class ApiError extends Error {
-  constructor(
-    public readonly status: number,
-    public readonly body: unknown,
-  ) {
-    super(`API request failed with status ${status}`);
-    this.name = "ApiError";
-  }
-}
 
 function buildUrl(path: string) {
   return path.startsWith("http")
@@ -54,12 +47,12 @@ async function readErrorBody(response: Response) {
     .catch(() => response.text().catch(() => null));
 }
 
-export async function apiFetch<T = unknown>(
+export async function apiFetchBrowser<T = unknown>(
   path: string,
   options: ApiFetchOptions = {},
 ): Promise<T> {
   const { auth = true, body, headers: callerHeaders, ...rest } = options;
-  const supabase = await createClient();
+  const supabase = createClient();
 
   async function getToken(): Promise<string | null> {
     const {
@@ -95,3 +88,5 @@ export async function apiFetch<T = unknown>(
 
   return parseResponse<T>(response);
 }
+
+export { ApiError };

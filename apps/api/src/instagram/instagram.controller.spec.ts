@@ -8,9 +8,7 @@ describe('InstagramController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [InstagramController],
-      providers: [
-        { provide: InstagramService, useValue: {} },
-      ],
+      providers: [{ provide: InstagramService, useValue: {} }],
     }).compile();
 
     controller = module.get<InstagramController>(InstagramController);

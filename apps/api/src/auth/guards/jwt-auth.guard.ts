@@ -1,12 +1,26 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('jwt') {
-  handleRequest(err: any, user: any, info: any) {
+  private readonly logger = new Logger(JwtAuthGuard.name);
+
+  handleRequest<TUser = unknown>(
+    err: unknown,
+    user: TUser,
+    info: unknown,
+  ): TUser {
     if (err || info || !user) {
-      console.error("JWT Error:", info?.message || err?.message || 'Unauthorized');
-      throw err || new UnauthorizedException('Token tidak valid');
+      if (process.env.NODE_ENV !== 'production') {
+        const reason =
+          (info as Error | undefined)?.message ??
+          (err as Error | undefined)?.message ??
+          'Unauthorized';
+        this.logger.debug(`JWT rejected: ${reason}`);
+      }
+      throw err instanceof Error
+        ? err
+        : new UnauthorizedException('Invalid token');
     }
     return user;
   }
