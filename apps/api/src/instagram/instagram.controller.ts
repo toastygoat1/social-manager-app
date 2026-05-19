@@ -9,6 +9,7 @@ import {
 import { InstagramService } from './instagram.service.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { AddInstagramAccountDto } from './dto/add-instagram-account.dto.js';
+import { CompleteInstagramOAuthDto } from './dto/complete-instagram-oauth.dto.js';
 import type { AuthedRequest } from '../auth/auth.types.js';
 
 @UseGuards(JwtAuthGuard)
@@ -21,11 +22,24 @@ export class InstagramController {
     @Request() req: AuthedRequest,
     @Body() body: AddInstagramAccountDto,
   ) {
-    return this.instagramService.addAccount(req.user.userId, body);
+    return this.instagramService.addAccount(req.user, body);
   }
 
   @Get('accounts')
   async getAccounts(@Request() req: AuthedRequest) {
     return this.instagramService.getAccounts(req.user.userId);
+  }
+
+  @Get('oauth/url')
+  getOAuthUrl(@Request() req: AuthedRequest) {
+    return this.instagramService.createOAuthUrl(req.user.userId);
+  }
+
+  @Post('oauth/callback')
+  completeOAuth(
+    @Request() req: AuthedRequest,
+    @Body() body: CompleteInstagramOAuthDto,
+  ) {
+    return this.instagramService.completeOAuth(req.user, body);
   }
 }
