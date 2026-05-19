@@ -1,6 +1,10 @@
 import { AccountChip } from "./AccountChip";
 import type { ContentRow } from "./data";
 
+function formatNumber(value: number | null): string {
+  return value === null ? "—" : value.toLocaleString("id-ID");
+}
+
 const COLUMNS: { label: string; width: number }[] = [
   { label: "Accounts", width: 300 },
   { label: "Contents", width: 300 },
@@ -92,16 +96,16 @@ function Row({ row }: { row: ContentRow }) {
         <span className="text-base text-muted">{row.caption}</span>
       </Cell>
       <Cell width={140}>
-        <span className="text-base text-muted">{row.views}</span>
+        <span className="text-base text-muted">{formatNumber(row.views)}</span>
       </Cell>
       <Cell width={140}>
-        <span className="text-base text-muted">{row.likes}</span>
+        <span className="text-base text-muted">{formatNumber(row.likes)}</span>
       </Cell>
       <Cell width={140}>
-        <span className="text-base text-muted">{row.comments}</span>
+        <span className="text-base text-muted">{formatNumber(row.comments)}</span>
       </Cell>
       <Cell width={140}>
-        <span className="text-base text-muted">{row.shares}</span>
+        <span className="text-base text-muted">{formatNumber(row.shares)}</span>
       </Cell>
       <Cell width={140}>
         <span className="text-base text-muted">{row.media}</span>
