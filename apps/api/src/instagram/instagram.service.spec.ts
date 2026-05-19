@@ -7,6 +7,7 @@ import {
   jest,
 } from '@jest/globals';
 import { Test, TestingModule } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
 import { InstagramAccountType } from '@social-manager/database';
 import { InstagramService } from './instagram.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -16,6 +17,9 @@ type PrismaFn = (...args: unknown[]) => Promise<unknown>;
 describe('InstagramService', () => {
   let service: InstagramService;
   let prisma: {
+    user: {
+      upsert: jest.Mock<PrismaFn>;
+    };
     instagramAccount: {
       create: jest.Mock<PrismaFn>;
       updateMany: jest.Mock<PrismaFn>;
@@ -23,11 +27,17 @@ describe('InstagramService', () => {
       findMany: jest.Mock<PrismaFn>;
     };
   };
+  let config: {
+    get: jest.Mock<(key: string) => string | undefined>;
+  };
   const originalEncryptionKey = process.env.ENCRYPTION_KEY;
 
   beforeEach(async () => {
     process.env.ENCRYPTION_KEY = 'a'.repeat(64);
     prisma = {
+      user: {
+        upsert: jest.fn<PrismaFn>(),
+      },
       instagramAccount: {
         create: jest.fn<PrismaFn>(),
         updateMany: jest.fn<PrismaFn>(),
@@ -35,11 +45,24 @@ describe('InstagramService', () => {
         findMany: jest.fn<PrismaFn>(),
       },
     };
+    config = {
+      get: jest.fn((key: string) => {
+        const values: Record<string, string> = {
+          ENCRYPTION_KEY: 'a'.repeat(64),
+          META_APP_ID: 'meta-app-id',
+          META_APP_SECRET: 'meta-app-secret',
+          WEB_ORIGIN: 'http://localhost:3000',
+        };
+
+        return values[key];
+      }),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         InstagramService,
         { provide: PrismaService, useValue: prisma },
+        { provide: ConfigService, useValue: config },
       ],
     }).compile();
 
@@ -66,18 +89,26 @@ describe('InstagramService', () => {
     };
     prisma.instagramAccount.create.mockResolvedValue(account);
 
-    const result = await service.addAccount('user-1', {
-      igUserId: 'ig-1',
-      username: 'brand',
-      accessToken: 'plain-token',
-      accountType: InstagramAccountType.BUSINESS,
-    });
+    const result = await service.addAccount(
+      { userId: 'user-1', email: 'user@example.com' },
+      {
+        igUserId: 'ig-1',
+        username: 'brand',
+        accessToken: 'plain-token',
+        accountType: InstagramAccountType.BUSINESS,
+      },
+    );
 
     const createArgs = prisma.instagramAccount.create.mock.calls[0][0] as {
       data: { accessTokenEncrypted: string };
       select: Record<string, boolean>;
     };
 
+    expect(prisma.user.upsert).toHaveBeenCalledWith({
+      where: { id: 'user-1' },
+      update: { email: 'user@example.com' },
+      create: { id: 'user-1', email: 'user@example.com' },
+    });
     expect(createArgs.data.accessTokenEncrypted).toMatch(/^v1:/);
     expect(createArgs.data.accessTokenEncrypted).not.toBe('plain-token');
     expect(createArgs.select).not.toHaveProperty('accessTokenEncrypted');
@@ -93,6 +124,21 @@ describe('InstagramService', () => {
       select: Record<string, boolean>;
     };
     expect(findManyArgs.select).not.toHaveProperty('accessTokenEncrypted');
+  });
+
+  it('creates a signed Meta OAuth URL', () => {
+    const result = service.createOAuthUrl('user-1');
+    const url = new URL(result.url);
+
+    expect(url.origin).toBe('https://www.instagram.com');
+    expect(url.pathname).toBe('/oauth/authorize');
+    expect(url.searchParams.get('client_id')).toBe('meta-app-id');
+    expect(url.searchParams.get('redirect_uri')).toBe(
+      'http://localhost:3000/dashboard/instagram/callback',
+    );
+    expect(url.searchParams.get('scope')).toContain('instagram_business_basic');
+    expect(url.searchParams.get('enable_fb_login')).toBe('0');
+    expect(url.searchParams.get('state')).toContain('.');
   });
 
   afterEach(() => {
