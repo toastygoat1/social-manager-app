@@ -10,7 +10,8 @@ export async function getDashboardData(): Promise<DashboardData> {
   try {
     const data = await apiFetch<Partial<DashboardData>>(DASHBOARD_ENDPOINT);
     return { ...EMPTY_DASHBOARD, ...data };
-  } catch {
+  } catch (error) {
+    console.error("getDashboardData failed:", error);
     return EMPTY_DASHBOARD;
   }
 }

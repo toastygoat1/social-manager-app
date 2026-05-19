@@ -1,45 +1,6 @@
-import type { CalendarCell, CalendarMonth } from "./data";
+import type { CalendarMonth } from "./data";
 
 const WEEKDAYS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
-
-const MONTH_LABELS = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-];
-
-function buildMonth(reference: Date): CalendarMonth {
-  const year = reference.getFullYear();
-  const month = reference.getMonth();
-  const first = new Date(year, month, 1);
-  const startOffset = first.getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const daysInPrevMonth = new Date(year, month, 0).getDate();
-
-  const cells: CalendarCell[] = [];
-
-  for (let i = startOffset - 1; i >= 0; i--) {
-    cells.push({ day: daysInPrevMonth - i, muted: true });
-  }
-  for (let d = 1; d <= daysInMonth; d++) {
-    cells.push({
-      day: d,
-      prefix: d === 1 ? `1 ${MONTH_LABELS[month]}` : undefined,
-    });
-  }
-  const trailing = (7 - (cells.length % 7)) % 7;
-  for (let d = 1; d <= trailing; d++) {
-    cells.push({
-      day: d,
-      muted: true,
-      prefix: d === 1 ? `1 ${MONTH_LABELS[(month + 1) % 12]}` : undefined,
-    });
-  }
-
-  return {
-    label: `${MONTH_LABELS[month]} ${year}`,
-    cells,
-  };
-}
 
 function ChevronLeft() {
   return (
@@ -90,9 +51,6 @@ type CalendarCardProps = {
 };
 
 export function CalendarCard({ calendar }: CalendarCardProps) {
-  const month = calendar ?? buildMonth(new Date());
-  const rowCount = Math.ceil(month.cells.length / 7);
-
   return (
     <div className="flex h-full shrink-0 flex-col items-start overflow-hidden rounded-2xl border border-line bg-card p-6">
       <div className="flex h-[274px] w-[595px] flex-col overflow-hidden rounded-md border border-line bg-paper">
@@ -105,7 +63,7 @@ export function CalendarCard({ calendar }: CalendarCardProps) {
               <ChevronRight />
             </button>
             <button type="button" className="ml-1 flex items-center gap-1 text-sm font-medium">
-              {month.label}
+              {calendar?.label ?? "—"}
               <ChevronDown />
             </button>
           </div>
@@ -127,27 +85,38 @@ export function CalendarCard({ calendar }: CalendarCardProps) {
           ))}
         </div>
 
-        <div
-          className="grid flex-1 grid-cols-7"
-          style={{ gridTemplateRows: `repeat(${rowCount}, minmax(0, 1fr))` }}
-        >
-          {month.cells.map((cell, index) => {
-            const lastRowStart = (rowCount - 1) * 7;
-            return (
-              <div
-                key={index}
-                className={`border-r border-b border-line px-2 py-1 text-[11px] ${
-                  cell.muted ? "text-muted" : "text-ink"
-                } ${index % 7 === 6 ? "border-r-0" : ""} ${
-                  index >= lastRowStart ? "border-b-0" : ""
-                }`}
-              >
-                {cell.prefix ?? cell.day}
-              </div>
-            );
-          })}
-        </div>
+        {calendar ? (
+          <CalendarGrid month={calendar} />
+        ) : (
+          <div className="flex flex-1 items-center justify-center text-sm text-muted">
+            No calendar data yet
+          </div>
+        )}
       </div>
+    </div>
+  );
+}
+
+function CalendarGrid({ month }: { month: CalendarMonth }) {
+  const rowCount = Math.ceil(month.cells.length / 7);
+  const lastRowStart = (rowCount - 1) * 7;
+  return (
+    <div
+      className="grid flex-1 grid-cols-7"
+      style={{ gridTemplateRows: `repeat(${rowCount}, minmax(0, 1fr))` }}
+    >
+      {month.cells.map((cell, index) => (
+        <div
+          key={index}
+          className={`border-r border-b border-line px-2 py-1 text-[11px] ${
+            cell.muted ? "text-muted" : "text-ink"
+          } ${index % 7 === 6 ? "border-r-0" : ""} ${
+            index >= lastRowStart ? "border-b-0" : ""
+          }`}
+        >
+          {cell.prefix ?? cell.day}
+        </div>
+      ))}
     </div>
   );
 }

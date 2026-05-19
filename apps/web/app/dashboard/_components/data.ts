@@ -44,10 +44,10 @@ export type ContentRow = {
   audio: string;
   datePost: string;
   caption: string;
-  views: string;
-  likes: string;
-  comments: string;
-  shares: string;
+  views: number | null;
+  likes: number | null;
+  comments: number | null;
+  shares: number | null;
   media: string;
 };
 
