@@ -6,7 +6,10 @@ COPY . .
 
 RUN corepack enable
 RUN pnpm install --frozen-lockfile
+RUN pnpm --filter worker build
 
 WORKDIR /app/apps/worker
 
-CMD ["pnpm", "dev"]
+ENV NODE_ENV=production
+
+CMD ["pnpm", "start"]

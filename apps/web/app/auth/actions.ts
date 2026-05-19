@@ -15,6 +15,48 @@ function hasSupabaseEnv() {
   );
 }
 
+function normalizeSiteUrl(value: string | null | undefined) {
+  if (!value) return null;
+
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "http:" && url.protocol !== "https:") {
+      return null;
+    }
+
+    url.pathname = "";
+    url.search = "";
+    url.hash = "";
+    return url.toString().replace(/\/$/, "");
+  } catch {
+    return null;
+  }
+}
+
+function missingSiteUrlMessage() {
+  return "Site URL configuration is required for email redirects.";
+}
+
+async function resolveSiteUrl() {
+  const configuredSiteUrl = normalizeSiteUrl(process.env.NEXT_PUBLIC_SITE_URL);
+  if (configuredSiteUrl) return configuredSiteUrl;
+
+  if (process.env.NODE_ENV === "production") {
+    return null;
+  }
+
+  const headersList = await headers();
+  const origin = normalizeSiteUrl(headersList.get("origin"));
+  if (origin) return origin;
+
+  const host = headersList.get("host");
+  const proto = headersList.get("x-forwarded-proto") ?? "http";
+  return (
+    normalizeSiteUrl(host ? `${proto}://${host}` : null) ??
+    "http://localhost:3000"
+  );
+}
+
 export async function signIn(formData: FormData) {
   if (!hasSupabaseEnv()) {
     return redirectWithMessage("/", "Supabase configuration is incomplete.");
@@ -66,6 +108,9 @@ export async function signUp(formData: FormData) {
   }
 
   const siteUrl = await resolveSiteUrl();
+  if (!siteUrl) {
+    return redirectWithMessage("/", missingSiteUrlMessage());
+  }
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signUp({
@@ -93,19 +138,6 @@ export async function signOut() {
   return redirect("/");
 }
 
-async function resolveSiteUrl() {
-  const headersList = await headers();
-  const origin = headersList.get("origin");
-  const forwardedHost = headersList.get("x-forwarded-host");
-  const forwardedProto = headersList.get("x-forwarded-proto") ?? "https";
-  return (
-    process.env.NEXT_PUBLIC_SITE_URL ??
-    (forwardedHost ? `${forwardedProto}://${forwardedHost}` : null) ??
-    origin ??
-    "http://localhost:3000"
-  );
-}
-
 export async function signInWithMagicLink(formData: FormData) {
   if (!hasSupabaseEnv()) {
     return redirectWithMessage("/", "Supabase configuration is incomplete.");
@@ -117,6 +149,10 @@ export async function signInWithMagicLink(formData: FormData) {
   }
 
   const siteUrl = await resolveSiteUrl();
+  if (!siteUrl) {
+    return redirectWithMessage("/", missingSiteUrlMessage());
+  }
+
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithOtp({
     email,
@@ -147,6 +183,13 @@ export async function requestPasswordReset(formData: FormData) {
   }
 
   const siteUrl = await resolveSiteUrl();
+  if (!siteUrl) {
+    return redirectWithMessage(
+      "/auth/forgot-password",
+      missingSiteUrlMessage(),
+    );
+  }
+
   const supabase = await createClient();
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${siteUrl}/auth/callback?next=/auth/reset-password`,

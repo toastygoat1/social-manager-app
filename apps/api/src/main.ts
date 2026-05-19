@@ -6,6 +6,22 @@ import {
 } from '@nestjs/platform-fastify';
 import { AppModule } from './app.module.js';
 
+function resolveAllowedOrigins() {
+  const configuredOrigins = process.env.WEB_ORIGIN?.split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+  if (configuredOrigins?.length) {
+    return configuredOrigins;
+  }
+
+  if (process.env.NODE_ENV === 'production') {
+    return false;
+  }
+
+  return ['http://localhost:3000', 'http://127.0.0.1:3000'];
+}
+
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
@@ -21,9 +37,8 @@ async function bootstrap() {
     }),
   );
 
-  const webOrigin = process.env.WEB_ORIGIN;
   app.enableCors({
-    origin: webOrigin ? webOrigin.split(',').map((o) => o.trim()) : true,
+    origin: resolveAllowedOrigins(),
     credentials: true,
   });
 
