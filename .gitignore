@@ -16,3 +16,5 @@ turbo
 
 .DS_Store
 Thumbs.db
+
+.claude/
