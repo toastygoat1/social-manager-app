@@ -9,260 +9,6 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-model User {
-  id                String             @id
-  email             String             @unique
-  fullName          String?            @map("full_name")
-  createdAt         DateTime           @default(now()) @map("created_at")
-  updatedAt         DateTime           @updatedAt @map("updated_at")
-  aiSettings        AiSettings?
-  chatbotSessions   ChatbotSession[]
-  instagramAccounts InstagramAccount[]
-  mediaAssets       MediaAsset[]
-
-  @@map("users")
-}
-
-model InstagramAccount {
-  id                   String               @id @default(uuid())
-  userId               String               @map("user_id")
-  igUserId             String               @unique @map("ig_user_id")
-  username             String
-  accountType          InstagramAccountType @map("account_type")
-  accessTokenEncrypted String               @map("access_token_encrypted")
-  pageId               String?              @map("page_id")
-  isActive             Boolean              @default(true) @map("is_active")
-  tokenExpiresAt       DateTime?            @map("token_expires_at")
-  connectedAt          DateTime             @default(now()) @map("connected_at")
-  createdAt            DateTime             @default(now()) @map("created_at")
-  updatedAt            DateTime             @updatedAt @map("updated_at")
-  analyticsSnapshots   AnalyticsSnapshot[]
-  chatbotSessions      ChatbotSession[]
-  contentPosts         ContentPost[]
-  dmConversations      DmConversation[]
-  user                 User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  webhookEvents        WebhookEvent[]
-
-  @@index([userId])
-  @@index([isActive])
-  @@map("instagram_accounts")
-}
-
-model MediaAsset {
-  id              String      @id @default(uuid())
-  userId          String      @map("user_id")
-  storagePath     String      @map("storage_path")
-  fileType        MediaType   @map("file_type")
-  mimeType        String      @map("mime_type")
-  fileSize        Int         @map("file_size")
-  width           Int?
-  height          Int?
-  durationSeconds Int?        @map("duration_seconds")
-  createdAt       DateTime    @default(now()) @map("created_at")
-  updatedAt       DateTime    @updatedAt @map("updated_at")
-  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  postMedia       PostMedia[]
-
-  @@index([userId])
-  @@map("media_assets")
-}
-
-model ContentPost {
-  id                 String           @id @default(uuid())
-  instagramAccountId String           @map("instagram_account_id")
-  title              String?
-  caption            String?
-  postType           PostType         @map("post_type")
-  status             PostStatus       @default(DRAFT)
-  scheduledFor       DateTime?        @map("scheduled_for")
-  publishedAt        DateTime?        @map("published_at")
-  igMediaId          String?          @map("ig_media_id")
-  igMediaContainerId String?          @map("ig_media_container_id")
-  igPermalink        String?          @map("ig_permalink")
-  isAiGenerated      Boolean          @default(false) @map("is_ai_generated")
-  createdAt          DateTime         @default(now()) @map("created_at")
-  updatedAt          DateTime         @updatedAt @map("updated_at")
-  instagramAccount   InstagramAccount @relation(fields: [instagramAccountId], references: [id], onDelete: Cascade)
-  postAnalytics      PostAnalytics[]
-  postMedia          PostMedia[]
-  publishAttempts    PublishAttempt[]
-
-  @@index([instagramAccountId])
-  @@index([status])
-  @@index([scheduledFor])
-  @@index([instagramAccountId, status, scheduledFor])
-  @@map("content_posts")
-}
-
-model PostMedia {
-  id            String      @id @default(uuid())
-  contentPostId String      @map("content_post_id")
-  mediaAssetId  String      @map("media_asset_id")
-  sortOrder     Int         @default(0) @map("sort_order")
-  contentPost   ContentPost @relation(fields: [contentPostId], references: [id], onDelete: Cascade)
-  mediaAsset    MediaAsset  @relation(fields: [mediaAssetId], references: [id], onDelete: Cascade)
-
-  @@unique([contentPostId, sortOrder])
-  @@unique([contentPostId, mediaAssetId])
-  @@index([mediaAssetId])
-  @@map("post_media")
-}
-
-model PublishAttempt {
-  id            String               @id @default(uuid())
-  contentPostId String               @map("content_post_id")
-  trigger       PublishTrigger
-  status        PublishAttemptStatus @default(STARTED)
-  attemptNumber Int                  @map("attempt_number")
-  startedAt     DateTime             @default(now()) @map("started_at")
-  finishedAt    DateTime?            @map("finished_at")
-  errorCode     String?              @map("error_code")
-  errorMessage  String?              @map("error_message")
-  responseJson  Json?                @map("response_json")
-  jobReference  String?              @map("job_reference")
-  createdAt     DateTime             @default(now()) @map("created_at")
-  contentPost   ContentPost          @relation(fields: [contentPostId], references: [id], onDelete: Cascade)
-
-  @@unique([contentPostId, attemptNumber])
-  @@index([contentPostId])
-  @@index([status])
-  @@index([startedAt])
-  @@map("publish_attempts")
-}
-
-model WebhookEvent {
-  id                 String                  @id @default(uuid())
-  instagramAccountId String?                 @map("instagram_account_id")
-  source             WebhookSource
-  eventType          String                  @map("event_type")
-  externalEventId    String?                 @map("external_event_id")
-  payload            Json
-  processingStatus   WebhookProcessingStatus @default(RECEIVED) @map("processing_status")
-  receivedAt         DateTime                @default(now()) @map("received_at")
-  processedAt        DateTime?               @map("processed_at")
-  errorMessage       String?                 @map("error_message")
-  instagramAccount   InstagramAccount?       @relation(fields: [instagramAccountId], references: [id], onDelete: SetNull)
-
-  @@index([instagramAccountId])
-  @@index([source, eventType])
-  @@index([processingStatus])
-  @@index([receivedAt])
-  @@map("webhook_events")
-}
-
-model DmConversation {
-  id                  String           @id @default(uuid())
-  instagramAccountId  String           @map("instagram_account_id")
-  igConversationId    String           @unique @map("ig_conversation_id")
-  participantIgId     String           @map("participant_ig_id")
-  participantUsername String?          @map("participant_username")
-  lastMessageAt       DateTime?        @map("last_message_at")
-  createdAt           DateTime         @default(now()) @map("created_at")
-  updatedAt           DateTime         @updatedAt @map("updated_at")
-  instagramAccount    InstagramAccount @relation(fields: [instagramAccountId], references: [id], onDelete: Cascade)
-  dmMessages          DmMessage[]
-
-  @@index([instagramAccountId])
-  @@index([lastMessageAt])
-  @@map("dm_conversations")
-}
-
-model DmMessage {
-  id             String         @id @default(uuid())
-  conversationId String         @map("conversation_id")
-  igMessageId    String         @unique @map("ig_message_id")
-  senderType     DmSenderType   @map("sender_type")
-  messageText    String?        @map("message_text")
-  sentAt         DateTime       @map("sent_at")
-  createdAt      DateTime       @default(now()) @map("created_at")
-  conversation   DmConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-
-  @@index([conversationId])
-  @@index([sentAt])
-  @@map("dm_messages")
-}
-
-model AnalyticsSnapshot {
-  id                 String           @id @default(uuid())
-  instagramAccountId String           @map("instagram_account_id")
-  snapshotDate       DateTime         @map("snapshot_date") @db.Date
-  followersCount     Int              @map("followers_count")
-  followingCount     Int              @map("following_count")
-  mediaCount         Int              @map("media_count")
-  reach              Int?
-  impressions        Int?
-  profileViews       Int?             @map("profile_views")
-  createdAt          DateTime         @default(now()) @map("created_at")
-  instagramAccount   InstagramAccount @relation(fields: [instagramAccountId], references: [id], onDelete: Cascade)
-
-  @@unique([instagramAccountId, snapshotDate])
-  @@index([snapshotDate])
-  @@map("analytics_snapshots")
-}
-
-model PostAnalytics {
-  id            String      @id @default(uuid())
-  contentPostId String      @map("content_post_id")
-  fetchedAt     DateTime    @default(now()) @map("fetched_at")
-  likeCount     Int?        @map("like_count")
-  commentsCount Int?        @map("comments_count")
-  sharesCount   Int?        @map("shares_count")
-  savesCount    Int?        @map("saves_count")
-  reach         Int?
-  impressions   Int?
-  engagement    Int?
-  contentPost   ContentPost @relation(fields: [contentPostId], references: [id], onDelete: Cascade)
-
-  @@unique([contentPostId, fetchedAt])
-  @@index([contentPostId])
-  @@index([fetchedAt])
-  @@map("post_analytics")
-}
-
-model AiSettings {
-  id                 String   @id @default(uuid())
-  userId             String   @unique @map("user_id")
-  preferredTone      String?  @map("preferred_tone")
-  preferredLanguage  String   @default("en") @map("preferred_language")
-  customInstructions String?  @map("custom_instructions")
-  createdAt          DateTime @default(now()) @map("created_at")
-  updatedAt          DateTime @updatedAt @map("updated_at")
-  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("ai_settings")
-}
-
-model ChatbotSession {
-  id                 String            @id @default(uuid())
-  userId             String            @map("user_id")
-  instagramAccountId String?           @map("instagram_account_id")
-  title              String?
-  startedAt          DateTime          @default(now()) @map("started_at")
-  lastActiveAt       DateTime          @default(now()) @map("last_active_at")
-  messages           ChatbotMessage[]
-  instagramAccount   InstagramAccount? @relation(fields: [instagramAccountId], references: [id], onDelete: SetNull)
-  user               User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([instagramAccountId])
-  @@index([lastActiveAt])
-  @@map("chatbot_sessions")
-}
-
-model ChatbotMessage {
-  id         String             @id @default(uuid())
-  sessionId  String             @map("session_id")
-  role       ChatbotMessageRole
-  content    String
-  tokensUsed Int?               @map("tokens_used")
-  createdAt  DateTime           @default(now()) @map("created_at")
-  session    ChatbotSession     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-
-  @@index([sessionId])
-  @@index([createdAt])
-  @@map("chatbot_messages")
-}
-
 enum InstagramAccountType {
   PERSONAL
   BUSINESS
@@ -319,4 +65,272 @@ enum DmSenderType {
 enum ChatbotMessageRole {
   USER
   ASSISTANT
+}
+
+model User {
+  id        String   @id
+  email     String   @unique
+  fullName  String?  @map("full_name")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  instagramAccounts InstagramAccount[]
+  mediaAssets       MediaAsset[]
+  aiSettings        AiSettings?
+  chatbotSessions   ChatbotSession[]
+
+  @@map("users")
+}
+
+model InstagramAccount {
+  id                   String               @id @default(uuid())
+  userId               String               @map("user_id")
+  igUserId             String               @unique @map("ig_user_id")
+  username             String
+  accountType          InstagramAccountType @map("account_type")
+  accessTokenEncrypted String               @map("access_token_encrypted")
+  pageId               String?              @map("page_id")
+  isActive             Boolean              @default(true) @map("is_active")
+  tokenExpiresAt       DateTime?            @map("token_expires_at")
+  connectedAt          DateTime             @default(now()) @map("connected_at")
+  createdAt            DateTime             @default(now()) @map("created_at")
+  updatedAt            DateTime             @updatedAt @map("updated_at")
+
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contentPosts       ContentPost[]
+  dmConversations    DmConversation[]
+  analyticsSnapshots AnalyticsSnapshot[]
+  chatbotSessions    ChatbotSession[]
+  webhookEvents      WebhookEvent[]
+
+  @@index([userId])
+  @@index([isActive])
+  @@map("instagram_accounts")
+}
+
+model MediaAsset {
+  id              String    @id @default(uuid())
+  userId          String    @map("user_id")
+  storagePath     String    @map("storage_path")
+  fileType        MediaType @map("file_type")
+  mimeType        String    @map("mime_type")
+  fileSize        Int       @map("file_size")
+  width           Int?
+  height          Int?
+  durationSeconds Int?      @map("duration_seconds")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  postMedia PostMedia[]
+
+  @@index([userId])
+  @@map("media_assets")
+}
+
+model ContentPost {
+  id                 String     @id @default(uuid())
+  instagramAccountId String     @map("instagram_account_id")
+  title              String?
+  caption            String?
+  postType           PostType   @map("post_type")
+  status             PostStatus @default(DRAFT)
+  scheduledFor       DateTime?  @map("scheduled_for")
+  publishedAt        DateTime?  @map("published_at")
+  igMediaId          String?    @map("ig_media_id")
+  igMediaContainerId String?    @map("ig_media_container_id")
+  igPermalink        String?    @map("ig_permalink")
+  isAiGenerated      Boolean    @default(false) @map("is_ai_generated")
+  createdAt          DateTime   @default(now()) @map("created_at")
+  updatedAt          DateTime   @updatedAt @map("updated_at")
+
+  instagramAccount InstagramAccount @relation(fields: [instagramAccountId], references: [id], onDelete: Cascade)
+  postMedia        PostMedia[]
+  postAnalytics    PostAnalytics[]
+  publishAttempts  PublishAttempt[]
+
+  @@index([instagramAccountId])
+  @@index([status])
+  @@index([scheduledFor])
+  @@index([instagramAccountId, status, scheduledFor])
+  @@map("content_posts")
+}
+
+model PostMedia {
+  id            String @id @default(uuid())
+  contentPostId String @map("content_post_id")
+  mediaAssetId  String @map("media_asset_id")
+  sortOrder     Int    @default(0) @map("sort_order")
+
+  contentPost ContentPost @relation(fields: [contentPostId], references: [id], onDelete: Cascade)
+  mediaAsset  MediaAsset  @relation(fields: [mediaAssetId], references: [id], onDelete: Cascade)
+
+  @@unique([contentPostId, sortOrder])
+  @@unique([contentPostId, mediaAssetId])
+  @@index([mediaAssetId])
+  @@map("post_media")
+}
+
+model PublishAttempt {
+  id            String               @id @default(uuid())
+  contentPostId String               @map("content_post_id")
+  trigger       PublishTrigger
+  status        PublishAttemptStatus @default(STARTED)
+  attemptNumber Int                  @map("attempt_number")
+  startedAt     DateTime             @default(now()) @map("started_at")
+  finishedAt    DateTime?            @map("finished_at")
+  errorCode     String?              @map("error_code")
+  errorMessage  String?              @map("error_message")
+  responseJson  Json?                @map("response_json")
+  jobReference  String?              @map("job_reference")
+  createdAt     DateTime             @default(now()) @map("created_at")
+
+  contentPost ContentPost @relation(fields: [contentPostId], references: [id], onDelete: Cascade)
+
+  @@unique([contentPostId, attemptNumber])
+  @@index([contentPostId])
+  @@index([status])
+  @@index([startedAt])
+  @@map("publish_attempts")
+}
+
+model WebhookEvent {
+  id                 String                  @id @default(uuid())
+  instagramAccountId String?                 @map("instagram_account_id")
+  source             WebhookSource
+  eventType          String                  @map("event_type")
+  externalEventId    String?                 @map("external_event_id")
+  payload            Json
+  processingStatus   WebhookProcessingStatus @default(RECEIVED) @map("processing_status")
+  receivedAt         DateTime                @default(now()) @map("received_at")
+  processedAt        DateTime?               @map("processed_at")
+  errorMessage       String?                 @map("error_message")
+
+  instagramAccount InstagramAccount? @relation(fields: [instagramAccountId], references: [id], onDelete: SetNull)
+
+  @@index([instagramAccountId])
+  @@index([source, eventType])
+  @@index([processingStatus])
+  @@index([receivedAt])
+  @@map("webhook_events")
+}
+
+model DmConversation {
+  id                  String    @id @default(uuid())
+  instagramAccountId  String    @map("instagram_account_id")
+  igConversationId    String    @unique @map("ig_conversation_id")
+  participantIgId     String    @map("participant_ig_id")
+  participantUsername String?   @map("participant_username")
+  lastMessageAt       DateTime? @map("last_message_at")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  instagramAccount InstagramAccount @relation(fields: [instagramAccountId], references: [id], onDelete: Cascade)
+  dmMessages       DmMessage[]
+
+  @@index([instagramAccountId])
+  @@index([lastMessageAt])
+  @@map("dm_conversations")
+}
+
+model DmMessage {
+  id             String       @id @default(uuid())
+  conversationId String       @map("conversation_id")
+  igMessageId    String       @unique @map("ig_message_id")
+  senderType     DmSenderType @map("sender_type")
+  messageText    String?      @map("message_text")
+  sentAt         DateTime     @map("sent_at")
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  conversation DmConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([sentAt])
+  @@map("dm_messages")
+}
+
+model AnalyticsSnapshot {
+  id                 String   @id @default(uuid())
+  instagramAccountId String   @map("instagram_account_id")
+  snapshotDate       DateTime @map("snapshot_date") @db.Date
+  followersCount     Int      @map("followers_count")
+  followingCount     Int      @map("following_count")
+  mediaCount         Int      @map("media_count")
+  reach              Int?
+  impressions        Int?
+  profileViews       Int?     @map("profile_views")
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  instagramAccount InstagramAccount @relation(fields: [instagramAccountId], references: [id], onDelete: Cascade)
+
+  @@unique([instagramAccountId, snapshotDate])
+  @@index([snapshotDate])
+  @@map("analytics_snapshots")
+}
+
+model PostAnalytics {
+  id            String   @id @default(uuid())
+  contentPostId String   @map("content_post_id")
+  fetchedAt     DateTime @default(now()) @map("fetched_at")
+  likeCount     Int?     @map("like_count")
+  commentsCount Int?     @map("comments_count")
+  sharesCount   Int?     @map("shares_count")
+  savesCount    Int?     @map("saves_count")
+  reach         Int?
+  impressions   Int?
+  engagement    Int?
+
+  contentPost ContentPost @relation(fields: [contentPostId], references: [id], onDelete: Cascade)
+
+  @@unique([contentPostId, fetchedAt])
+  @@index([contentPostId])
+  @@index([fetchedAt])
+  @@map("post_analytics")
+}
+
+model AiSettings {
+  id                 String   @id @default(uuid())
+  userId             String   @unique @map("user_id")
+  preferredTone      String?  @map("preferred_tone")
+  preferredLanguage  String   @default("en") @map("preferred_language")
+  customInstructions String?  @map("custom_instructions")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("ai_settings")
+}
+
+model ChatbotSession {
+  id                 String    @id @default(uuid())
+  userId             String    @map("user_id")
+  instagramAccountId String?   @map("instagram_account_id")
+  title              String?
+  startedAt          DateTime  @default(now()) @map("started_at")
+  lastActiveAt       DateTime  @default(now()) @map("last_active_at")
+
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  instagramAccount InstagramAccount? @relation(fields: [instagramAccountId], references: [id], onDelete: SetNull)
+  messages         ChatbotMessage[]
+
+  @@index([userId])
+  @@index([instagramAccountId])
+  @@index([lastActiveAt])
+  @@map("chatbot_sessions")
+}
+
+model ChatbotMessage {
+  id         String             @id @default(uuid())
+  sessionId  String             @map("session_id")
+  role       ChatbotMessageRole
+  content    String
+  tokensUsed Int?               @map("tokens_used")
+  createdAt  DateTime           @default(now()) @map("created_at")
+
+  session ChatbotSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([createdAt])
+  @@map("chatbot_messages")
 }

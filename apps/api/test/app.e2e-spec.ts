@@ -1,16 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import { AppController } from '../src/app.controller.js';
-import { AppService } from '../src/app.service.js';
+import { App } from 'supertest/types';
+import { AppModule } from './../src/app.module';
 
 describe('AppController (e2e)', () => {
-  let app: INestApplication;
+  let app: INestApplication<App>;
 
   beforeEach(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
-      controllers: [AppController],
-      providers: [AppService],
+      imports: [AppModule],
     }).compile();
 
     app = moduleFixture.createNestApplication();
@@ -18,19 +17,10 @@ describe('AppController (e2e)', () => {
   });
 
   it('/ (GET)', () => {
-    const httpServer = app.getHttpServer() as Parameters<typeof request>[0];
-
-    return request(httpServer)
+    return request(app.getHttpServer())
       .get('/')
       .expect(200)
-      .expect(({ body }) => {
-        expect(body).toMatchObject({
-          id: 'post_1',
-          content: 'First scheduled post',
-          status: 'draft',
-          scheduledAt: null,
-        });
-      });
+      .expect('Hello World!');
   });
 
   afterEach(async () => {
