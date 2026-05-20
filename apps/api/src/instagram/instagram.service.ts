@@ -86,7 +86,7 @@ export class InstagramService {
   }
 
   createOAuthUrl(userId: string) {
-    const appId = this.getRequiredConfig('META_APP_ID');
+    const appId = this.getInstagramAppId();
     const state = this.signOAuthState({
       userId,
       issuedAt: Date.now(),
@@ -206,8 +206,8 @@ export class InstagramService {
     return this.requestInstagramForm<InstagramTokenResponse>(
       new URL('https://api.instagram.com/oauth/access_token'),
       {
-        client_id: this.getRequiredConfig('META_APP_ID'),
-        client_secret: this.getRequiredConfig('META_APP_SECRET'),
+        client_id: this.getInstagramAppId(),
+        client_secret: this.getInstagramAppSecret(),
         grant_type: 'authorization_code',
         redirect_uri: this.getRedirectUri(),
         code,
@@ -218,10 +218,7 @@ export class InstagramService {
   private async exchangeForLongLivedToken(accessToken: string) {
     const url = new URL('https://graph.instagram.com/access_token');
     url.searchParams.set('grant_type', 'ig_exchange_token');
-    url.searchParams.set(
-      'client_secret',
-      this.getRequiredConfig('META_APP_SECRET'),
-    );
+    url.searchParams.set('client_secret', this.getInstagramAppSecret());
     url.searchParams.set('access_token', accessToken);
 
     return this.requestGraph<InstagramTokenResponse>(url);
@@ -342,6 +339,34 @@ export class InstagramService {
     return value;
   }
 
+  private getInstagramAppId() {
+    const value =
+      this.config.get<string>('META_INSTAGRAM_APP_ID')?.trim() ||
+      this.config.get<string>('META_APP_ID')?.trim();
+
+    if (!value) {
+      throw new InternalServerErrorException(
+        'META_INSTAGRAM_APP_ID is required to connect Instagram.',
+      );
+    }
+
+    return value;
+  }
+
+  private getInstagramAppSecret() {
+    const value =
+      this.config.get<string>('META_INSTAGRAM_APP_SECRET')?.trim() ||
+      this.config.get<string>('META_APP_SECRET')?.trim();
+
+    if (!value) {
+      throw new InternalServerErrorException(
+        'META_INSTAGRAM_APP_SECRET is required to connect Instagram.',
+      );
+    }
+
+    return value;
+  }
+
   private signOAuthState(payload: OAuthStatePayload) {
     const encodedPayload = Buffer.from(JSON.stringify(payload)).toString(
       'base64url',
@@ -397,6 +422,7 @@ export class InstagramService {
     const secret =
       this.config.get<string>('META_OAUTH_STATE_SECRET')?.trim() ||
       this.config.get<string>('ENCRYPTION_KEY')?.trim() ||
+      this.config.get<string>('META_INSTAGRAM_APP_SECRET')?.trim() ||
       this.config.get<string>('META_APP_SECRET')?.trim();
 
     if (!secret) {

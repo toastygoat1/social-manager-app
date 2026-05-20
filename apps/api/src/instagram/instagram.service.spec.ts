@@ -49,8 +49,8 @@ describe('InstagramService', () => {
       get: jest.fn((key: string) => {
         const values: Record<string, string> = {
           ENCRYPTION_KEY: 'a'.repeat(64),
-          META_APP_ID: 'meta-app-id',
-          META_APP_SECRET: 'meta-app-secret',
+          META_INSTAGRAM_APP_ID: 'instagram-app-id',
+          META_INSTAGRAM_APP_SECRET: 'instagram-app-secret',
           WEB_ORIGIN: 'http://localhost:3000',
         };
 
@@ -132,7 +132,7 @@ describe('InstagramService', () => {
 
     expect(url.origin).toBe('https://www.instagram.com');
     expect(url.pathname).toBe('/oauth/authorize');
-    expect(url.searchParams.get('client_id')).toBe('meta-app-id');
+    expect(url.searchParams.get('client_id')).toBe('instagram-app-id');
     expect(url.searchParams.get('redirect_uri')).toBe(
       'http://localhost:3000/dashboard/instagram/callback',
     );
