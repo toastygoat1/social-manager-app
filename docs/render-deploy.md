@@ -13,13 +13,13 @@ Create a Render Web Service from the repo.
 - Build Command:
 
 ```sh
-corepack enable && pnpm install --frozen-lockfile && pnpm --filter api build
+pnpm install --frozen-lockfile && pnpm --filter api build
 ```
 
 - Pre-Deploy Command:
 
 ```sh
-pnpm --filter @social-manager/database prisma:migrate:deploy
+pnpm --dir packages/database exec prisma migrate deploy
 ```
 
 - Start Command:
@@ -65,7 +65,7 @@ Create another Render Web Service from the same repo.
 - Build Command:
 
 ```sh
-corepack enable && pnpm install --frozen-lockfile && pnpm --filter web build
+pnpm install --frozen-lockfile && pnpm --filter web build
 ```
 
 - Start Command:
