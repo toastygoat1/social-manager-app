@@ -19,8 +19,21 @@ model User {
   chatbotSessions   ChatbotSession[]
   instagramAccounts InstagramAccount[]
   mediaAssets       MediaAsset[]
+  googleIntegration GoogleIntegration?
 
   @@map("users")
+}
+
+model GoogleIntegration {
+  id                    String   @id @default(uuid())
+  userId                String   @unique @map("user_id")
+  refreshTokenEncrypted String   @map("refresh_token_encrypted")
+  scope                 String
+  connectedAt           DateTime @default(now()) @map("connected_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("google_integrations")
 }
 
 model InstagramAccount {

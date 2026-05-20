@@ -1,4 +1,5 @@
 import type { CalendarMonth } from "./data";
+import { ConnectGoogleButton } from "./ConnectGoogleButton";
 
 const WEEKDAYS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
 
@@ -88,8 +89,9 @@ export function CalendarCard({ calendar }: CalendarCardProps) {
         {calendar ? (
           <CalendarGrid month={calendar} />
         ) : (
-          <div className="flex flex-1 items-center justify-center text-sm text-muted">
-            No calendar data yet
+          <div className="flex flex-1 flex-col items-center justify-center gap-2 text-sm text-muted">
+            <span>No calendar connected</span>
+            <ConnectGoogleButton />
           </div>
         )}
       </div>

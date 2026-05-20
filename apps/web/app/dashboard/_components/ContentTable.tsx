@@ -1,9 +1,6 @@
 import { AccountChip } from "./AccountChip";
 import type { ContentRow } from "./data";
-
-function formatNumber(value: number | null): string {
-  return value === null ? "—" : value.toLocaleString("id-ID");
-}
+import { formatNumber } from "@/lib/format";
 
 const COLUMNS: { label: string; width: number }[] = [
   { label: "Accounts", width: 300 },

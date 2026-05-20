@@ -1,5 +1,6 @@
 import { ArrowDropDown, ArrowDropUp } from "./icons";
 import type { StatTrend } from "./data";
+import { formatNumber } from "@/lib/format";
 
 type StatCardProps = {
   title: string;
@@ -8,12 +9,6 @@ type StatCardProps = {
   trend: StatTrend | null;
   trendLabel?: string;
 };
-
-function formatNumber(value: number | string | null): string {
-  if (value === null || value === undefined) return "—";
-  if (typeof value === "string") return value;
-  return value.toLocaleString("id-ID");
-}
 
 export function StatCard({ title, value, delta, trend, trendLabel }: StatCardProps) {
   const tone = trend === "up" ? "text-success border-success" : "text-danger border-danger";
