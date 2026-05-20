@@ -19,7 +19,7 @@ corepack enable && pnpm install --frozen-lockfile && pnpm --filter api build
 - Pre-Deploy Command:
 
 ```sh
-pnpm --dir packages/database exec prisma migrate deploy
+pnpm --filter @social-manager/database prisma:migrate:deploy
 ```
 
 - Start Command:
