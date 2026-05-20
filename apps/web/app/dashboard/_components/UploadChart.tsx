@@ -1,19 +1,43 @@
 import type { ChartBar } from "./data";
 
-const Y_TICKS = [100, 80, 60, 40, 20];
-const MAX = 100;
+const TICK_COUNT = 5;
+const CHART_HEIGHT_PX = 188;
 
 type UploadChartProps = {
   bars: ChartBar[];
 };
 
+function computeAxis(bars: ChartBar[]): { max: number; ticks: number[] } {
+  const peak = bars.reduce((m, b) => Math.max(m, b.value), 0);
+  if (peak === 0) {
+    const fallback = 100;
+    return {
+      max: fallback,
+      ticks: Array.from(
+        { length: TICK_COUNT },
+        (_, i) => Math.round((fallback * (TICK_COUNT - i)) / TICK_COUNT),
+      ),
+    };
+  }
+  const magnitude = Math.pow(10, Math.floor(Math.log10(peak)));
+  const niceMax = Math.ceil(peak / magnitude) * magnitude;
+  return {
+    max: niceMax,
+    ticks: Array.from(
+      { length: TICK_COUNT },
+      (_, i) => Math.round((niceMax * (TICK_COUNT - i)) / TICK_COUNT),
+    ),
+  };
+}
+
 export function UploadChart({ bars }: UploadChartProps) {
+  const { max, ticks } = computeAxis(bars);
   return (
     <div className="flex h-full shrink-0 flex-col gap-2 overflow-hidden rounded-2xl border border-line bg-card p-6">
       <h3 className="text-xl font-medium leading-none text-ink">Upload Chart</h3>
       <div className="flex min-h-0 flex-1 items-stretch">
         <div className="flex h-full flex-col items-end justify-end gap-6 pb-12 text-xs text-ink">
-          {Y_TICKS.map((t) => (
+          {ticks.map((t) => (
             <span key={t}>{t}</span>
           ))}
         </div>
@@ -31,7 +55,7 @@ export function UploadChart({ bars }: UploadChartProps) {
                 <div
                   className="w-10 rounded-lg"
                   style={{
-                    height: `${(bar.value / MAX) * 188}px`,
+                    height: `${(bar.value / max) * CHART_HEIGHT_PX}px`,
                     background: bar.color,
                   }}
                 />
