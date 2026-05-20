@@ -1,5 +1,4 @@
 import { CheckCircle2, Pencil, TriangleAlert, User } from "lucide-react";
-import type { ReactNode } from "react";
 import {
   WEEK_DAYS,
   WEEK_EVENTS,
@@ -7,6 +6,9 @@ import {
   type EventStatus,
   type WeekEvent,
 } from "./data";
+
+const GRID_COLS = "grid-cols-[72px_repeat(7,minmax(0,1fr))]";
+const ROW_MIN_HEIGHT = "min-h-[140px]";
 
 const STATUS_STYLE: Record<
   EventStatus,
@@ -31,6 +33,12 @@ const STATUS_STYLE: Record<
     Icon: Pencil,
   },
 };
+
+function formatHour(hour: number): string {
+  const period = hour >= 12 ? "PM" : "AM";
+  const display = hour % 12 === 0 ? 12 : hour % 12;
+  return `${display} ${period}`;
+}
 
 function EventCard({ event }: { event: WeekEvent }) {
   const status = STATUS_STYLE[event.status];
@@ -76,50 +84,51 @@ function EventCard({ event }: { event: WeekEvent }) {
 export function WeeklyCalendar() {
   return (
     <div className="flex w-full flex-1 flex-col overflow-hidden rounded-2xl border border-line bg-paper">
-      <div className="grid grid-cols-[60px_repeat(7,minmax(0,1fr))] border-b border-line">
-        <div className="border-r border-line" />
-        {WEEK_DAYS.map((d) => (
-          <div
-            key={d.label}
-            className="flex flex-col items-center justify-center gap-0.5 border-r border-line py-3 last:border-r-0"
-          >
-            <span className="text-[11px] font-medium tracking-wider text-muted">
-              {d.label}
-            </span>
-            <span className="text-base font-semibold text-ink">{d.date}</span>
-          </div>
-        ))}
-      </div>
+      <div className="flex-1 overflow-y-auto">
+        <div
+          className={`sticky top-0 z-10 grid ${GRID_COLS} border-b border-line bg-paper`}
+        >
+          <div className="border-r border-line" />
+          {WEEK_DAYS.map((d) => (
+            <div
+              key={d.label}
+              className="flex flex-col items-center justify-center gap-0.5 border-r border-line py-3 last:border-r-0"
+            >
+              <span className="text-[11px] font-medium tracking-wider text-muted">
+                {d.label}
+              </span>
+              <span className="text-base font-semibold text-ink">{d.date}</span>
+            </div>
+          ))}
+        </div>
 
-      <div className="flex flex-1 flex-col overflow-y-auto">
-        {WEEK_HOURS.map((hour) => {
-          const cells: ReactNode[] = WEEK_DAYS.map((_, dayIdx) => {
-            const events = WEEK_EVENTS.filter(
-              (e) => e.day === dayIdx && e.hour === hour,
-            );
-            return (
-              <div
-                key={dayIdx}
-                className="flex h-[260px] flex-col gap-2 overflow-y-auto border-r border-b border-line p-2 last:border-r-0"
-              >
-                {events.map((e) => (
-                  <EventCard key={e.id} event={e} />
-                ))}
-              </div>
-            );
-          });
-          return (
+        <div className="flex flex-col">
+          {WEEK_HOURS.map((hour) => (
             <div
               key={hour}
-              className="grid h-[260px] shrink-0 grid-cols-[60px_repeat(7,minmax(0,1fr))]"
+              className={`grid ${GRID_COLS} ${ROW_MIN_HEIGHT} border-b border-line last:border-b-0`}
             >
-              <div className="border-r border-b border-line px-2 pt-2 text-xs font-medium text-muted">
-                1AM
+              <div className="flex items-start justify-end border-r border-line px-2 pt-2 text-xs font-medium text-muted">
+                {formatHour(hour)}
               </div>
-              {cells}
+              {WEEK_DAYS.map((_, dayIdx) => {
+                const events = WEEK_EVENTS.filter(
+                  (e) => e.day === dayIdx && e.hour === hour,
+                );
+                return (
+                  <div
+                    key={dayIdx}
+                    className="flex flex-col gap-2 overflow-y-auto border-r border-line p-2 transition-colors last:border-r-0 hover:bg-card/40"
+                  >
+                    {events.map((e) => (
+                      <EventCard key={e.id} event={e} />
+                    ))}
+                  </div>
+                );
+              })}
             </div>
-          );
-        })}
+          ))}
+        </div>
       </div>
     </div>
   );
