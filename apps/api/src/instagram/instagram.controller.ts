@@ -1,6 +1,9 @@
 import {
   Controller,
+  Delete,
   Get,
+  HttpCode,
+  Param,
   Post,
   Body,
   UseGuards,
@@ -28,6 +31,15 @@ export class InstagramController {
   @Get('accounts')
   async getAccounts(@Request() req: AuthedRequest) {
     return this.instagramService.getAccounts(req.user.userId);
+  }
+
+  @Delete('accounts/:accountId')
+  @HttpCode(204)
+  async removeAccount(
+    @Request() req: AuthedRequest,
+    @Param('accountId') accountId: string,
+  ) {
+    await this.instagramService.removeAccount(req.user.userId, accountId);
   }
 
   @Get('oauth/url')

@@ -3,6 +3,7 @@ import {
   ForbiddenException,
   Injectable,
   InternalServerErrorException,
+  NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
@@ -83,6 +84,23 @@ export class InstagramService {
       orderBy: { createdAt: 'desc' },
       select: SAFE_INSTAGRAM_ACCOUNT_SELECT,
     });
+  }
+
+  async removeAccount(userId: string, accountId: string) {
+    const result = await this.prisma.instagramAccount.updateMany({
+      where: {
+        id: accountId,
+        userId,
+        isActive: true,
+      },
+      data: {
+        isActive: false,
+      },
+    });
+
+    if (result.count === 0) {
+      throw new NotFoundException('Instagram account was not found.');
+    }
   }
 
   createOAuthUrl(userId: string) {

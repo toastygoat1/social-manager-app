@@ -41,6 +41,7 @@ export function AccountsList({
           accounts.map((acct) => (
             <AccountChip
               key={acct.id}
+              accountId={acct.id}
               name={acct.name}
               platform={acct.platform}
               avatarUrl={acct.avatarUrl}
