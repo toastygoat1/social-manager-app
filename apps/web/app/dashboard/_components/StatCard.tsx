@@ -18,6 +18,7 @@ function formatNumber(value: number | string | null): string {
 export function StatCard({ title, value, delta, trend, trendLabel }: StatCardProps) {
   const tone = trend === "up" ? "text-success border-success" : "text-danger border-danger";
   const labelTone = trend === "up" ? "text-success" : "text-danger";
+  const hasComparison = delta !== null && delta !== undefined;
   const computedLabel =
     trendLabel ??
     (trend === "up"
@@ -30,7 +31,7 @@ export function StatCard({ title, value, delta, trend, trendLabel }: StatCardPro
     <div className="flex flex-1 flex-col items-start justify-between overflow-hidden rounded-2xl border border-line bg-card p-6">
       <h3 className="text-xl font-medium leading-none text-ink">{title}</h3>
       <p className="text-4xl font-medium leading-none text-ink">{formatNumber(value)}</p>
-      {trend && delta !== null && delta !== undefined ? (
+      {trend && hasComparison ? (
         <div className="flex items-center justify-center gap-1">
           <span
             className={`flex items-center justify-center gap-px rounded-sm border-[0.5px] px-px text-xs ${tone}`}
@@ -43,6 +44,10 @@ export function StatCard({ title, value, delta, trend, trendLabel }: StatCardPro
             )}
           </span>
           <span className={`text-xs ${labelTone}`}>{computedLabel}</span>
+        </div>
+      ) : hasComparison ? (
+        <div className="flex items-center gap-1">
+          <span className="text-xs text-muted">No change from last month</span>
         </div>
       ) : (
         <div className="flex items-center gap-1">
