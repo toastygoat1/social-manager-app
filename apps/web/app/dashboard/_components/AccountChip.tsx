@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { LoaderCircle, Trash2 } from "lucide-react";
-import { apiFetchBrowser } from "@/lib/api/browser-client";
+import { ApiError, apiFetchBrowser } from "@/lib/api/browser-client";
 import { Instagram } from "./icons";
 
 type AccountChipProps = {
@@ -14,6 +14,36 @@ type AccountChipProps = {
   avatarUrl?: string | null;
   className?: string;
 };
+
+function getApiErrorMessage(error: unknown) {
+  if (!(error instanceof ApiError)) {
+    return null;
+  }
+
+  const body = error.body as { message?: string | string[] } | null;
+  const message = body?.message;
+
+  return Array.isArray(message) ? message[0] : message;
+}
+
+function getRemoveErrorMessage(error: unknown) {
+  if (error instanceof ApiError) {
+    if (error.status === 401) {
+      return "Please sign in again before removing this account.";
+    }
+
+    if (error.status === 404) {
+      return "This Instagram account is already removed or no longer available.";
+    }
+
+    return (
+      getApiErrorMessage(error) ??
+      `Instagram account could not be removed. API returned ${error.status}.`
+    );
+  }
+
+  return "Instagram account could not be removed. Please try again after the API finishes redeploying.";
+}
 
 export function AccountChip({
   accountId,
@@ -41,9 +71,9 @@ export function AccountChip({
         },
       );
       router.refresh();
-    } catch {
+    } catch (error) {
       setIsRemoving(false);
-      window.alert("Instagram account could not be removed.");
+      window.alert(getRemoveErrorMessage(error));
     }
   }
 
