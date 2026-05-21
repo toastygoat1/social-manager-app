@@ -614,18 +614,19 @@ export class InstagramService {
       .map((totals) => totals[metricName])
       .filter((value): value is number => value !== null);
 
-    return values.length ? values.reduce((sum, value) => sum + value, 0) : null;
+    return values.reduce((sum, value) => sum + value, 0);
   }
 
   private createDashboardMetricSummary(
     current: number | null,
     previous: number | null,
   ): DashboardMetricSummary {
-    const delta =
-      current !== null && previous !== null ? current - previous : null;
+    const currentValue = current ?? 0;
+    const previousValue = previous ?? 0;
+    const delta = currentValue - previousValue;
 
     return {
-      value: current,
+      value: currentValue,
       delta,
       trend: this.getDashboardTrend(delta),
     };
