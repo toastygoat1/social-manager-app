@@ -209,6 +209,54 @@ describe('InstagramService', () => {
           );
         }
 
+        if (url.pathname.endsWith('/media')) {
+          const isCurrentRange = url.searchParams.get('until')
+            ? true
+            : fetchMock.mock.calls.filter(([callInput]) => {
+                const callUrl =
+                  callInput instanceof URL
+                    ? callInput
+                    : new URL(
+                        typeof callInput === 'string'
+                          ? callInput
+                          : callInput.url,
+                      );
+
+                return callUrl.pathname.endsWith('/media');
+              }).length === 1;
+
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                data: isCurrentRange
+                  ? [
+                      {
+                        id: 'media-current-1',
+                        like_count: 10,
+                        timestamp: '2026-05-20T01:00:00+0000',
+                      },
+                      {
+                        id: 'media-current-2',
+                        like_count: 2,
+                        timestamp: '2026-05-19T01:00:00+0000',
+                      },
+                    ]
+                  : [
+                      {
+                        id: 'media-previous-1',
+                        like_count: 8,
+                        timestamp: '2026-04-20T01:00:00+0000',
+                      },
+                    ],
+              }),
+              {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' },
+              },
+            ),
+          );
+        }
+
         if (!url.pathname.endsWith('/insights')) {
           return Promise.resolve(
             new Response(JSON.stringify({ media_count: 42 }), {
@@ -220,15 +268,11 @@ describe('InstagramService', () => {
 
         insightCallCount += 1;
         const views = insightCallCount === 1 ? 120 : 90;
-        const likes = insightCallCount === 1 ? 12 : 8;
 
         return Promise.resolve(
           new Response(
             JSON.stringify({
-              data: [
-                { name: 'views', total_value: { value: views } },
-                { name: 'likes', total_value: { value: likes } },
-              ],
+              data: [{ name: 'views', total_value: { value: views } }],
             }),
             {
               status: 200,
@@ -248,6 +292,7 @@ describe('InstagramService', () => {
       (url) => url.pathname === '/v21.0/17841400000000000',
     );
     const insightUrl = urls.find((url) => url.pathname.endsWith('/insights'));
+    const mediaUrl = urls.find((url) => url.pathname.endsWith('/media'));
     const storiesUrl = urls.find((url) => url.pathname.endsWith('/stories'));
 
     expect(prisma.instagramAccount.findMany).toHaveBeenCalledWith({
@@ -265,12 +310,18 @@ describe('InstagramService', () => {
     );
     expect(insightUrl?.origin).toBe('https://graph.instagram.com');
     expect(insightUrl?.pathname).toBe('/v21.0/17841400000000000/insights');
-    expect(insightUrl?.searchParams.get('metric')).toBe('views,likes');
+    expect(insightUrl?.searchParams.get('metric')).toBe('views');
     expect(insightUrl?.searchParams.get('period')).toBe('day');
     expect(insightUrl?.searchParams.get('metric_type')).toBe('total_value');
     expect(insightUrl?.searchParams.get('access_token')).toBe(
       'long-lived-token',
     );
+    expect(mediaUrl?.pathname).toBe('/v21.0/17841400000000000/media');
+    expect(mediaUrl?.searchParams.get('fields')).toBe(
+      'id,like_count,timestamp',
+    );
+    expect(mediaUrl?.searchParams.get('limit')).toBe('100');
+    expect(mediaUrl?.searchParams.get('access_token')).toBe('long-lived-token');
     expect(storiesUrl?.pathname).toBe('/v21.0/17841400000000000/stories');
     expect(storiesUrl?.searchParams.get('fields')).toBe(
       'id,media_type,media_product_type,permalink,timestamp',
