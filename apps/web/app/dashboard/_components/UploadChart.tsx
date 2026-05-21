@@ -2,6 +2,10 @@ import type { ChartBar } from "./data";
 
 const CHART_HEIGHT = 188;
 const MIN_AXIS_MAX = 5;
+const LEGEND_ITEMS = [
+  { label: "Posts/Reels", color: "var(--chart-1)" },
+  { label: "Stories", color: "var(--chart-3)" },
+];
 
 type UploadChartProps = {
   bars: ChartBar[];
@@ -25,13 +29,34 @@ function formatNumber(value: number) {
   return value.toLocaleString("id-ID");
 }
 
+function getSegments(bar: ChartBar) {
+  return bar.segments?.length
+    ? bar.segments.filter((segment) => segment.value > 0)
+    : [{ label: bar.label, value: bar.value, color: bar.color }];
+}
+
 export function UploadChart({ bars }: UploadChartProps) {
   const axisMax = getNiceAxisMax(Math.max(...bars.map((bar) => bar.value), 0));
   const yTicks = getYAxisTicks(axisMax);
 
   return (
     <div className="flex h-full shrink-0 flex-col gap-2 overflow-hidden rounded-2xl border border-line bg-card p-6">
-      <h3 className="text-xl font-medium leading-none text-ink">Upload Chart</h3>
+      <div className="flex items-start justify-between gap-4">
+        <h3 className="text-xl font-medium leading-none text-ink">
+          Upload Chart
+        </h3>
+        <div className="flex items-center gap-3 text-[10px] leading-none text-muted">
+          {LEGEND_ITEMS.map((item) => (
+            <div key={item.label} className="flex items-center gap-1">
+              <span
+                className="size-2 rounded-sm"
+                style={{ background: item.color }}
+              />
+              <span>{item.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
       <div className="flex min-h-0 flex-1 items-stretch">
         <div className="flex h-full flex-col items-end justify-end gap-6 pb-12 text-xs text-ink">
           {yTicks.map((t) => (
@@ -53,12 +78,23 @@ export function UploadChart({ bars }: UploadChartProps) {
                   {formatNumber(bar.value)}
                 </span>
                 <div
-                  className="w-10 rounded-lg transition-[height]"
+                  className="flex w-10 flex-col-reverse overflow-hidden rounded-lg transition-[height]"
                   style={{
                     height: `${Math.max((bar.value / axisMax) * CHART_HEIGHT, 4)}px`,
-                    background: bar.color,
                   }}
-                />
+                >
+                  {getSegments(bar).map((segment) => (
+                    <div
+                      key={segment.label}
+                      title={`${segment.label}: ${formatNumber(segment.value)}`}
+                      style={{
+                        background: segment.color,
+                        height: `${(segment.value / Math.max(bar.value, 1)) * 100}%`,
+                        minHeight: segment.value > 0 ? "3px" : undefined,
+                      }}
+                    />
+                  ))}
+                </div>
                 <p className="w-full truncate text-center text-xs leading-none text-ink">
                   {bar.label}
                 </p>
