@@ -65,7 +65,9 @@ function popupResponse(request: Request, payload: PopupPayload) {
 
       if (window.opener && !window.opener.closed) {
         window.opener.postMessage(message, targetOrigin);
-        setTimeout(() => window.close(), 250);
+        setTimeout(() => window.opener.postMessage(message, targetOrigin), 100);
+        setTimeout(() => window.opener.postMessage(message, targetOrigin), 300);
+        setTimeout(() => window.close(), 750);
         setTimeout(() => window.location.replace(dashboardUrl), 1000);
       } else {
         window.location.replace(dashboardUrl);
