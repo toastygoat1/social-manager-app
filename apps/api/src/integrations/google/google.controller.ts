@@ -1,21 +1,27 @@
 import {
-  BadRequestException,
+  Body,
   Controller,
   Delete,
   Get,
+  Logger,
+  Post,
   Query,
+  Redirect,
   Request,
-  Response,
   UseGuards,
 } from '@nestjs/common';
-import type { FastifyReply } from 'fastify';
 import { ConfigService } from '@nestjs/config';
 import { GoogleService } from './google.service.js';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard.js';
 import type { AuthedRequest } from '../../auth/auth.types.js';
+import { LinkGoogleDto } from './dto/link-google.dto.js';
+import { CalendarQueryDto } from './dto/calendar-query.dto.js';
+import { EventsQueryDto } from './dto/events-query.dto.js';
 
 @Controller('integrations/google')
 export class GoogleController {
+  private readonly logger = new Logger(GoogleController.name);
+
   constructor(
     private readonly googleService: GoogleService,
     private readonly config: ConfigService,
@@ -24,31 +30,76 @@ export class GoogleController {
   @UseGuards(JwtAuthGuard)
   @Get('auth')
   getAuthUrl(@Request() req: AuthedRequest) {
-    const url = this.googleService.getAuthUrl(req.user.userId);
+    const url = this.googleService.getAuthUrl(req.user.userId, req.user.email);
     return { authUrl: url };
   }
 
   @Get('callback')
+  @Redirect()
   async handleCallback(
     @Query('code') code: string | undefined,
     @Query('state') state: string | undefined,
     @Query('error') error: string | undefined,
-    @Response({ passthrough: false }) reply: FastifyReply,
   ) {
     const siteUrl =
       this.config.get<string>('NEXT_PUBLIC_SITE_URL') ??
       'http://localhost:3000';
 
     if (error) {
-      return reply.redirect(
-        `${siteUrl}/dashboard?google=error&reason=${encodeURIComponent(error)}`,
-      );
+      return {
+        url: `${siteUrl}/dashboard?google=error&reason=${encodeURIComponent(error)}`,
+      };
     }
     if (!code || !state) {
-      throw new BadRequestException('Missing code or state');
+      return { url: `${siteUrl}/dashboard?google=error&reason=missing_params` };
     }
-    await this.googleService.handleCallback(code, state);
-    return reply.redirect(`${siteUrl}/dashboard?google=connected`);
+    try {
+      await this.googleService.handleCallback(code, state);
+      return { url: `${siteUrl}/dashboard?google=connected` };
+    } catch (err) {
+      this.logger.error('Google OAuth callback failed', err as Error);
+      return {
+        url: `${siteUrl}/dashboard?google=error&reason=callback_failed`,
+      };
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('link')
+  async link(@Request() req: AuthedRequest, @Body() body: LinkGoogleDto) {
+    await this.googleService.linkWithRefreshToken(
+      req.user.userId,
+      req.user.email,
+      body.refreshToken,
+    );
+    return { ok: true };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('calendar')
+  async calendar(
+    @Request() req: AuthedRequest,
+    @Query() query: CalendarQueryDto,
+  ) {
+    return this.googleService.getEventDays(
+      req.user.userId,
+      query.year,
+      query.month,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('calendar/events')
+  async calendarEvents(
+    @Request() req: AuthedRequest,
+    @Query() query: EventsQueryDto,
+  ) {
+    const events = await this.googleService.getCalendarEvents(
+      req.user.userId,
+      new Date(query.start),
+      new Date(query.end),
+    );
+    return { events };
   }
 
   @UseGuards(JwtAuthGuard)

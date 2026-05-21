@@ -235,6 +235,8 @@ export class DashboardService {
       );
     }
 
+    if (!(await this.google.isConnected(userId))) return null;
+
     const eventDays = new Set<number>();
     for (const evt of events) {
       if (!evt.start) continue;
