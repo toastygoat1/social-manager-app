@@ -24,7 +24,9 @@ type InstagramOAuthUrlResponse = {
   url: string;
 };
 
-type InstagramAccountsResponse = unknown[];
+type InstagramAccountsResponse = {
+  isActive?: boolean;
+}[];
 
 type InstagramOAuthMessage = {
   type?: unknown;
@@ -60,7 +62,7 @@ async function getInstagramAccountCount() {
   const accounts =
     await apiFetchBrowser<InstagramAccountsResponse>("/instagram/accounts");
 
-  return accounts.length;
+  return accounts.filter((account) => account.isActive).length;
 }
 
 export function ConnectInstagramButton() {
