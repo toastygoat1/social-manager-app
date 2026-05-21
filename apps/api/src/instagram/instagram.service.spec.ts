@@ -27,6 +27,10 @@ describe('InstagramService', () => {
       findUnique: jest.Mock<PrismaFn>;
       findMany: jest.Mock<PrismaFn>;
     };
+    instagramStory: {
+      upsert: jest.Mock<PrismaFn>;
+      count: jest.Mock<PrismaFn>;
+    };
   };
   let config: {
     get: jest.Mock<(key: string) => string | undefined>;
@@ -44,6 +48,10 @@ describe('InstagramService', () => {
         updateMany: jest.fn<PrismaFn>(),
         findUnique: jest.fn<PrismaFn>(),
         findMany: jest.fn<PrismaFn>(),
+      },
+      instagramStory: {
+        upsert: jest.fn<PrismaFn>(),
+        count: jest.fn<PrismaFn>(),
       },
     };
     config = {
@@ -161,6 +169,8 @@ describe('InstagramService', () => {
         accessTokenEncrypted: encryptSecret('long-lived-token'),
       },
     ]);
+    prisma.instagramStory.upsert.mockResolvedValue({});
+    prisma.instagramStory.count.mockResolvedValue(7);
 
     let insightCallCount = 0;
     const fetchMock = jest
@@ -170,6 +180,34 @@ describe('InstagramService', () => {
           input instanceof URL
             ? input
             : new URL(typeof input === 'string' ? input : input.url);
+
+        if (url.pathname.endsWith('/stories')) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                data: [
+                  {
+                    id: 'story-1',
+                    media_type: 'IMAGE',
+                    media_product_type: 'STORY',
+                    permalink: 'https://instagram.com/stories/brand/story-1',
+                    timestamp: '2026-05-21T01:00:00+0000',
+                  },
+                  {
+                    id: 'story-2',
+                    media_type: 'VIDEO',
+                    media_product_type: 'STORY',
+                    timestamp: '2026-05-21T02:00:00+0000',
+                  },
+                ],
+              }),
+              {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' },
+              },
+            ),
+          );
+        }
 
         if (!url.pathname.endsWith('/insights')) {
           return Promise.resolve(
@@ -210,6 +248,7 @@ describe('InstagramService', () => {
       (url) => url.pathname === '/v21.0/17841400000000000',
     );
     const insightUrl = urls.find((url) => url.pathname.endsWith('/insights'));
+    const storiesUrl = urls.find((url) => url.pathname.endsWith('/stories'));
 
     expect(prisma.instagramAccount.findMany).toHaveBeenCalledWith({
       where: {
@@ -232,6 +271,17 @@ describe('InstagramService', () => {
     expect(insightUrl?.searchParams.get('access_token')).toBe(
       'long-lived-token',
     );
+    expect(storiesUrl?.pathname).toBe('/v21.0/17841400000000000/stories');
+    expect(storiesUrl?.searchParams.get('fields')).toBe(
+      'id,media_type,media_product_type,permalink,timestamp',
+    );
+    expect(storiesUrl?.searchParams.get('access_token')).toBe(
+      'long-lived-token',
+    );
+    expect(prisma.instagramStory.upsert).toHaveBeenCalledTimes(2);
+    expect(prisma.instagramStory.count).toHaveBeenCalledWith({
+      where: { instagramAccountId: 'account-1' },
+    });
     expect(summary.views).toEqual({ value: 120, delta: 30, trend: 'up' });
     expect(summary.likes).toEqual({ value: 12, delta: 4, trend: 'up' });
     expect(summary.accounts).toEqual([
@@ -239,6 +289,8 @@ describe('InstagramService', () => {
         id: 'account-1',
         username: 'brand',
         uploadCount: 42,
+        storyCount: 7,
+        activeStoryCount: 2,
         error: null,
       },
     ]);

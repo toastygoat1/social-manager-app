@@ -8,12 +8,8 @@ import {
 
 const INSTAGRAM_ACCOUNTS_ENDPOINT = "/instagram/accounts";
 const INSTAGRAM_ANALYTICS_SUMMARY_ENDPOINT = "/instagram/analytics/summary";
-const UPLOAD_CHART_COLORS = [
-  "var(--chart-1)",
-  "var(--chart-2)",
-  "var(--chart-3)",
-  "var(--chart-4)",
-];
+const MEDIA_UPLOAD_COLOR = "var(--chart-1)";
+const STORY_UPLOAD_COLOR = "var(--chart-3)";
 
 type InstagramAccountResponse = {
   id: string;
@@ -29,6 +25,8 @@ type InstagramAnalyticsSummaryResponse = {
     id: string;
     username: string;
     uploadCount: number | null;
+    storyCount: number | null;
+    activeStoryCount: number | null;
   }[];
 };
 
@@ -41,12 +39,31 @@ function getUploadChartBars(
 ): ChartBar[] {
   return (
     analytics?.accounts
-      .filter((account) => account.uploadCount !== null)
-      .map((account, index) => ({
-        label: `@${account.username}`,
-        value: account.uploadCount ?? 0,
-        color: UPLOAD_CHART_COLORS[index % UPLOAD_CHART_COLORS.length],
-      })) ?? []
+      .filter(
+        (account) => account.uploadCount !== null || account.storyCount !== null,
+      )
+      .map((account) => {
+        const mediaCount = account.uploadCount ?? 0;
+        const storyCount = account.storyCount ?? 0;
+
+        return {
+          label: `@${account.username}`,
+          value: mediaCount + storyCount,
+          color: MEDIA_UPLOAD_COLOR,
+          segments: [
+            {
+              label: "Posts/Reels",
+              value: mediaCount,
+              color: MEDIA_UPLOAD_COLOR,
+            },
+            {
+              label: "Stories",
+              value: storyCount,
+              color: STORY_UPLOAD_COLOR,
+            },
+          ],
+        };
+      }) ?? []
   );
 }
 

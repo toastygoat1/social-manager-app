@@ -53,6 +53,7 @@ const DEFAULT_INSTAGRAM_SCOPES = [
 const OAUTH_STATE_TTL_MS = 15 * 60 * 1000;
 const DASHBOARD_INSIGHTS_DAYS = 30;
 const DASHBOARD_INSIGHT_METRICS = ['views', 'likes'] as const;
+const STORY_TTL_MS = 24 * 60 * 60 * 1000;
 
 type DashboardInsightMetric = (typeof DASHBOARD_INSIGHT_METRICS)[number];
 type DashboardInsightTotals = Record<DashboardInsightMetric, number | null>;
@@ -108,6 +109,30 @@ type InstagramInsightsResponse = GraphApiError & {
   }[];
 };
 
+type InstagramStoryResponse = {
+  id?: string;
+  media_type?: string;
+  media_product_type?: string;
+  permalink?: string;
+  timestamp?: string;
+};
+
+type InstagramStoriesResponse = GraphApiError & {
+  data?: InstagramStoryResponse[];
+  paging?: {
+    next?: string;
+  };
+};
+
+type ObservedInstagramStory = InstagramStoryResponse & {
+  id: string;
+};
+
+type StoryCountSummary = {
+  storyCount: number | null;
+  activeStoryCount: number | null;
+};
+
 @Injectable()
 export class InstagramService {
   constructor(
@@ -161,9 +186,13 @@ export class InstagramService {
 
     const accountResults = await Promise.all(
       accounts.map(async (account) => {
-        const uploadCount = await this.fetchAccountUploadCount(account).catch(
-          () => null,
-        );
+        const [uploadCount, storyCounts] = await Promise.all([
+          this.fetchAccountUploadCount(account).catch(() => null),
+          this.syncAccountStoryHistory(account).catch(() => ({
+            storyCount: null,
+            activeStoryCount: null,
+          })),
+        ]);
 
         try {
           const [current, previous] = await Promise.all([
@@ -175,6 +204,8 @@ export class InstagramService {
             accountId: account.id,
             username: account.username,
             uploadCount,
+            storyCount: storyCounts.storyCount,
+            activeStoryCount: storyCounts.activeStoryCount,
             current,
             previous,
             error: null,
@@ -184,6 +215,8 @@ export class InstagramService {
             accountId: account.id,
             username: account.username,
             uploadCount,
+            storyCount: storyCounts.storyCount,
+            activeStoryCount: storyCounts.activeStoryCount,
             current: this.emptyInsightTotals(),
             previous: this.emptyInsightTotals(),
             error: this.getErrorMessage(error),
@@ -213,6 +246,8 @@ export class InstagramService {
         id: result.accountId,
         username: result.username,
         uploadCount: result.uploadCount,
+        storyCount: result.storyCount,
+        activeStoryCount: result.activeStoryCount,
         error: result.error,
       })),
     };
@@ -381,6 +416,101 @@ export class InstagramService {
       : null;
   }
 
+  private async syncAccountStoryHistory(
+    account: InstagramInsightsAccount,
+  ): Promise<StoryCountSummary> {
+    const stories = await this.fetchActiveStories(account);
+    const now = new Date();
+
+    await Promise.all(
+      stories.map((story) => this.upsertObservedStory(account.id, story, now)),
+    );
+
+    const storyCount = await this.prisma.instagramStory.count({
+      where: { instagramAccountId: account.id },
+    });
+
+    return {
+      storyCount,
+      activeStoryCount: stories.length,
+    };
+  }
+
+  private async fetchActiveStories(account: InstagramInsightsAccount) {
+    const stories: ObservedInstagramStory[] = [];
+    let nextUrl: URL | null = this.createGraphUrl(
+      `${account.igUserId}/stories`,
+    );
+
+    nextUrl.searchParams.set(
+      'fields',
+      'id,media_type,media_product_type,permalink,timestamp',
+    );
+    nextUrl.searchParams.set(
+      'access_token',
+      decryptSecret(account.accessTokenEncrypted),
+    );
+
+    while (nextUrl) {
+      const response: InstagramStoriesResponse =
+        await this.requestGraph<InstagramStoriesResponse>(nextUrl);
+      const responseStories: InstagramStoryResponse[] = Array.isArray(
+        response.data,
+      )
+        ? response.data
+        : [];
+      const observedStories: ObservedInstagramStory[] = [];
+
+      for (const story of responseStories) {
+        if (typeof story.id === 'string' && story.id) {
+          observedStories.push({ ...story, id: story.id });
+        }
+      }
+
+      const next =
+        typeof response.paging?.next === 'string' ? response.paging.next : null;
+
+      stories.push(...observedStories);
+      nextUrl = next ? new URL(next) : null;
+    }
+
+    return stories;
+  }
+
+  private async upsertObservedStory(
+    instagramAccountId: string,
+    story: ObservedInstagramStory,
+    observedAt: Date,
+  ) {
+    const storyTimestamp = this.toDate(story.timestamp);
+    const expiresAt = storyTimestamp
+      ? new Date(storyTimestamp.getTime() + STORY_TTL_MS)
+      : null;
+
+    await this.prisma.instagramStory.upsert({
+      where: { igStoryId: story.id },
+      update: {
+        mediaType: story.media_type,
+        mediaProductType: story.media_product_type,
+        permalink: story.permalink,
+        timestamp: storyTimestamp,
+        lastSeenAt: observedAt,
+        expiresAt,
+      },
+      create: {
+        instagramAccountId,
+        igStoryId: story.id,
+        mediaType: story.media_type,
+        mediaProductType: story.media_product_type,
+        permalink: story.permalink,
+        timestamp: storyTimestamp,
+        firstSeenAt: observedAt,
+        lastSeenAt: observedAt,
+        expiresAt,
+      },
+    });
+  }
+
   private async fetchAccountInsightTotals(
     account: InstagramInsightsAccount,
     range: DashboardInsightsRange,
@@ -439,6 +569,15 @@ export class InstagramService {
     }
 
     return null;
+  }
+
+  private toDate(value: string | undefined) {
+    if (!value) {
+      return null;
+    }
+
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
   }
 
   private createDashboardInsightsRange(offsetDays: number) {
