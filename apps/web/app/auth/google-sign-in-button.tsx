@@ -47,8 +47,9 @@ export function GoogleSignInButton() {
       options: {
         redirectTo: `${origin}/auth/callback?next=/auth/popup-complete`,
         skipBrowserRedirect: true,
+        scopes: "https://www.googleapis.com/auth/calendar.readonly",
         queryParams: {
-          prompt: "select_account",
+          prompt: "select_account consent",
           access_type: "offline",
         },
       },

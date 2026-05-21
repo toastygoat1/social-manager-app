@@ -24,6 +24,17 @@ export type GoogleCalendarEvent = {
   allDay: boolean;
 };
 
+function isInvalidGrant(err: unknown): boolean {
+  const error = err as {
+    response?: { data?: { error?: string } };
+    message?: string;
+  };
+  return (
+    error.response?.data?.error === 'invalid_grant' ||
+    error.message === 'invalid_grant'
+  );
+}
+
 @Injectable()
 export class GoogleService {
   private readonly logger = new Logger(GoogleService.name);
@@ -48,8 +59,8 @@ export class GoogleService {
     return this.config.getOrThrow<string>('ENCRYPTION_KEY');
   }
 
-  private signState(userId: string): string {
-    const payload = { uid: userId, ts: Date.now() };
+  private signState(userId: string, email: string): string {
+    const payload = { uid: userId, email, ts: Date.now() };
     const payloadB64 = Buffer.from(JSON.stringify(payload)).toString(
       'base64url',
     );
@@ -59,7 +70,7 @@ export class GoogleService {
     return `${payloadB64}.${sig}`;
   }
 
-  private verifyState(state: string): string {
+  private verifyState(state: string): { uid: string; email: string } {
     const [payloadB64, sig] = state.split('.');
     if (!payloadB64 || !sig) {
       throw new UnauthorizedException('Malformed OAuth state');
@@ -77,25 +88,25 @@ export class GoogleService {
     }
     const payload = JSON.parse(
       Buffer.from(payloadB64, 'base64url').toString('utf8'),
-    ) as { uid: string; ts: number };
+    ) as { uid: string; email: string; ts: number };
     if (Date.now() - payload.ts > STATE_TTL_MS) {
       throw new UnauthorizedException('OAuth state expired');
     }
-    return payload.uid;
+    return { uid: payload.uid, email: payload.email };
   }
 
-  getAuthUrl(userId: string): string {
+  getAuthUrl(userId: string, email: string): string {
     const client = this.getOAuthClient();
     return client.generateAuthUrl({
       access_type: 'offline',
       prompt: 'consent',
       scope: DEFAULT_SCOPES,
-      state: this.signState(userId),
+      state: this.signState(userId, email),
     });
   }
 
   async handleCallback(code: string, state: string): Promise<string> {
-    const userId = this.verifyState(state);
+    const { uid: userId, email } = this.verifyState(state);
     const client = this.getOAuthClient();
     const { tokens } = await client.getToken(code);
     if (!tokens.refresh_token) {
@@ -105,12 +116,36 @@ export class GoogleService {
     }
     const refreshTokenEncrypted = encryptSecret(tokens.refresh_token);
     const scope = tokens.scope ?? DEFAULT_SCOPES.join(' ');
+    await this.prisma.user.upsert({
+      where: { id: userId },
+      update: {},
+      create: { id: userId, email },
+    });
     await this.prisma.googleIntegration.upsert({
       where: { userId },
       update: { refreshTokenEncrypted, scope },
       create: { userId, refreshTokenEncrypted, scope },
     });
     return userId;
+  }
+
+  async linkWithRefreshToken(
+    userId: string,
+    email: string,
+    refreshToken: string,
+  ): Promise<void> {
+    const refreshTokenEncrypted = encryptSecret(refreshToken);
+    const scope = DEFAULT_SCOPES.join(' ');
+    await this.prisma.user.upsert({
+      where: { id: userId },
+      update: {},
+      create: { id: userId, email },
+    });
+    await this.prisma.googleIntegration.upsert({
+      where: { userId },
+      update: { refreshTokenEncrypted, scope },
+      create: { userId, refreshTokenEncrypted, scope },
+    });
   }
 
   async isConnected(userId: string): Promise<boolean> {
@@ -123,6 +158,25 @@ export class GoogleService {
 
   async disconnect(userId: string): Promise<void> {
     await this.prisma.googleIntegration.deleteMany({ where: { userId } });
+  }
+
+  async getEventDays(
+    userId: string,
+    year: number,
+    month: number,
+  ): Promise<{ eventDays: number[] }> {
+    const monthStart = new Date(year, month - 1, 1);
+    const monthEnd = new Date(year, month, 1);
+    const events = await this.getCalendarEvents(userId, monthStart, monthEnd);
+    const days = new Set<number>();
+    for (const evt of events) {
+      if (!evt.start) continue;
+      const d = new Date(evt.start);
+      if (d.getFullYear() === year && d.getMonth() === month - 1) {
+        days.add(d.getDate());
+      }
+    }
+    return { eventDays: [...days].sort((a, b) => a - b) };
   }
 
   async getCalendarEvents(
@@ -162,6 +216,12 @@ export class GoogleService {
       });
     } catch (err) {
       this.logger.error('Google Calendar fetch failed', err as Error);
+      if (isInvalidGrant(err)) {
+        this.logger.warn(
+          `Refresh token for user ${userId} rejected by Google — removing dead integration`,
+        );
+        await this.prisma.googleIntegration.deleteMany({ where: { userId } });
+      }
       return [];
     }
   }
