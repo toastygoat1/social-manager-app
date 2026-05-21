@@ -12,7 +12,7 @@ import { InstagramAccountType, Prisma } from '@social-manager/database';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AddInstagramAccountDto } from './dto/add-instagram-account.dto.js';
 import { CompleteInstagramOAuthDto } from './dto/complete-instagram-oauth.dto.js';
-import { encryptSecret } from '../common/crypto.util.js';
+import { decryptSecret, encryptSecret } from '../common/crypto.util.js';
 import type { AuthUser } from '../auth/auth.types.js';
 
 const SAFE_INSTAGRAM_ACCOUNT_SELECT = {
@@ -29,16 +29,45 @@ const SAFE_INSTAGRAM_ACCOUNT_SELECT = {
   updatedAt: true,
 } satisfies Prisma.InstagramAccountSelect;
 
+const INSTAGRAM_INSIGHTS_ACCOUNT_SELECT = {
+  id: true,
+  igUserId: true,
+  username: true,
+  accessTokenEncrypted: true,
+} satisfies Prisma.InstagramAccountSelect;
+
 type SafeInstagramAccount = Prisma.InstagramAccountGetPayload<{
   select: typeof SAFE_INSTAGRAM_ACCOUNT_SELECT;
+}>;
+
+type InstagramInsightsAccount = Prisma.InstagramAccountGetPayload<{
+  select: typeof INSTAGRAM_INSIGHTS_ACCOUNT_SELECT;
 }>;
 
 const DEFAULT_GRAPH_API_VERSION = 'v21.0';
 const DEFAULT_INSTAGRAM_SCOPES = [
   'instagram_business_basic',
   'instagram_business_content_publish',
+  'instagram_business_manage_insights',
 ];
 const OAUTH_STATE_TTL_MS = 15 * 60 * 1000;
+const DASHBOARD_INSIGHTS_DAYS = 30;
+const DASHBOARD_INSIGHT_METRICS = ['views', 'likes'] as const;
+
+type DashboardInsightMetric = (typeof DASHBOARD_INSIGHT_METRICS)[number];
+type DashboardInsightTotals = Record<DashboardInsightMetric, number | null>;
+type DashboardTrend = 'up' | 'down' | null;
+
+type DashboardMetricSummary = {
+  value: number | null;
+  delta: number | null;
+  trend: DashboardTrend;
+};
+
+type DashboardInsightsRange = {
+  since: number;
+  until: number;
+};
 
 type OAuthStatePayload = {
   userId: string;
@@ -64,6 +93,18 @@ type InstagramProfileResponse = GraphApiError & {
   id: string;
   username: string;
   account_type?: string;
+};
+
+type InstagramInsightsResponse = GraphApiError & {
+  data?: {
+    name?: string;
+    total_value?: {
+      value?: unknown;
+    };
+    values?: {
+      value?: unknown;
+    }[];
+  }[];
 };
 
 @Injectable()
@@ -101,6 +142,72 @@ export class InstagramService {
     if (result.count === 0) {
       throw new NotFoundException('Instagram account was not found.');
     }
+  }
+
+  async getAnalyticsSummary(userId: string) {
+    const accounts = await this.prisma.instagramAccount.findMany({
+      where: {
+        userId,
+        isActive: true,
+      },
+      select: INSTAGRAM_INSIGHTS_ACCOUNT_SELECT,
+    });
+
+    const currentRange = this.createDashboardInsightsRange(0);
+    const previousRange = this.createDashboardInsightsRange(
+      DASHBOARD_INSIGHTS_DAYS,
+    );
+
+    const accountResults = await Promise.all(
+      accounts.map(async (account) => {
+        try {
+          const [current, previous] = await Promise.all([
+            this.fetchAccountInsightTotals(account, currentRange),
+            this.fetchAccountInsightTotals(account, previousRange),
+          ]);
+
+          return {
+            accountId: account.id,
+            username: account.username,
+            current,
+            previous,
+            error: null,
+          };
+        } catch (error) {
+          return {
+            accountId: account.id,
+            username: account.username,
+            current: this.emptyInsightTotals(),
+            previous: this.emptyInsightTotals(),
+            error: this.getErrorMessage(error),
+          };
+        }
+      }),
+    );
+
+    const currentTotals = this.sumAccountInsightTotals(
+      accountResults.map((result) => result.current),
+    );
+    const previousTotals = this.sumAccountInsightTotals(
+      accountResults.map((result) => result.previous),
+    );
+
+    return {
+      periodDays: DASHBOARD_INSIGHTS_DAYS,
+      views: this.createDashboardMetricSummary(
+        currentTotals.views,
+        previousTotals.views,
+      ),
+      likes: this.createDashboardMetricSummary(
+        currentTotals.likes,
+        previousTotals.likes,
+      ),
+      accounts: accountResults.map((result) => ({
+        id: result.accountId,
+        username: result.username,
+        error: result.error,
+      })),
+    };
   }
 
   createOAuthUrl(userId: string) {
@@ -248,6 +355,131 @@ export class InstagramService {
     url.searchParams.set('access_token', accessToken);
 
     return this.requestGraph<InstagramProfileResponse>(url);
+  }
+
+  private async fetchAccountInsightTotals(
+    account: InstagramInsightsAccount,
+    range: DashboardInsightsRange,
+  ): Promise<DashboardInsightTotals> {
+    const url = this.createGraphUrl(`${account.igUserId}/insights`);
+    url.searchParams.set('metric', DASHBOARD_INSIGHT_METRICS.join(','));
+    url.searchParams.set('period', 'day');
+    url.searchParams.set('metric_type', 'total_value');
+    url.searchParams.set('since', String(range.since));
+    url.searchParams.set('until', String(range.until));
+    url.searchParams.set(
+      'access_token',
+      decryptSecret(account.accessTokenEncrypted),
+    );
+
+    const response = await this.requestGraph<InstagramInsightsResponse>(url);
+
+    return {
+      views: this.readInsightMetricValue(response, 'views'),
+      likes: this.readInsightMetricValue(response, 'likes'),
+    };
+  }
+
+  private readInsightMetricValue(
+    response: InstagramInsightsResponse,
+    metricName: DashboardInsightMetric,
+  ) {
+    const metric = response.data?.find((item) => item.name === metricName);
+
+    if (!metric) {
+      return null;
+    }
+
+    const totalValue = this.toNumber(metric.total_value?.value);
+    if (totalValue !== null) {
+      return totalValue;
+    }
+
+    const timeSeriesValues = metric.values
+      ?.map((item) => this.toNumber(item.value))
+      .filter((value): value is number => value !== null);
+
+    return timeSeriesValues?.length
+      ? timeSeriesValues.reduce((sum, value) => sum + value, 0)
+      : null;
+  }
+
+  private toNumber(value: unknown) {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+
+    if (typeof value === 'string') {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+
+    return null;
+  }
+
+  private createDashboardInsightsRange(offsetDays: number) {
+    const until = Date.now() - offsetDays * 24 * 60 * 60 * 1000;
+    const since = until - DASHBOARD_INSIGHTS_DAYS * 24 * 60 * 60 * 1000;
+
+    return {
+      since: Math.floor(since / 1000),
+      until: Math.floor(until / 1000),
+    };
+  }
+
+  private emptyInsightTotals(): DashboardInsightTotals {
+    return {
+      views: null,
+      likes: null,
+    };
+  }
+
+  private sumAccountInsightTotals(
+    accountTotals: DashboardInsightTotals[],
+  ): DashboardInsightTotals {
+    return {
+      views: this.sumMetric(accountTotals, 'views'),
+      likes: this.sumMetric(accountTotals, 'likes'),
+    };
+  }
+
+  private sumMetric(
+    accountTotals: DashboardInsightTotals[],
+    metricName: DashboardInsightMetric,
+  ) {
+    const values = accountTotals
+      .map((totals) => totals[metricName])
+      .filter((value): value is number => value !== null);
+
+    return values.length ? values.reduce((sum, value) => sum + value, 0) : null;
+  }
+
+  private createDashboardMetricSummary(
+    current: number | null,
+    previous: number | null,
+  ): DashboardMetricSummary {
+    const delta =
+      current !== null && previous !== null ? current - previous : null;
+
+    return {
+      value: current,
+      delta,
+      trend: this.getDashboardTrend(delta),
+    };
+  }
+
+  private getDashboardTrend(delta: number | null): DashboardTrend {
+    if (delta === null || delta === 0) {
+      return null;
+    }
+
+    return delta > 0 ? 'up' : 'down';
+  }
+
+  private getErrorMessage(error: unknown) {
+    return error instanceof Error
+      ? error.message
+      : 'Instagram insights failed.';
   }
 
   private async requestGraph<T extends GraphApiError>(url: URL): Promise<T> {

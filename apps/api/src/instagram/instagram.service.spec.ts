@@ -11,6 +11,7 @@ import { ConfigService } from '@nestjs/config';
 import { InstagramAccountType } from '@social-manager/database';
 import { InstagramService } from './instagram.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { encryptSecret } from '../common/crypto.util.js';
 
 type PrismaFn = (...args: unknown[]) => Promise<unknown>;
 
@@ -151,6 +152,67 @@ describe('InstagramService', () => {
     );
   });
 
+  it('summarizes dashboard analytics from active Instagram accounts', async () => {
+    prisma.instagramAccount.findMany.mockResolvedValue([
+      {
+        id: 'account-1',
+        igUserId: '17841400000000000',
+        username: 'brand',
+        accessTokenEncrypted: encryptSecret('long-lived-token'),
+      },
+    ]);
+
+    const fetchMock = jest.spyOn(globalThis, 'fetch').mockImplementation(() => {
+      const callNumber = fetchMock.mock.calls.length;
+      const views = callNumber === 1 ? 120 : 90;
+      const likes = callNumber === 1 ? 12 : 8;
+
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            data: [
+              { name: 'views', total_value: { value: views } },
+              { name: 'likes', total_value: { value: likes } },
+            ],
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        ),
+      );
+    });
+
+    const summary = await service.getAnalyticsSummary('user-1');
+    const firstFetchInput = fetchMock.mock.calls[0][0];
+    const firstUrl =
+      firstFetchInput instanceof URL
+        ? firstFetchInput
+        : new URL(
+            typeof firstFetchInput === 'string'
+              ? firstFetchInput
+              : firstFetchInput.url,
+          );
+
+    expect(prisma.instagramAccount.findMany).toHaveBeenCalledWith({
+      where: {
+        userId: 'user-1',
+        isActive: true,
+      },
+      select: expect.objectContaining({
+        accessTokenEncrypted: true,
+      }),
+    });
+    expect(firstUrl.origin).toBe('https://graph.instagram.com');
+    expect(firstUrl.pathname).toBe('/v21.0/17841400000000000/insights');
+    expect(firstUrl.searchParams.get('metric')).toBe('views,likes');
+    expect(firstUrl.searchParams.get('period')).toBe('day');
+    expect(firstUrl.searchParams.get('metric_type')).toBe('total_value');
+    expect(firstUrl.searchParams.get('access_token')).toBe('long-lived-token');
+    expect(summary.views).toEqual({ value: 120, delta: 30, trend: 'up' });
+    expect(summary.likes).toEqual({ value: 12, delta: 4, trend: 'up' });
+  });
+
   it('creates a signed Meta OAuth URL', () => {
     const result = service.createOAuthUrl('user-1');
     const url = new URL(result.url);
@@ -167,6 +229,7 @@ describe('InstagramService', () => {
   });
 
   afterEach(() => {
+    jest.restoreAllMocks();
     process.env.ENCRYPTION_KEY = originalEncryptionKey;
   });
 });

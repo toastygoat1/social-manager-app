@@ -42,6 +42,11 @@ export class InstagramController {
     await this.instagramService.removeAccount(req.user.userId, accountId);
   }
 
+  @Get('analytics/summary')
+  getAnalyticsSummary(@Request() req: AuthedRequest) {
+    return this.instagramService.getAnalyticsSummary(req.user.userId);
+  }
+
   @Get('oauth/url')
   getOAuthUrl(@Request() req: AuthedRequest) {
     return this.instagramService.createOAuthUrl(req.user.userId);
