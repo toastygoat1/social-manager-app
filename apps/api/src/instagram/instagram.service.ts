@@ -52,11 +52,14 @@ const DEFAULT_INSTAGRAM_SCOPES = [
 ];
 const OAUTH_STATE_TTL_MS = 15 * 60 * 1000;
 const DASHBOARD_INSIGHTS_DAYS = 30;
-const DASHBOARD_INSIGHT_METRICS = ['views', 'likes'] as const;
+const DASHBOARD_INSIGHT_METRICS = ['views'] as const;
+const DASHBOARD_MEDIA_FIELDS = 'id,like_count,timestamp';
+const MAX_MEDIA_PAGES_FOR_DASHBOARD = 25;
 const STORY_TTL_MS = 24 * 60 * 60 * 1000;
 
 type DashboardInsightMetric = (typeof DASHBOARD_INSIGHT_METRICS)[number];
-type DashboardInsightTotals = Record<DashboardInsightMetric, number | null>;
+type DashboardMetric = DashboardInsightMetric | 'likes';
+type DashboardInsightTotals = Record<DashboardMetric, number | null>;
 type DashboardTrend = 'up' | 'down' | null;
 
 type DashboardMetricSummary = {
@@ -107,6 +110,19 @@ type InstagramInsightsResponse = GraphApiError & {
       value?: unknown;
     }[];
   }[];
+};
+
+type InstagramMediaResponse = {
+  id?: string;
+  like_count?: unknown;
+  timestamp?: string;
+};
+
+type InstagramMediaListResponse = GraphApiError & {
+  data?: InstagramMediaResponse[];
+  paging?: {
+    next?: string;
+  };
 };
 
 type InstagramStoryResponse = {
@@ -527,11 +543,61 @@ export class InstagramService {
     );
 
     const response = await this.requestGraph<InstagramInsightsResponse>(url);
+    const likes = await this.fetchAccountMediaLikeTotal(account, range);
 
     return {
       views: this.readInsightMetricValue(response, 'views'),
-      likes: this.readInsightMetricValue(response, 'likes'),
+      likes,
     };
+  }
+
+  private async fetchAccountMediaLikeTotal(
+    account: InstagramInsightsAccount,
+    range: DashboardInsightsRange,
+  ) {
+    const accessToken = decryptSecret(account.accessTokenEncrypted);
+    let nextUrl: URL | null = this.createGraphUrl(`${account.igUserId}/media`);
+    let pageCount = 0;
+    let likeTotal = 0;
+    let sawMediaInRange = false;
+
+    nextUrl.searchParams.set('fields', DASHBOARD_MEDIA_FIELDS);
+    nextUrl.searchParams.set('limit', '100');
+    nextUrl.searchParams.set('access_token', accessToken);
+
+    while (nextUrl && pageCount < MAX_MEDIA_PAGES_FOR_DASHBOARD) {
+      pageCount += 1;
+      const response: InstagramMediaListResponse =
+        await this.requestGraph<InstagramMediaListResponse>(nextUrl);
+      const mediaItems: InstagramMediaResponse[] = Array.isArray(response.data)
+        ? response.data
+        : [];
+      let hasMediaNewerThanRange = false;
+
+      for (const media of mediaItems) {
+        const timestamp = this.toUnixSeconds(media.timestamp);
+
+        if (timestamp === null) {
+          continue;
+        }
+
+        if (timestamp >= range.since && timestamp < range.until) {
+          sawMediaInRange = true;
+          likeTotal += this.toNumber(media.like_count) ?? 0;
+        }
+
+        if (timestamp >= range.since) {
+          hasMediaNewerThanRange = true;
+        }
+      }
+
+      const next =
+        typeof response.paging?.next === 'string' ? response.paging.next : null;
+
+      nextUrl = next && hasMediaNewerThanRange ? new URL(next) : null;
+    }
+
+    return sawMediaInRange ? likeTotal : 0;
   }
 
   private readInsightMetricValue(
@@ -580,6 +646,11 @@ export class InstagramService {
     return Number.isNaN(parsed.getTime()) ? null : parsed;
   }
 
+  private toUnixSeconds(value: string | undefined) {
+    const date = this.toDate(value);
+    return date ? Math.floor(date.getTime() / 1000) : null;
+  }
+
   private createDashboardInsightsRange(offsetDays: number) {
     const until = Date.now() - offsetDays * 24 * 60 * 60 * 1000;
     const since = until - DASHBOARD_INSIGHTS_DAYS * 24 * 60 * 60 * 1000;
@@ -608,7 +679,7 @@ export class InstagramService {
 
   private sumMetric(
     accountTotals: DashboardInsightTotals[],
-    metricName: DashboardInsightMetric,
+    metricName: DashboardMetric,
   ) {
     const values = accountTotals
       .map((totals) => totals[metricName])
