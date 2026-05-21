@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { ApiError } from "@/lib/api/error";
+import { buildApiUrl } from "@/lib/api/url";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 
@@ -9,9 +10,7 @@ type ApiFetchOptions = Omit<RequestInit, "body"> & {
 };
 
 function buildUrl(path: string) {
-  return path.startsWith("http")
-    ? path
-    : `${API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
+  return buildApiUrl(API_BASE_URL, path);
 }
 
 export { ApiError };

@@ -15,6 +15,7 @@ import { Instagram } from "./icons";
 
 const POPUP_W = 520;
 const POPUP_H = 700;
+const POPUP_CLOSE_GRACE_MS = 1500;
 const INSTAGRAM_COMPLETE = "instagram:oauth:complete";
 
 type ConnectStep = "requirements" | "authorizing" | "connected" | "failed";
@@ -22,6 +23,8 @@ type ConnectStep = "requirements" | "authorizing" | "connected" | "failed";
 type InstagramOAuthUrlResponse = {
   url: string;
 };
+
+type InstagramAccountsResponse = unknown[];
 
 type InstagramOAuthMessage = {
   type?: unknown;
@@ -53,6 +56,13 @@ function getConnectedMessage(count: number) {
     : "Instagram account connected";
 }
 
+async function getInstagramAccountCount() {
+  const accounts =
+    await apiFetchBrowser<InstagramAccountsResponse>("/instagram/accounts");
+
+  return accounts.length;
+}
+
 export function ConnectInstagramButton() {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
@@ -61,11 +71,18 @@ export function ConnectInstagramButton() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const popupRef = useRef<Window | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const popupCloseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
 
   function cleanupPopup() {
     if (pollRef.current) {
       clearInterval(pollRef.current);
       pollRef.current = null;
+    }
+    if (popupCloseTimeoutRef.current) {
+      clearTimeout(popupCloseTimeoutRef.current);
+      popupCloseTimeoutRef.current = null;
     }
     popupRef.current = null;
   }
@@ -112,10 +129,38 @@ export function ConnectInstagramButton() {
 
     const openedPopup = popup;
     const origin = window.location.origin;
+    let accountCountBeforeAuth: number | null = null;
 
     function cleanupMessageListener() {
       window.removeEventListener("message", onMessage);
       cleanupPopup();
+    }
+
+    function markConnected(count: number) {
+      setStep("connected");
+      setSuccessMessage(getConnectedMessage(count));
+      router.refresh();
+    }
+
+    async function handleClosedPopup() {
+      cleanupMessageListener();
+
+      if (accountCountBeforeAuth !== null) {
+        try {
+          const accountCountAfterAuth = await getInstagramAccountCount();
+          const connectedCount = accountCountAfterAuth - accountCountBeforeAuth;
+
+          if (connectedCount > 0) {
+            markConnected(connectedCount);
+            return;
+          }
+        } catch {
+          // Fall through to the cancelled state if the confirmation request fails.
+        }
+      }
+
+      setStep("failed");
+      setErrorMessage("Instagram connection was cancelled.");
     }
 
     function onMessage(event: MessageEvent) {
@@ -138,15 +183,17 @@ export function ConnectInstagramButton() {
       }
 
       const count = typeof data.count === "number" ? data.count : 0;
-      setStep("connected");
-      setSuccessMessage(getConnectedMessage(count));
-      router.refresh();
+      markConnected(count);
     }
 
     window.addEventListener("message", onMessage);
     popupRef.current = openedPopup;
 
     try {
+      accountCountBeforeAuth = await getInstagramAccountCount().catch(
+        () => null,
+      );
+
       const { url } = await apiFetchBrowser<InstagramOAuthUrlResponse>(
         "/instagram/oauth/url",
       );
@@ -155,9 +202,12 @@ export function ConnectInstagramButton() {
 
       pollRef.current = setInterval(() => {
         if (openedPopup.closed) {
-          cleanupMessageListener();
-          setStep("failed");
-          setErrorMessage("Instagram connection was cancelled.");
+          if (popupCloseTimeoutRef.current) return;
+
+          popupCloseTimeoutRef.current = setTimeout(() => {
+            popupCloseTimeoutRef.current = null;
+            void handleClosedPopup();
+          }, POPUP_CLOSE_GRACE_MS);
         }
       }, 500);
     } catch (error) {

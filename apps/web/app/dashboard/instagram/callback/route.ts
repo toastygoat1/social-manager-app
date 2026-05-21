@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { buildApiUrl } from "@/lib/api/url";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 const INSTAGRAM_COMPLETE = "instagram:oauth:complete";
@@ -64,8 +65,8 @@ function popupResponse(request: Request, payload: PopupPayload) {
 
       if (window.opener && !window.opener.closed) {
         window.opener.postMessage(message, targetOrigin);
-        window.close();
-        setTimeout(() => window.location.replace(dashboardUrl), 500);
+        setTimeout(() => window.close(), 250);
+        setTimeout(() => window.location.replace(dashboardUrl), 1000);
       } else {
         window.location.replace(dashboardUrl);
       }
@@ -122,15 +123,18 @@ export async function GET(request: Request) {
     });
   }
 
-  const response = await fetch(`${API_BASE_URL}/instagram/oauth/callback`, {
-    method: "POST",
-    cache: "no-store",
-    headers: {
-      Authorization: `Bearer ${session.access_token}`,
-      "Content-Type": "application/json",
+  const response = await fetch(
+    buildApiUrl(API_BASE_URL, "/instagram/oauth/callback"),
+    {
+      method: "POST",
+      cache: "no-store",
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ code, state }),
     },
-    body: JSON.stringify({ code, state }),
-  });
+  );
 
   if (!response.ok) {
     return popupResponse(request, {
