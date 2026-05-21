@@ -126,6 +126,31 @@ describe('InstagramService', () => {
     expect(findManyArgs.select).not.toHaveProperty('accessTokenEncrypted');
   });
 
+  it('marks an owned account inactive when removing it', async () => {
+    prisma.instagramAccount.updateMany.mockResolvedValue({ count: 1 });
+
+    await service.removeAccount('user-1', 'account-1');
+
+    expect(prisma.instagramAccount.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: 'account-1',
+        userId: 'user-1',
+        isActive: true,
+      },
+      data: {
+        isActive: false,
+      },
+    });
+  });
+
+  it('throws when removing a missing or inactive account', async () => {
+    prisma.instagramAccount.updateMany.mockResolvedValue({ count: 0 });
+
+    await expect(service.removeAccount('user-1', 'account-1')).rejects.toThrow(
+      'Instagram account was not found.',
+    );
+  });
+
   it('creates a signed Meta OAuth URL', () => {
     const result = service.createOAuthUrl('user-1');
     const url = new URL(result.url);
