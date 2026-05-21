@@ -93,6 +93,7 @@ type InstagramProfileResponse = GraphApiError & {
   id: string;
   username: string;
   account_type?: string;
+  media_count?: number;
 };
 
 type InstagramInsightsResponse = GraphApiError & {
@@ -160,6 +161,10 @@ export class InstagramService {
 
     const accountResults = await Promise.all(
       accounts.map(async (account) => {
+        const uploadCount = await this.fetchAccountUploadCount(account).catch(
+          () => null,
+        );
+
         try {
           const [current, previous] = await Promise.all([
             this.fetchAccountInsightTotals(account, currentRange),
@@ -169,6 +174,7 @@ export class InstagramService {
           return {
             accountId: account.id,
             username: account.username,
+            uploadCount,
             current,
             previous,
             error: null,
@@ -177,6 +183,7 @@ export class InstagramService {
           return {
             accountId: account.id,
             username: account.username,
+            uploadCount,
             current: this.emptyInsightTotals(),
             previous: this.emptyInsightTotals(),
             error: this.getErrorMessage(error),
@@ -205,6 +212,7 @@ export class InstagramService {
       accounts: accountResults.map((result) => ({
         id: result.accountId,
         username: result.username,
+        uploadCount: result.uploadCount,
         error: result.error,
       })),
     };
@@ -351,10 +359,26 @@ export class InstagramService {
 
   private async fetchInstagramProfile(accessToken: string) {
     const url = this.createGraphUrl('me');
-    url.searchParams.set('fields', 'id,username,account_type');
+    url.searchParams.set('fields', 'id,username,account_type,media_count');
     url.searchParams.set('access_token', accessToken);
 
     return this.requestGraph<InstagramProfileResponse>(url);
+  }
+
+  private async fetchAccountUploadCount(account: InstagramInsightsAccount) {
+    const url = this.createGraphUrl(account.igUserId);
+    url.searchParams.set('fields', 'media_count');
+    url.searchParams.set(
+      'access_token',
+      decryptSecret(account.accessTokenEncrypted),
+    );
+
+    const profile = await this.requestGraph<InstagramProfileResponse>(url);
+
+    return typeof profile.media_count === 'number' &&
+      Number.isFinite(profile.media_count)
+      ? profile.media_count
+      : null;
   }
 
   private async fetchAccountInsightTotals(

@@ -1,5 +1,6 @@
 import { apiFetch } from "@/lib/api/client";
 import {
+  type ChartBar,
   EMPTY_DASHBOARD,
   type DashboardData,
   type StatMetric,
@@ -7,6 +8,12 @@ import {
 
 const INSTAGRAM_ACCOUNTS_ENDPOINT = "/instagram/accounts";
 const INSTAGRAM_ANALYTICS_SUMMARY_ENDPOINT = "/instagram/analytics/summary";
+const UPLOAD_CHART_COLORS = [
+  "var(--chart-1)",
+  "var(--chart-2)",
+  "var(--chart-3)",
+  "var(--chart-4)",
+];
 
 type InstagramAccountResponse = {
   id: string;
@@ -18,10 +25,29 @@ type InstagramAccountResponse = {
 type InstagramAnalyticsSummaryResponse = {
   views: StatMetric;
   likes: StatMetric;
+  accounts: {
+    id: string;
+    username: string;
+    uploadCount: number | null;
+  }[];
 };
 
 function getSettledValue<T>(result: PromiseSettledResult<T>) {
   return result.status === "fulfilled" ? result.value : null;
+}
+
+function getUploadChartBars(
+  analytics: InstagramAnalyticsSummaryResponse | null,
+): ChartBar[] {
+  return (
+    analytics?.accounts
+      .filter((account) => account.uploadCount !== null)
+      .map((account, index) => ({
+        label: `@${account.username}`,
+        value: account.uploadCount ?? 0,
+        color: UPLOAD_CHART_COLORS[index % UPLOAD_CHART_COLORS.length],
+      })) ?? []
+  );
 }
 
 export async function getDashboardData(): Promise<DashboardData> {
@@ -41,6 +67,7 @@ export async function getDashboardData(): Promise<DashboardData> {
     totalAccounts: activeAccounts.length,
     views: analytics?.views ?? EMPTY_DASHBOARD.views,
     likes: analytics?.likes ?? EMPTY_DASHBOARD.likes,
+    uploadChart: getUploadChartBars(analytics),
     accounts: activeAccounts.map((account) => ({
       id: account.id,
       name: `@${account.username}`,

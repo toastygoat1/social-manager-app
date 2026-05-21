@@ -162,37 +162,54 @@ describe('InstagramService', () => {
       },
     ]);
 
-    const fetchMock = jest.spyOn(globalThis, 'fetch').mockImplementation(() => {
-      const callNumber = fetchMock.mock.calls.length;
-      const views = callNumber === 1 ? 120 : 90;
-      const likes = callNumber === 1 ? 12 : 8;
+    let insightCallCount = 0;
+    const fetchMock = jest
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation((input) => {
+        const url =
+          input instanceof URL
+            ? input
+            : new URL(typeof input === 'string' ? input : input.url);
 
-      return Promise.resolve(
-        new Response(
-          JSON.stringify({
-            data: [
-              { name: 'views', total_value: { value: views } },
-              { name: 'likes', total_value: { value: likes } },
-            ],
-          }),
-          {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' },
-          },
-        ),
-      );
-    });
+        if (!url.pathname.endsWith('/insights')) {
+          return Promise.resolve(
+            new Response(JSON.stringify({ media_count: 42 }), {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' },
+            }),
+          );
+        }
+
+        insightCallCount += 1;
+        const views = insightCallCount === 1 ? 120 : 90;
+        const likes = insightCallCount === 1 ? 12 : 8;
+
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              data: [
+                { name: 'views', total_value: { value: views } },
+                { name: 'likes', total_value: { value: likes } },
+              ],
+            }),
+            {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' },
+            },
+          ),
+        );
+      });
 
     const summary = await service.getAnalyticsSummary('user-1');
-    const firstFetchInput = fetchMock.mock.calls[0][0];
-    const firstUrl =
-      firstFetchInput instanceof URL
-        ? firstFetchInput
-        : new URL(
-            typeof firstFetchInput === 'string'
-              ? firstFetchInput
-              : firstFetchInput.url,
-          );
+    const urls = fetchMock.mock.calls.map(([input]) =>
+      input instanceof URL
+        ? input
+        : new URL(typeof input === 'string' ? input : input.url),
+    );
+    const profileUrl = urls.find(
+      (url) => url.pathname === '/v21.0/17841400000000000',
+    );
+    const insightUrl = urls.find((url) => url.pathname.endsWith('/insights'));
 
     expect(prisma.instagramAccount.findMany).toHaveBeenCalledWith({
       where: {
@@ -203,14 +220,28 @@ describe('InstagramService', () => {
         accessTokenEncrypted: true,
       }),
     });
-    expect(firstUrl.origin).toBe('https://graph.instagram.com');
-    expect(firstUrl.pathname).toBe('/v21.0/17841400000000000/insights');
-    expect(firstUrl.searchParams.get('metric')).toBe('views,likes');
-    expect(firstUrl.searchParams.get('period')).toBe('day');
-    expect(firstUrl.searchParams.get('metric_type')).toBe('total_value');
-    expect(firstUrl.searchParams.get('access_token')).toBe('long-lived-token');
+    expect(profileUrl?.searchParams.get('fields')).toBe('media_count');
+    expect(profileUrl?.searchParams.get('access_token')).toBe(
+      'long-lived-token',
+    );
+    expect(insightUrl?.origin).toBe('https://graph.instagram.com');
+    expect(insightUrl?.pathname).toBe('/v21.0/17841400000000000/insights');
+    expect(insightUrl?.searchParams.get('metric')).toBe('views,likes');
+    expect(insightUrl?.searchParams.get('period')).toBe('day');
+    expect(insightUrl?.searchParams.get('metric_type')).toBe('total_value');
+    expect(insightUrl?.searchParams.get('access_token')).toBe(
+      'long-lived-token',
+    );
     expect(summary.views).toEqual({ value: 120, delta: 30, trend: 'up' });
     expect(summary.likes).toEqual({ value: 12, delta: 4, trend: 'up' });
+    expect(summary.accounts).toEqual([
+      {
+        id: 'account-1',
+        username: 'brand',
+        uploadCount: 42,
+        error: null,
+      },
+    ]);
   });
 
   it('creates a signed Meta OAuth URL', () => {
