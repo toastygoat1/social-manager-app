@@ -1,11 +1,15 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { GoogleService } from '../integrations/google/google.service.js';
+import {
+  GoogleService,
+  type GoogleCalendarEvent,
+} from '../integrations/google/google.service.js';
 import { PostStatus, type PostType } from '@social-manager/database';
 
 export type CalendarEventSource = 'scheduled_post' | 'google';
@@ -52,11 +56,14 @@ export class CalendarService {
     toDate: Date,
   ): Promise<CalendarPayload> {
     if (Number.isNaN(fromDate.getTime()) || Number.isNaN(toDate.getTime())) {
-      throw new NotFoundException('Invalid date range');
+      throw new BadRequestException('Invalid date range');
+    }
+    if (fromDate > toDate) {
+      throw new BadRequestException('from must be before to');
     }
 
     const accounts = await this.prisma.instagramAccount.findMany({
-      where: { userId },
+      where: { userId, isActive: true },
       select: { id: true, username: true },
     });
     const accountIds = accounts.map((a) => a.id);
@@ -78,6 +85,12 @@ export class CalendarService {
       : [];
 
     const googleConnected = await this.google.isConnected(userId);
+    const googleEvents = googleConnected
+      ? await this.getGoogleEvents(userId, fromDate, toDate)
+      : [];
+    const currentGoogleConnected = googleConnected
+      ? await this.google.isConnected(userId)
+      : false;
 
     const events: CalendarEvent[] = scheduledPosts.map<CalendarEvent>(
       (post) => {
@@ -98,10 +111,11 @@ export class CalendarService {
         };
       },
     );
+    events.push(...googleEvents.map(mapGoogleEvent).filter(isCalendarEvent));
 
     events.sort((a, b) => a.start.localeCompare(b.start));
 
-    return { googleConnected, events };
+    return { googleConnected: currentGoogleConnected, events };
   }
 
   async createScheduledEvent(
@@ -117,16 +131,22 @@ export class CalendarService {
   ): Promise<CalendarEvent> {
     const account = await this.prisma.instagramAccount.findUnique({
       where: { id: input.instagramAccountId },
-      select: { id: true, userId: true, username: true },
+      select: { id: true, userId: true, username: true, isActive: true },
     });
     if (!account) throw new NotFoundException('Instagram account not found');
     if (account.userId !== userId) {
       throw new ForbiddenException('Account belongs to another user');
     }
+    if (!account.isActive) {
+      throw new NotFoundException('Instagram account not found');
+    }
 
     const scheduledFor = new Date(input.scheduledFor);
     if (Number.isNaN(scheduledFor.getTime())) {
-      throw new NotFoundException('Invalid scheduledFor');
+      throw new BadRequestException('Invalid scheduledFor');
+    }
+    if (scheduledFor <= new Date()) {
+      throw new BadRequestException('scheduledFor must be in the future');
     }
 
     const status: PostStatus = input.requiresApproval
@@ -158,4 +178,56 @@ export class CalendarService {
       caption: post.caption,
     };
   }
+
+  private async getGoogleEvents(
+    userId: string,
+    fromDate: Date,
+    toDate: Date,
+  ): Promise<GoogleCalendarEvent[]> {
+    try {
+      return await this.google.getCalendarEvents(userId, fromDate, toDate);
+    } catch (err) {
+      this.logger.warn(
+        `Google Calendar events skipped for ${userId}: ${(err as Error).message}`,
+      );
+      return [];
+    }
+  }
+}
+
+function mapGoogleEvent(event: GoogleCalendarEvent): CalendarEvent | null {
+  const start = normalizeGoogleDate(event.start, event.allDay);
+  if (!start) return null;
+
+  return {
+    id: `google:${event.id || `${start}:${event.summary}`}`,
+    source: 'google',
+    title: event.summary || '(no title)',
+    start,
+    end: normalizeGoogleDate(event.end, event.allDay),
+    allDay: event.allDay,
+    status: null,
+    postType: null,
+    accountId: null,
+    accountUsername: null,
+    caption: null,
+  };
+}
+
+function normalizeGoogleDate(
+  value: string | null,
+  allDay: boolean,
+): string | null {
+  if (!value) return null;
+  if (allDay && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return `${value}T00:00:00`;
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.toISOString();
+}
+
+function isCalendarEvent(event: CalendarEvent | null): event is CalendarEvent {
+  return event !== null;
 }

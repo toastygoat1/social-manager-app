@@ -68,7 +68,7 @@ export function CalendarHeader({
   const [modalType, setModalType] = useState<CreatePostType | null>(null);
 
   return (
-    <div className="flex h-[72px] w-full shrink-0 items-center justify-center gap-4 rounded-b-2xl border border-line bg-paper px-9">
+    <div className="flex min-h-[72px] w-full shrink-0 flex-wrap items-center justify-center gap-4 rounded-b-2xl border border-line bg-paper px-4 py-3 sm:px-9">
       <div className="flex h-8 items-center gap-2 px-1">
         <button
           type="button"
@@ -97,23 +97,18 @@ export function CalendarHeader({
 
       <div className="h-9 w-1 rounded-full bg-[#495057]" />
 
-      <button
-        type="button"
-        className="flex h-8 items-center gap-1 px-1 text-base font-semibold text-ink"
-      >
+      <div className="flex h-8 items-center gap-1 px-1 text-base font-semibold text-ink">
         <span>{periodLabel}</span>
-        <ChevronDown className="size-4" strokeWidth={2} />
-      </button>
+      </div>
 
       <div className="flex flex-1 items-center">
         {view === "week" ? (
-          <button
-            type="button"
+          <div
             className="flex h-9 items-center gap-2 rounded-lg bg-[#495057] px-2 text-sm font-medium text-paper"
           >
             <Grid2x2 className="size-4" strokeWidth={2.2} />
             <span>All Accounts</span>
-          </button>
+          </div>
         ) : (
           <div className="grid size-9 grid-cols-2 grid-rows-2 gap-1 rounded-lg bg-[#495057] p-1.5">
             <span className="rounded-sm bg-white" />

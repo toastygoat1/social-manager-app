@@ -49,6 +49,15 @@ function toLocalDatetimeInputValue(iso: string): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+function defaultScheduledInputValue(iso: string): string {
+  const requested = new Date(iso);
+  const minimum = new Date(Date.now() + 15 * 60 * 1000);
+  const fallback = Number.isNaN(requested.getTime()) ? minimum : requested;
+  return toLocalDatetimeInputValue(
+    fallback > minimum ? fallback.toISOString() : minimum.toISOString(),
+  );
+}
+
 function ImagePlaceholder({ size = 100 }: { size?: number }) {
   return (
     <div
@@ -131,10 +140,11 @@ export function CreatePostModal({
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(
     null,
   );
+  const [title, setTitle] = useState("");
   const [caption, setCaption] = useState("");
   const [requiresApproval, setRequiresApproval] = useState(true);
   const [scheduledFor, setScheduledFor] = useState(() =>
-    toLocalDatetimeInputValue(defaultScheduledIso),
+    defaultScheduledInputValue(defaultScheduledIso),
   );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -160,12 +170,18 @@ export function CreatePostModal({
     apiFetchBrowser<InstagramAccountResponse[]>("/instagram/accounts")
       .then((list) => {
         setAccounts(list);
-        if (list.length > 0 && !selectedAccountId) {
-          setSelectedAccountId(list[0].id);
-        }
+        setSelectedAccountId((current) =>
+          list.some((account) => account.id === current)
+            ? current
+            : (list[0]?.id ?? null),
+        );
       })
-      .catch((err) => {
-        console.error("load accounts failed", err);
+      .catch(() => {
+        if (process.env.NODE_ENV !== "production") {
+          console.info(
+            "Instagram accounts could not be loaded. Make sure the API server is running.",
+          );
+        }
         setError("Failed to load accounts");
       })
       .finally(() => setAccountsLoading(false));
@@ -173,7 +189,7 @@ export function CreatePostModal({
 
   useEffect(() => {
     if (open) {
-      setScheduledFor(toLocalDatetimeInputValue(defaultScheduledIso));
+      setScheduledFor(defaultScheduledInputValue(defaultScheduledIso));
     }
   }, [open, defaultScheduledIso]);
 
@@ -194,6 +210,10 @@ export function CreatePostModal({
       setError("Invalid date");
       return;
     }
+    if (scheduledDate <= new Date()) {
+      setError("Pick a future schedule time");
+      return;
+    }
     setSubmitting(true);
     try {
       await apiFetchBrowser("/calendar/events", {
@@ -202,19 +222,28 @@ export function CreatePostModal({
           instagramAccountId: selectedAccountId,
           postType: TYPE_TO_POST_TYPE[type],
           scheduledFor: scheduledDate.toISOString(),
+          title: title || undefined,
           caption: caption || undefined,
           requiresApproval,
         },
       });
+      setTitle("");
       setCaption("");
       onCreated();
-    } catch (err) {
-      console.error("create event failed", err);
+    } catch {
+      if (process.env.NODE_ENV !== "production") {
+        console.info(
+          "Scheduled post could not be created. Make sure the API server is running.",
+        );
+      }
       setError("Failed to schedule post");
     } finally {
       setSubmitting(false);
     }
   };
+
+  const scheduleDisabled = submitting || accountsLoading || !selectedAccountId;
+  const minScheduledFor = toLocalDatetimeInputValue(new Date().toISOString());
 
   return (
     <div
@@ -233,7 +262,7 @@ export function CreatePostModal({
           <section className="flex w-full flex-col gap-1">
             <h2 className="text-xl font-semibold text-ink">Publish To</h2>
             {accountsLoading ? (
-              <p className="text-sm text-muted">Loading accounts…</p>
+              <p className="text-sm text-muted">Loading accounts...</p>
             ) : accounts.length === 0 ? (
               <p className="text-sm text-muted">
                 No Instagram accounts connected yet.
@@ -256,6 +285,13 @@ export function CreatePostModal({
             <h2 className="text-xl font-semibold text-ink">{TYPE_LABEL[type]}</h2>
             <div className="flex h-[524px] w-full flex-col gap-6 overflow-hidden rounded-2xl border border-line p-6">
               <div className="flex flex-1 flex-col gap-2.5 overflow-hidden p-2.5">
+                <input
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Post title"
+                  maxLength={200}
+                  className="h-10 w-full shrink-0 border-b border-line bg-transparent text-base font-semibold text-ink placeholder:text-muted focus:outline-none"
+                />
                 <textarea
                   value={caption}
                   onChange={(e) => setCaption(e.target.value)}
@@ -278,11 +314,11 @@ export function CreatePostModal({
               onToggle={() => setRequiresApproval((v) => !v)}
             />
             <div className="flex flex-col gap-0.5 whitespace-nowrap">
-              <p className="text-base leading-[26px] tracking-[-0.32px] text-ink">
+              <p className="text-base leading-[26px] text-ink">
                 Wait for Approval
               </p>
-              <p className="font-inter text-sm leading-5 tracking-[-0.28px] text-muted">
-                Wait for someone to approve before scheduling/publising
+              <p className="font-inter text-sm leading-5 text-muted">
+                Require approval before publishing
               </p>
             </div>
           </div>
@@ -307,6 +343,7 @@ export function CreatePostModal({
               <input
                 type="datetime-local"
                 value={scheduledFor}
+                min={minScheduledFor}
                 onChange={(e) => setScheduledFor(e.target.value)}
                 className="bg-transparent text-xs font-medium leading-4 text-muted focus:outline-none"
               />
@@ -314,19 +351,18 @@ export function CreatePostModal({
             <div className="flex h-8 items-center overflow-hidden rounded-lg bg-[#78dbe8]">
               <button
                 type="button"
-                disabled={submitting}
+                disabled={scheduleDisabled}
                 onClick={handleSubmit}
                 className="flex h-full items-center px-4 text-xs font-bold leading-4 text-[#f2f2f2] disabled:opacity-60"
               >
-                {submitting ? "Scheduling…" : "Schedule"}
+                {submitting ? "Scheduling..." : "Schedule"}
               </button>
-              <button
-                type="button"
-                aria-label="Schedule options"
+              <span
+                aria-hidden="true"
                 className="flex h-full w-7 items-center justify-center bg-[#1d6b81]"
               >
                 <ChevronDown className="size-4 text-[#f2f2f2]" strokeWidth={2.2} />
-              </button>
+              </span>
             </div>
           </div>
         </div>
