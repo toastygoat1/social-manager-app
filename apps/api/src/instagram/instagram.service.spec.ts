@@ -186,6 +186,7 @@ describe('InstagramService', () => {
       sentAt,
       createdAt: sentAt,
     };
+    prisma.instagramAccount.findMany.mockResolvedValue([]);
     prisma.dmConversation.findMany.mockResolvedValue([
       {
         id: 'conversation-1',
@@ -221,6 +222,156 @@ describe('InstagramService', () => {
         messageCount: 2,
       }),
     ]);
+  });
+
+  it('syncs Instagram DM conversations before listing stored conversations', async () => {
+    const sentAt = new Date('2026-05-22T14:00:00.000Z');
+    prisma.instagramAccount.findMany.mockResolvedValue([
+      {
+        id: 'account-1',
+        igUserId: 'ig-account-1',
+        accessTokenEncrypted: encryptSecret('ig-token'),
+      },
+    ]);
+    prisma.dmConversation.upsert.mockResolvedValue({
+      id: 'conversation-1',
+    });
+    prisma.dmMessage.upsert.mockResolvedValue({});
+    prisma.dmConversation.findMany.mockResolvedValue([]);
+    const fetchMock = jest
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation((input) => {
+        const url =
+          input instanceof URL
+            ? input
+            : new URL(typeof input === 'string' ? input : input.url);
+
+        if (url.pathname.endsWith('/me/conversations')) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                data: [
+                  {
+                    id: 'ig-conversation-1',
+                    updated_time: sentAt.toISOString(),
+                  },
+                ],
+              }),
+              {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' },
+              },
+            ),
+          );
+        }
+
+        if (url.pathname.endsWith('/ig-conversation-1')) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                messages: {
+                  data: [{ id: 'ig-message-1' }, { id: 'ig-message-2' }],
+                },
+              }),
+              {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' },
+              },
+            ),
+          );
+        }
+
+        if (url.pathname.endsWith('/ig-message-1')) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                id: 'ig-message-1',
+                created_time: sentAt.toISOString(),
+                from: { id: 'participant-1', username: 'customer' },
+                to: { data: [{ id: 'ig-account-1' }] },
+                message: 'Hi there',
+              }),
+              {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' },
+              },
+            ),
+          );
+        }
+
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              id: 'ig-message-2',
+              created_time: new Date(sentAt.getTime() + 1000).toISOString(),
+              from: { id: 'ig-account-1' },
+              to: { data: [{ id: 'participant-1', username: 'customer' }] },
+              message: 'Hello',
+            }),
+            {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' },
+            },
+          ),
+        );
+      });
+
+    await service.getDmConversations('user-1');
+
+    const accountFindArgs = prisma.instagramAccount.findMany.mock
+      .calls[0][0] as {
+      where: Record<string, unknown>;
+      select: Record<string, boolean>;
+    };
+    const fetchedUrls = fetchMock.mock.calls.map(([input]) =>
+      input instanceof URL
+        ? input
+        : new URL(typeof input === 'string' ? input : input.url),
+    );
+
+    expect(accountFindArgs.where).toEqual({
+      userId: 'user-1',
+      isActive: true,
+    });
+    expect(accountFindArgs.select).toEqual(
+      expect.objectContaining({
+        accessTokenEncrypted: true,
+      }),
+    );
+    expect(fetchedUrls[0].pathname).toBe('/v21.0/me/conversations');
+    expect(fetchedUrls[0].searchParams.get('platform')).toBe('instagram');
+    expect(fetchedUrls[0].searchParams.get('access_token')).toBe('ig-token');
+    expect(prisma.dmConversation.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          igConversationId: 'instagram:ig-account-1:participant-1',
+        },
+        create: expect.objectContaining({
+          instagramAccountId: 'account-1',
+          participantIgId: 'participant-1',
+          participantUsername: 'customer',
+        }) as Record<string, unknown>,
+      }),
+    );
+    expect(prisma.dmMessage.upsert).toHaveBeenCalledTimes(2);
+    expect(prisma.dmMessage.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          igMessageId: 'ig-message-1',
+          senderType: DmSenderType.PARTICIPANT,
+          messageText: 'Hi there',
+        }) as Record<string, unknown>,
+      }),
+    );
+    expect(prisma.dmMessage.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          igMessageId: 'ig-message-2',
+          senderType: DmSenderType.USER,
+          messageText: 'Hello',
+        }) as Record<string, unknown>,
+      }),
+    );
   });
 
   it('returns a DM conversation thread owned by the user', async () => {

@@ -76,12 +76,22 @@ const INSTAGRAM_INSIGHTS_ACCOUNT_SELECT = {
   accessTokenEncrypted: true,
 } satisfies Prisma.InstagramAccountSelect;
 
+const INSTAGRAM_DM_SYNC_ACCOUNT_SELECT = {
+  id: true,
+  igUserId: true,
+  accessTokenEncrypted: true,
+} satisfies Prisma.InstagramAccountSelect;
+
 type SafeInstagramAccount = Prisma.InstagramAccountGetPayload<{
   select: typeof SAFE_INSTAGRAM_ACCOUNT_SELECT;
 }>;
 
 type InstagramInsightsAccount = Prisma.InstagramAccountGetPayload<{
   select: typeof INSTAGRAM_INSIGHTS_ACCOUNT_SELECT;
+}>;
+
+type InstagramDmSyncAccount = Prisma.InstagramAccountGetPayload<{
+  select: typeof INSTAGRAM_DM_SYNC_ACCOUNT_SELECT;
 }>;
 
 const DEFAULT_GRAPH_API_VERSION = 'v21.0';
@@ -96,6 +106,7 @@ const DASHBOARD_INSIGHTS_DAYS = 30;
 const DASHBOARD_INSIGHT_METRICS = ['views'] as const;
 const DASHBOARD_MEDIA_FIELDS = 'id,like_count,timestamp';
 const MAX_MEDIA_PAGES_FOR_DASHBOARD = 25;
+const MAX_DM_CONVERSATION_PAGES = 3;
 const STORY_TTL_MS = 24 * 60 * 60 * 1000;
 
 type DashboardInsightMetric = (typeof DASHBOARD_INSIGHT_METRICS)[number];
@@ -189,6 +200,47 @@ type InstagramStoriesResponse = GraphApiError & {
   paging?: {
     next?: string;
   };
+};
+
+type InstagramConversationSummaryResponse = {
+  id?: string;
+  updated_time?: string;
+};
+
+type InstagramConversationListResponse = GraphApiError & {
+  data?: InstagramConversationSummaryResponse[];
+  paging?: {
+    next?: string;
+  };
+};
+
+type InstagramConversationMessagesResponse = GraphApiError & {
+  messages?: {
+    data?: {
+      id?: string;
+      created_time?: string;
+    }[];
+  };
+};
+
+type InstagramMessageParticipant = {
+  id?: string;
+  username?: string;
+};
+
+type InstagramMessageDetailResponse = GraphApiError & {
+  id?: string;
+  created_time?: string;
+  from?: InstagramMessageParticipant;
+  to?: {
+    data?: InstagramMessageParticipant[];
+  };
+  message?: string;
+};
+
+type ResolvedDmParticipant = {
+  id: string;
+  username: string | null;
 };
 
 type ObservedInstagramStory = InstagramStoryResponse & {
@@ -440,6 +492,8 @@ export class InstagramService {
   }
 
   async getDmConversations(userId: string, accountId?: string) {
+    await this.syncDmConversationsForUser(userId, accountId);
+
     const conversations = await this.prisma.dmConversation.findMany({
       where: {
         instagramAccount: { userId, isActive: true },
@@ -744,6 +798,245 @@ export class InstagramService {
         igUserId: true,
       },
     });
+  }
+
+  private async syncDmConversationsForUser(userId: string, accountId?: string) {
+    const accounts = await this.prisma.instagramAccount.findMany({
+      where: {
+        userId,
+        isActive: true,
+        ...(accountId ? { id: accountId } : {}),
+      },
+      select: INSTAGRAM_DM_SYNC_ACCOUNT_SELECT,
+    });
+
+    if (!accounts.length) {
+      return;
+    }
+
+    const results = await Promise.allSettled(
+      accounts.map((account) => this.syncAccountDmConversations(account)),
+    );
+    const failures = results.filter(
+      (result): result is PromiseRejectedResult => result.status === 'rejected',
+    );
+
+    if (!failures.length) {
+      return;
+    }
+
+    const message = this.getErrorMessage(failures[0].reason);
+
+    if (failures.length === accounts.length) {
+      throw new BadGatewayException(`Instagram DM sync failed: ${message}`);
+    }
+
+    this.logger.warn(
+      `Instagram DM sync partially failed for ${failures.length}/${accounts.length} account(s): ${message}`,
+    );
+  }
+
+  private async syncAccountDmConversations(account: InstagramDmSyncAccount) {
+    const accessToken = decryptSecret(account.accessTokenEncrypted);
+    const conversations = await this.fetchInstagramDmConversations(accessToken);
+
+    await Promise.all(
+      conversations.map((conversation) =>
+        this.syncInstagramDmConversation(account, accessToken, conversation),
+      ),
+    );
+  }
+
+  private async fetchInstagramDmConversations(accessToken: string) {
+    const conversations: InstagramConversationSummaryResponse[] = [];
+    let nextUrl: URL | null = this.createGraphUrl('me/conversations');
+    let pageCount = 0;
+
+    nextUrl.searchParams.set('platform', 'instagram');
+    nextUrl.searchParams.set('limit', '25');
+    nextUrl.searchParams.set('access_token', accessToken);
+
+    while (nextUrl && pageCount < MAX_DM_CONVERSATION_PAGES) {
+      pageCount += 1;
+      const response =
+        await this.requestGraph<InstagramConversationListResponse>(nextUrl);
+      const responseConversations = Array.isArray(response.data)
+        ? response.data
+        : [];
+      const next =
+        typeof response.paging?.next === 'string' ? response.paging.next : null;
+
+      conversations.push(
+        ...responseConversations.filter(
+          (conversation) => typeof conversation.id === 'string',
+        ),
+      );
+      nextUrl = next ? new URL(next) : null;
+    }
+
+    return conversations;
+  }
+
+  private async syncInstagramDmConversation(
+    account: InstagramDmSyncAccount,
+    accessToken: string,
+    conversation: InstagramConversationSummaryResponse,
+  ) {
+    if (!conversation.id) {
+      return;
+    }
+
+    const messages = await this.fetchInstagramDmConversationMessages(
+      conversation.id,
+      accessToken,
+    );
+
+    if (!messages.length) {
+      return;
+    }
+
+    const participant = this.resolveDmParticipant(account, messages);
+
+    if (!participant) {
+      return;
+    }
+
+    const sortedMessages = [...messages].sort((left, right) => {
+      const leftTime = this.toDate(left.created_time)?.getTime() ?? 0;
+      const rightTime = this.toDate(right.created_time)?.getTime() ?? 0;
+      return leftTime - rightTime;
+    });
+    const lastMessageAt =
+      sortedMessages
+        .map((message) => this.toDate(message.created_time))
+        .filter((date): date is Date => Boolean(date))
+        .at(-1) ??
+      this.toDate(conversation.updated_time) ??
+      new Date();
+    const igConversationId = this.buildWebhookConversationId(
+      account.igUserId,
+      participant.id,
+    );
+    const dbConversation = await this.prisma.dmConversation.upsert({
+      where: {
+        igConversationId,
+      },
+      update: {
+        participantUsername: participant.username,
+        lastMessageAt,
+      },
+      create: {
+        instagramAccountId: account.id,
+        igConversationId,
+        participantIgId: participant.id,
+        participantUsername: participant.username,
+        lastMessageAt,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    await Promise.all(
+      sortedMessages
+        .filter(
+          (
+            message,
+          ): message is InstagramMessageDetailResponse & {
+            id: string;
+          } => typeof message.id === 'string' && Boolean(message.id),
+        )
+        .map((message) =>
+          this.prisma.dmMessage.upsert({
+            where: {
+              igMessageId: message.id,
+            },
+            update: {
+              conversationId: dbConversation.id,
+              senderType:
+                message.from?.id === account.igUserId
+                  ? DmSenderType.USER
+                  : DmSenderType.PARTICIPANT,
+              messageText: message.message ?? null,
+              sentAt: this.toDate(message.created_time) ?? new Date(),
+            },
+            create: {
+              conversationId: dbConversation.id,
+              igMessageId: message.id,
+              senderType:
+                message.from?.id === account.igUserId
+                  ? DmSenderType.USER
+                  : DmSenderType.PARTICIPANT,
+              messageText: message.message ?? null,
+              sentAt: this.toDate(message.created_time) ?? new Date(),
+            },
+            select: DM_MESSAGE_SELECT,
+          }),
+        ),
+    );
+  }
+
+  private async fetchInstagramDmConversationMessages(
+    conversationId: string,
+    accessToken: string,
+  ) {
+    const summaryUrl = this.createGraphUrl(conversationId);
+    summaryUrl.searchParams.set('fields', 'messages');
+    summaryUrl.searchParams.set('access_token', accessToken);
+
+    const summary =
+      await this.requestGraph<InstagramConversationMessagesResponse>(
+        summaryUrl,
+      );
+    const messageRefs = Array.isArray(summary.messages?.data)
+      ? summary.messages.data
+      : [];
+
+    return Promise.all(
+      messageRefs
+        .filter((message) => typeof message.id === 'string' && message.id)
+        .map((message) =>
+          this.fetchInstagramDmMessage(message.id as string, accessToken),
+        ),
+    );
+  }
+
+  private async fetchInstagramDmMessage(
+    messageId: string,
+    accessToken: string,
+  ) {
+    const url = this.createGraphUrl(messageId);
+    url.searchParams.set('fields', 'id,created_time,from,to,message');
+    url.searchParams.set('access_token', accessToken);
+
+    return this.requestGraph<InstagramMessageDetailResponse>(url);
+  }
+
+  private resolveDmParticipant(
+    account: InstagramDmSyncAccount,
+    messages: InstagramMessageDetailResponse[],
+  ): ResolvedDmParticipant | null {
+    for (const message of messages) {
+      const candidates = [message.from, ...(message.to?.data ?? [])];
+      const participant = candidates.find(
+        (candidate) =>
+          typeof candidate?.id === 'string' &&
+          Boolean(candidate.id) &&
+          candidate.id !== account.igUserId,
+      );
+
+      if (participant?.id) {
+        return {
+          id: participant.id,
+          username:
+            typeof participant.username === 'string'
+              ? participant.username
+              : null,
+        };
+      }
+    }
+
+    return null;
   }
 
   private async exchangeCodeForToken(code: string) {
@@ -1197,10 +1490,7 @@ export class InstagramService {
       throw new UnauthorizedException('Invalid webhook signature format');
     }
 
-    const expectedSignature = createHmac(
-      'sha256',
-      this.getInstagramAppSecret(),
-    )
+    const expectedSignature = createHmac('sha256', this.getInstagramAppSecret())
       .update(rawBody)
       .digest('hex');
     const expectedBuffer = Buffer.from(expectedSignature, 'hex');
