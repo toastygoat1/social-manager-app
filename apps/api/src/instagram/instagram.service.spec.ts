@@ -649,6 +649,9 @@ describe('InstagramService', () => {
       'http://localhost:3000/dashboard/instagram/callback',
     );
     expect(url.searchParams.get('scope')).toContain('instagram_business_basic');
+    expect(url.searchParams.get('scope')).toContain(
+      'instagram_business_manage_messages',
+    );
     expect(url.searchParams.get('enable_fb_login')).toBe('0');
     expect(url.searchParams.get('state')).toContain('.');
   });

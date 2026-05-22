@@ -149,7 +149,7 @@ Referensi sudah jalan: `apps/web/lib/dashboard-data.ts`, `apps/web/app/dashboard
 | Item | Catatan |
 |---|---|
 | Definisi: apakah Chat ini IG DM, internal team chat, atau lainnya? | Wajib klarifikasi dulu. Endpoint dan source data tergantung jawaban. |
-| Jika IG DM: butuh IG Graph API Messaging permission | `instagram_manage_messages` scope. Subject to Meta review. Worker fetch DM via webhook. |
+| Jika IG DM: butuh IG Graph API Messaging permission | `instagram_business_manage_messages` scope. Subject to Meta review. Worker fetch DM via webhook. |
 | Jika internal: butuh tabel `messages`, `conversations` di Prisma schema | + WebSocket/SSE untuk realtime. |
 | Buat `apps/web/lib/chat-data.ts` → `getChatList()`, `getThread(chatId)` | Pola fallback `EMPTY_CHATS`, `EMPTY_THREAD`. |
 | Hapus `CHATS`, `BUBBLES` dummy | Ganti types + empty constants. |
