@@ -88,6 +88,7 @@ const DEFAULT_INSTAGRAM_SCOPES = [
   'instagram_business_basic',
   'instagram_business_content_publish',
   'instagram_business_manage_insights',
+  'instagram_business_manage_messages',
 ];
 const OAUTH_STATE_TTL_MS = 15 * 60 * 1000;
 const DASHBOARD_INSIGHTS_DAYS = 30;
@@ -1215,7 +1216,7 @@ export class InstagramService {
     const accessToken = decryptSecret(encryptedAccessToken);
     const baseUrl =
       this.config.get<string>('INSTAGRAM_GRAPH_API_BASE_URL')?.trim() ||
-      'https://graph.facebook.com';
+      'https://graph.instagram.com';
     const graphApiVersion =
       this.config.get<string>('INSTAGRAM_GRAPH_API_VERSION')?.trim() ||
       this.getGraphApiVersion();
