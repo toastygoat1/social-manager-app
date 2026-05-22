@@ -38,7 +38,7 @@ export const MONTH_DAYS = [
   "SUN",
 ] as const;
 
-export const WEEK_HOUR_START = 1;
+export const WEEK_HOUR_START = 0;
 export const WEEK_HOUR_END = 23;
 
 const DAY_LABELS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"] as const;
@@ -137,9 +137,20 @@ export function formatPeriodLabel(
     year: "numeric",
   });
   if (view === "month") return monthFmt;
+
   const days = buildWeekDays(reference);
-  const first = days[0];
-  const last = days[6];
-  const monthShort = reference.toLocaleString("en-US", { month: "short" });
-  return `${monthShort} ${first.date}-${last.date}, ${reference.getFullYear()}`;
+  const first = new Date(`${days[0].iso}T00:00:00`);
+  const last = new Date(`${days[6].iso}T00:00:00`);
+  const firstMonth = first.toLocaleString("en-US", { month: "short" });
+  const lastMonth = last.toLocaleString("en-US", { month: "short" });
+  const firstYear = first.getFullYear();
+  const lastYear = last.getFullYear();
+
+  if (firstYear === lastYear && first.getMonth() === last.getMonth()) {
+    return `${firstMonth} ${first.getDate()}-${last.getDate()}, ${firstYear}`;
+  }
+  if (firstYear === lastYear) {
+    return `${firstMonth} ${first.getDate()} - ${lastMonth} ${last.getDate()}, ${firstYear}`;
+  }
+  return `${firstMonth} ${first.getDate()}, ${firstYear} - ${lastMonth} ${last.getDate()}, ${lastYear}`;
 }

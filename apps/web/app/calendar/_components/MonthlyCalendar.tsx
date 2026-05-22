@@ -1,10 +1,18 @@
-import { Calendar as CalendarIcon, Check, Pencil, TriangleAlert, User } from "lucide-react";
+import {
+  Calendar as CalendarIcon,
+  Check,
+  Loader2,
+  Pencil,
+  TriangleAlert,
+  User,
+} from "lucide-react";
 import {
   buildMonthGrid,
   type CalendarEvent,
   type EventStatus,
   type MonthCell,
   MONTH_DAYS,
+  toIsoDate,
 } from "./data";
 
 const STATUS_BADGE: Record<
@@ -16,8 +24,9 @@ const STATUS_BADGE: Record<
   pending: { bg: "bg-[#fbd177]", Icon: TriangleAlert },
 };
 
-function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString("en-US", {
+function formatTime(event: CalendarEvent): string {
+  if (event.allDay) return "All day";
+  return new Date(event.start).toLocaleTimeString("en-US", {
     hour: "numeric",
     minute: "2-digit",
   });
@@ -40,7 +49,7 @@ function EventChip({ event }: { event: CalendarEvent }) {
           {event.title}
         </span>
         <span className="ml-auto pr-1 text-xs font-medium text-ink">
-          {formatTime(event.start)}
+          {formatTime(event)}
         </span>
       </div>
       {badge ? (
@@ -96,8 +105,7 @@ export function MonthlyCalendar({ reference, events, loading }: Props) {
   const grid = buildMonthGrid(reference);
   const eventsByIso = new Map<string, CalendarEvent[]>();
   for (const evt of events) {
-    const d = new Date(evt.start);
-    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const iso = toIsoDate(new Date(evt.start));
     const list = eventsByIso.get(iso) ?? [];
     list.push(evt);
     eventsByIso.set(iso, list);
@@ -105,6 +113,24 @@ export function MonthlyCalendar({ reference, events, loading }: Props) {
 
   return (
     <div className="relative flex w-full flex-1 flex-col overflow-hidden rounded-2xl border border-line bg-paper">
+      {loading ? (
+        <div className="absolute right-3 top-3 z-10 flex items-center gap-2 rounded-full border border-line bg-paper px-3 py-1 text-xs font-medium text-muted shadow-sm">
+          <Loader2 className="size-3 animate-spin" strokeWidth={2} />
+          <span>Loading</span>
+        </div>
+      ) : null}
+      {!loading && events.length === 0 ? (
+        <div className="pointer-events-none absolute inset-12 z-10 flex items-center justify-center">
+          <div className="bg-paper/90 px-4 py-3 text-center">
+            <p className="text-sm font-semibold text-ink">
+              No scheduled content yet.
+            </p>
+            <p className="mt-1 text-xs text-muted">
+              Posts, reels, stories, and synced calendar events will show here.
+            </p>
+          </div>
+        </div>
+      ) : null}
       <div className="flex h-12 shrink-0 items-stretch bg-line">
         {MONTH_DAYS.map((d, i) => (
           <div

@@ -25,6 +25,7 @@ export function CalendarShell({ initialReferenceIso, initialData }: Props) {
   );
   const [data, setData] = useState<CalendarData>(initialData);
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const skipNextFetchRef = useRef(true);
 
   const range = useMemo(
@@ -34,6 +35,7 @@ export function CalendarShell({ initialReferenceIso, initialData }: Props) {
 
   const fetchEvents = useCallback(async () => {
     setLoading(true);
+    setErrorMessage(null);
     try {
       const params = new URLSearchParams({
         from: range.from.toISOString(),
@@ -43,9 +45,14 @@ export function CalendarShell({ initialReferenceIso, initialData }: Props) {
         `/calendar/events?${params.toString()}`,
       );
       setData(result);
-    } catch (err) {
-      console.error("calendar fetch failed", err);
+    } catch {
+      if (process.env.NODE_ENV !== "production") {
+        console.info(
+          "Calendar events could not be loaded. Make sure the API server is running.",
+        );
+      }
       setData(EMPTY_CALENDAR);
+      setErrorMessage("Could not load calendar events.");
     } finally {
       setLoading(false);
     }
@@ -90,6 +97,16 @@ export function CalendarShell({ initialReferenceIso, initialData }: Props) {
         onCreated={refresh}
         referenceIso={reference.toISOString()}
       />
+      {errorMessage || !data.googleConnected ? (
+        <div className="flex min-h-10 shrink-0 flex-wrap items-center gap-3 rounded-lg border border-line bg-paper px-4 py-2 text-xs font-medium text-muted">
+          {errorMessage ? (
+            <span className="text-danger">{errorMessage}</span>
+          ) : null}
+          {!data.googleConnected ? (
+            <span>Google Calendar not connected.</span>
+          ) : null}
+        </div>
+      ) : null}
       {view === "week" ? (
         <WeeklyCalendar
           reference={reference}
