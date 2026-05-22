@@ -7,6 +7,8 @@ import { AppService } from './app.service.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { InstagramModule } from './instagram/instagram.module.js';
+import { DashboardModule } from './dashboard/dashboard.module.js';
+import { GoogleModule } from './integrations/google/google.module.js';
 
 @Module({
   imports: [
@@ -25,6 +27,8 @@ import { InstagramModule } from './instagram/instagram.module.js';
     PrismaModule,
     AuthModule,
     InstagramModule,
+    DashboardModule,
+    GoogleModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
