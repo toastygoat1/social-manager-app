@@ -25,6 +25,7 @@ const SAFE_INSTAGRAM_ACCOUNT_SELECT = {
   isActive: true,
   tokenExpiresAt: true,
   connectedAt: true,
+  disconnectedAt: true,
   createdAt: true,
   updatedAt: true,
 } satisfies Prisma.InstagramAccountSelect;
@@ -178,6 +179,7 @@ export class InstagramService {
       },
       data: {
         isActive: false,
+        disconnectedAt: new Date(),
       },
     });
 
@@ -351,6 +353,7 @@ export class InstagramService {
               ? new Date(data.tokenExpiresAt)
               : null,
             isActive: true,
+            disconnectedAt: null,
           },
         });
 
