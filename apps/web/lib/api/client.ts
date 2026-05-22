@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { ApiError } from "@/lib/api/error";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
@@ -8,21 +9,13 @@ type ApiFetchOptions = Omit<RequestInit, "body"> & {
   auth?: boolean;
 };
 
-export class ApiError extends Error {
-  constructor(
-    public readonly status: number,
-    public readonly body: unknown,
-  ) {
-    super(`API request failed with status ${status}`);
-    this.name = "ApiError";
-  }
-}
-
 function buildUrl(path: string) {
   return path.startsWith("http")
     ? path
     : `${API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
 }
+
+export { ApiError };
 
 function buildHeaders(
   auth: boolean,
