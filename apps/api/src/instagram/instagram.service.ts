@@ -163,7 +163,7 @@ export class InstagramService {
 
   async getAccounts(userId: string) {
     return this.prisma.instagramAccount.findMany({
-      where: { userId: userId },
+      where: { userId: userId, isActive: true },
       orderBy: { createdAt: 'desc' },
       select: SAFE_INSTAGRAM_ACCOUNT_SELECT,
     });
@@ -356,12 +356,12 @@ export class InstagramService {
 
         if (updateResult.count === 0) {
           throw new ForbiddenException(
-            'Akun Instagram ini sudah ditautkan oleh pengguna lain.',
+            'This Instagram account is already connected to another user.',
           );
         }
 
-        const account = await this.prisma.instagramAccount.findUnique({
-          where: { igUserId: data.igUserId },
+        const account = await this.prisma.instagramAccount.findFirst({
+          where: { igUserId: data.igUserId, userId, isActive: true },
           select: SAFE_INSTAGRAM_ACCOUNT_SELECT,
         });
 

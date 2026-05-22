@@ -39,7 +39,7 @@ model GoogleIntegration {
 model InstagramAccount {
   id                   String               @id @default(uuid())
   userId               String               @map("user_id")
-  igUserId             String               @unique @map("ig_user_id")
+  igUserId             String               @map("ig_user_id")
   username             String
   accountType          InstagramAccountType @map("account_type")
   accessTokenEncrypted String               @map("access_token_encrypted")
