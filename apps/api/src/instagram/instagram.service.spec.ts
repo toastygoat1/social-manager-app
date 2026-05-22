@@ -165,8 +165,13 @@ describe('InstagramService', () => {
     await service.getAccounts('user-1');
 
     const findManyArgs = prisma.instagramAccount.findMany.mock.calls[0][0] as {
+      where: Record<string, unknown>;
       select: Record<string, boolean>;
     };
+    expect(findManyArgs.where).toEqual({
+      userId: 'user-1',
+      isActive: true,
+    });
     expect(findManyArgs.select).not.toHaveProperty('accessTokenEncrypted');
   });
 
@@ -205,7 +210,7 @@ describe('InstagramService', () => {
     };
 
     expect(findManyArgs.where).toEqual({
-      instagramAccount: { userId: 'user-1' },
+      instagramAccount: { userId: 'user-1', isActive: true },
       instagramAccountId: 'account-1',
     });
     expect(findManyArgs.select).toHaveProperty('instagramAccount');
@@ -253,7 +258,7 @@ describe('InstagramService', () => {
 
     expect(findFirstArgs.where).toEqual({
       id: 'conversation-1',
-      instagramAccount: { userId: 'user-1' },
+      instagramAccount: { userId: 'user-1', isActive: true },
     });
     expect(result).toEqual(
       expect.objectContaining({
@@ -306,7 +311,14 @@ describe('InstagramService', () => {
         messageText: string;
       };
     };
+    const findFirstArgs = prisma.dmConversation.findFirst.mock.calls[0][0] as {
+      where: Record<string, unknown>;
+    };
 
+    expect(findFirstArgs.where).toEqual({
+      id: 'conversation-1',
+      instagramAccount: { userId: 'user-1', isActive: true },
+    });
     expect(createArgs.data).toEqual(
       expect.objectContaining({
         conversationId: 'conversation-1',

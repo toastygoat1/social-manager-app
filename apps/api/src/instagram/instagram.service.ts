@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   Injectable,
   InternalServerErrorException,
+  Logger,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -201,6 +202,8 @@ type StoryCountSummary = {
 
 @Injectable()
 export class InstagramService {
+  private readonly logger = new Logger(InstagramService.name);
+
   constructor(
     private prisma: PrismaService,
     private config: ConfigService,
@@ -213,7 +216,7 @@ export class InstagramService {
 
   async getAccounts(userId: string) {
     return this.prisma.instagramAccount.findMany({
-      where: { userId: userId },
+      where: { userId, isActive: true },
       orderBy: { createdAt: 'desc' },
       select: SAFE_INSTAGRAM_ACCOUNT_SELECT,
     });
@@ -439,7 +442,7 @@ export class InstagramService {
   async getDmConversations(userId: string, accountId?: string) {
     const conversations = await this.prisma.dmConversation.findMany({
       where: {
-        instagramAccount: { userId },
+        instagramAccount: { userId, isActive: true },
         ...(accountId ? { instagramAccountId: accountId } : {}),
       },
       orderBy: [{ lastMessageAt: 'desc' }, { updatedAt: 'desc' }],
@@ -466,7 +469,7 @@ export class InstagramService {
     const conversation = await this.prisma.dmConversation.findFirst({
       where: {
         id: conversationId,
-        instagramAccount: { userId },
+        instagramAccount: { userId, isActive: true },
       },
       select: {
         ...DM_CONVERSATION_SELECT,
@@ -501,7 +504,7 @@ export class InstagramService {
     const conversation = await this.prisma.dmConversation.findFirst({
       where: {
         id: conversationId,
-        instagramAccount: { userId },
+        instagramAccount: { userId, isActive: true },
       },
       select: {
         id: true,
@@ -591,6 +594,10 @@ export class InstagramService {
           processedAt: new Date(),
         },
       });
+
+      this.logger.log(
+        `Instagram webhook processed: events=${result.eventsReceived}, messagesProcessed=${result.messagesProcessed}, messagesIgnored=${result.messagesIgnored}`,
+      );
 
       return result;
     } catch (error) {
