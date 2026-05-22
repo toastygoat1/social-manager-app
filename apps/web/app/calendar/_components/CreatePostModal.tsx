@@ -13,12 +13,14 @@ import {
   Upload,
   User,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { apiFetchBrowser } from "@/lib/api/browser-client";
 import { createClient } from "@/lib/supabase/client";
 import type { CalendarPostType } from "./data";
 
 export type CreatePostType = "post" | "story" | "reels";
+type SubmitAction = "schedule" | "post-now" | "draft";
 
 type Props = {
   open: boolean;
@@ -75,6 +77,34 @@ const TYPE_TO_POST_TYPE: Record<CreatePostType, CalendarPostType> = {
 };
 
 const MAX_MEDIA_SIZE = 100 * 1024 * 1024;
+
+const SUBMIT_OPTIONS: {
+  action: SubmitAction;
+  label: string;
+  Icon: LucideIcon;
+}[] = [
+  { action: "schedule", label: "Schedule", Icon: Calendar },
+  { action: "post-now", label: "Post Now", Icon: Send },
+  { action: "draft", label: "Save as Draft", Icon: Bookmark },
+];
+
+const ACTION_TO_API: Record<SubmitAction, "SCHEDULE" | "POST_NOW" | "DRAFT"> = {
+  schedule: "SCHEDULE",
+  "post-now": "POST_NOW",
+  draft: "DRAFT",
+};
+
+const SUBMITTING_LABEL: Record<SubmitAction, string> = {
+  schedule: "Scheduling...",
+  "post-now": "Posting...",
+  draft: "Saving...",
+};
+
+const SUBMIT_ERROR: Record<SubmitAction, string> = {
+  schedule: "Failed to schedule post",
+  "post-now": "Failed to post now",
+  draft: "Failed to save draft",
+};
 
 function toLocalDatetimeInputValue(iso: string): string {
   const d = new Date(iso);
@@ -258,6 +288,9 @@ export function CreatePostModal({
     defaultScheduledInputValue(defaultScheduledIso),
   );
   const [submitting, setSubmitting] = useState(false);
+  const [submittingAction, setSubmittingAction] =
+    useState<SubmitAction | null>(null);
+  const [submitMenuOpen, setSubmitMenuOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -386,26 +419,31 @@ export function CreatePostModal({
     return completed.assets.map((asset) => asset.id);
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (action: SubmitAction) => {
     setError(null);
+    setSubmitMenuOpen(false);
     if (!selectedAccountId) {
       setError("Select an account");
       return;
     }
-    if (!scheduledFor) {
-      setError("Pick a schedule time");
-      return;
-    }
-    const scheduledDate = new Date(scheduledFor);
-    if (Number.isNaN(scheduledDate.getTime())) {
-      setError("Invalid date");
-      return;
-    }
-    if (scheduledDate <= new Date()) {
-      setError("Pick a future schedule time");
-      return;
+    let scheduledDate: Date | null = null;
+    if (action === "schedule") {
+      if (!scheduledFor) {
+        setError("Pick a schedule time");
+        return;
+      }
+      scheduledDate = new Date(scheduledFor);
+      if (Number.isNaN(scheduledDate.getTime())) {
+        setError("Invalid date");
+        return;
+      }
+      if (scheduledDate <= new Date()) {
+        setError("Pick a future schedule time");
+        return;
+      }
     }
     setSubmitting(true);
+    setSubmittingAction(action);
     try {
       const mediaAssetIds = await uploadSelectedMedia();
       await apiFetchBrowser("/calendar/events", {
@@ -416,7 +454,8 @@ export function CreatePostModal({
             type === "post" && mediaAssetIds.length > 1
               ? "CAROUSEL"
               : TYPE_TO_POST_TYPE[type],
-          scheduledFor: scheduledDate.toISOString(),
+          action: ACTION_TO_API[action],
+          scheduledFor: scheduledDate?.toISOString(),
           title: title || undefined,
           caption: caption || undefined,
           requiresApproval,
@@ -433,15 +472,19 @@ export function CreatePostModal({
           "Scheduled post could not be created. Make sure the API server is running.",
         );
       }
-      setError("Failed to schedule post");
+      setError(SUBMIT_ERROR[action]);
     } finally {
       setSubmitting(false);
+      setSubmittingAction(null);
     }
   };
 
   const scheduleDisabled = submitting || accountsLoading || !selectedAccountId;
   const minScheduledFor = toLocalDatetimeInputValue(new Date().toISOString());
   const previewMedia = media[0] ?? null;
+  const submitButtonLabel = submittingAction
+    ? SUBMITTING_LABEL[submittingAction]
+    : "Schedule";
 
   return (
     <div
@@ -572,21 +615,46 @@ export function CreatePostModal({
                 className="bg-transparent text-xs font-medium leading-4 text-muted focus:outline-none"
               />
             </label>
-            <div className="flex h-8 items-center overflow-hidden rounded-lg bg-[#78dbe8]">
+            <div className="relative flex h-8 items-center overflow-visible rounded-lg bg-[#78dbe8]">
               <button
                 type="button"
                 disabled={scheduleDisabled}
-                onClick={handleSubmit}
+                onClick={() => handleSubmit("schedule")}
                 className="flex h-full items-center px-4 text-xs font-bold leading-4 text-[#f2f2f2] disabled:opacity-60"
               >
-                {submitting ? "Scheduling..." : "Schedule"}
+                {submitButtonLabel}
               </button>
-              <span
-                aria-hidden="true"
-                className="flex h-full w-7 items-center justify-center bg-[#1d6b81]"
+              <button
+                type="button"
+                aria-label="More publish actions"
+                aria-haspopup="menu"
+                aria-expanded={submitMenuOpen}
+                disabled={scheduleDisabled}
+                onClick={() => setSubmitMenuOpen((open) => !open)}
+                className="flex h-full w-7 items-center justify-center rounded-r-lg bg-[#1d6b81] disabled:opacity-60"
               >
                 <ChevronDown className="size-4 text-[#f2f2f2]" strokeWidth={2.2} />
-              </span>
+              </button>
+              {submitMenuOpen ? (
+                <div
+                  role="menu"
+                  className="absolute bottom-10 right-0 z-10 w-44 overflow-hidden rounded-lg border border-line bg-paper py-1 shadow-[0_14px_30px_rgba(39,39,39,0.16)]"
+                >
+                  {SUBMIT_OPTIONS.map(({ action, label, Icon }) => (
+                    <button
+                      key={action}
+                      type="button"
+                      role="menuitem"
+                      disabled={scheduleDisabled}
+                      onClick={() => handleSubmit(action)}
+                      className="flex h-9 w-full items-center gap-2 px-3 text-left text-xs font-semibold text-ink hover:bg-card disabled:opacity-60"
+                    >
+                      <Icon className="size-4 text-muted" strokeWidth={1.8} />
+                      <span>{label}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             </div>
           </div>
         </div>

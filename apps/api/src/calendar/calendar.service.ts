@@ -13,6 +13,7 @@ import {
 import { MediaType, PostStatus, type PostType } from '@social-manager/database';
 
 export type CalendarEventSource = 'scheduled_post' | 'google';
+type CreateEventAction = 'SCHEDULE' | 'POST_NOW' | 'DRAFT';
 
 export type CalendarEvent = {
   id: string;
@@ -123,7 +124,8 @@ export class CalendarService {
     input: {
       instagramAccountId: string;
       postType: PostType;
-      scheduledFor: string;
+      action?: CreateEventAction;
+      scheduledFor?: string;
       title?: string;
       caption?: string;
       requiresApproval?: boolean;
@@ -142,17 +144,8 @@ export class CalendarService {
       throw new NotFoundException('Instagram account not found');
     }
 
-    const scheduledFor = new Date(input.scheduledFor);
-    if (Number.isNaN(scheduledFor.getTime())) {
-      throw new BadRequestException('Invalid scheduledFor');
-    }
-    if (scheduledFor <= new Date()) {
-      throw new BadRequestException('scheduledFor must be in the future');
-    }
-
-    const status: PostStatus = input.requiresApproval
-      ? PostStatus.PENDING
-      : PostStatus.READY;
+    const action = input.action ?? 'SCHEDULE';
+    const { scheduledFor, status } = resolveCreateAction(input, action);
     const mediaAssetIds = [...new Set(input.mediaAssetIds ?? [])];
     const mediaAssets = mediaAssetIds.length
       ? await this.prisma.mediaAsset.findMany({
@@ -197,7 +190,11 @@ export class CalendarService {
       id: `post:${post.id}`,
       source: 'scheduled_post',
       title: post.title ?? post.caption?.slice(0, 60) ?? 'Untitled post',
-      start: scheduledFor.toISOString(),
+      start: (
+        post.scheduledFor ??
+        post.publishedAt ??
+        post.createdAt
+      ).toISOString(),
       end: null,
       allDay: false,
       status: POST_STATUS_TO_UI[post.status],
@@ -259,6 +256,39 @@ function normalizeGoogleDate(
 
 function isCalendarEvent(event: CalendarEvent | null): event is CalendarEvent {
   return event !== null;
+}
+
+function resolveCreateAction(
+  input: {
+    scheduledFor?: string;
+    requiresApproval?: boolean;
+  },
+  action: CreateEventAction,
+): { scheduledFor: Date | null; status: PostStatus } {
+  if (action === 'DRAFT') {
+    return { scheduledFor: null, status: PostStatus.DRAFT };
+  }
+
+  if (action === 'POST_NOW') {
+    return { scheduledFor: new Date(), status: PostStatus.READY };
+  }
+
+  if (!input.scheduledFor) {
+    throw new BadRequestException('scheduledFor is required');
+  }
+
+  const scheduledFor = new Date(input.scheduledFor);
+  if (Number.isNaN(scheduledFor.getTime())) {
+    throw new BadRequestException('Invalid scheduledFor');
+  }
+  if (scheduledFor <= new Date()) {
+    throw new BadRequestException('scheduledFor must be in the future');
+  }
+
+  return {
+    scheduledFor,
+    status: input.requiresApproval ? PostStatus.PENDING : PostStatus.READY,
+  };
 }
 
 function validateMediaForPostType(
