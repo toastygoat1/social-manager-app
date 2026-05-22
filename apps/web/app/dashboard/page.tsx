@@ -1,19 +1,66 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { signOut, unenrollMfaFactor } from "@/app/auth/actions";
 import { createClient } from "@/lib/supabase/server";
+import { getDashboardData } from "@/lib/dashboard-data";
+import { AccountsList } from "./_components/AccountsList";
+import { CalendarCard } from "./_components/CalendarCard";
+import { ContentTable } from "./_components/ContentTable";
+import { ReminderCard } from "./_components/ReminderCard";
+import { Sidebar } from "./_components/Sidebar";
+import { StatCard } from "./_components/StatCard";
+import { TotalAccountsCard } from "./_components/TotalAccountsCard";
+import { UploadChart } from "./_components/UploadChart";
 
-type Props = {
-  searchParams: Promise<{ message?: string | string[] }>;
+type DashboardPageProps = {
+  searchParams: Promise<{
+    instagram?: string | string[];
+    message?: string | string[];
+    count?: string | string[];
+  }>;
 };
 
-export default async function DashboardPage({ searchParams }: Props) {
-  const { message } = await searchParams;
-  const status = Array.isArray(message) ? message[0] : message;
+function firstParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function getInstagramStatusMessage(
+  status: string | undefined,
+  message: string | undefined,
+  count: string | undefined,
+) {
+  if (status === "connected") {
+    const connectedCount = Number(count);
+    return {
+      tone: "success" as const,
+      message:
+        Number.isFinite(connectedCount) && connectedCount > 0
+          ? `${connectedCount} Instagram account${connectedCount === 1 ? "" : "s"} connected`
+          : "Instagram account connected",
+    };
+  }
+
+  if (status === "error") {
+    return {
+      tone: "danger" as const,
+      message: message ?? "Instagram connection failed",
+    };
+  }
+
+  return null;
+}
+
+export default async function DashboardPage({
+  searchParams,
+}: DashboardPageProps) {
+  const params = await searchParams;
+  const instagramStatus = getInstagramStatusMessage(
+    firstParam(params.instagram),
+    firstParam(params.message),
+    firstParam(params.count),
+  );
 
   const hasSupabaseEnv = Boolean(
     process.env.NEXT_PUBLIC_SUPABASE_URL &&
-      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
   );
 
   if (!hasSupabaseEnv) {
@@ -30,85 +77,53 @@ export default async function DashboardPage({ searchParams }: Props) {
     redirect("/");
   }
 
-  const { data: aal } =
-    await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-  if (aal?.currentLevel === "aal1" && aal?.nextLevel === "aal2") {
-    redirect("/auth/mfa/challenge");
-  }
-
-  const { data: factors } = await supabase.auth.mfa.listFactors();
-  const totp = factors?.totp?.[0];
+  const data = await getDashboardData();
 
   return (
-    <main className="flex flex-1 items-center justify-center bg-zinc-900 p-6 text-zinc-100">
-      <section className="w-full max-w-2xl rounded-2xl border border-zinc-700 bg-zinc-800 p-8 shadow-xl">
-        <p className="text-sm uppercase tracking-[0.2em] text-zinc-400">
-          Dashboard
-        </p>
-        <h1 className="mt-3 text-3xl font-semibold">Authenticated Session</h1>
-        <p className="mt-3 text-zinc-300">You have successfully logged in.</p>
-
-        {status ? (
-          <p className="mt-4 rounded-lg border border-zinc-600 bg-zinc-900/60 px-4 py-3 text-sm text-zinc-200">
-            {status}
-          </p>
-        ) : null}
-
-        <div className="mt-6 rounded-xl border border-zinc-700 bg-zinc-900/50 p-4">
-          <p className="text-sm text-zinc-400">Signed in user</p>
-          <p className="mt-1 font-medium text-zinc-100">{user.email}</p>
-          <p className="mt-2 text-xs text-zinc-500">User ID: {user.id}</p>
-        </div>
-
-        <div className="mt-4 rounded-xl border border-zinc-700 bg-zinc-900/50 p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-sm text-zinc-400">Two-factor (TOTP)</p>
-              <p className="mt-1 text-sm font-medium text-zinc-100">
-                {totp ? "Enabled" : "Disabled"}
-              </p>
-              <p className="mt-1 text-xs text-zinc-500">
-                Assurance level: {aal?.currentLevel ?? "unknown"}
-              </p>
+    <div className="flex min-h-screen items-start bg-page font-sans">
+      <Sidebar />
+      <main className="flex min-w-0 flex-1 flex-col items-center">
+        <div className="flex w-full max-w-[1372px] flex-col gap-5 p-8">
+          <section className="flex h-[692px] w-full items-start gap-5">
+            <div className="flex h-full min-w-0 flex-1 flex-col gap-5 rounded-3xl">
+              <div className="flex h-[328px] w-full items-start gap-5">
+                <ReminderCard reminder={data.reminder} />
+                <CalendarCard calendar={data.calendar} />
+              </div>
+              <div className="flex w-full min-h-0 flex-1 items-start gap-5">
+                <UploadChart bars={data.uploadChart} />
+                <div className="flex h-full min-w-0 flex-1 flex-col gap-4">
+                  <StatCard
+                    title="Total Views"
+                    value={data.views.value}
+                    delta={data.views.delta}
+                    trend={data.views.trend}
+                  />
+                  <StatCard
+                    title="Total Likes"
+                    value={data.likes.value}
+                    delta={data.likes.delta}
+                    trend={data.likes.trend}
+                  />
+                </div>
+              </div>
             </div>
-            {totp ? (
-              <form action={unenrollMfaFactor}>
-                <input type="hidden" name="factorId" value={totp.id} />
-                <button
-                  type="submit"
-                  className="rounded-lg border border-zinc-600 px-3 py-1.5 text-xs font-medium text-zinc-200 transition hover:bg-zinc-700"
-                >
-                  Disable 2FA
-                </button>
-              </form>
-            ) : (
-              <Link
-                href="/auth/mfa/enroll"
-                className="rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-emerald-400"
-              >
-                Enable 2FA
-              </Link>
-            )}
-          </div>
-        </div>
 
-        <div className="mt-6 flex flex-wrap gap-3">
-          <Link
-            href="/"
-            className="rounded-lg border border-zinc-600 px-4 py-2 text-sm font-medium text-zinc-200 transition hover:bg-zinc-700"
-          >
-            Homepage
-          </Link>
-          <form action={signOut}>
-            <button
-              type="submit"
-              className="rounded-lg bg-red-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-400"
-            >
-              Sign out
-            </button>
-          </form>
+            <aside className="flex h-full shrink-0 flex-col items-start justify-center gap-5">
+              <TotalAccountsCard total={data.totalAccounts} />
+              <AccountsList
+                accounts={data.accounts}
+                statusMessage={instagramStatus?.message}
+                statusTone={instagramStatus?.tone}
+              />
+            </aside>
+          </section>
+
+          <section className="flex h-[500px] w-full items-start overflow-x-auto">
+            <ContentTable rows={data.contentRows} />
+          </section>
         </div>
-      </section>
-    </main>
+      </main>
+    </div>
   );
 }
