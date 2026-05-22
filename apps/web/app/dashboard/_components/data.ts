@@ -1,4 +1,15 @@
-export type ChartBar = { label: string; value: number; color: string };
+export type ChartBarSegment = {
+  label: string;
+  value: number;
+  color: string;
+};
+
+export type ChartBar = {
+  label: string;
+  value: number;
+  color: string;
+  segments?: ChartBarSegment[];
+};
 
 export type AccountTone = "blue" | "cyan" | "pink" | "yellow";
 

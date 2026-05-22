@@ -40,6 +40,8 @@ async function bootstrap() {
   app.enableCors({
     origin: resolveAllowedOrigins(),
     credentials: true,
+    methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Authorization', 'Content-Type'],
   });
 
   await app.listen({
