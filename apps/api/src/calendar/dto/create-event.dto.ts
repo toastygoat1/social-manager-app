@@ -8,8 +8,12 @@ import {
   IsUUID,
   ArrayMaxSize,
   MaxLength,
+  IsIn,
 } from 'class-validator';
 import { PostType } from '@social-manager/database';
+
+export const CREATE_EVENT_ACTIONS = ['SCHEDULE', 'POST_NOW', 'DRAFT'] as const;
+export type CreateEventAction = (typeof CREATE_EVENT_ACTIONS)[number];
 
 export class CreateEventDto {
   @IsUUID()
@@ -18,8 +22,13 @@ export class CreateEventDto {
   @IsEnum(PostType)
   postType!: PostType;
 
+  @IsOptional()
+  @IsIn(CREATE_EVENT_ACTIONS)
+  action?: CreateEventAction;
+
+  @IsOptional()
   @IsDateString()
-  scheduledFor!: string;
+  scheduledFor?: string;
 
   @IsOptional()
   @IsString()
