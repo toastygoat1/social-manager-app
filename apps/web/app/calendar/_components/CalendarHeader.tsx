@@ -21,6 +21,11 @@ type Props = {
   view: CalendarView;
   onViewChange: (view: CalendarView) => void;
   periodLabel: string;
+  onPrev: () => void;
+  onNext: () => void;
+  onToday: () => void;
+  onCreated: () => void;
+  referenceIso: string;
 };
 
 const CREATE_OPTIONS: {
@@ -49,7 +54,16 @@ const CREATE_OPTIONS: {
   },
 ];
 
-export function CalendarHeader({ view, onViewChange, periodLabel }: Props) {
+export function CalendarHeader({
+  view,
+  onViewChange,
+  periodLabel,
+  onPrev,
+  onNext,
+  onToday,
+  onCreated,
+  referenceIso,
+}: Props) {
   const [createOpen, setCreateOpen] = useState(false);
   const [modalType, setModalType] = useState<CreatePostType | null>(null);
 
@@ -59,14 +73,22 @@ export function CalendarHeader({ view, onViewChange, periodLabel }: Props) {
         <button
           type="button"
           aria-label="Previous"
+          onClick={onPrev}
           className="flex size-5 items-center justify-center rounded-full bg-ink text-paper"
         >
           <ChevronLeft className="size-3" strokeWidth={2.5} />
         </button>
-        <span className="text-2xl font-semibold text-ink">Today</span>
+        <button
+          type="button"
+          onClick={onToday}
+          className="text-2xl font-semibold text-ink"
+        >
+          Today
+        </button>
         <button
           type="button"
           aria-label="Next"
+          onClick={onNext}
           className="flex size-5 items-center justify-center rounded-full bg-ink text-paper"
         >
           <ChevronRight className="size-3" strokeWidth={2.5} />
@@ -163,7 +185,12 @@ export function CalendarHeader({ view, onViewChange, periodLabel }: Props) {
       <CreatePostModal
         open={modalType !== null}
         type={modalType ?? "post"}
+        defaultScheduledIso={referenceIso}
         onClose={() => setModalType(null)}
+        onCreated={() => {
+          setModalType(null);
+          onCreated();
+        }}
       />
     </div>
   );

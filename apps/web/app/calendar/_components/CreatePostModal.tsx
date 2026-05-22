@@ -10,14 +10,25 @@ import {
   Send,
   User,
 } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { apiFetchBrowser } from "@/lib/api/browser-client";
+import type { CalendarPostType } from "./data";
 
 export type CreatePostType = "post" | "story" | "reels";
 
 type Props = {
   open: boolean;
   type: CreatePostType;
+  defaultScheduledIso: string;
   onClose: () => void;
+  onCreated: () => void;
+};
+
+type InstagramAccountResponse = {
+  id: string;
+  username: string;
+  accountType: "PERSONAL" | "BUSINESS" | "CREATOR";
+  isActive: boolean;
 };
 
 const TYPE_LABEL: Record<CreatePostType, string> = {
@@ -25,6 +36,18 @@ const TYPE_LABEL: Record<CreatePostType, string> = {
   story: "Your Story",
   reels: "Your Reels",
 };
+
+const TYPE_TO_POST_TYPE: Record<CreatePostType, CalendarPostType> = {
+  post: "FEED",
+  story: "STORY",
+  reels: "REEL",
+};
+
+function toLocalDatetimeInputValue(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 
 function ImagePlaceholder({ size = 100 }: { size?: number }) {
   return (
@@ -41,23 +64,48 @@ function ImagePlaceholder({ size = 100 }: { size?: number }) {
   );
 }
 
-function AccountChip() {
+function AccountChip({
+  username,
+  selected,
+  onClick,
+}: {
+  username: string;
+  selected: boolean;
+  onClick: () => void;
+}) {
   return (
-    <div className="flex h-11 w-[196px] shrink-0 items-center gap-2 overflow-hidden rounded-lg border border-line bg-paper px-4 py-2">
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex h-11 w-[196px] shrink-0 items-center gap-2 overflow-hidden rounded-lg border px-4 py-2 text-left ${
+        selected ? "border-cta bg-card" : "border-line bg-paper"
+      }`}
+    >
       <div className="grid size-7 shrink-0 grid-cols-2 grid-rows-2 gap-1 rounded-lg bg-ink p-1.5">
         <span className="rounded-[2px] bg-white" />
         <span className="rounded-[2px] bg-white" />
         <span className="rounded-[2px] bg-white" />
         <span className="rounded-[2px] bg-white" />
       </div>
-      <span className="text-sm leading-4 text-ink">All Acounts</span>
-    </div>
+      <span className="truncate text-sm leading-4 text-ink">@{username}</span>
+    </button>
   );
 }
 
-function Switch({ on }: { on: boolean }) {
+function Switch({
+  on,
+  onToggle,
+}: {
+  on: boolean;
+  onToggle: () => void;
+}) {
   return (
-    <div className="pt-1">
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-pressed={on}
+      className="pt-1"
+    >
       <div
         className={`relative h-5 w-9 rounded-full ${on ? "bg-cta" : "bg-line"}`}
       >
@@ -67,11 +115,30 @@ function Switch({ on }: { on: boolean }) {
           }`}
         />
       </div>
-    </div>
+    </button>
   );
 }
 
-export function CreatePostModal({ open, type, onClose }: Props) {
+export function CreatePostModal({
+  open,
+  type,
+  defaultScheduledIso,
+  onClose,
+  onCreated,
+}: Props) {
+  const [accounts, setAccounts] = useState<InstagramAccountResponse[]>([]);
+  const [accountsLoading, setAccountsLoading] = useState(false);
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(
+    null,
+  );
+  const [caption, setCaption] = useState("");
+  const [requiresApproval, setRequiresApproval] = useState(true);
+  const [scheduledFor, setScheduledFor] = useState(() =>
+    toLocalDatetimeInputValue(defaultScheduledIso),
+  );
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -86,7 +153,68 @@ export function CreatePostModal({ open, type, onClose }: Props) {
     };
   }, [open, onClose]);
 
+  useEffect(() => {
+    if (!open) return;
+    setError(null);
+    setAccountsLoading(true);
+    apiFetchBrowser<InstagramAccountResponse[]>("/instagram/accounts")
+      .then((list) => {
+        setAccounts(list);
+        if (list.length > 0 && !selectedAccountId) {
+          setSelectedAccountId(list[0].id);
+        }
+      })
+      .catch((err) => {
+        console.error("load accounts failed", err);
+        setError("Failed to load accounts");
+      })
+      .finally(() => setAccountsLoading(false));
+  }, [open]);
+
+  useEffect(() => {
+    if (open) {
+      setScheduledFor(toLocalDatetimeInputValue(defaultScheduledIso));
+    }
+  }, [open, defaultScheduledIso]);
+
   if (!open) return null;
+
+  const handleSubmit = async () => {
+    setError(null);
+    if (!selectedAccountId) {
+      setError("Select an account");
+      return;
+    }
+    if (!scheduledFor) {
+      setError("Pick a schedule time");
+      return;
+    }
+    const scheduledDate = new Date(scheduledFor);
+    if (Number.isNaN(scheduledDate.getTime())) {
+      setError("Invalid date");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await apiFetchBrowser("/calendar/events", {
+        method: "POST",
+        body: {
+          instagramAccountId: selectedAccountId,
+          postType: TYPE_TO_POST_TYPE[type],
+          scheduledFor: scheduledDate.toISOString(),
+          caption: caption || undefined,
+          requiresApproval,
+        },
+      });
+      setCaption("");
+      onCreated();
+    } catch (err) {
+      console.error("create event failed", err);
+      setError("Failed to schedule post");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div
@@ -104,10 +232,24 @@ export function CreatePostModal({ open, type, onClose }: Props) {
         <div className="flex flex-1 flex-col gap-5 overflow-y-auto rounded-l-3xl border border-line bg-paper p-6">
           <section className="flex w-full flex-col gap-1">
             <h2 className="text-xl font-semibold text-ink">Publish To</h2>
-            <div className="flex w-full gap-2.5 overflow-hidden rounded-2xl bg-paper p-2">
-              <AccountChip />
-              <AccountChip />
-            </div>
+            {accountsLoading ? (
+              <p className="text-sm text-muted">Loading accounts…</p>
+            ) : accounts.length === 0 ? (
+              <p className="text-sm text-muted">
+                No Instagram accounts connected yet.
+              </p>
+            ) : (
+              <div className="flex w-full gap-2.5 overflow-x-auto rounded-2xl bg-paper p-2">
+                {accounts.map((acct) => (
+                  <AccountChip
+                    key={acct.id}
+                    username={acct.username}
+                    selected={selectedAccountId === acct.id}
+                    onClick={() => setSelectedAccountId(acct.id)}
+                  />
+                ))}
+              </div>
+            )}
           </section>
 
           <section className="flex w-full flex-col gap-1">
@@ -115,8 +257,10 @@ export function CreatePostModal({ open, type, onClose }: Props) {
             <div className="flex h-[524px] w-full flex-col gap-6 overflow-hidden rounded-2xl border border-line p-6">
               <div className="flex flex-1 flex-col gap-2.5 overflow-hidden p-2.5">
                 <textarea
+                  value={caption}
+                  onChange={(e) => setCaption(e.target.value)}
                   placeholder="Write a caption"
-                  className="h-full w-full resize-none bg-transparent text-base leading-4 text-ink placeholder:text-ink focus:outline-none"
+                  className="h-full w-full resize-none bg-transparent text-base leading-4 text-ink placeholder:text-muted focus:outline-none"
                 />
               </div>
               <div className="h-px w-full rounded-[34px] bg-line" />
@@ -129,7 +273,10 @@ export function CreatePostModal({ open, type, onClose }: Props) {
           </section>
 
           <div className="flex items-start gap-3">
-            <Switch on />
+            <Switch
+              on={requiresApproval}
+              onToggle={() => setRequiresApproval((v) => !v)}
+            />
             <div className="flex flex-col gap-0.5 whitespace-nowrap">
               <p className="text-base leading-[26px] tracking-[-0.32px] text-ink">
                 Wait for Approval
@@ -139,6 +286,10 @@ export function CreatePostModal({ open, type, onClose }: Props) {
               </p>
             </div>
           </div>
+
+          {error ? (
+            <p className="text-sm font-medium text-red-600">{error}</p>
+          ) : null}
 
           <div className="flex-1" />
 
@@ -151,21 +302,23 @@ export function CreatePostModal({ open, type, onClose }: Props) {
               Cancel
             </button>
             <div className="flex-1" />
-            <button
-              type="button"
-              className="flex h-8 items-center gap-2 rounded-lg border border-muted bg-paper px-4"
-            >
+            <label className="flex h-8 items-center gap-2 rounded-lg border border-muted bg-paper px-4 cursor-pointer">
               <Calendar className="size-4 text-muted" strokeWidth={1.8} />
-              <span className="text-xs font-medium leading-4 text-muted">
-                Jan, 25 2025 5:00PM
-              </span>
-            </button>
+              <input
+                type="datetime-local"
+                value={scheduledFor}
+                onChange={(e) => setScheduledFor(e.target.value)}
+                className="bg-transparent text-xs font-medium leading-4 text-muted focus:outline-none"
+              />
+            </label>
             <div className="flex h-8 items-center overflow-hidden rounded-lg bg-[#78dbe8]">
               <button
                 type="button"
-                className="flex h-full items-center px-4 text-xs font-bold leading-4 text-[#f2f2f2]"
+                disabled={submitting}
+                onClick={handleSubmit}
+                className="flex h-full items-center px-4 text-xs font-bold leading-4 text-[#f2f2f2] disabled:opacity-60"
               >
-                Schedule
+                {submitting ? "Scheduling…" : "Schedule"}
               </button>
               <button
                 type="button"
@@ -184,7 +337,10 @@ export function CreatePostModal({ open, type, onClose }: Props) {
               <div className="flex size-[58px] shrink-0 items-center justify-center rounded-full bg-card">
                 <User className="size-8 text-muted" strokeWidth={1.6} />
               </div>
-              <p className="font-inter text-2xl text-ink">Santa Claus</p>
+              <p className="font-inter text-2xl text-ink">
+                {accounts.find((a) => a.id === selectedAccountId)?.username ??
+                  "Preview"}
+              </p>
             </div>
             <div className="flex h-[428px] w-full items-center justify-center bg-[#495057]">
               <ImageIcon
