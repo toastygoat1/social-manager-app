@@ -8,7 +8,7 @@ import {
 } from '@jest/globals';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
-import { InstagramAccountType } from '@social-manager/database';
+import { InstagramAccountType, Prisma } from '@social-manager/database';
 import { InstagramService } from './instagram.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { encryptSecret } from '../common/crypto.util.js';
@@ -26,6 +26,7 @@ describe('InstagramService', () => {
       updateMany: jest.Mock<PrismaFn>;
       findUnique: jest.Mock<PrismaFn>;
       findMany: jest.Mock<PrismaFn>;
+      findFirst: jest.Mock<PrismaFn>;
     };
     instagramStory: {
       upsert: jest.Mock<PrismaFn>;
@@ -48,6 +49,7 @@ describe('InstagramService', () => {
         updateMany: jest.fn<PrismaFn>(),
         findUnique: jest.fn<PrismaFn>(),
         findMany: jest.fn<PrismaFn>(),
+        findFirst: jest.fn<PrismaFn>(),
       },
       instagramStory: {
         upsert: jest.fn<PrismaFn>(),
@@ -93,6 +95,7 @@ describe('InstagramService', () => {
       isActive: true,
       tokenExpiresAt: null,
       connectedAt: new Date(),
+      disconnectedAt: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -148,8 +151,89 @@ describe('InstagramService', () => {
       },
       data: {
         isActive: false,
+        disconnectedAt: expect.any(Date),
       },
     });
+  });
+
+  it('reactivates an existing owned account conflict with a fresh token', async () => {
+    const account = {
+      id: 'account-1',
+      userId: 'user-1',
+      igUserId: 'ig-1',
+      username: 'brand',
+      accountType: InstagramAccountType.BUSINESS,
+      pageId: null,
+      isActive: true,
+      tokenExpiresAt: null,
+      connectedAt: new Date(),
+      disconnectedAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const conflictError = new Prisma.PrismaClientKnownRequestError(
+      'Unique constraint failed on the fields: (`ig_user_id`)',
+      {
+        code: 'P2002',
+        clientVersion: 'test',
+        meta: { target: ['ig_user_id'] },
+      },
+    );
+
+    prisma.instagramAccount.create.mockRejectedValue(conflictError);
+    prisma.instagramAccount.updateMany.mockResolvedValue({ count: 1 });
+    prisma.instagramAccount.findFirst.mockResolvedValue(account);
+
+    const result = await service.addAccount(
+      { userId: 'user-1', email: 'user@example.com' },
+      {
+        igUserId: 'ig-1',
+        username: 'brand',
+        accessToken: 'fresh-token',
+        accountType: InstagramAccountType.BUSINESS,
+      },
+    );
+
+    expect(prisma.instagramAccount.updateMany).toHaveBeenCalledWith({
+      where: {
+        igUserId: 'ig-1',
+        userId: 'user-1',
+      },
+      data: expect.objectContaining({
+        username: 'brand',
+        isActive: true,
+        disconnectedAt: null,
+      }) as Record<string, unknown>,
+    });
+    expect(result).toBe(account);
+  });
+
+  it('returns an English conflict when an active account belongs to another user', async () => {
+    const conflictError = new Prisma.PrismaClientKnownRequestError(
+      'Unique constraint failed on the fields: (`ig_user_id`)',
+      {
+        code: 'P2002',
+        clientVersion: 'test',
+        meta: { target: ['ig_user_id'] },
+      },
+    );
+
+    prisma.instagramAccount.create.mockRejectedValue(conflictError);
+    prisma.instagramAccount.updateMany.mockResolvedValue({ count: 0 });
+
+    await expect(
+      service.addAccount(
+        { userId: 'user-2', email: 'other@example.com' },
+        {
+          igUserId: 'ig-1',
+          username: 'brand',
+          accessToken: 'fresh-token',
+          accountType: InstagramAccountType.BUSINESS,
+        },
+      ),
+    ).rejects.toThrow(
+      'This Instagram account is already connected to another user.',
+    );
   });
 
   it('throws when removing a missing or inactive account', async () => {
