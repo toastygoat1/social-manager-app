@@ -1,17 +1,95 @@
 import { apiFetch } from "@/lib/api/client";
 import {
+  type ChartBar,
   EMPTY_DASHBOARD,
   type DashboardData,
+  type StatMetric,
 } from "@/app/dashboard/_components/data";
 
-const DASHBOARD_ENDPOINT = "/dashboard/overview";
+const INSTAGRAM_ACCOUNTS_ENDPOINT = "/instagram/accounts";
+const INSTAGRAM_ANALYTICS_SUMMARY_ENDPOINT = "/instagram/analytics/summary";
+const MEDIA_UPLOAD_COLOR = "var(--chart-1)";
+const STORY_UPLOAD_COLOR = "var(--chart-3)";
+
+type InstagramAccountResponse = {
+  id: string;
+  username: string;
+  accountType: "PERSONAL" | "BUSINESS" | "CREATOR";
+  isActive: boolean;
+};
+
+type InstagramAnalyticsSummaryResponse = {
+  views: StatMetric;
+  likes: StatMetric;
+  accounts: {
+    id: string;
+    username: string;
+    uploadCount: number | null;
+    storyCount: number | null;
+    activeStoryCount: number | null;
+  }[];
+};
+
+function getSettledValue<T>(result: PromiseSettledResult<T>) {
+  return result.status === "fulfilled" ? result.value : null;
+}
+
+function getUploadChartBars(
+  analytics: InstagramAnalyticsSummaryResponse | null,
+): ChartBar[] {
+  return (
+    analytics?.accounts
+      .filter(
+        (account) => account.uploadCount !== null || account.storyCount !== null,
+      )
+      .map((account) => {
+        const mediaCount = account.uploadCount ?? 0;
+        const storyCount = account.storyCount ?? 0;
+
+        return {
+          label: `@${account.username}`,
+          value: mediaCount + storyCount,
+          color: MEDIA_UPLOAD_COLOR,
+          segments: [
+            {
+              label: "Posts/Reels",
+              value: mediaCount,
+              color: MEDIA_UPLOAD_COLOR,
+            },
+            {
+              label: "Stories",
+              value: storyCount,
+              color: STORY_UPLOAD_COLOR,
+            },
+          ],
+        };
+      }) ?? []
+  );
+}
 
 export async function getDashboardData(): Promise<DashboardData> {
-  try {
-    const data = await apiFetch<Partial<DashboardData>>(DASHBOARD_ENDPOINT);
-    return { ...EMPTY_DASHBOARD, ...data };
-  } catch (error) {
-    console.error("getDashboardData failed:", error);
-    return EMPTY_DASHBOARD;
-  }
+  const [accountsResult, analyticsResult] = await Promise.allSettled([
+    apiFetch<InstagramAccountResponse[]>(INSTAGRAM_ACCOUNTS_ENDPOINT),
+    apiFetch<InstagramAnalyticsSummaryResponse>(
+      INSTAGRAM_ANALYTICS_SUMMARY_ENDPOINT,
+    ),
+  ]);
+
+  const accounts = getSettledValue(accountsResult) ?? [];
+  const analytics = getSettledValue(analyticsResult);
+  const activeAccounts = accounts.filter((account) => account.isActive);
+
+  return {
+    ...EMPTY_DASHBOARD,
+    totalAccounts: activeAccounts.length,
+    views: analytics?.views ?? EMPTY_DASHBOARD.views,
+    likes: analytics?.likes ?? EMPTY_DASHBOARD.likes,
+    uploadChart: getUploadChartBars(analytics),
+    accounts: activeAccounts.map((account) => ({
+      id: account.id,
+      name: `@${account.username}`,
+      platform:
+        account.accountType === "CREATOR" ? "Instagram Creator" : "Instagram",
+    })),
+  };
 }

@@ -53,12 +53,34 @@ model InstagramAccount {
   chatbotSessions      ChatbotSession[]
   contentPosts         ContentPost[]
   dmConversations      DmConversation[]
+  instagramStories     InstagramStory[]
   user                 User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   webhookEvents        WebhookEvent[]
 
   @@index([userId])
   @@index([isActive])
   @@map("instagram_accounts")
+}
+
+model InstagramStory {
+  id                 String           @id @default(uuid())
+  instagramAccountId String           @map("instagram_account_id")
+  igStoryId          String           @unique @map("ig_story_id")
+  mediaType          String?          @map("media_type")
+  mediaProductType   String?          @map("media_product_type")
+  permalink          String?
+  timestamp          DateTime?
+  firstSeenAt        DateTime         @default(now()) @map("first_seen_at")
+  lastSeenAt         DateTime         @default(now()) @map("last_seen_at")
+  expiresAt          DateTime?        @map("expires_at")
+  createdAt          DateTime         @default(now()) @map("created_at")
+  updatedAt          DateTime         @updatedAt @map("updated_at")
+  instagramAccount   InstagramAccount @relation(fields: [instagramAccountId], references: [id], onDelete: Cascade)
+
+  @@index([instagramAccountId])
+  @@index([timestamp])
+  @@index([expiresAt])
+  @@map("instagram_stories")
 }
 
 model MediaAsset {

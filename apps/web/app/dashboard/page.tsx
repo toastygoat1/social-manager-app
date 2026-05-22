@@ -10,10 +10,57 @@ import { StatCard } from "./_components/StatCard";
 import { TotalAccountsCard } from "./_components/TotalAccountsCard";
 import { UploadChart } from "./_components/UploadChart";
 
-export default async function DashboardPage() {
+type DashboardPageProps = {
+  searchParams: Promise<{
+    instagram?: string | string[];
+    message?: string | string[];
+    count?: string | string[];
+  }>;
+};
+
+function firstParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function getInstagramStatusMessage(
+  status: string | undefined,
+  message: string | undefined,
+  count: string | undefined,
+) {
+  if (status === "connected") {
+    const connectedCount = Number(count);
+    return {
+      tone: "success" as const,
+      message:
+        Number.isFinite(connectedCount) && connectedCount > 0
+          ? `${connectedCount} Instagram account${connectedCount === 1 ? "" : "s"} connected`
+          : "Instagram account connected",
+    };
+  }
+
+  if (status === "error") {
+    return {
+      tone: "danger" as const,
+      message: message ?? "Instagram connection failed",
+    };
+  }
+
+  return null;
+}
+
+export default async function DashboardPage({
+  searchParams,
+}: DashboardPageProps) {
+  const params = await searchParams;
+  const instagramStatus = getInstagramStatusMessage(
+    firstParam(params.instagram),
+    firstParam(params.message),
+    firstParam(params.count),
+  );
+
   const hasSupabaseEnv = Boolean(
     process.env.NEXT_PUBLIC_SUPABASE_URL &&
-      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
   );
 
   if (!hasSupabaseEnv) {
@@ -64,7 +111,11 @@ export default async function DashboardPage() {
 
             <aside className="flex h-full shrink-0 flex-col items-start justify-center gap-5">
               <TotalAccountsCard total={data.totalAccounts} />
-              <AccountsList accounts={data.accounts} />
+              <AccountsList
+                accounts={data.accounts}
+                statusMessage={instagramStatus?.message}
+                statusTone={instagramStatus?.tone}
+              />
             </aside>
           </section>
 
