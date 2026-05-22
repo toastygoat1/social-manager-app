@@ -2,6 +2,7 @@ import { apiFetch } from "@/lib/api/client";
 import {
   type CalendarMonth,
   type ChartBar,
+  type ContentRow,
   EMPTY_DASHBOARD,
   type DashboardData,
   type StatMetric,
@@ -13,6 +14,7 @@ const DASHBOARD_OVERVIEW_ENDPOINT = "/dashboard/overview";
 
 type DashboardOverviewResponse = {
   calendar: CalendarMonth | null;
+  contentRows: ContentRow[];
 };
 const MEDIA_UPLOAD_COLOR = "var(--chart-1)";
 const STORY_UPLOAD_COLOR = "var(--chart-3)";
@@ -95,6 +97,7 @@ export async function getDashboardData(): Promise<DashboardData> {
     likes: analytics?.likes ?? EMPTY_DASHBOARD.likes,
     uploadChart: getUploadChartBars(analytics),
     calendar: overview?.calendar ?? EMPTY_DASHBOARD.calendar,
+    contentRows: overview?.contentRows ?? EMPTY_DASHBOARD.contentRows,
     accounts: activeAccounts.map((account) => ({
       id: account.id,
       name: `@${account.username}`,
