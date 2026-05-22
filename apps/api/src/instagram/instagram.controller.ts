@@ -1,19 +1,21 @@
 import {
   Controller,
+  Delete,
   Get,
+  Header,
+  Headers,
+  HttpCode,
+  Param,
   Post,
   Body,
+  Query,
   UseGuards,
   Request,
-  Query,
-  Param,
-  Headers,
-  Header,
-  HttpCode,
 } from '@nestjs/common';
 import { InstagramService } from './instagram.service.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { AddInstagramAccountDto } from './dto/add-instagram-account.dto.js';
+import { CompleteInstagramOAuthDto } from './dto/complete-instagram-oauth.dto.js';
 import { SendDmMessageDto } from './dto/send-dm-message.dto.js';
 import type { AuthedRequest } from '../auth/auth.types.js';
 import type { InstagramWebhookPayload } from './instagram-webhook.types.js';
@@ -48,13 +50,44 @@ export class InstagramController {
     @Request() req: AuthedRequest,
     @Body() body: AddInstagramAccountDto,
   ) {
-    return this.instagramService.addAccount(req.user.userId, body);
+    return this.instagramService.addAccount(req.user, body);
   }
 
   @UseGuards(JwtAuthGuard)
   @Get('accounts')
   async getAccounts(@Request() req: AuthedRequest) {
     return this.instagramService.getAccounts(req.user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('accounts/:accountId')
+  @HttpCode(204)
+  async removeAccount(
+    @Request() req: AuthedRequest,
+    @Param('accountId') accountId: string,
+  ) {
+    await this.instagramService.removeAccount(req.user.userId, accountId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('analytics/summary')
+  getAnalyticsSummary(@Request() req: AuthedRequest) {
+    return this.instagramService.getAnalyticsSummary(req.user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('oauth/url')
+  getOAuthUrl(@Request() req: AuthedRequest) {
+    return this.instagramService.createOAuthUrl(req.user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('oauth/callback')
+  completeOAuth(
+    @Request() req: AuthedRequest,
+    @Body() body: CompleteInstagramOAuthDto,
+  ) {
+    return this.instagramService.completeOAuth(req.user, body);
   }
 
   @UseGuards(JwtAuthGuard)

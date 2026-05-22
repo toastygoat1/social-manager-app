@@ -2,6 +2,27 @@ import { type EmailOtpType } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+
+async function linkGoogleCalendar(
+  accessToken: string,
+  refreshToken: string,
+): Promise<void> {
+  try {
+    await fetch(`${API_BASE_URL}/integrations/google/link`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ refreshToken }),
+    });
+  } catch {
+    // Non-fatal: auto-link failed, user can still connect manually.
+  }
+}
+
 function getRedirectTarget(request: Request, nextPath: string) {
   const { origin } = new URL(request.url);
   const forwardedHost = request.headers.get("x-forwarded-host");
@@ -52,11 +73,19 @@ export async function GET(request: Request) {
   }
 
   if (code) {
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (error) {
       return NextResponse.redirect(
         `${origin}/?message=${encodeURIComponent("Invalid or expired verification link.")}`,
+      );
+    }
+
+    const session = data.session;
+    if (session?.provider_refresh_token && session.access_token) {
+      await linkGoogleCalendar(
+        session.access_token,
+        session.provider_refresh_token,
       );
     }
 

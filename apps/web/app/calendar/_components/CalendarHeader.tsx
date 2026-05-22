@@ -138,7 +138,7 @@ export function CalendarHeader({ view, onViewChange, periodLabel }: Props) {
         </button>
 
         {createOpen && (
-          <div className="absolute right-0 top-[44px] z-10 flex w-[272px] flex-col gap-2 rounded-lg border border-line bg-paper p-2 shadow-lg">
+          <div className="absolute right-0 top-[44px] z-20 flex w-[272px] flex-col gap-2 rounded-lg border border-line bg-paper p-2 shadow-lg">
             {CREATE_OPTIONS.map(({ Icon, label, body, type }) => (
               <button
                 key={label}

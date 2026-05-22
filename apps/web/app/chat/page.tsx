@@ -40,12 +40,6 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
     redirect("/");
   }
 
-  const { data: aal } =
-    await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-  if (aal?.currentLevel === "aal1" && aal?.nextLevel === "aal2") {
-    redirect("/auth/mfa/challenge");
-  }
-
   return (
     <div className="flex h-screen items-start overflow-hidden bg-page font-sans">
       <Sidebar active="chat" />

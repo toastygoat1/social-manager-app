@@ -10,17 +10,57 @@ import { StatCard } from "./_components/StatCard";
 import { TotalAccountsCard } from "./_components/TotalAccountsCard";
 import { UploadChart } from "./_components/UploadChart";
 
-type Props = {
-  searchParams: Promise<{ message?: string | string[] }>;
+type DashboardPageProps = {
+  searchParams: Promise<{
+    instagram?: string | string[];
+    message?: string | string[];
+    count?: string | string[];
+  }>;
 };
 
-export default async function DashboardPage({ searchParams }: Props) {
-  const { message } = await searchParams;
-  const status = Array.isArray(message) ? message[0] : message;
+function firstParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function getInstagramStatusMessage(
+  status: string | undefined,
+  message: string | undefined,
+  count: string | undefined,
+) {
+  if (status === "connected") {
+    const connectedCount = Number(count);
+    return {
+      tone: "success" as const,
+      message:
+        Number.isFinite(connectedCount) && connectedCount > 0
+          ? `${connectedCount} Instagram account${connectedCount === 1 ? "" : "s"} connected`
+          : "Instagram account connected",
+    };
+  }
+
+  if (status === "error") {
+    return {
+      tone: "danger" as const,
+      message: message ?? "Instagram connection failed",
+    };
+  }
+
+  return null;
+}
+
+export default async function DashboardPage({
+  searchParams,
+}: DashboardPageProps) {
+  const params = await searchParams;
+  const instagramStatus = getInstagramStatusMessage(
+    firstParam(params.instagram),
+    firstParam(params.message),
+    firstParam(params.count),
+  );
 
   const hasSupabaseEnv = Boolean(
     process.env.NEXT_PUBLIC_SUPABASE_URL &&
-      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
   );
 
   if (!hasSupabaseEnv) {
@@ -37,12 +77,6 @@ export default async function DashboardPage({ searchParams }: Props) {
     redirect("/");
   }
 
-  const { data: aal } =
-    await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-  if (aal?.currentLevel === "aal1" && aal?.nextLevel === "aal2") {
-    redirect("/auth/mfa/challenge");
-  }
-
   const data = await getDashboardData();
 
   return (
@@ -50,12 +84,6 @@ export default async function DashboardPage({ searchParams }: Props) {
       <Sidebar />
       <main className="flex min-w-0 flex-1 flex-col items-center">
         <div className="flex w-full max-w-[1372px] flex-col gap-5 p-8">
-          {status ? (
-            <div className="rounded-2xl border border-line bg-paper px-5 py-3 text-sm text-ink">
-              {status}
-            </div>
-          ) : null}
-
           <section className="flex h-[692px] w-full items-start gap-5">
             <div className="flex h-full min-w-0 flex-1 flex-col gap-5 rounded-3xl">
               <div className="flex h-[328px] w-full items-start gap-5">
@@ -83,7 +111,11 @@ export default async function DashboardPage({ searchParams }: Props) {
 
             <aside className="flex h-full shrink-0 flex-col items-start justify-center gap-5">
               <TotalAccountsCard total={data.totalAccounts} />
-              <AccountsList accounts={data.accounts} />
+              <AccountsList
+                accounts={data.accounts}
+                statusMessage={instagramStatus?.message}
+                statusTone={instagramStatus?.tone}
+              />
             </aside>
           </section>
 

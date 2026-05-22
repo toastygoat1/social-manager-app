@@ -1,12 +1,6 @@
 import Link from "next/link";
-import {
-  signIn,
-  signInWithMagicLink,
-  signOut,
-  signUp,
-} from "@/app/auth/actions";
+import { signIn, signOut, signUp } from "@/app/auth/actions";
 import { GoogleSignInButton } from "@/app/auth/google-sign-in-button";
-import { PasswordField } from "@/app/auth/password-field";
 import { createClient } from "@/lib/supabase/server";
 
 type HomePageProps = {
@@ -93,85 +87,53 @@ export default async function Home({ searchParams }: HomePageProps) {
             </div>
 
             <form className="space-y-4">
-              <div>
-                <label
-                  htmlFor="email"
-                  className="mb-1 block text-sm font-medium text-zinc-700"
-                >
-                  Email
-                </label>
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  required
-                  placeholder="you@example.com"
-                  className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none transition focus:border-zinc-500"
-                />
-              </div>
-              <PasswordField
+            <div>
+              <label
+                htmlFor="email"
+                className="mb-1 block text-sm font-medium text-zinc-700"
+              >
+                Email
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                required
+                placeholder="you@example.com"
+                className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none transition focus:border-zinc-500"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="password"
+                className="mb-1 block text-sm font-medium text-zinc-700"
+              >
+                Password
+              </label>
+              <input
                 id="password"
                 name="password"
-                label="Password"
-                placeholder="At least 8 characters"
-                showMeter
+                type="password"
                 required
+                minLength={6}
+                placeholder="At least 6 characters"
+                className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none transition focus:border-zinc-500"
               />
-              <div className="grid gap-3 sm:grid-cols-2">
-                <button
-                  formAction={signIn}
-                  className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-700"
-                >
-                  Sign in
-                </button>
-                <button
-                  formAction={signUp}
-                  className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-100"
-                >
-                  Sign up
-                </button>
-              </div>
-              <div className="flex justify-end">
-                <Link
-                  href="/auth/forgot-password"
-                  className="text-xs font-medium text-zinc-500 underline-offset-2 hover:text-zinc-900 hover:underline"
-                >
-                  Forgot password?
-                </Link>
-              </div>
-            </form>
-
-            <div className="flex items-center gap-3">
-              <div className="h-px flex-1 bg-zinc-200" />
-              <span className="text-xs uppercase tracking-wider text-zinc-400">
-                or
-              </span>
-              <div className="h-px flex-1 bg-zinc-200" />
             </div>
-
-            <form className="space-y-3">
-              <div>
-                <label
-                  htmlFor="magicEmail"
-                  className="mb-1 block text-sm font-medium text-zinc-700"
-                >
-                  Email me a magic link
-                </label>
-                <input
-                  id="magicEmail"
-                  name="email"
-                  type="email"
-                  required
-                  placeholder="you@example.com"
-                  className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none transition focus:border-zinc-500"
-                />
-              </div>
+            <div className="grid gap-3 sm:grid-cols-2">
               <button
-                formAction={signInWithMagicLink}
-                className="w-full rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-100"
+                formAction={signIn}
+                className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-700"
               >
-                Send magic link
+                Sign in
               </button>
+              <button
+                formAction={signUp}
+                className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-100"
+              >
+                Sign up
+              </button>
+            </div>
             </form>
           </div>
         )}
