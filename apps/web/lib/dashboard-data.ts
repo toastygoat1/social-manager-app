@@ -1,5 +1,6 @@
 import { apiFetch } from "@/lib/api/client";
 import {
+  type CalendarMonth,
   type ChartBar,
   EMPTY_DASHBOARD,
   type DashboardData,
@@ -8,6 +9,11 @@ import {
 
 const INSTAGRAM_ACCOUNTS_ENDPOINT = "/instagram/accounts";
 const INSTAGRAM_ANALYTICS_SUMMARY_ENDPOINT = "/instagram/analytics/summary";
+const DASHBOARD_OVERVIEW_ENDPOINT = "/dashboard/overview";
+
+type DashboardOverviewResponse = {
+  calendar: CalendarMonth | null;
+};
 const MEDIA_UPLOAD_COLOR = "var(--chart-1)";
 const STORY_UPLOAD_COLOR = "var(--chart-3)";
 
@@ -68,15 +74,18 @@ function getUploadChartBars(
 }
 
 export async function getDashboardData(): Promise<DashboardData> {
-  const [accountsResult, analyticsResult] = await Promise.allSettled([
-    apiFetch<InstagramAccountResponse[]>(INSTAGRAM_ACCOUNTS_ENDPOINT),
-    apiFetch<InstagramAnalyticsSummaryResponse>(
-      INSTAGRAM_ANALYTICS_SUMMARY_ENDPOINT,
-    ),
-  ]);
+  const [accountsResult, analyticsResult, overviewResult] =
+    await Promise.allSettled([
+      apiFetch<InstagramAccountResponse[]>(INSTAGRAM_ACCOUNTS_ENDPOINT),
+      apiFetch<InstagramAnalyticsSummaryResponse>(
+        INSTAGRAM_ANALYTICS_SUMMARY_ENDPOINT,
+      ),
+      apiFetch<DashboardOverviewResponse>(DASHBOARD_OVERVIEW_ENDPOINT),
+    ]);
 
   const accounts = getSettledValue(accountsResult) ?? [];
   const analytics = getSettledValue(analyticsResult);
+  const overview = getSettledValue(overviewResult);
   const activeAccounts = accounts.filter((account) => account.isActive);
 
   return {
@@ -85,6 +94,7 @@ export async function getDashboardData(): Promise<DashboardData> {
     views: analytics?.views ?? EMPTY_DASHBOARD.views,
     likes: analytics?.likes ?? EMPTY_DASHBOARD.likes,
     uploadChart: getUploadChartBars(analytics),
+    calendar: overview?.calendar ?? EMPTY_DASHBOARD.calendar,
     accounts: activeAccounts.map((account) => ({
       id: account.id,
       name: `@${account.username}`,
