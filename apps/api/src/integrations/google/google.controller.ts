@@ -41,8 +41,13 @@ export class GoogleController {
     @Query('state') state: string | undefined,
     @Query('error') error: string | undefined,
   ) {
+    const webOrigin = this.config
+      .get<string>('WEB_ORIGIN')
+      ?.split(',')[0]
+      ?.trim();
     const siteUrl =
       this.config.get<string>('NEXT_PUBLIC_SITE_URL') ??
+      webOrigin ??
       'http://localhost:3000';
 
     if (error) {

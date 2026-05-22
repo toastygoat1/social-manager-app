@@ -100,7 +100,7 @@ export class DashboardService {
       name: acct.username,
       platform: 'Instagram',
       avatarUrl: null,
-      tone: ACCOUNT_TONES[idx % ACCOUNT_TONES.length]!,
+      tone: ACCOUNT_TONES[idx % ACCOUNT_TONES.length],
     }));
 
     const accountIds = accountsRaw.map((a) => a.id);
@@ -179,8 +179,7 @@ export class DashboardService {
 
     const contentRows: ContentRow[] = recentPosts.map((post) => {
       const latest = post.postAnalytics[0];
-      const account =
-        accountById.get(post.instagramAccountId) ?? accounts[0]!;
+      const account = accountById.get(post.instagramAccountId) ?? accounts[0];
       return {
         id: post.id,
         account,
@@ -200,7 +199,9 @@ export class DashboardService {
       };
     });
 
-    const uploadChart = buildUploadChart(uploadBuckets.map((p) => p.publishedAt));
+    const uploadChart = buildUploadChart(
+      uploadBuckets.map((p) => p.publishedAt),
+    );
 
     return {
       totalAccounts: accounts.length,
@@ -230,9 +231,7 @@ export class DashboardService {
         new Date(now.getFullYear(), now.getMonth() + 1, 1),
       );
     } catch (err) {
-      this.logger.warn(
-        `Calendar fetch skipped: ${(err as Error).message}`,
-      );
+      this.logger.warn(`Calendar fetch skipped: ${(err as Error).message}`);
     }
 
     if (!(await this.google.isConnected(userId))) return null;
@@ -340,8 +339,8 @@ function buildUploadChart(publishedAtList: (Date | null)[]): ChartBar[] {
   }
 
   return buckets.map((b, idx) => ({
-    label: WEEKDAY_LABELS[b.date.getDay()]!,
+    label: WEEKDAY_LABELS[b.date.getDay()],
     value: b.count,
-    color: CHART_COLORS[idx % CHART_COLORS.length]!,
+    color: CHART_COLORS[idx % CHART_COLORS.length],
   }));
 }

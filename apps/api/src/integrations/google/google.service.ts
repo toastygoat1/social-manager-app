@@ -12,9 +12,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { encryptSecret, decryptSecret } from '../../common/crypto.util.js';
 
 const STATE_TTL_MS = 10 * 60 * 1000;
-const DEFAULT_SCOPES = [
-  'https://www.googleapis.com/auth/calendar.readonly',
-];
+const DEFAULT_SCOPES = ['https://www.googleapis.com/auth/calendar.readonly'];
 
 export type GoogleCalendarEvent = {
   id: string;

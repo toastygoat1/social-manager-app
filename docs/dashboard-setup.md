@@ -23,7 +23,7 @@ Dokumen ini mencatat:
 | Sidebar Settings/Refresh button mati | ⏸️ Sengaja dibiarkan, akan di-wire saat halaman Settings dibuat |
 | Layout pixel keras (`h-[692px]`, `h-[500px]`) | ⏸️ Cosmetic, refactor responsif di-defer |
 | Data real (Instagram metrics) | ❌ Butuh user input (lihat §2) |
-| Field `calendar` real (Google Calendar) | ❌ Butuh user input (lihat §2) |
+| Field `calendar` real (Google Calendar) | ✅ Implemented — butuh OAuth user + env Google (lihat §2) |
 | `reminder` field | ❌ Belum ada model di Prisma. Tetap `null` sampai diputuskan sumbernya |
 
 ---
@@ -102,19 +102,22 @@ Token akan auto-encrypt pakai AES-256-GCM (lihat `apps/api/src/common/crypto.uti
 # Untuk crypto Instagram token — generate sekali, simpan rahasia
 ENCRYPTION_KEY=          # 32 bytes hex = 64 chars. Generate: openssl rand -hex 32
 
-# Akan dipakai modul publish (belum dibuat, tapi siapkan slot)
-META_APP_ID=
-META_APP_SECRET=
-INSTAGRAM_API_VERSION=v21.0
+# Instagram OAuth + Graph API
+META_INSTAGRAM_APP_ID=
+META_INSTAGRAM_APP_SECRET=
+META_REDIRECT_URI=http://localhost:3000/dashboard/instagram/callback
+META_GRAPH_API_VERSION=v21.0
+META_INSTAGRAM_SCOPES=instagram_business_basic,instagram_business_manage_insights
+META_OAUTH_STATE_SECRET=
 ```
 
-> `ENCRYPTION_KEY` **sudah** terdaftar di `.env.example`. `META_APP_ID/SECRET` belum — tambahkan saat modul publish dibangun.
+> `ENCRYPTION_KEY` dan variabel `META_*` sudah terdaftar di `.env.example`.
 
 ---
 
 ### 2.2 Google Calendar (Field `calendar`)
 
-`DashboardData.calendar` saat ini di-return `null` oleh backend. Untuk mengisi data Google Calendar nyata, butuh OAuth flow ke Google.
+`DashboardData.calendar` akan terisi setelah user menghubungkan Google Calendar. Backend menyimpan refresh token terenkripsi dan mengambil event dari Google Calendar API.
 
 #### Apa yang user harus siapkan
 
@@ -145,18 +148,18 @@ GOOGLE_OAUTH_CLIENT_SECRET=
 GOOGLE_OAUTH_REDIRECT_URI=http://localhost:3001/integrations/google/callback
 ```
 
-Belum ada di `.env.example` — tambahkan saat modul Calendar dibangun.
+Sudah ada di `.env.example`.
 
 #### Status implementasi
 
-❌ **Belum ada**. Yang masih perlu dibuat (di-luar scope task Dashboard ini):
+✅ Implemented:
 - Tabel `google_integrations` (`user_id`, `refresh_token_encrypted`, `scope`, `connected_at`) di Prisma.
-- Endpoint `GET /integrations/google/auth` → redirect ke Google consent.
+- Endpoint `GET /integrations/google/auth` → URL Google consent.
 - Endpoint `GET /integrations/google/callback` → tukar code → simpan refresh token.
-- Service yang fetch event `GET /calendar/v3/calendars/primary/events?timeMin=&timeMax=`.
-- Modifikasi `DashboardService.getOverview()` untuk inject `calendar` dari service Google.
+- Endpoint `GET /integrations/google/calendar` dan `/calendar/events` untuk event days/detail.
+- `DashboardService.getOverview()` mengisi `calendar` saat Google sudah terhubung.
 
-Sampai semua itu siap → `calendar: null` → UI render "No calendar data yet" (empty state sudah ada).
+Jika env Google belum diset atau user belum connect → `calendar: null` → UI render empty state.
 
 ---
 

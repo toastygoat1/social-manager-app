@@ -48,6 +48,9 @@ META_REDIRECT_URI=https://your-web-service.onrender.com/dashboard/instagram/call
 META_GRAPH_API_VERSION=v21.0
 META_INSTAGRAM_SCOPES=instagram_business_basic,instagram_business_manage_insights
 META_OAUTH_STATE_SECRET=
+GOOGLE_OAUTH_CLIENT_ID=
+GOOGLE_OAUTH_CLIENT_SECRET=
+GOOGLE_OAUTH_REDIRECT_URI=https://your-api-service.onrender.com/integrations/google/callback
 ```
 
 After deploy, copy the API URL, for example:
@@ -90,6 +93,7 @@ After the web service URL is final, update the API service:
 ```env
 WEB_ORIGIN=https://your-web-service.onrender.com
 META_REDIRECT_URI=https://your-web-service.onrender.com/dashboard/instagram/callback
+GOOGLE_OAUTH_REDIRECT_URI=https://your-api-service.onrender.com/integrations/google/callback
 ```
 
 Redeploy both services after changing environment variables.
@@ -124,7 +128,18 @@ Users must reconnect Instagram after this scope is added so their token grants
 insights access. Add publish/comment/message permissions later when those
 features are implemented.
 
-## 4. Supabase dashboard
+## 4. Google Cloud dashboard
+
+In Google Cloud, set the OAuth web client redirect URI to exactly:
+
+```txt
+https://your-api-service.onrender.com/integrations/google/callback
+```
+
+Use that client ID and secret for `GOOGLE_OAUTH_CLIENT_ID` and
+`GOOGLE_OAUTH_CLIENT_SECRET` on the API service.
+
+## 5. Supabase dashboard
 
 In Supabase Auth URL settings, add:
 
