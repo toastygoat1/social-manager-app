@@ -8,6 +8,7 @@
 
 ## Pola Standar (acuan untuk semua interface)
 
+
 ```
 Page (Server Component, auth check)
   └─ getXxxData() di lib/             ← apiFetch → backend
