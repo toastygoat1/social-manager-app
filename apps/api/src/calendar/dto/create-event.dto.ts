@@ -1,11 +1,12 @@
 import {
   IsBoolean,
+  IsArray,
   IsDateString,
   IsEnum,
-  IsNotEmpty,
   IsOptional,
   IsString,
   IsUUID,
+  ArrayMaxSize,
   MaxLength,
 } from 'class-validator';
 import { PostType } from '@social-manager/database';
@@ -33,4 +34,10 @@ export class CreateEventDto {
   @IsOptional()
   @IsBoolean()
   requiresApproval?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(10)
+  @IsUUID('4', { each: true })
+  mediaAssetIds?: string[];
 }

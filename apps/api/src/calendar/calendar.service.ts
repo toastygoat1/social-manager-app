@@ -10,7 +10,7 @@ import {
   GoogleService,
   type GoogleCalendarEvent,
 } from '../integrations/google/google.service.js';
-import { PostStatus, type PostType } from '@social-manager/database';
+import { MediaType, PostStatus, type PostType } from '@social-manager/database';
 
 export type CalendarEventSource = 'scheduled_post' | 'google';
 
@@ -127,6 +127,7 @@ export class CalendarService {
       title?: string;
       caption?: string;
       requiresApproval?: boolean;
+      mediaAssetIds?: string[];
     },
   ): Promise<CalendarEvent> {
     const account = await this.prisma.instagramAccount.findUnique({
@@ -152,16 +153,44 @@ export class CalendarService {
     const status: PostStatus = input.requiresApproval
       ? PostStatus.PENDING
       : PostStatus.READY;
+    const mediaAssetIds = [...new Set(input.mediaAssetIds ?? [])];
+    const mediaAssets = mediaAssetIds.length
+      ? await this.prisma.mediaAsset.findMany({
+          where: { id: { in: mediaAssetIds }, userId },
+          select: { id: true, fileType: true },
+        })
+      : [];
 
-    const post = await this.prisma.contentPost.create({
-      data: {
-        instagramAccountId: account.id,
-        postType: input.postType,
-        scheduledFor,
-        status,
-        title: input.title,
-        caption: input.caption,
-      },
+    if (mediaAssets.length !== mediaAssetIds.length) {
+      throw new ForbiddenException(
+        'One or more media assets are not available',
+      );
+    }
+    validateMediaForPostType(input.postType, mediaAssets);
+
+    const post = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.contentPost.create({
+        data: {
+          instagramAccountId: account.id,
+          postType: input.postType,
+          scheduledFor,
+          status,
+          title: input.title,
+          caption: input.caption,
+        },
+      });
+
+      if (mediaAssetIds.length) {
+        await tx.postMedia.createMany({
+          data: mediaAssetIds.map((mediaAssetId, sortOrder) => ({
+            contentPostId: created.id,
+            mediaAssetId,
+            sortOrder,
+          })),
+        });
+      }
+
+      return created;
     });
 
     return {
@@ -230,4 +259,17 @@ function normalizeGoogleDate(
 
 function isCalendarEvent(event: CalendarEvent | null): event is CalendarEvent {
   return event !== null;
+}
+
+function validateMediaForPostType(
+  postType: PostType,
+  mediaAssets: { fileType: MediaType }[],
+) {
+  if (mediaAssets.length === 0) return;
+  if (postType === 'REEL' && mediaAssets.some((m) => m.fileType !== 'VIDEO')) {
+    throw new BadRequestException('Reels require a video upload');
+  }
+  if (postType !== 'CAROUSEL' && mediaAssets.length > 1) {
+    throw new BadRequestException('Only carousel posts can use multiple files');
+  }
 }

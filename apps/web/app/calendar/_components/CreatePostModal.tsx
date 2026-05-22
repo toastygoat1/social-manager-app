@@ -7,11 +7,15 @@ import {
   Heart,
   ImageIcon,
   MessageCircle,
+  Play,
   Send,
+  Trash2,
+  Upload,
   User,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { apiFetchBrowser } from "@/lib/api/browser-client";
+import { createClient } from "@/lib/supabase/client";
 import type { CalendarPostType } from "./data";
 
 export type CreatePostType = "post" | "story" | "reels";
@@ -31,6 +35,33 @@ type InstagramAccountResponse = {
   isActive: boolean;
 };
 
+type SelectedMedia = {
+  id: string;
+  file: File;
+  previewUrl: string;
+  kind: "image" | "video";
+};
+
+type MediaUploadUrlResponse = {
+  bucket: string;
+  uploads: {
+    bucket: string;
+    storagePath: string;
+    token: string;
+    signedUrl: string;
+  }[];
+};
+
+type MediaAssetsResponse = {
+  assets: {
+    id: string;
+    storagePath: string;
+    fileType: "IMAGE" | "VIDEO";
+    mimeType: string;
+    fileSize: number;
+  }[];
+};
+
 const TYPE_LABEL: Record<CreatePostType, string> = {
   post: "Your Post",
   story: "Your Story",
@@ -42,6 +73,8 @@ const TYPE_TO_POST_TYPE: Record<CreatePostType, CalendarPostType> = {
   story: "STORY",
   reels: "REEL",
 };
+
+const MAX_MEDIA_SIZE = 100 * 1024 * 1024;
 
 function toLocalDatetimeInputValue(iso: string): string {
   const d = new Date(iso);
@@ -58,7 +91,7 @@ function defaultScheduledInputValue(iso: string): string {
   );
 }
 
-function ImagePlaceholder({ size = 100 }: { size?: number }) {
+function MediaPlaceholder({ size = 100 }: { size?: number }) {
   return (
     <div
       className="flex shrink-0 items-center justify-center rounded-2xl bg-[#495057]"
@@ -69,6 +102,83 @@ function ImagePlaceholder({ size = 100 }: { size?: number }) {
         style={{ width: size * 0.42, height: size * 0.42 }}
         strokeWidth={1.4}
       />
+    </div>
+  );
+}
+
+function mediaLimitForType(type: CreatePostType) {
+  return type === "post" ? 10 : 1;
+}
+
+function acceptForType(type: CreatePostType) {
+  return type === "reels" ? "video/*" : "image/*,video/*";
+}
+
+function validateMediaFiles(type: CreatePostType, files: File[]) {
+  const limit = mediaLimitForType(type);
+  if (files.length > limit) {
+    return type === "post"
+      ? "Posts can include up to 10 files"
+      : "Stories and reels can include 1 file";
+  }
+  if (files.some((file) => file.size > MAX_MEDIA_SIZE)) {
+    return "Each media file must be 100 MB or smaller";
+  }
+  if (files.some((file) => !file.type.startsWith("image/") && !file.type.startsWith("video/"))) {
+    return "Only image and video files are supported";
+  }
+  if (type === "reels" && files.some((file) => !file.type.startsWith("video/"))) {
+    return "Reels require a video file";
+  }
+  return null;
+}
+
+function buildSelectedMedia(file: File): SelectedMedia {
+  return {
+    id: `${file.name}-${file.size}-${file.lastModified}-${crypto.randomUUID()}`,
+    file,
+    previewUrl: URL.createObjectURL(file),
+    kind: file.type.startsWith("video/") ? "video" : "image",
+  };
+}
+
+function MediaTile({
+  media,
+  onRemove,
+}: {
+  media: SelectedMedia;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="group relative h-[100px] w-[100px] shrink-0 overflow-hidden rounded-2xl bg-[#495057]">
+      {media.kind === "image" ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={media.previewUrl}
+          alt=""
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        <video
+          src={media.previewUrl}
+          className="h-full w-full object-cover"
+          muted
+          playsInline
+        />
+      )}
+      {media.kind === "video" ? (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/20 text-paper">
+          <Play className="size-7 fill-current" strokeWidth={1.5} />
+        </div>
+      ) : null}
+      <button
+        type="button"
+        aria-label="Remove media"
+        onClick={onRemove}
+        className="absolute right-2 top-2 flex size-7 items-center justify-center rounded-full bg-ink/70 text-paper opacity-0 transition-opacity group-hover:opacity-100"
+      >
+        <Trash2 className="size-3.5" strokeWidth={2} />
+      </button>
     </div>
   );
 }
@@ -142,6 +252,7 @@ export function CreatePostModal({
   );
   const [title, setTitle] = useState("");
   const [caption, setCaption] = useState("");
+  const [media, setMedia] = useState<SelectedMedia[]>([]);
   const [requiresApproval, setRequiresApproval] = useState(true);
   const [scheduledFor, setScheduledFor] = useState(() =>
     defaultScheduledInputValue(defaultScheduledIso),
@@ -193,7 +304,87 @@ export function CreatePostModal({
     }
   }, [open, defaultScheduledIso]);
 
+  useEffect(() => {
+    if (!open && media.length) {
+      media.forEach((item) => URL.revokeObjectURL(item.previewUrl));
+      setMedia([]);
+    }
+  }, [open, media]);
+
   if (!open) return null;
+
+  const clearMedia = () => {
+    media.forEach((item) => URL.revokeObjectURL(item.previewUrl));
+    setMedia([]);
+  };
+
+  const handleMediaChange = (files: FileList | null) => {
+    if (!files) return;
+    setError(null);
+    const nextFiles = [...files];
+    const combinedFiles = [...media.map((item) => item.file), ...nextFiles];
+    const validationError = validateMediaFiles(type, combinedFiles);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+    setMedia((current) => [...current, ...nextFiles.map(buildSelectedMedia)]);
+  };
+
+  const removeMedia = (id: string) => {
+    setMedia((current) => {
+      const removed = current.find((item) => item.id === id);
+      if (removed) URL.revokeObjectURL(removed.previewUrl);
+      return current.filter((item) => item.id !== id);
+    });
+  };
+
+  const uploadSelectedMedia = async (): Promise<string[]> => {
+    if (media.length === 0) return [];
+
+    const uploadIntent = await apiFetchBrowser<MediaUploadUrlResponse>(
+      "/media/upload-urls",
+      {
+        method: "POST",
+        body: {
+          files: media.map((item) => ({
+            name: item.file.name,
+            mimeType: item.file.type,
+            fileSize: item.file.size,
+          })),
+        },
+      },
+    );
+    const supabase = createClient();
+
+    await Promise.all(
+      media.map(async (item, idx) => {
+        const upload = uploadIntent.uploads[idx];
+        const { error: uploadError } = await supabase.storage
+          .from(upload.bucket)
+          .uploadToSignedUrl(upload.storagePath, upload.token, item.file, {
+            contentType: item.file.type,
+          });
+        if (uploadError) throw uploadError;
+      }),
+    );
+
+    const completed = await apiFetchBrowser<MediaAssetsResponse>(
+      "/media/assets",
+      {
+        method: "POST",
+        body: {
+          files: media.map((item, idx) => ({
+            storagePath: uploadIntent.uploads[idx].storagePath,
+            mimeType: item.file.type,
+            fileSize: item.file.size,
+          })),
+        },
+      },
+    );
+
+    return completed.assets.map((asset) => asset.id);
+  };
 
   const handleSubmit = async () => {
     setError(null);
@@ -216,19 +407,25 @@ export function CreatePostModal({
     }
     setSubmitting(true);
     try {
+      const mediaAssetIds = await uploadSelectedMedia();
       await apiFetchBrowser("/calendar/events", {
         method: "POST",
         body: {
           instagramAccountId: selectedAccountId,
-          postType: TYPE_TO_POST_TYPE[type],
+          postType:
+            type === "post" && mediaAssetIds.length > 1
+              ? "CAROUSEL"
+              : TYPE_TO_POST_TYPE[type],
           scheduledFor: scheduledDate.toISOString(),
           title: title || undefined,
           caption: caption || undefined,
           requiresApproval,
+          mediaAssetIds,
         },
       });
       setTitle("");
       setCaption("");
+      clearMedia();
       onCreated();
     } catch {
       if (process.env.NODE_ENV !== "production") {
@@ -244,6 +441,7 @@ export function CreatePostModal({
 
   const scheduleDisabled = submitting || accountsLoading || !selectedAccountId;
   const minScheduledFor = toLocalDatetimeInputValue(new Date().toISOString());
+  const previewMedia = media[0] ?? null;
 
   return (
     <div
@@ -300,10 +498,36 @@ export function CreatePostModal({
                 />
               </div>
               <div className="h-px w-full rounded-[34px] bg-line" />
-              <div className="flex items-center gap-2.5">
-                <ImagePlaceholder />
-                <ImagePlaceholder />
-                <ImagePlaceholder />
+              <div className="flex items-center gap-2.5 overflow-x-auto">
+                {media.map((item) => (
+                  <MediaTile
+                    key={item.id}
+                    media={item}
+                    onRemove={() => removeMedia(item.id)}
+                  />
+                ))}
+                {media.length < mediaLimitForType(type) ? (
+                  <label className="flex h-[100px] w-[100px] shrink-0 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-muted bg-card text-muted">
+                    <Upload className="size-7" strokeWidth={1.7} />
+                    <span className="text-xs font-semibold">Upload</span>
+                    <input
+                      type="file"
+                      accept={acceptForType(type)}
+                      multiple={type === "post"}
+                      className="sr-only"
+                      onChange={(e) => {
+                        handleMediaChange(e.target.files);
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
+                ) : null}
+                {media.length === 0 ? (
+                  <>
+                    <MediaPlaceholder />
+                    <MediaPlaceholder />
+                  </>
+                ) : null}
               </div>
             </div>
           </section>
@@ -378,11 +602,32 @@ export function CreatePostModal({
                   "Preview"}
               </p>
             </div>
-            <div className="flex h-[428px] w-full items-center justify-center bg-[#495057]">
-              <ImageIcon
-                className="size-32 text-[#d9d9d9]"
-                strokeWidth={1.2}
-              />
+            <div className="relative flex h-[428px] w-full items-center justify-center overflow-hidden bg-[#495057]">
+              {previewMedia?.kind === "image" ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={previewMedia.previewUrl}
+                  alt=""
+                  className="h-full w-full object-cover"
+                />
+              ) : previewMedia?.kind === "video" ? (
+                <>
+                  <video
+                    src={previewMedia.previewUrl}
+                    className="h-full w-full object-cover"
+                    muted
+                    playsInline
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/20 text-paper">
+                    <Play className="size-16 fill-current" strokeWidth={1.4} />
+                  </div>
+                </>
+              ) : (
+                <ImageIcon
+                  className="size-32 text-[#d9d9d9]"
+                  strokeWidth={1.2}
+                />
+              )}
             </div>
             <div className="flex flex-1 items-center gap-4 px-6">
               <Heart className="size-6 fill-ink text-ink" strokeWidth={0} />
