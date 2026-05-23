@@ -10,9 +10,16 @@ import {
   GoogleService,
   type GoogleCalendarEvent,
 } from '../integrations/google/google.service.js';
-import { MediaType, PostStatus, type PostType } from '@social-manager/database';
+import {
+  MediaType,
+  PostStatus,
+  type PostType,
+  type Prisma,
+} from '@social-manager/database';
 import { InstagramPublisherService } from '../publishing/instagram-publisher.service.js';
 import { PublishQueueService } from '../queue/publish-queue.service.js';
+import { MediaService } from '../media/media.service.js';
+import type { UpdateDraftAction } from './dto/update-draft.dto.js';
 
 export type CalendarEventSource = 'scheduled_post' | 'google';
 type CreateEventAction = 'SCHEDULE' | 'POST_NOW' | 'DRAFT';
@@ -38,6 +45,48 @@ export type CalendarPayload = {
   events: CalendarEvent[];
 };
 
+const POST_DETAIL_INCLUDE = {
+  instagramAccount: {
+    select: {
+      id: true,
+      userId: true,
+      username: true,
+      isActive: true,
+    },
+  },
+  postMedia: {
+    orderBy: { sortOrder: 'asc' },
+    include: { mediaAsset: true },
+  },
+} satisfies Prisma.ContentPostInclude;
+
+type PostDetailRecord = Prisma.ContentPostGetPayload<{
+  include: typeof POST_DETAIL_INCLUDE;
+}>;
+
+export type CalendarPostDetail = {
+  id: string;
+  title: string | null;
+  caption: string | null;
+  postType: PostType;
+  status: 'published' | 'scheduled' | 'pending' | 'draft';
+  accountId: string;
+  accountUsername: string;
+  scheduledFor: string | null;
+  publishedAt: string | null;
+  createdAt: string;
+  media: {
+    id: string;
+    fileType: MediaType;
+    mimeType: string;
+    fileSize: number;
+    width: number | null;
+    height: number | null;
+    durationSeconds: number | null;
+    previewUrl: string | null;
+  }[];
+};
+
 const POST_STATUS_TO_UI: Record<
   PostStatus,
   'published' | 'scheduled' | 'pending' | 'draft'
@@ -57,6 +106,7 @@ export class CalendarService {
     private readonly google: GoogleService,
     private readonly publisher: InstagramPublisherService,
     private readonly publishQueue: PublishQueueService,
+    private readonly media: MediaService,
   ) {}
 
   async listEvents(
@@ -87,6 +137,10 @@ export class CalendarService {
             OR: [
               { scheduledFor: { gte: fromDate, lte: toDate } },
               { publishedAt: { gte: fromDate, lte: toDate } },
+              {
+                status: PostStatus.DRAFT,
+                createdAt: { gte: fromDate, lte: toDate },
+              },
             ],
           },
           orderBy: { scheduledFor: 'asc' },
@@ -170,7 +224,7 @@ export class CalendarService {
     validateMediaForPostType(input.postType, mediaAssets);
     const publishWhenScheduled =
       action === 'SCHEDULE' && status === PostStatus.READY && !!scheduledFor;
-    if (action === 'POST_NOW' || publishWhenScheduled) {
+    if (action === 'POST_NOW' || action === 'SCHEDULE') {
       validateMediaForPublishing(input.postType, mediaAssets);
     }
     if (publishWhenScheduled) {
@@ -229,6 +283,188 @@ export class CalendarService {
     };
   }
 
+  async getPostDetail(
+    userId: string,
+    contentPostId: string,
+  ): Promise<CalendarPostDetail> {
+    const post = await this.getOwnedPost(userId, contentPostId);
+    return this.mapPostDetail(post);
+  }
+
+  async approvePost(
+    userId: string,
+    contentPostId: string,
+  ): Promise<CalendarPostDetail> {
+    const post = await this.getOwnedPost(userId, contentPostId);
+    if (post.status !== PostStatus.PENDING || !post.scheduledFor) {
+      throw new BadRequestException('This post is not awaiting approval');
+    }
+
+    validateMediaForPublishing(
+      post.postType,
+      post.postMedia.map((item) => item.mediaAsset),
+    );
+    await this.publishQueue.ensureAvailable();
+
+    const result = await this.prisma.contentPost.updateMany({
+      where: { id: post.id, status: PostStatus.PENDING },
+      data: { status: PostStatus.READY },
+    });
+    if (result.count !== 1) {
+      throw new BadRequestException('This post is no longer awaiting approval');
+    }
+
+    try {
+      await this.publishQueue.enqueueScheduledPost(post.id, post.scheduledFor);
+    } catch (error) {
+      await this.prisma.contentPost.updateMany({
+        where: { id: post.id, status: PostStatus.READY },
+        data: { status: PostStatus.PENDING },
+      });
+      throw error;
+    }
+
+    return this.getPostDetail(userId, contentPostId);
+  }
+
+  async updateDraft(
+    userId: string,
+    contentPostId: string,
+    input: {
+      action?: UpdateDraftAction;
+      scheduledFor?: string;
+      title?: string;
+      caption?: string;
+      requiresApproval?: boolean;
+      mediaAssetIds?: string[];
+    },
+  ): Promise<CalendarPostDetail> {
+    const post = await this.getOwnedPost(userId, contentPostId);
+    if (post.status !== PostStatus.DRAFT) {
+      throw new BadRequestException('Only draft posts can be edited');
+    }
+
+    const action = input.action ?? 'DRAFT';
+    const next =
+      action === 'SCHEDULE'
+        ? resolveCreateAction(input, 'SCHEDULE')
+        : { scheduledFor: null, status: PostStatus.DRAFT };
+    const publishWhenScheduled = next.status === PostStatus.READY;
+    const mediaAssetIds = input.mediaAssetIds
+      ? [...new Set(input.mediaAssetIds)]
+      : post.postMedia.map((item) => item.mediaAsset.id);
+    const mediaAssets = input.mediaAssetIds
+      ? await this.prisma.mediaAsset.findMany({
+          where: { id: { in: mediaAssetIds }, userId },
+          select: { id: true, fileType: true, width: true, height: true },
+        })
+      : post.postMedia.map((item) => item.mediaAsset);
+
+    if (mediaAssets.length !== mediaAssetIds.length) {
+      throw new ForbiddenException(
+        'One or more media assets are not available',
+      );
+    }
+    validateMediaForPostType(post.postType, mediaAssets);
+    if (action === 'SCHEDULE') {
+      validateMediaForPublishing(post.postType, mediaAssets);
+    }
+    if (publishWhenScheduled) {
+      await this.publishQueue.ensureAvailable();
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      const result = await tx.contentPost.updateMany({
+        where: { id: post.id, status: PostStatus.DRAFT },
+        data: {
+          title: normalizeOptionalText(input.title),
+          caption: normalizeOptionalText(input.caption),
+          scheduledFor: next.scheduledFor,
+          status: next.status,
+        },
+      });
+      if (result.count !== 1) {
+        throw new BadRequestException('This draft was already updated');
+      }
+
+      if (input.mediaAssetIds) {
+        await tx.postMedia.deleteMany({ where: { contentPostId: post.id } });
+        if (mediaAssetIds.length) {
+          await tx.postMedia.createMany({
+            data: mediaAssetIds.map((mediaAssetId, sortOrder) => ({
+              contentPostId: post.id,
+              mediaAssetId,
+              sortOrder,
+            })),
+          });
+        }
+      }
+    });
+
+    if (publishWhenScheduled && next.scheduledFor) {
+      try {
+        await this.publishQueue.enqueueScheduledPost(
+          post.id,
+          next.scheduledFor,
+        );
+      } catch (error) {
+        await this.prisma.contentPost.updateMany({
+          where: { id: post.id, status: PostStatus.READY },
+          data: { status: PostStatus.DRAFT, scheduledFor: null },
+        });
+        throw error;
+      }
+    }
+
+    return this.getPostDetail(userId, contentPostId);
+  }
+
+  private async getOwnedPost(userId: string, contentPostId: string) {
+    const post = await this.prisma.contentPost.findFirst({
+      where: {
+        id: contentPostId,
+        instagramAccount: { userId, isActive: true },
+      },
+      include: POST_DETAIL_INCLUDE,
+    });
+
+    if (!post) throw new NotFoundException('Post was not found');
+    return post;
+  }
+
+  private async mapPostDetail(
+    post: PostDetailRecord,
+  ): Promise<CalendarPostDetail> {
+    const media = await Promise.all(
+      post.postMedia.map(async ({ mediaAsset }) => ({
+        id: mediaAsset.id,
+        fileType: mediaAsset.fileType,
+        mimeType: mediaAsset.mimeType,
+        fileSize: mediaAsset.fileSize,
+        width: mediaAsset.width,
+        height: mediaAsset.height,
+        durationSeconds: mediaAsset.durationSeconds,
+        previewUrl: await this.media.createSignedPreviewUrl(
+          mediaAsset.storagePath,
+        ),
+      })),
+    );
+
+    return {
+      id: post.id,
+      title: post.title,
+      caption: post.caption,
+      postType: post.postType,
+      status: POST_STATUS_TO_UI[post.status],
+      accountId: post.instagramAccount.id,
+      accountUsername: post.instagramAccount.username,
+      scheduledFor: post.scheduledFor?.toISOString() ?? null,
+      publishedAt: post.publishedAt?.toISOString() ?? null,
+      createdAt: post.createdAt.toISOString(),
+      media,
+    };
+  }
+
   private async getGoogleEvents(
     userId: string,
     fromDate: Date,
@@ -280,6 +516,11 @@ function normalizeGoogleDate(
 
 function isCalendarEvent(event: CalendarEvent | null): event is CalendarEvent {
   return event !== null;
+}
+
+function normalizeOptionalText(value: string | undefined): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
 }
 
 function resolveCreateAction(
@@ -337,7 +578,7 @@ function validateMediaForPublishing(
   }[],
 ) {
   if (mediaAssets.length === 0) {
-    throw new BadRequestException('Add media before posting now');
+    throw new BadRequestException('Add media before publishing');
   }
   if (postType === 'CAROUSEL' && mediaAssets.length < 2) {
     throw new BadRequestException('Carousel posts need at least 2 files');

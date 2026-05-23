@@ -12,6 +12,7 @@ import type { AuthUser } from '../auth/auth.types.js';
 
 const DEFAULT_MEDIA_BUCKET = 'media-assets';
 const MAX_FILE_SIZE = 100 * 1024 * 1024;
+const SIGNED_PREVIEW_URL_TTL_SECONDS = 60 * 60;
 
 type MediaUploadInput = {
   name: string;
@@ -116,6 +117,15 @@ export class MediaService {
     );
 
     return { assets: created };
+  }
+
+  async createSignedPreviewUrl(storagePath: string): Promise<string | null> {
+    const { data, error } = await this.supabase.storage
+      .from(this.bucket)
+      .createSignedUrl(storagePath, SIGNED_PREVIEW_URL_TTL_SECONDS);
+
+    if (error || !data?.signedUrl) return null;
+    return data.signedUrl;
   }
 
   private async ensureUser(user: AuthUser) {

@@ -23,6 +23,29 @@ export type CalendarData = {
   events: CalendarEvent[];
 };
 
+export type CalendarPostDetail = {
+  id: string;
+  title: string | null;
+  caption: string | null;
+  postType: CalendarPostType;
+  status: EventStatus;
+  accountId: string;
+  accountUsername: string;
+  scheduledFor: string | null;
+  publishedAt: string | null;
+  createdAt: string;
+  media: {
+    id: string;
+    fileType: "IMAGE" | "VIDEO";
+    mimeType: string;
+    fileSize: number;
+    width: number | null;
+    height: number | null;
+    durationSeconds: number | null;
+    previewUrl: string | null;
+  }[];
+};
+
 export const EMPTY_CALENDAR: CalendarData = {
   googleConnected: false,
   events: [],
