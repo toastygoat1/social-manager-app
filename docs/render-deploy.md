@@ -51,7 +51,7 @@ META_INSTAGRAM_APP_ID=
 META_INSTAGRAM_APP_SECRET=
 META_REDIRECT_URI=https://your-web-service.onrender.com/dashboard/instagram/callback
 META_GRAPH_API_VERSION=v21.0
-META_INSTAGRAM_SCOPES=instagram_business_basic,instagram_business_content_publish,instagram_business_manage_insights
+META_INSTAGRAM_SCOPES=instagram_business_basic,instagram_business_content_publish,instagram_business_manage_insights,instagram_business_manage_messages
 META_OAUTH_STATE_SECRET=
 GOOGLE_OAUTH_CLIENT_ID=
 GOOGLE_OAUTH_CLIENT_SECRET=
@@ -164,11 +164,11 @@ META_INSTAGRAM_SCOPES=instagram_business_basic
 For dashboard analytics such as Total Views, add:
 
 ```env
-META_INSTAGRAM_SCOPES=instagram_business_basic,instagram_business_content_publish,instagram_business_manage_insights
+META_INSTAGRAM_SCOPES=instagram_business_basic,instagram_business_content_publish,instagram_business_manage_insights,instagram_business_manage_messages
 ```
 
 Users must reconnect Instagram after this scope is added so their token grants
-insights access. Add publish/comment/message permissions later when those
+publish, insights, and message access. Add comment permissions later when those
 features are implemented.
 
 ## 5. Google Cloud dashboard

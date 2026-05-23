@@ -63,6 +63,13 @@ function popupResponse(request: Request, payload: PopupPayload) {
       const targetOrigin = ${JSON.stringify(origin)};
       const dashboardUrl = ${JSON.stringify(dashboardUrl)};
 
+      try {
+        window.localStorage.setItem(
+          ${JSON.stringify(INSTAGRAM_COMPLETE)},
+          JSON.stringify({ ...message, createdAt: Date.now() }),
+        );
+      } catch {}
+
       if (window.opener && !window.opener.closed) {
         window.opener.postMessage(message, targetOrigin);
         setTimeout(() => window.opener.postMessage(message, targetOrigin), 100);

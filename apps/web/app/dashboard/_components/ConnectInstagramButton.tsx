@@ -17,6 +17,7 @@ const POPUP_W = 520;
 const POPUP_H = 700;
 const POPUP_CLOSE_GRACE_MS = 1500;
 const INSTAGRAM_COMPLETE = "instagram:oauth:complete";
+const INSTAGRAM_COMPLETE_MAX_AGE_MS = 60_000;
 
 type ConnectStep = "requirements" | "authorizing" | "connected" | "failed";
 
@@ -132,9 +133,11 @@ export function ConnectInstagramButton() {
     const openedPopup = popup;
     const origin = window.location.origin;
     let accountCountBeforeAuth: number | null = null;
+    let hasHandledCompletion = false;
 
     function cleanupMessageListener() {
       window.removeEventListener("message", onMessage);
+      window.removeEventListener("storage", onStorage);
       cleanupPopup();
     }
 
@@ -142,6 +145,34 @@ export function ConnectInstagramButton() {
       setStep("connected");
       setSuccessMessage(getConnectedMessage(count));
       router.refresh();
+    }
+
+    function getMessageCount(count: unknown) {
+      if (typeof count === "number" && Number.isFinite(count)) return count;
+      if (typeof count === "string") {
+        const parsed = Number(count);
+        if (Number.isFinite(parsed)) return parsed;
+      }
+      return 0;
+    }
+
+    function handleOAuthCompletion(data: InstagramOAuthMessage) {
+      if (hasHandledCompletion) return;
+      hasHandledCompletion = true;
+      cleanupMessageListener();
+      openedPopup.close();
+
+      if (data.status === "error") {
+        setStep("failed");
+        setErrorMessage(
+          typeof data.message === "string"
+            ? data.message
+            : "Instagram connection failed.",
+        );
+        return;
+      }
+
+      markConnected(getMessageCount(data.count));
     }
 
     async function handleClosedPopup() {
@@ -171,24 +202,58 @@ export function ConnectInstagramButton() {
       const data = event.data as InstagramOAuthMessage;
       if (data.type !== INSTAGRAM_COMPLETE) return;
 
-      cleanupMessageListener();
-      openedPopup.close();
-
-      if (data.status === "error") {
-        setStep("failed");
-        setErrorMessage(
-          typeof data.message === "string"
-            ? data.message
-            : "Instagram connection failed.",
-        );
-        return;
-      }
-
-      const count = typeof data.count === "number" ? data.count : 0;
-      markConnected(count);
+      handleOAuthCompletion(data);
     }
 
+    function onStorage(event: StorageEvent) {
+      if (event.key !== INSTAGRAM_COMPLETE || !event.newValue) return;
+
+      try {
+        const data = JSON.parse(event.newValue) as InstagramOAuthMessage & {
+          createdAt?: unknown;
+        };
+        if (data.type !== INSTAGRAM_COMPLETE) return;
+        if (
+          typeof data.createdAt === "number" &&
+          Date.now() - data.createdAt > INSTAGRAM_COMPLETE_MAX_AGE_MS
+        ) {
+          return;
+        }
+
+        window.localStorage.removeItem(INSTAGRAM_COMPLETE);
+        handleOAuthCompletion(data);
+      } catch {
+        // Ignore malformed storage messages from older tabs.
+      }
+    }
+
+    function readReturnedPopup() {
+      try {
+        const popupUrl = new URL(openedPopup.location.href);
+        if (popupUrl.origin !== origin || popupUrl.pathname !== "/dashboard") {
+          return false;
+        }
+
+        const status = popupUrl.searchParams.get("instagram");
+        if (status !== "connected" && status !== "error") {
+          return false;
+        }
+
+        handleOAuthCompletion({
+          type: INSTAGRAM_COMPLETE,
+          status,
+          message: popupUrl.searchParams.get("message") ?? undefined,
+          count: popupUrl.searchParams.get("count") ?? undefined,
+        });
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    window.localStorage.removeItem(INSTAGRAM_COMPLETE);
     window.addEventListener("message", onMessage);
+    window.addEventListener("storage", onStorage);
     popupRef.current = openedPopup;
 
     try {
@@ -203,6 +268,8 @@ export function ConnectInstagramButton() {
       openedPopup.focus?.();
 
       pollRef.current = setInterval(() => {
+        if (readReturnedPopup()) return;
+
         if (openedPopup.closed) {
           if (popupCloseTimeoutRef.current) return;
 

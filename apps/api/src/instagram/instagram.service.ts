@@ -1,19 +1,34 @@
 import {
+  BadGatewayException,
   BadRequestException,
   ForbiddenException,
   Injectable,
   InternalServerErrorException,
+  Logger,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { URL } from 'node:url';
-import { InstagramAccountType, Prisma } from '@social-manager/database';
+import {
+  DmSenderType,
+  InstagramAccountType,
+  Prisma,
+  WebhookProcessingStatus,
+  WebhookSource,
+} from '@social-manager/database';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AddInstagramAccountDto } from './dto/add-instagram-account.dto.js';
 import { CompleteInstagramOAuthDto } from './dto/complete-instagram-oauth.dto.js';
+import { SendDmMessageDto } from './dto/send-dm-message.dto.js';
 import { decryptSecret, encryptSecret } from '../common/crypto.util.js';
 import type { AuthUser } from '../auth/auth.types.js';
+import type {
+  InstagramWebhookMessagingEvent,
+  InstagramWebhookPayload,
+  InstagramWebhookProcessingResult,
+} from './instagram-webhook.types.js';
 
 const SAFE_INSTAGRAM_ACCOUNT_SELECT = {
   id: true,
@@ -30,10 +45,41 @@ const SAFE_INSTAGRAM_ACCOUNT_SELECT = {
   updatedAt: true,
 } satisfies Prisma.InstagramAccountSelect;
 
+const DM_MESSAGE_SELECT = {
+  id: true,
+  conversationId: true,
+  igMessageId: true,
+  senderType: true,
+  messageText: true,
+  sentAt: true,
+  createdAt: true,
+} satisfies Prisma.DmMessageSelect;
+
+const DM_CONVERSATION_SELECT = {
+  id: true,
+  instagramAccountId: true,
+  igConversationId: true,
+  participantIgId: true,
+  participantUsername: true,
+  lastMessageAt: true,
+  createdAt: true,
+  updatedAt: true,
+} satisfies Prisma.DmConversationSelect;
+
+const WEBHOOK_EVENT_SELECT = {
+  id: true,
+} satisfies Prisma.WebhookEventSelect;
+
 const INSTAGRAM_INSIGHTS_ACCOUNT_SELECT = {
   id: true,
   igUserId: true,
   username: true,
+  accessTokenEncrypted: true,
+} satisfies Prisma.InstagramAccountSelect;
+
+const INSTAGRAM_DM_SYNC_ACCOUNT_SELECT = {
+  id: true,
+  igUserId: true,
   accessTokenEncrypted: true,
 } satisfies Prisma.InstagramAccountSelect;
 
@@ -45,17 +91,23 @@ type InstagramInsightsAccount = Prisma.InstagramAccountGetPayload<{
   select: typeof INSTAGRAM_INSIGHTS_ACCOUNT_SELECT;
 }>;
 
+type InstagramDmSyncAccount = Prisma.InstagramAccountGetPayload<{
+  select: typeof INSTAGRAM_DM_SYNC_ACCOUNT_SELECT;
+}>;
+
 const DEFAULT_GRAPH_API_VERSION = 'v21.0';
 const DEFAULT_INSTAGRAM_SCOPES = [
   'instagram_business_basic',
   'instagram_business_content_publish',
   'instagram_business_manage_insights',
+  'instagram_business_manage_messages',
 ];
 const OAUTH_STATE_TTL_MS = 15 * 60 * 1000;
 const DASHBOARD_INSIGHTS_DAYS = 30;
 const DASHBOARD_INSIGHT_METRICS = ['views'] as const;
 const DASHBOARD_MEDIA_FIELDS = 'id,like_count,timestamp';
 const MAX_MEDIA_PAGES_FOR_DASHBOARD = 25;
+const MAX_DM_CONVERSATION_PAGES = 3;
 const STORY_TTL_MS = 24 * 60 * 60 * 1000;
 
 type DashboardInsightMetric = (typeof DASHBOARD_INSIGHT_METRICS)[number];
@@ -86,6 +138,16 @@ type GraphApiError = {
     type?: string;
     code?: number;
   };
+};
+
+type InstagramAccountForWebhook = {
+  id: string;
+  igUserId: string;
+};
+
+type InstagramSendMessageResponse = GraphApiError & {
+  message_id?: string;
+  recipient_id?: string;
 };
 
 type InstagramTokenResponse = GraphApiError & {
@@ -141,6 +203,47 @@ type InstagramStoriesResponse = GraphApiError & {
   };
 };
 
+type InstagramConversationSummaryResponse = {
+  id?: string;
+  updated_time?: string;
+};
+
+type InstagramConversationListResponse = GraphApiError & {
+  data?: InstagramConversationSummaryResponse[];
+  paging?: {
+    next?: string;
+  };
+};
+
+type InstagramConversationMessagesResponse = GraphApiError & {
+  messages?: {
+    data?: {
+      id?: string;
+      created_time?: string;
+    }[];
+  };
+};
+
+type InstagramMessageParticipant = {
+  id?: string;
+  username?: string;
+};
+
+type InstagramMessageDetailResponse = GraphApiError & {
+  id?: string;
+  created_time?: string;
+  from?: InstagramMessageParticipant;
+  to?: {
+    data?: InstagramMessageParticipant[];
+  };
+  message?: string;
+};
+
+type ResolvedDmParticipant = {
+  id: string;
+  username: string | null;
+};
+
 type ObservedInstagramStory = InstagramStoryResponse & {
   id: string;
 };
@@ -152,6 +255,8 @@ type StoryCountSummary = {
 
 @Injectable()
 export class InstagramService {
+  private readonly logger = new Logger(InstagramService.name);
+
   constructor(
     private prisma: PrismaService,
     private config: ConfigService,
@@ -164,7 +269,7 @@ export class InstagramService {
 
   async getAccounts(userId: string) {
     return this.prisma.instagramAccount.findMany({
-      where: { userId: userId, isActive: true },
+      where: { userId, isActive: true },
       orderBy: { createdAt: 'desc' },
       select: SAFE_INSTAGRAM_ACCOUNT_SELECT,
     });
@@ -418,6 +523,579 @@ export class InstagramService {
       update: { email: user.email },
       create: { id: user.userId, email: user.email },
     });
+  }
+
+  async getDmConversations(userId: string, accountId?: string) {
+    await this.syncDmConversationsForUser(userId, accountId).catch((error) => {
+      this.logger.warn(
+        `Instagram DM sync failed while listing cached conversations: ${this.getErrorMessage(error)}`,
+      );
+    });
+
+    const conversations = await this.prisma.dmConversation.findMany({
+      where: {
+        instagramAccount: { userId, isActive: true },
+        ...(accountId ? { instagramAccountId: accountId } : {}),
+      },
+      orderBy: [{ lastMessageAt: 'desc' }, { updatedAt: 'desc' }],
+      select: {
+        ...DM_CONVERSATION_SELECT,
+        instagramAccount: { select: SAFE_INSTAGRAM_ACCOUNT_SELECT },
+        dmMessages: {
+          orderBy: { sentAt: 'desc' },
+          take: 1,
+          select: DM_MESSAGE_SELECT,
+        },
+        _count: { select: { dmMessages: true } },
+      },
+    });
+
+    return conversations.map(({ dmMessages, _count, ...conversation }) => ({
+      ...conversation,
+      lastMessage: dmMessages[0] ?? null,
+      messageCount: _count.dmMessages,
+    }));
+  }
+
+  async getDmConversation(userId: string, conversationId: string) {
+    const conversation = await this.prisma.dmConversation.findFirst({
+      where: {
+        id: conversationId,
+        instagramAccount: { userId, isActive: true },
+      },
+      select: {
+        ...DM_CONVERSATION_SELECT,
+        instagramAccount: { select: SAFE_INSTAGRAM_ACCOUNT_SELECT },
+        dmMessages: {
+          orderBy: { sentAt: 'asc' },
+          select: DM_MESSAGE_SELECT,
+        },
+        _count: { select: { dmMessages: true } },
+      },
+    });
+
+    if (!conversation) {
+      throw new NotFoundException('DM conversation not found');
+    }
+
+    const { dmMessages, _count, ...conversationSummary } = conversation;
+
+    return {
+      ...conversationSummary,
+      messages: dmMessages,
+      lastMessage: dmMessages.at(-1) ?? null,
+      messageCount: _count.dmMessages,
+    };
+  }
+
+  async sendDmMessage(
+    userId: string,
+    conversationId: string,
+    data: SendDmMessageDto,
+  ) {
+    const conversation = await this.prisma.dmConversation.findFirst({
+      where: {
+        id: conversationId,
+        instagramAccount: { userId, isActive: true },
+      },
+      select: {
+        id: true,
+        participantIgId: true,
+        instagramAccount: {
+          select: {
+            igUserId: true,
+            accessTokenEncrypted: true,
+          },
+        },
+      },
+    });
+
+    if (!conversation) {
+      throw new NotFoundException('DM conversation not found');
+    }
+
+    const sentAt = new Date();
+    const sendResponse = await this.sendInstagramTextMessage(
+      conversation.instagramAccount.igUserId,
+      conversation.instagramAccount.accessTokenEncrypted,
+      conversation.participantIgId,
+      data.messageText,
+    );
+
+    const message = await this.prisma.dmMessage.create({
+      data: {
+        conversationId,
+        igMessageId: sendResponse.message_id,
+        senderType: DmSenderType.USER,
+        messageText: data.messageText,
+        sentAt,
+      },
+      select: DM_MESSAGE_SELECT,
+    });
+
+    await this.prisma.dmConversation.update({
+      where: { id: conversationId },
+      data: { lastMessageAt: sentAt },
+    });
+
+    return message;
+  }
+
+  verifyWebhookSubscription(query: Record<string, string | undefined>) {
+    const mode = query['hub.mode'];
+    const verifyToken = query['hub.verify_token'];
+    const challenge = query['hub.challenge'];
+    const expectedToken = this.getRequiredConfig('META_WEBHOOK_VERIFY_TOKEN');
+
+    if (mode === 'subscribe' && verifyToken === expectedToken && challenge) {
+      return challenge;
+    }
+
+    throw new ForbiddenException('Invalid webhook verification token');
+  }
+
+  async receiveWebhook(
+    payload: InstagramWebhookPayload,
+    rawBody: Buffer | undefined,
+    signature: string | undefined,
+  ): Promise<InstagramWebhookProcessingResult> {
+    if (!rawBody) {
+      throw new BadRequestException('Missing raw webhook body');
+    }
+
+    this.verifyWebhookSignature(rawBody, signature);
+
+    const webhookEvent = await this.prisma.webhookEvent.create({
+      data: {
+        source: WebhookSource.INSTAGRAM,
+        eventType: this.resolveWebhookEventType(payload),
+        externalEventId: this.resolveWebhookExternalEventId(payload),
+        payload: payload as Prisma.InputJsonValue,
+        processingStatus: WebhookProcessingStatus.RECEIVED,
+      },
+      select: WEBHOOK_EVENT_SELECT,
+    });
+
+    try {
+      const result = await this.processWebhookPayload(payload);
+
+      await this.prisma.webhookEvent.update({
+        where: { id: webhookEvent.id },
+        data: {
+          processingStatus: WebhookProcessingStatus.PROCESSED,
+          processedAt: new Date(),
+        },
+      });
+
+      this.logger.log(
+        `Instagram webhook processed: events=${result.eventsReceived}, messagesProcessed=${result.messagesProcessed}, messagesIgnored=${result.messagesIgnored}`,
+      );
+
+      return result;
+    } catch (error) {
+      await this.prisma.webhookEvent.update({
+        where: { id: webhookEvent.id },
+        data: {
+          processingStatus: WebhookProcessingStatus.FAILED,
+          processedAt: new Date(),
+          errorMessage:
+            error instanceof Error ? error.message : 'Unknown webhook error',
+        },
+      });
+
+      throw error;
+    }
+  }
+
+  private async processWebhookPayload(
+    payload: InstagramWebhookPayload,
+  ): Promise<InstagramWebhookProcessingResult> {
+    const entries = payload.entry ?? [];
+    let messagesProcessed = 0;
+    let messagesIgnored = 0;
+
+    for (const entry of entries) {
+      for (const messagingEvent of entry.messaging ?? []) {
+        const processed = await this.processWebhookMessagingEvent(
+          messagingEvent,
+          entry.id,
+          entry.time,
+        );
+
+        if (processed) {
+          messagesProcessed += 1;
+        } else {
+          messagesIgnored += 1;
+        }
+      }
+    }
+
+    return {
+      eventsReceived: entries.reduce(
+        (total, entry) => total + (entry.messaging?.length ?? 0),
+        0,
+      ),
+      messagesProcessed,
+      messagesIgnored,
+    };
+  }
+
+  private async processWebhookMessagingEvent(
+    event: InstagramWebhookMessagingEvent,
+    entryId: string | undefined,
+    entryTime: number | undefined,
+  ) {
+    const senderId = event.sender?.id;
+    const recipientId = event.recipient?.id;
+    const messageId = event.message?.mid;
+
+    if (!messageId || (!senderId && !recipientId)) {
+      return false;
+    }
+
+    const account = await this.findWebhookInstagramAccount(
+      senderId,
+      recipientId,
+      entryId,
+    );
+
+    if (!account) {
+      return false;
+    }
+
+    const isEcho =
+      event.message?.is_echo === true || event.sender?.id === account.igUserId;
+    const participantIgId = isEcho ? recipientId : senderId;
+
+    if (!participantIgId || participantIgId === account.igUserId) {
+      return false;
+    }
+
+    const sentAt = this.resolveWebhookMessageDate(event.timestamp, entryTime);
+    const igConversationId = this.buildWebhookConversationId(
+      account.igUserId,
+      participantIgId,
+    );
+    const conversation = await this.prisma.dmConversation.upsert({
+      where: { igConversationId },
+      update: {
+        lastMessageAt: sentAt,
+      },
+      create: {
+        instagramAccountId: account.id,
+        igConversationId,
+        participantIgId,
+        lastMessageAt: sentAt,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    await this.prisma.dmMessage.upsert({
+      where: {
+        igMessageId: messageId,
+      },
+      update: {
+        messageText: event.message?.text ?? null,
+        sentAt,
+      },
+      create: {
+        conversationId: conversation.id,
+        igMessageId: messageId,
+        senderType: isEcho ? DmSenderType.USER : DmSenderType.PARTICIPANT,
+        messageText: event.message?.text ?? null,
+        sentAt,
+      },
+      select: DM_MESSAGE_SELECT,
+    });
+
+    return true;
+  }
+
+  private async findWebhookInstagramAccount(
+    senderId: string | undefined,
+    recipientId: string | undefined,
+    entryId: string | undefined,
+  ): Promise<InstagramAccountForWebhook | null> {
+    const igUserIds = [senderId, recipientId, entryId].filter(
+      (value): value is string => Boolean(value),
+    );
+
+    if (!igUserIds.length) {
+      return null;
+    }
+
+    return this.prisma.instagramAccount.findFirst({
+      where: {
+        igUserId: { in: igUserIds },
+        isActive: true,
+      },
+      select: {
+        id: true,
+        igUserId: true,
+      },
+    });
+  }
+
+  private async syncDmConversationsForUser(userId: string, accountId?: string) {
+    const accounts = await this.prisma.instagramAccount.findMany({
+      where: {
+        userId,
+        isActive: true,
+        ...(accountId ? { id: accountId } : {}),
+      },
+      select: INSTAGRAM_DM_SYNC_ACCOUNT_SELECT,
+    });
+
+    if (!accounts.length) {
+      return;
+    }
+
+    const results = await Promise.allSettled(
+      accounts.map((account) => this.syncAccountDmConversations(account)),
+    );
+    const failures = results.filter(
+      (result): result is PromiseRejectedResult => result.status === 'rejected',
+    );
+
+    if (!failures.length) {
+      return;
+    }
+
+    const message = this.getErrorMessage(failures[0].reason);
+
+    if (failures.length === accounts.length) {
+      throw new BadGatewayException(`Instagram DM sync failed: ${message}`);
+    }
+
+    this.logger.warn(
+      `Instagram DM sync partially failed for ${failures.length}/${accounts.length} account(s): ${message}`,
+    );
+  }
+
+  private async syncAccountDmConversations(account: InstagramDmSyncAccount) {
+    const accessToken = decryptSecret(account.accessTokenEncrypted);
+    const conversations = await this.fetchInstagramDmConversations(accessToken);
+
+    await Promise.all(
+      conversations.map((conversation) =>
+        this.syncInstagramDmConversation(account, accessToken, conversation),
+      ),
+    );
+  }
+
+  private async fetchInstagramDmConversations(accessToken: string) {
+    const conversations: InstagramConversationSummaryResponse[] = [];
+    let nextUrl: URL | null = this.createGraphUrl('me/conversations');
+    let pageCount = 0;
+
+    nextUrl.searchParams.set('platform', 'instagram');
+    nextUrl.searchParams.set('limit', '25');
+    nextUrl.searchParams.set('access_token', accessToken);
+
+    while (nextUrl && pageCount < MAX_DM_CONVERSATION_PAGES) {
+      pageCount += 1;
+      const response =
+        await this.requestGraph<InstagramConversationListResponse>(nextUrl);
+      const responseConversations =
+        this.getInstagramConversationSummaries(response);
+      const next = this.getInstagramPagingNext(response);
+
+      conversations.push(...responseConversations);
+      nextUrl = next ? new URL(next) : null;
+    }
+
+    return conversations;
+  }
+
+  private getInstagramConversationSummaries(
+    response: InstagramConversationListResponse,
+  ) {
+    const data: unknown = response.data;
+    if (!Array.isArray(data)) {
+      return [];
+    }
+
+    return data.filter((value) => this.isInstagramConversationSummary(value));
+  }
+
+  private isInstagramConversationSummary(
+    value: unknown,
+  ): value is InstagramConversationSummaryResponse {
+    if (!value || typeof value !== 'object') {
+      return false;
+    }
+
+    const { id } = value as { id?: unknown };
+    return typeof id === 'string' && Boolean(id);
+  }
+
+  private getInstagramPagingNext(response: InstagramConversationListResponse) {
+    const next = response.paging?.next;
+    return typeof next === 'string' ? next : null;
+  }
+
+  private async syncInstagramDmConversation(
+    account: InstagramDmSyncAccount,
+    accessToken: string,
+    conversation: InstagramConversationSummaryResponse,
+  ) {
+    if (!conversation.id) {
+      return;
+    }
+
+    const messages = await this.fetchInstagramDmConversationMessages(
+      conversation.id,
+      accessToken,
+    );
+
+    if (!messages.length) {
+      return;
+    }
+
+    const participant = this.resolveDmParticipant(account, messages);
+
+    if (!participant) {
+      return;
+    }
+
+    const sortedMessages = [...messages].sort((left, right) => {
+      const leftTime = this.toDate(left.created_time)?.getTime() ?? 0;
+      const rightTime = this.toDate(right.created_time)?.getTime() ?? 0;
+      return leftTime - rightTime;
+    });
+    const lastMessageAt =
+      sortedMessages
+        .map((message) => this.toDate(message.created_time))
+        .filter((date): date is Date => Boolean(date))
+        .at(-1) ??
+      this.toDate(conversation.updated_time) ??
+      new Date();
+    const igConversationId = this.buildWebhookConversationId(
+      account.igUserId,
+      participant.id,
+    );
+    const dbConversation = await this.prisma.dmConversation.upsert({
+      where: {
+        igConversationId,
+      },
+      update: {
+        participantUsername: participant.username,
+        lastMessageAt,
+      },
+      create: {
+        instagramAccountId: account.id,
+        igConversationId,
+        participantIgId: participant.id,
+        participantUsername: participant.username,
+        lastMessageAt,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    await Promise.all(
+      sortedMessages
+        .filter(
+          (
+            message,
+          ): message is InstagramMessageDetailResponse & {
+            id: string;
+          } => typeof message.id === 'string' && Boolean(message.id),
+        )
+        .map((message) =>
+          this.prisma.dmMessage.upsert({
+            where: {
+              igMessageId: message.id,
+            },
+            update: {
+              conversationId: dbConversation.id,
+              senderType:
+                message.from?.id === account.igUserId
+                  ? DmSenderType.USER
+                  : DmSenderType.PARTICIPANT,
+              messageText: message.message ?? null,
+              sentAt: this.toDate(message.created_time) ?? new Date(),
+            },
+            create: {
+              conversationId: dbConversation.id,
+              igMessageId: message.id,
+              senderType:
+                message.from?.id === account.igUserId
+                  ? DmSenderType.USER
+                  : DmSenderType.PARTICIPANT,
+              messageText: message.message ?? null,
+              sentAt: this.toDate(message.created_time) ?? new Date(),
+            },
+            select: DM_MESSAGE_SELECT,
+          }),
+        ),
+    );
+  }
+
+  private async fetchInstagramDmConversationMessages(
+    conversationId: string,
+    accessToken: string,
+  ) {
+    const summaryUrl = this.createGraphUrl(conversationId);
+    summaryUrl.searchParams.set('fields', 'messages');
+    summaryUrl.searchParams.set('access_token', accessToken);
+
+    const summary =
+      await this.requestGraph<InstagramConversationMessagesResponse>(
+        summaryUrl,
+      );
+    const messageRefs = Array.isArray(summary.messages?.data)
+      ? summary.messages.data
+      : [];
+
+    return Promise.all(
+      messageRefs
+        .filter((message) => typeof message.id === 'string' && message.id)
+        .map((message) =>
+          this.fetchInstagramDmMessage(message.id as string, accessToken),
+        ),
+    );
+  }
+
+  private async fetchInstagramDmMessage(
+    messageId: string,
+    accessToken: string,
+  ) {
+    const url = this.createGraphUrl(messageId);
+    url.searchParams.set('fields', 'id,created_time,from,to,message');
+    url.searchParams.set('access_token', accessToken);
+
+    return this.requestGraph<InstagramMessageDetailResponse>(url);
+  }
+
+  private resolveDmParticipant(
+    account: InstagramDmSyncAccount,
+    messages: InstagramMessageDetailResponse[],
+  ): ResolvedDmParticipant | null {
+    for (const message of messages) {
+      const candidates = [message.from, ...(message.to?.data ?? [])];
+      const participant = candidates.find(
+        (candidate) =>
+          typeof candidate?.id === 'string' &&
+          Boolean(candidate.id) &&
+          candidate.id !== account.igUserId,
+      );
+
+      if (participant?.id) {
+        return {
+          id: participant.id,
+          username:
+            typeof participant.username === 'string'
+              ? participant.username
+              : null,
+        };
+      }
+    }
+
+    return null;
   }
 
   private async exchangeCodeForToken(code: string) {
@@ -856,6 +1534,108 @@ export class InstagramService {
     }
 
     return value;
+  }
+
+  private verifyWebhookSignature(
+    rawBody: Buffer,
+    signature: string | undefined,
+  ) {
+    if (!signature) {
+      throw new UnauthorizedException('Missing webhook signature');
+    }
+
+    const [algorithm, providedSignature] = signature.split('=');
+    if (algorithm !== 'sha256' || !providedSignature) {
+      throw new UnauthorizedException('Invalid webhook signature format');
+    }
+
+    const expectedSignature = createHmac('sha256', this.getInstagramAppSecret())
+      .update(rawBody)
+      .digest('hex');
+    const expectedBuffer = Buffer.from(expectedSignature, 'hex');
+    const providedBuffer = Buffer.from(providedSignature, 'hex');
+
+    if (
+      expectedBuffer.length !== providedBuffer.length ||
+      !timingSafeEqual(expectedBuffer, providedBuffer)
+    ) {
+      throw new UnauthorizedException('Invalid webhook signature');
+    }
+  }
+
+  private async sendInstagramTextMessage(
+    igUserId: string,
+    encryptedAccessToken: string,
+    recipientIgId: string,
+    messageText: string,
+  ) {
+    const accessToken = decryptSecret(encryptedAccessToken);
+    const baseUrl =
+      this.config.get<string>('INSTAGRAM_GRAPH_API_BASE_URL')?.trim() ||
+      'https://graph.instagram.com';
+    const graphApiVersion =
+      this.config.get<string>('INSTAGRAM_GRAPH_API_VERSION')?.trim() ||
+      this.getGraphApiVersion();
+    const url = new URL(
+      `${baseUrl.replace(/\/$/, '')}/${graphApiVersion}/${igUserId}/messages`,
+    );
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        recipient: { id: recipientIgId },
+        message: { text: messageText },
+      }),
+    });
+
+    const responseBody = (await response
+      .json()
+      .catch(() => null)) as InstagramSendMessageResponse | null;
+
+    if (!response.ok || !responseBody?.message_id) {
+      throw new BadGatewayException(
+        responseBody?.error?.message ?? 'Instagram Send API request failed',
+      );
+    }
+
+    return {
+      message_id: responseBody.message_id,
+    };
+  }
+
+  private resolveWebhookEventType(payload: InstagramWebhookPayload) {
+    return payload.object ? `${payload.object}_webhook` : 'instagram_webhook';
+  }
+
+  private resolveWebhookExternalEventId(payload: InstagramWebhookPayload) {
+    const ids = (payload.entry ?? [])
+      .map((entry) => [entry.id, entry.time].filter(Boolean).join(':'))
+      .filter(Boolean);
+
+    return ids.length ? ids.join(',') : null;
+  }
+
+  private resolveWebhookMessageDate(
+    eventTimestamp: number | undefined,
+    entryTime: number | undefined,
+  ) {
+    const timestamp = eventTimestamp ?? entryTime;
+    if (!timestamp) {
+      return new Date();
+    }
+
+    return new Date(timestamp < 10_000_000_000 ? timestamp * 1000 : timestamp);
+  }
+
+  private buildWebhookConversationId(
+    igUserId: string,
+    participantIgId: string,
+  ) {
+    return `instagram:${igUserId}:${participantIgId}`;
   }
 
   private getInstagramAppId() {
