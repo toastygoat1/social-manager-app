@@ -5,6 +5,7 @@ import type {
 } from "@/app/dashboard/_components/data";
 
 export type AnalyticsStatId = "comments" | "shares" | "saves" | "likes";
+export type AnalyticsRange = "7d" | "30d" | "90d";
 
 export type AnalyticsStat = {
   id: AnalyticsStatId;
@@ -59,6 +60,19 @@ export type VideoIdea = {
   tone: "danger" | "success";
 };
 
+export type AnalyticsMediaItem = {
+  id: string;
+  kind: "IMAGE" | "VIDEO";
+  label: string;
+  previewUrl: string | null;
+  mimeType: string;
+};
+
+export type AnalyticsContentRow = Omit<ContentRow, "media"> & {
+  media: string;
+  mediaItems: AnalyticsMediaItem[];
+};
+
 export type AnalyticsData = {
   accounts: Account[];
   selectedAccountId: string | null;
@@ -67,7 +81,7 @@ export type AnalyticsData = {
   recentPosts: RecentPost[];
   distribution: DistributionItem[];
   contentCalendar: ContentCalendarMonth | null;
-  contentRows: ContentRow[];
+  contentRows: AnalyticsContentRow[];
   recommendations: Recommendation[];
   videoIdeas: VideoIdea[];
 };

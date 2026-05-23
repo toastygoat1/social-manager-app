@@ -2,6 +2,7 @@ import type { Account } from "@/app/dashboard/_components/data";
 
 type BannerHeroProps = {
   accounts: Account[];
+  selectedAccountId: string | null;
   rangeDays: number;
 };
 
@@ -14,17 +15,26 @@ const BANNER_TILES = [
   "var(--chart-6)",
 ];
 
-export function BannerHero({ accounts, rangeDays }: BannerHeroProps) {
-  const title =
-    accounts.length === 1
+export function BannerHero({
+  accounts,
+  selectedAccountId,
+  rangeDays,
+}: BannerHeroProps) {
+  const selectedAccount =
+    accounts.find((account) => account.id === selectedAccountId) ?? null;
+  const title = selectedAccount
+    ? selectedAccount.name
+    : accounts.length === 1
       ? accounts[0].name
       : accounts.length > 1
         ? "All Accounts"
         : "Analytics";
   const subtitle =
-    accounts.length > 0
+    selectedAccount || accounts.length > 0
       ? `${rangeDays}-day performance`
       : "No accounts connected yet";
+  const avatarAccount =
+    selectedAccount ?? (accounts.length === 1 ? accounts[0] : null);
 
   return (
     <div className="relative flex w-full flex-col items-center p-3">
@@ -44,9 +54,9 @@ export function BannerHero({ accounts, rangeDays }: BannerHeroProps) {
       </div>
       <div className="-mt-[82px] flex flex-col items-center gap-5">
         <div className="flex size-[164px] items-center justify-center overflow-hidden rounded-full bg-paper ring-4 ring-paper">
-          {accounts.length === 1 ? (
+          {avatarAccount ? (
             <span className="text-[56px] font-semibold text-ink">
-              {accounts[0].name.replace(/^@/, "").charAt(0).toUpperCase()}
+              {avatarAccount.name.replace(/^@/, "").charAt(0).toUpperCase()}
             </span>
           ) : (
             <div className="grid size-16 grid-cols-2 grid-rows-2 gap-2 rounded-2xl bg-ink p-3">

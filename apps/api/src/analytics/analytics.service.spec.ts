@@ -183,7 +183,16 @@ describe('AnalyticsService', () => {
       likes: 20,
       comments: 8,
       shares: 2,
-      media: '1',
+      media: 'Picture',
+      mediaItems: [
+        {
+          id: 'post-1-asset',
+          kind: MediaType.IMAGE,
+          label: 'Picture',
+          previewUrl: 'https://example.test/preview',
+          mimeType: 'image/png',
+        },
+      ],
     });
   });
 });
