@@ -5,6 +5,7 @@ type BannerHeroProps = {
   accounts: Account[];
   selectedAccountId: string | null;
   rangeDays: number;
+  compact?: boolean;
 };
 
 const BANNER_TILES = [
@@ -20,6 +21,7 @@ export function BannerHero({
   accounts,
   selectedAccountId,
   rangeDays,
+  compact = false,
 }: BannerHeroProps) {
   const selectedAccount =
     accounts.find((account) => account.id === selectedAccountId) ?? null;
@@ -38,8 +40,16 @@ export function BannerHero({
     selectedAccount ?? (accounts.length === 1 ? accounts[0] : null);
 
   return (
-    <div className="relative flex w-full flex-col items-center p-3">
-      <div className="relative flex h-[300px] w-full overflow-hidden rounded-3xl bg-ink">
+    <div
+      className={`relative flex w-full flex-col items-center ${
+        compact ? "p-0" : "p-3"
+      }`}
+    >
+      <div
+        className={`relative flex w-full overflow-hidden bg-ink ${
+          compact ? "h-[178px] rounded-2xl" : "h-[300px] rounded-3xl"
+        }`}
+      >
         <div className="grid h-full w-full grid-cols-3 grid-rows-2 opacity-90 md:grid-cols-6 md:grid-rows-1">
           {BANNER_TILES.map((color, index) => (
             <div
@@ -47,25 +57,45 @@ export function BannerHero({
               className="relative overflow-hidden"
               style={{ backgroundColor: color }}
             >
-              <div className="absolute inset-x-4 bottom-6 h-24 rounded-t-2xl border-x border-t border-white/30" />
-              <div className="absolute inset-x-7 bottom-6 h-14 rounded-t-xl border-x border-t border-white/20" />
+              <div
+                className={`absolute inset-x-4 rounded-t-2xl border-x border-t border-white/30 ${
+                  compact ? "bottom-4 h-14" : "bottom-6 h-24"
+                }`}
+              />
+              <div
+                className={`absolute inset-x-7 rounded-t-xl border-x border-t border-white/20 ${
+                  compact ? "bottom-4 h-8" : "bottom-6 h-14"
+                }`}
+              />
             </div>
           ))}
         </div>
       </div>
-      <div className="-mt-[82px] flex flex-col items-center gap-5">
-        <div className="flex size-[164px] items-center justify-center overflow-hidden rounded-full bg-paper ring-4 ring-paper">
+      <div
+        className={`flex flex-col items-center ${
+          compact ? "-mt-12 gap-3" : "-mt-[82px] gap-5"
+        }`}
+      >
+        <div
+          className={`flex items-center justify-center overflow-hidden rounded-full bg-paper ring-4 ring-paper ${
+            compact ? "size-24" : "size-[164px]"
+          }`}
+        >
           {avatarAccount?.avatarUrl ? (
             <Image
               src={avatarAccount.avatarUrl}
               alt=""
-              width={164}
-              height={164}
-              className="size-[164px] object-cover"
+              width={compact ? 96 : 164}
+              height={compact ? 96 : 164}
+              className={compact ? "size-24 object-cover" : "size-[164px] object-cover"}
               priority
             />
           ) : avatarAccount ? (
-            <span className="text-[56px] font-semibold text-ink">
+            <span
+              className={`font-semibold text-ink ${
+                compact ? "text-[34px]" : "text-[56px]"
+              }`}
+            >
               {avatarAccount.name.replace(/^@/, "").charAt(0).toUpperCase()}
             </span>
           ) : (
@@ -78,7 +108,11 @@ export function BannerHero({
           )}
         </div>
         <div className="flex flex-col items-center gap-2 text-center">
-          <h2 className="text-[32px] font-semibold leading-none text-ink">
+          <h2
+            className={`font-semibold leading-none text-ink ${
+              compact ? "text-2xl" : "text-[32px]"
+            }`}
+          >
             {title}
           </h2>
           <p className="text-sm text-muted">{subtitle}</p>
