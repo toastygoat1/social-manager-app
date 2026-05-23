@@ -300,7 +300,14 @@ describe('InstagramService', () => {
 
 ## Worker (`apps/worker`)
 
-Bare TypeScript app with `tsx`. BullMQ jobs — **not yet implemented**. Add jobs here when scheduling features are built. Worker also uses `"type": "module"` — same `.js` extension rule applies.
+Bare TypeScript BullMQ worker with `tsx`. It consumes delayed
+`publish-scheduled-post` jobs from Redis and calls the API's guarded
+scheduled-publish route so Instagram publishing behavior remains in one
+service. Worker also uses `"type": "module"` and the same `.js` extension
+rule applies for internal imports.
+
+Required worker env: `REDIS_URL`, `API_BASE_URL`, `WORKER_PUBLISH_SECRET`.
+Optional controls: `PUBLISH_WORKER_CONCURRENCY`, `PUBLISH_REQUEST_TIMEOUT_MS`.
 
 Dev: `pnpm dev` (runs `tsx watch src/index.ts`)
 

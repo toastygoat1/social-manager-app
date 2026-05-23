@@ -469,7 +469,7 @@ export function CreatePostModal({
   const [title, setTitle] = useState("");
   const [caption, setCaption] = useState("");
   const [media, setMedia] = useState<SelectedMedia[]>([]);
-  const [requiresApproval, setRequiresApproval] = useState(true);
+  const [requiresApproval, setRequiresApproval] = useState(false);
   const [scheduledFor, setScheduledFor] = useState(() =>
     defaultScheduledInputValue(defaultScheduledIso),
   );
