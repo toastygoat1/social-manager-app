@@ -270,11 +270,29 @@ export class InstagramService {
   }
 
   async getAccounts(userId: string) {
-    return this.prisma.instagramAccount.findMany({
+    const accounts = await this.prisma.instagramAccount.findMany({
       where: { userId, isActive: true },
       orderBy: { createdAt: 'desc' },
       select: SAFE_INSTAGRAM_ACCOUNT_SELECT,
     });
+
+    const missingAvatarIds = accounts
+      .filter((account) => !account.avatarUrl)
+      .map((account) => account.id);
+
+    if (missingAvatarIds.length === 0) return accounts;
+
+    const syncedAvatars = await this.syncMissingAccountAvatars(
+      userId,
+      missingAvatarIds,
+    );
+
+    if (syncedAvatars.size === 0) return accounts;
+
+    return accounts.map((account) => ({
+      ...account,
+      avatarUrl: syncedAvatars.get(account.id) ?? account.avatarUrl,
+    }));
   }
 
   async removeAccount(userId: string, accountId: string) {
@@ -1150,6 +1168,54 @@ export class InstagramService {
       );
       return null;
     }
+  }
+
+  private async syncMissingAccountAvatars(
+    userId: string,
+    accountIds: string[],
+  ) {
+    const accounts = await this.prisma.instagramAccount.findMany({
+      where: {
+        userId,
+        isActive: true,
+        id: { in: accountIds },
+      },
+      select: {
+        id: true,
+        accessTokenEncrypted: true,
+      },
+    });
+
+    const updates = await Promise.all(
+      accounts.map(async (account) => {
+        try {
+          const avatarUrl = await this.fetchInstagramProfilePictureUrl(
+            decryptSecret(account.accessTokenEncrypted),
+          );
+
+          if (!avatarUrl) return null;
+
+          await this.prisma.instagramAccount.update({
+            where: { id: account.id },
+            data: { avatarUrl },
+            select: { id: true },
+          });
+
+          return [account.id, avatarUrl] as const;
+        } catch (error) {
+          this.logger.warn(
+            `Instagram profile picture sync skipped for account ${account.id}: ${this.getErrorMessage(error)}`,
+          );
+          return null;
+        }
+      }),
+    );
+
+    return new Map(
+      updates.filter((entry): entry is NonNullable<typeof entry> =>
+        Boolean(entry),
+      ),
+    );
   }
 
   private async fetchAccountUploadCount(account: InstagramInsightsAccount) {

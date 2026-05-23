@@ -45,6 +45,10 @@ function getRemoveErrorMessage(error: unknown) {
   return "Instagram account could not be removed. Please try again after the API finishes redeploying.";
 }
 
+function getFallbackInitial(name: string) {
+  return name.replace(/^@/, "").trim().charAt(0).toUpperCase() || "I";
+}
+
 export function AccountChip({
   accountId,
   name,
@@ -92,7 +96,7 @@ export function AccountChip({
           />
         ) : (
           <div className="flex size-7 items-center justify-center text-[10px] font-medium text-muted">
-            {name.charAt(0).toUpperCase()}
+            {getFallbackInitial(name)}
           </div>
         )}
       </div>
