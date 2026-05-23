@@ -9,7 +9,11 @@ import {
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { NotFoundException } from '@nestjs/common';
-import { DmSenderType, InstagramAccountType } from '@social-manager/database';
+import {
+  DmSenderType,
+  InstagramAccountType,
+  Prisma,
+} from '@social-manager/database';
 import { InstagramService } from './instagram.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { encryptSecret } from '../common/crypto.util.js';
@@ -24,6 +28,7 @@ describe('InstagramService', () => {
     };
     instagramAccount: {
       create: jest.Mock<PrismaFn>;
+      update: jest.Mock<PrismaFn>;
       updateMany: jest.Mock<PrismaFn>;
       findUnique: jest.Mock<PrismaFn>;
       findMany: jest.Mock<PrismaFn>;
@@ -61,6 +66,7 @@ describe('InstagramService', () => {
       },
       instagramAccount: {
         create: jest.fn<PrismaFn>(),
+        update: jest.fn<PrismaFn>(),
         updateMany: jest.fn<PrismaFn>(),
         findUnique: jest.fn<PrismaFn>(),
         findMany: jest.fn<PrismaFn>(),
@@ -128,6 +134,7 @@ describe('InstagramService', () => {
       isActive: true,
       tokenExpiresAt: null,
       connectedAt: new Date(),
+      disconnectedAt: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -222,6 +229,55 @@ describe('InstagramService', () => {
         messageCount: 2,
       }),
     ]);
+  });
+
+  it('returns cached DM conversations when the live Instagram sync fails', async () => {
+    const sentAt = new Date();
+    const lastMessage = {
+      id: 'message-1',
+      conversationId: 'conversation-1',
+      igMessageId: 'ig-message-1',
+      senderType: DmSenderType.PARTICIPANT,
+      messageText: 'Cached hello',
+      sentAt,
+      createdAt: sentAt,
+    };
+    prisma.instagramAccount.findMany.mockResolvedValue([
+      {
+        id: 'account-1',
+        igUserId: 'ig-account-1',
+        accessTokenEncrypted: encryptSecret('ig-token'),
+      },
+    ]);
+    prisma.dmConversation.findMany.mockResolvedValue([
+      {
+        id: 'conversation-1',
+        instagramAccountId: 'account-1',
+        igConversationId: 'ig-conversation-1',
+        participantIgId: 'participant-1',
+        participantUsername: 'customer',
+        lastMessageAt: sentAt,
+        createdAt: sentAt,
+        updatedAt: sentAt,
+        instagramAccount: { id: 'account-1', username: 'brand' },
+        dmMessages: [lastMessage],
+        _count: { dmMessages: 1 },
+      },
+    ]);
+    jest
+      .spyOn(globalThis, 'fetch')
+      .mockRejectedValue(new Error('Meta unavailable'));
+
+    const result = await service.getDmConversations('user-1');
+
+    expect(result).toEqual([
+      expect.objectContaining({
+        id: 'conversation-1',
+        lastMessage,
+        messageCount: 1,
+      }),
+    ]);
+    expect(prisma.dmConversation.findMany).toHaveBeenCalled();
   });
 
   it('syncs Instagram DM conversations before listing stored conversations', async () => {
@@ -602,8 +658,83 @@ describe('InstagramService', () => {
       },
       data: {
         isActive: false,
+        disconnectedAt: expect.any(Date),
       },
     });
+  });
+
+  it('reactivates an existing owned inactive account without creating a new row', async () => {
+    const account = {
+      id: 'account-1',
+      userId: 'user-1',
+      igUserId: 'ig-1',
+      username: 'brand',
+      accountType: InstagramAccountType.BUSINESS,
+      pageId: null,
+      isActive: true,
+      tokenExpiresAt: null,
+      connectedAt: new Date(),
+      disconnectedAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    prisma.instagramAccount.findFirst.mockResolvedValue({ id: account.id });
+    prisma.instagramAccount.update.mockResolvedValue(account);
+
+    const result = await service.addAccount(
+      { userId: 'user-1', email: 'user@example.com' },
+      {
+        igUserId: 'ig-1',
+        username: 'brand',
+        accessToken: 'fresh-token',
+        accountType: InstagramAccountType.BUSINESS,
+      },
+    );
+
+    expect(prisma.instagramAccount.create).not.toHaveBeenCalled();
+    const updateArgs = prisma.instagramAccount.update.mock.calls[0][0] as {
+      where: { id: string };
+      data: Record<string, unknown>;
+      select: Record<string, boolean>;
+    };
+    expect(updateArgs.where).toEqual({ id: 'account-1' });
+    expect(updateArgs.data).toEqual(
+      expect.objectContaining({
+        username: 'brand',
+        isActive: true,
+        disconnectedAt: null,
+      }),
+    );
+    expect(updateArgs.select).not.toHaveProperty('accessTokenEncrypted');
+    expect(result).toBe(account);
+  });
+
+  it('returns an English conflict when an active account belongs to another user', async () => {
+    const conflictError = new Prisma.PrismaClientKnownRequestError(
+      'Unique constraint failed on the fields: (`ig_user_id`)',
+      {
+        code: 'P2002',
+        clientVersion: 'test',
+        meta: { target: ['ig_user_id'] },
+      },
+    );
+
+    prisma.instagramAccount.create.mockRejectedValue(conflictError);
+    prisma.instagramAccount.updateMany.mockResolvedValue({ count: 0 });
+
+    await expect(
+      service.addAccount(
+        { userId: 'user-2', email: 'other@example.com' },
+        {
+          igUserId: 'ig-1',
+          username: 'brand',
+          accessToken: 'fresh-token',
+          accountType: InstagramAccountType.BUSINESS,
+        },
+      ),
+    ).rejects.toThrow(
+      'This Instagram account is already connected to another user.',
+    );
   });
 
   it('throws when removing a missing or inactive account', async () => {
