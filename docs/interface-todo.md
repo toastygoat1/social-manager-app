@@ -92,6 +92,7 @@ Referensi sudah jalan: `apps/web/lib/dashboard-data.ts`, `apps/web/app/dashboard
 | Media rules | Feed posts use images; multiple feed images become carousel; Reels require video; Stories allow image or video. |
 | Feed image auto-crop | Feed/carousel images outside Instagram's `4:5` to `1.91:1` ratio are center-cropped in-browser before upload. |
 | Scheduled-time publishing | `READY` scheduled posts are enqueued as delayed BullMQ jobs; the worker triggers the same Instagram publisher with retry attempt tracking. |
+| Calendar status labels | Queued `READY` posts display as Scheduled; only `PENDING` posts display as awaiting approval. |
 
 ### TODO
 
