@@ -1,6 +1,7 @@
 import {
   Calendar as CalendarIcon,
   Check,
+  Clock3,
   Loader2,
   Pencil,
   TriangleAlert,
@@ -20,6 +21,7 @@ const STATUS_BADGE: Record<
   { bg: string; Icon: typeof Check }
 > = {
   published: { bg: "bg-[#b3df80]", Icon: Check },
+  scheduled: { bg: "bg-[#78dbe8]", Icon: Clock3 },
   draft: { bg: "bg-[#a9afbb]", Icon: Pencil },
   pending: { bg: "bg-[#fbd177]", Icon: TriangleAlert },
 };

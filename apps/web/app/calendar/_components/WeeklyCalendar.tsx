@@ -1,6 +1,7 @@
 import {
   Calendar as CalendarIcon,
   CheckCircle2,
+  Clock3,
   Loader2,
   Pencil,
   TriangleAlert,
@@ -28,10 +29,16 @@ const STATUS_STYLE: Record<
     label: "Published",
     Icon: CheckCircle2,
   },
+  scheduled: {
+    bg: "bg-[#78dbe8]",
+    text: "text-[#104e61]",
+    label: "Scheduled",
+    Icon: Clock3,
+  },
   pending: {
     bg: "bg-[#f7c852]",
     text: "text-[#7a4a00]",
-    label: "Pending",
+    label: "Approval",
     Icon: TriangleAlert,
   },
   draft: {

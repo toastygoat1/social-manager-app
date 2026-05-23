@@ -26,7 +26,7 @@ export type CalendarEvent = {
   start: string;
   end: string | null;
   allDay: boolean;
-  status: 'published' | 'pending' | 'draft' | null;
+  status: 'published' | 'scheduled' | 'pending' | 'draft' | null;
   postType: PostType | null;
   accountId: string | null;
   accountUsername: string | null;
@@ -38,13 +38,15 @@ export type CalendarPayload = {
   events: CalendarEvent[];
 };
 
-const POST_STATUS_TO_UI: Record<PostStatus, 'published' | 'pending' | 'draft'> =
-  {
-    DRAFT: 'draft',
-    PENDING: 'pending',
-    READY: 'pending',
-    PUBLISHED: 'published',
-  };
+const POST_STATUS_TO_UI: Record<
+  PostStatus,
+  'published' | 'scheduled' | 'pending' | 'draft'
+> = {
+  DRAFT: 'draft',
+  PENDING: 'pending',
+  READY: 'scheduled',
+  PUBLISHED: 'published',
+};
 
 @Injectable()
 export class CalendarService {
