@@ -36,36 +36,41 @@ export class PublishQueueService implements OnModuleDestroy {
   }
 
   async enqueueScheduledPost(contentPostId: string, scheduledFor: Date) {
-    const delay = Math.max(scheduledFor.getTime() - Date.now(), 0);
-
     try {
-      await this.getQueue().add(
-        PUBLISH_SCHEDULED_JOB_NAME,
-        { contentPostId },
-        {
-          jobId: contentPostId,
-          delay,
-          attempts: positiveInteger(
-            this.config.get<string>('PUBLISH_JOB_ATTEMPTS'),
-            3,
-          ),
-          backoff: {
-            type: 'exponential',
-            delay: positiveInteger(
-              this.config.get<string>('PUBLISH_JOB_BACKOFF_MS'),
-              30_000,
-            ),
-          },
-          removeOnComplete: { age: 60 * 60 * 24 * 7, count: 1_000 },
-          removeOnFail: { age: 60 * 60 * 24 * 30, count: 1_000 },
-        },
-      );
+      await this.addScheduledPostJob(contentPostId, scheduledFor);
     } catch (error) {
       this.logger.error(
         `Could not queue scheduled post ${contentPostId}: ${readMessage(error)}`,
       );
       throw new ServiceUnavailableException(
         'Post could not be queued for scheduled publishing',
+      );
+    }
+  }
+
+  async replaceScheduledPost(contentPostId: string, scheduledFor: Date) {
+    try {
+      await this.removeScheduledPostJob(contentPostId);
+      await this.addScheduledPostJob(contentPostId, scheduledFor);
+    } catch (error) {
+      this.logger.error(
+        `Could not reschedule post ${contentPostId}: ${readMessage(error)}`,
+      );
+      throw new ServiceUnavailableException(
+        'Post could not be rescheduled right now',
+      );
+    }
+  }
+
+  async removeScheduledPost(contentPostId: string) {
+    try {
+      await this.removeScheduledPostJob(contentPostId);
+    } catch (error) {
+      this.logger.error(
+        `Could not cancel scheduled post ${contentPostId}: ${readMessage(error)}`,
+      );
+      throw new ServiceUnavailableException(
+        'Scheduled post could not be cancelled right now',
       );
     }
   }
@@ -96,6 +101,37 @@ export class PublishQueueService implements OnModuleDestroy {
     });
 
     return this.queue;
+  }
+
+  private async addScheduledPostJob(contentPostId: string, scheduledFor: Date) {
+    const delay = Math.max(scheduledFor.getTime() - Date.now(), 0);
+
+    await this.getQueue().add(
+      PUBLISH_SCHEDULED_JOB_NAME,
+      { contentPostId },
+      {
+        jobId: contentPostId,
+        delay,
+        attempts: positiveInteger(
+          this.config.get<string>('PUBLISH_JOB_ATTEMPTS'),
+          3,
+        ),
+        backoff: {
+          type: 'exponential',
+          delay: positiveInteger(
+            this.config.get<string>('PUBLISH_JOB_BACKOFF_MS'),
+            30_000,
+          ),
+        },
+        removeOnComplete: { age: 60 * 60 * 24 * 7, count: 1_000 },
+        removeOnFail: { age: 60 * 60 * 24 * 30, count: 1_000 },
+      },
+    );
+  }
+
+  private async removeScheduledPostJob(contentPostId: string) {
+    const job = await this.getQueue().getJob(contentPostId);
+    if (job) await job.remove();
   }
 }
 

@@ -68,6 +68,13 @@ type MediaAssetsResponse = {
   }[];
 };
 
+type AccountSubmitResult = {
+  accountId: string;
+  username: string;
+  ok: boolean;
+  message?: string;
+};
+
 const TYPE_LABEL: Record<CreatePostType, string> = {
   post: "Your Post",
   story: "Your Story",
@@ -478,6 +485,9 @@ export function CreatePostModal({
     useState<SubmitAction | null>(null);
   const [submitMenuOpen, setSubmitMenuOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [accountResults, setAccountResults] = useState<AccountSubmitResult[]>(
+    [],
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -496,6 +506,7 @@ export function CreatePostModal({
   useEffect(() => {
     if (!open) return;
     setError(null);
+    setAccountResults([]);
     setAccountsLoading(true);
     apiFetchBrowser<InstagramAccountResponse[]>("/instagram/accounts")
       .then((list) => {
@@ -635,6 +646,7 @@ export function CreatePostModal({
 
   const handleSubmit = async (action: SubmitAction) => {
     setError(null);
+    setAccountResults([]);
     setSubmitMenuOpen(false);
     if (selectedAccountIds.length === 0) {
       setError("Select at least one account");
@@ -675,29 +687,55 @@ export function CreatePostModal({
     setSubmittingAction(action);
     try {
       const mediaAssetIds = await uploadSelectedMedia(mediaForSubmit);
-      await Promise.all(
-        selectedAccountIds.map((instagramAccountId) =>
-          apiFetchBrowser("/calendar/events", {
-            method: "POST",
-            body: {
-              instagramAccountId,
-              postType:
-                type === "post" && mediaAssetIds.length > 1
-                  ? "CAROUSEL"
-                  : TYPE_TO_POST_TYPE[type],
-              action: ACTION_TO_API[action],
-              scheduledFor: scheduledDate?.toISOString(),
-              title: title || undefined,
-              caption: caption || undefined,
-              requiresApproval,
-              mediaAssetIds,
-            },
-          }),
-        ),
+      const results = await Promise.all(
+        selectedAccountIds.map(async (instagramAccountId) => {
+          const username =
+            accounts.find((account) => account.id === instagramAccountId)
+              ?.username ?? "Account";
+          try {
+            await apiFetchBrowser("/calendar/events", {
+              method: "POST",
+              body: {
+                instagramAccountId,
+                postType:
+                  type === "post" && mediaAssetIds.length > 1
+                    ? "CAROUSEL"
+                    : TYPE_TO_POST_TYPE[type],
+                action: ACTION_TO_API[action],
+                scheduledFor: scheduledDate?.toISOString(),
+                title: title || undefined,
+                caption: caption || undefined,
+                requiresApproval,
+                mediaAssetIds,
+              },
+            });
+            return { accountId: instagramAccountId, username, ok: true };
+          } catch (postError) {
+            return {
+              accountId: instagramAccountId,
+              username,
+              ok: false,
+              message: readErrorMessage(postError) ?? SUBMIT_ERROR[action],
+            };
+          }
+        }),
       );
+      setAccountResults(results);
+      const failed = results.filter((result) => !result.ok);
+      if (failed.length) {
+        if (results.some((result) => result.ok)) onCreated();
+        setSelectedAccountIds(failed.map((result) => result.accountId));
+        setError(
+          failed.length === results.length
+            ? SUBMIT_ERROR[action]
+            : "Some accounts failed. Only failed accounts remain selected for retry.",
+        );
+        return;
+      }
       setTitle("");
       setCaption("");
       clearMedia();
+      onClose();
       onCreated();
     } catch (err) {
       if (process.env.NODE_ENV !== "production") {
@@ -836,6 +874,28 @@ export function CreatePostModal({
 
           {error ? (
             <p className="text-sm font-medium text-red-600">{error}</p>
+          ) : null}
+          {accountResults.length ? (
+            <div className="flex flex-col gap-2 rounded-xl border border-line bg-card p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+                Account results
+              </p>
+              {accountResults.map((result) => (
+                <div
+                  key={result.accountId}
+                  className="flex items-start justify-between gap-3 text-sm"
+                >
+                  <span className="font-medium text-ink">@{result.username}</span>
+                  <span
+                    className={`text-right text-xs font-semibold ${
+                      result.ok ? "text-success" : "text-danger"
+                    }`}
+                  >
+                    {result.ok ? "Success" : result.message}
+                  </span>
+                </div>
+              ))}
+            </div>
           ) : null}
 
           <div className="flex-1" />

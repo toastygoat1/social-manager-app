@@ -2,6 +2,8 @@
 
 > Date: 2026-05-22
 > Branch: `instagram-scheduling-interation`
+>
+> Note (2026-05-23): this records the initial scheduling slice. Current calendar-page status, including approval, draft editing, scheduled-post management, and failed-publish retry work, is tracked in `docs/interface-todo.md` section 2.
 > Scope: implement Calendar page per `docs/interface-todo.md` §2 without changing other features.
 
 ---

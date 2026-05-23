@@ -44,11 +44,48 @@ export type CalendarPostDetail = {
     durationSeconds: number | null;
     previewUrl: string | null;
   }[];
+  latestFailure: {
+    id: string;
+    attemptNumber: number;
+    errorMessage: string | null;
+    startedAt: string;
+  } | null;
+};
+
+export type CalendarWorkItem = {
+  id: string;
+  title: string;
+  postType: CalendarPostType;
+  status: "pending" | "draft";
+  accountUsername: string;
+  scheduledFor: string | null;
+  createdAt: string;
+};
+
+export type CalendarWorkItems = {
+  pending: CalendarWorkItem[];
+  drafts: CalendarWorkItem[];
+};
+
+export type CalendarFailedPost = {
+  id: string;
+  title: string;
+  postType: CalendarPostType;
+  accountUsername: string;
+  scheduledFor: string | null;
+  attemptNumber: number;
+  errorMessage: string | null;
+  failedAt: string;
 };
 
 export const EMPTY_CALENDAR: CalendarData = {
   googleConnected: false,
   events: [],
+};
+
+export const EMPTY_WORK_ITEMS: CalendarWorkItems = {
+  pending: [],
+  drafts: [],
 };
 
 export const MONTH_DAYS = [
