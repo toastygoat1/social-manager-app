@@ -14,6 +14,8 @@ import {
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MediaService } from '../media/media.service.js';
 import { decryptSecret } from '../common/crypto.util.js';
+import { CreateAnalyticsNoteDto } from './dto/create-analytics-note.dto.js';
+import { UpdateAnalyticsNoteDto } from './dto/update-analytics-note.dto.js';
 
 type StatTrend = 'up' | 'down';
 type AccountTone = 'blue' | 'cyan' | 'pink' | 'yellow';
@@ -94,11 +96,12 @@ type ContentRow = {
 };
 
 type Recommendation = { title: string; body: string };
-type VideoIdea = {
-  title: string;
-  subtitle: string;
+type AnalyticsNote = {
+  id: string;
+  accountId: string | null;
   body: string;
-  tone: 'danger' | 'success';
+  createdAt: string;
+  updatedAt: string;
 };
 
 type AnalyticsOverview = {
@@ -112,7 +115,8 @@ type AnalyticsOverview = {
   contentCalendar: ContentCalendar;
   contentRows: ContentRow[];
   recommendations: Recommendation[];
-  videoIdeas: VideoIdea[];
+  notes: AnalyticsNote[];
+  videoIdeas: [];
 };
 
 type RefreshInsightsResult = {
@@ -238,8 +242,20 @@ const ANALYTICS_POST_INCLUDE = {
   },
 } satisfies Prisma.ContentPostInclude;
 
+const ANALYTICS_NOTE_SELECT = {
+  id: true,
+  instagramAccountId: true,
+  body: true,
+  createdAt: true,
+  updatedAt: true,
+} satisfies Prisma.AnalyticsNoteSelect;
+
 type AnalyticsPost = Prisma.ContentPostGetPayload<{
   include: typeof ANALYTICS_POST_INCLUDE;
+}>;
+
+type AnalyticsNoteRecord = Prisma.AnalyticsNoteGetPayload<{
+  select: typeof ANALYTICS_NOTE_SELECT;
 }>;
 
 @Injectable()
@@ -297,6 +313,7 @@ export class AnalyticsService {
         contentCalendar: buildContentCalendar([], now),
         contentRows: [],
         recommendations: [],
+        notes: await this.findNotes(userId, options.accountId),
         videoIdeas: [],
       };
     }
@@ -343,8 +360,94 @@ export class AnalyticsService {
         accountById,
       ),
       recommendations: [],
+      notes: await this.findNotes(userId, options.accountId),
       videoIdeas: [],
     };
+  }
+
+  async createNote(userId: string, data: CreateAnalyticsNoteDto) {
+    const body = normalizeNoteBody(data.body);
+    const accountId = data.accountId?.trim() || null;
+
+    if (accountId) {
+      await this.ensureOwnedAccount(userId, accountId);
+    }
+
+    const note = await this.prisma.analyticsNote.create({
+      data: {
+        userId,
+        instagramAccountId: accountId,
+        body,
+      },
+      select: ANALYTICS_NOTE_SELECT,
+    });
+
+    return mapNote(note);
+  }
+
+  async updateNote(
+    userId: string,
+    noteId: string,
+    data: UpdateAnalyticsNoteDto,
+  ) {
+    const body = normalizeNoteBody(data.body);
+    await this.ensureOwnedNote(userId, noteId);
+
+    const note = await this.prisma.analyticsNote.update({
+      where: { id: noteId },
+      data: { body },
+      select: ANALYTICS_NOTE_SELECT,
+    });
+
+    return mapNote(note);
+  }
+
+  async deleteNote(userId: string, noteId: string) {
+    const result = await this.prisma.analyticsNote.deleteMany({
+      where: { id: noteId, userId },
+    });
+
+    if (result.count === 0) {
+      throw new NotFoundException('Note was not found.');
+    }
+
+    return { deleted: true };
+  }
+
+  private async findNotes(userId: string, accountId?: string) {
+    const notes = await this.prisma.analyticsNote.findMany({
+      where: {
+        userId,
+        ...(accountId ? { instagramAccountId: accountId } : {}),
+      },
+      orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
+      take: 20,
+      select: ANALYTICS_NOTE_SELECT,
+    });
+
+    return notes.map(mapNote);
+  }
+
+  private async ensureOwnedAccount(userId: string, accountId: string) {
+    const account = await this.prisma.instagramAccount.findFirst({
+      where: { id: accountId, userId, isActive: true },
+      select: { id: true },
+    });
+
+    if (!account) {
+      throw new NotFoundException('Instagram account was not found.');
+    }
+  }
+
+  private async ensureOwnedNote(userId: string, noteId: string) {
+    const note = await this.prisma.analyticsNote.findFirst({
+      where: { id: noteId, userId },
+      select: { id: true },
+    });
+
+    if (!note) {
+      throw new NotFoundException('Note was not found.');
+    }
   }
 
   async refreshInsights(
@@ -767,6 +870,26 @@ function mapAccount(
     avatarUrl: account.avatarUrl ?? null,
     tone: ACCOUNT_TONES[index % ACCOUNT_TONES.length],
   };
+}
+
+function mapNote(note: AnalyticsNoteRecord): AnalyticsNote {
+  return {
+    id: note.id,
+    accountId: note.instagramAccountId,
+    body: note.body,
+    createdAt: note.createdAt.toISOString(),
+    updatedAt: note.updatedAt.toISOString(),
+  };
+}
+
+function normalizeNoteBody(value: string) {
+  const body = value.trim();
+
+  if (!body) {
+    throw new BadRequestException('Note cannot be empty.');
+  }
+
+  return body;
 }
 
 function buildStatGrid(

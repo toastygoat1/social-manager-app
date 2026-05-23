@@ -53,11 +53,12 @@ export type ContentCalendarMonth = {
 
 export type Recommendation = { title: string; body: string };
 
-export type VideoIdea = {
-  title: string;
-  subtitle: string;
+export type AnalyticsNote = {
+  id: string;
+  accountId: string | null;
   body: string;
-  tone: "danger" | "success";
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type AnalyticsMediaItem = {
@@ -84,7 +85,8 @@ export type AnalyticsData = {
   contentCalendar: ContentCalendarMonth | null;
   contentRows: AnalyticsContentRow[];
   recommendations: Recommendation[];
-  videoIdeas: VideoIdea[];
+  notes: AnalyticsNote[];
+  videoIdeas: [];
 };
 
 const EMPTY_STAT_GRID: AnalyticsStat[] = [
@@ -129,5 +131,6 @@ export const EMPTY_ANALYTICS: AnalyticsData = {
   contentCalendar: null,
   contentRows: [],
   recommendations: [],
+  notes: [],
   videoIdeas: [],
 };

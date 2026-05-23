@@ -84,7 +84,8 @@ export default async function AnalyticsPage({
             <AnalyticsContentTable rows={data.contentRows} />
             <Recommendations
               recommendations={data.recommendations}
-              videoIdeas={data.videoIdeas}
+              notes={data.notes}
+              selectedAccountId={data.selectedAccountId}
             />
           </div>
         </div>

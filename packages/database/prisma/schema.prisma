@@ -16,6 +16,7 @@ model User {
   createdAt         DateTime           @default(now()) @map("created_at")
   updatedAt         DateTime           @updatedAt @map("updated_at")
   aiSettings        AiSettings?
+  analyticsNotes    AnalyticsNote[]
   chatbotSessions   ChatbotSession[]
   instagramAccounts InstagramAccount[]
   mediaAssets       MediaAsset[]
@@ -52,6 +53,7 @@ model InstagramAccount {
   createdAt            DateTime             @default(now()) @map("created_at")
   updatedAt            DateTime             @updatedAt @map("updated_at")
   analyticsSnapshots   AnalyticsSnapshot[]
+  analyticsNotes       AnalyticsNote[]
   chatbotSessions      ChatbotSession[]
   contentPosts         ContentPost[]
   dmConversations      DmConversation[]
@@ -255,6 +257,21 @@ model PostAnalytics {
   @@index([contentPostId])
   @@index([fetchedAt])
   @@map("post_analytics")
+}
+
+model AnalyticsNote {
+  id                 String            @id @default(uuid())
+  userId             String            @map("user_id")
+  instagramAccountId String?           @map("instagram_account_id")
+  body               String
+  createdAt          DateTime          @default(now()) @map("created_at")
+  updatedAt          DateTime          @updatedAt @map("updated_at")
+  user               User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  instagramAccount   InstagramAccount? @relation(fields: [instagramAccountId], references: [id], onDelete: SetNull)
+
+  @@index([userId, updatedAt])
+  @@index([instagramAccountId])
+  @@map("analytics_notes")
 }
 
 model AiSettings {
