@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { Sidebar } from "@/app/dashboard/_components/Sidebar";
 import { createClient } from "@/lib/supabase/server";
+import { getCalendarData } from "@/lib/calendar-data";
+import { rangeForMonth } from "./_components/data";
 import { CalendarShell } from "./_components/CalendarShell";
 
 export default async function CalendarPage() {
@@ -23,10 +25,17 @@ export default async function CalendarPage() {
     redirect("/");
   }
 
+  const now = new Date();
+  const { from, to } = rangeForMonth(now);
+  const initialData = await getCalendarData(from, to);
+
   return (
     <div className="flex min-h-screen items-start bg-page font-sans">
       <Sidebar active="scheduling" />
-      <CalendarShell />
+      <CalendarShell
+        initialReferenceIso={now.toISOString()}
+        initialData={initialData}
+      />
     </div>
   );
 }

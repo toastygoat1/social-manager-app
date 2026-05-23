@@ -39,7 +39,7 @@ model GoogleIntegration {
 model InstagramAccount {
   id                   String               @id @default(uuid())
   userId               String               @map("user_id")
-  igUserId             String               @unique @map("ig_user_id")
+  igUserId             String               @map("ig_user_id")
   username             String
   accountType          InstagramAccountType @map("account_type")
   accessTokenEncrypted String               @map("access_token_encrypted")
@@ -47,6 +47,7 @@ model InstagramAccount {
   isActive             Boolean              @default(true) @map("is_active")
   tokenExpiresAt       DateTime?            @map("token_expires_at")
   connectedAt          DateTime             @default(now()) @map("connected_at")
+  disconnectedAt       DateTime?            @map("disconnected_at")
   createdAt            DateTime             @default(now()) @map("created_at")
   updatedAt            DateTime             @updatedAt @map("updated_at")
   analyticsSnapshots   AnalyticsSnapshot[]
@@ -59,6 +60,7 @@ model InstagramAccount {
 
   @@index([userId])
   @@index([isActive])
+  @@index([disconnectedAt])
   @@map("instagram_accounts")
 }
 

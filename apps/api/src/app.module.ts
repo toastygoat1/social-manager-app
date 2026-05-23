@@ -9,6 +9,8 @@ import { AuthModule } from './auth/auth.module.js';
 import { InstagramModule } from './instagram/instagram.module.js';
 import { DashboardModule } from './dashboard/dashboard.module.js';
 import { GoogleModule } from './integrations/google/google.module.js';
+import { CalendarModule } from './calendar/calendar.module.js';
+import { MediaModule } from './media/media.module.js';
 
 @Module({
   imports: [
@@ -29,6 +31,8 @@ import { GoogleModule } from './integrations/google/google.module.js';
     InstagramModule,
     DashboardModule,
     GoogleModule,
+    CalendarModule,
+    MediaModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
