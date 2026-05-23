@@ -9,7 +9,6 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import logo from "@/assets/img/logo.jpeg";
 import type { UserProfile } from "@/lib/supabase/user-profile";
 
 type LucideIcon = ComponentType<SVGProps<SVGSVGElement> & { strokeWidth?: number }>;
@@ -38,13 +37,33 @@ const NAV_ITEMS: NavItem[] = [
 
 function SnowflakeLogo() {
   return (
-    <Image
-      src={logo}
-      alt="Logo"
-      width={40}
-      height={42}
-      className="h-[42px] w-10 object-contain"
-    />
+    <svg
+      role="img"
+      aria-label="Logo"
+      viewBox="0 0 100 100"
+      className="h-[42px] w-10 text-[#0059b8]"
+    >
+      <g
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="7.5"
+      >
+        <line x1="50" y1="50" x2="50" y2="15" />
+        <line x1="50" y1="50" x2="50" y2="85" />
+        <line x1="50" y1="50" x2="18" y2="32" />
+        <line x1="50" y1="50" x2="82" y2="32" />
+        <line x1="50" y1="50" x2="18" y2="68" />
+        <line x1="50" y1="50" x2="82" y2="68" />
+        <circle cx="50" cy="15" r="8" fill="var(--bg-light)" />
+        <circle cx="50" cy="85" r="8" fill="var(--bg-light)" />
+        <circle cx="18" cy="32" r="8" fill="var(--bg-light)" />
+        <circle cx="82" cy="32" r="8" fill="var(--bg-light)" />
+        <circle cx="18" cy="68" r="8" fill="var(--bg-light)" />
+        <circle cx="82" cy="68" r="8" fill="var(--bg-light)" />
+      </g>
+    </svg>
   );
 }
 
