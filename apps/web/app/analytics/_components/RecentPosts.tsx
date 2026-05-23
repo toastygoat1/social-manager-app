@@ -74,16 +74,34 @@ function formatTimeAgo(value: string | null) {
   return `${Math.floor(diffMs / day)} days ago`;
 }
 
-export function RecentPosts({ posts }: { posts: RecentPost[] }) {
+export function RecentPosts({
+  posts,
+  compact = false,
+}: {
+  posts: RecentPost[];
+  compact?: boolean;
+}) {
   const router = useRouter();
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
 
   return (
-    <div className="flex w-full flex-col items-center justify-center gap-9 overflow-hidden rounded-[17px] px-6 py-5">
-      <p className="w-full text-[20px] leading-[31.5px] text-ink">
+    <div
+      className={`flex w-full flex-col items-center justify-center overflow-hidden rounded-[17px] ${
+        compact ? "gap-5 px-3 py-4" : "gap-9 px-6 py-5"
+      }`}
+    >
+      <p
+        className={`w-full text-ink ${
+          compact ? "text-lg leading-6" : "text-[20px] leading-[31.5px]"
+        }`}
+      >
         Recent Posts
       </p>
-      <div className="flex w-full items-center justify-center gap-5 overflow-x-auto p-4">
+      <div
+        className={`flex w-full items-center overflow-x-auto ${
+          compact ? "justify-start gap-3 p-2" : "justify-center gap-5 p-4"
+        }`}
+      >
         {posts.length === 0 ? (
           <div className="flex h-32 w-full items-center justify-center rounded-2xl border border-line bg-paper text-sm text-muted">
             No recent posts
@@ -94,9 +112,15 @@ export function RecentPosts({ posts }: { posts: RecentPost[] }) {
               type="button"
               key={post.id}
               onClick={() => setSelectedPostId(post.id)}
-              className="flex shrink-0 flex-col items-start gap-[5px] overflow-hidden rounded-2xl border border-line bg-paper p-4 text-left shadow-[0_2.6px_2.6px_2px_rgba(0,0,0,0.25)] transition hover:-translate-y-0.5 hover:shadow-[0_4px_8px_2px_rgba(0,0,0,0.2)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              className={`flex shrink-0 flex-col items-start gap-[5px] overflow-hidden rounded-2xl border border-line bg-paper text-left shadow-[0_2.6px_2.6px_2px_rgba(0,0,0,0.25)] transition hover:-translate-y-0.5 hover:shadow-[0_4px_8px_2px_rgba(0,0,0,0.2)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink ${
+                compact ? "p-3" : "p-4"
+              }`}
             >
-              <div className="relative h-[147px] w-[207px] overflow-hidden rounded-2xl">
+              <div
+                className={`relative overflow-hidden rounded-2xl ${
+                  compact ? "h-[124px] w-[176px]" : "h-[147px] w-[207px]"
+                }`}
+              >
                 <MediaPreview post={post} />
               </div>
               <div className="flex h-[66px] w-full flex-col justify-center gap-3 overflow-hidden px-1">

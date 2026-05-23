@@ -54,23 +54,48 @@ function Trend({ stat }: { stat: AnalyticsStat }) {
   );
 }
 
-export function StatGrid({ stats }: { stats: AnalyticsStat[] }) {
+export function StatGrid({
+  stats,
+  compact = false,
+}: {
+  stats: AnalyticsStat[];
+  compact?: boolean;
+}) {
   return (
-    <div className="grid w-full grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+    <div
+      className={`grid w-full grid-cols-1 gap-4 md:grid-cols-2 ${
+        compact ? "" : "xl:grid-cols-4"
+      }`}
+    >
       {stats.map((s) => {
         const Icon = ICONS[s.id];
         return (
           <div
             key={s.title}
-            className="flex h-[146px] flex-1 flex-col items-start justify-between overflow-hidden rounded-2xl border border-line bg-paper p-6"
+            className={`flex flex-1 flex-col items-start justify-between overflow-hidden rounded-2xl border border-line bg-paper ${
+              compact ? "h-[128px] p-4" : "h-[146px] p-6"
+            }`}
           >
             <div className="flex w-full items-center justify-between">
-              <p className="text-base text-ink">{s.title}</p>
-              <div className="flex size-[34px] items-center justify-center rounded-lg bg-card">
-                <Icon className="size-[22px] text-ink" strokeWidth={1.8} />
+              <p className={compact ? "text-sm text-ink" : "text-base text-ink"}>
+                {s.title}
+              </p>
+              <div
+                className={`flex items-center justify-center rounded-lg bg-card ${
+                  compact ? "size-8" : "size-[34px]"
+                }`}
+              >
+                <Icon
+                  className={compact ? "size-5 text-ink" : "size-[22px] text-ink"}
+                  strokeWidth={1.8}
+                />
               </div>
             </div>
-            <p className="text-[36px] font-medium leading-none text-ink">
+            <p
+              className={`font-medium leading-none text-ink ${
+                compact ? "text-[30px]" : "text-[36px]"
+              }`}
+            >
               {formatNumber(s.value)}
             </p>
             <Trend stat={s} />
