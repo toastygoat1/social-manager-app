@@ -1,11 +1,17 @@
-import { AccountChip, AllAccountsChip } from "@/app/dashboard/_components/AccountChip";
-import { ANALYTICS_ACCOUNTS } from "./data";
+import { AccountChip } from "@/app/dashboard/_components/AccountChip";
+import type { Account } from "@/app/dashboard/_components/data";
 
-export function AccountsTopCard() {
+type AccountsTopCardProps = {
+  accounts: Account[];
+};
+
+export function AccountsTopCard({ accounts }: AccountsTopCardProps) {
   return (
     <div className="flex w-full shrink-0 flex-col gap-2.5 overflow-x-auto overflow-y-hidden rounded-3xl bg-paper p-2.5">
       <div className="flex w-full items-start px-6 pt-[18px] pb-0">
-        <h2 className="font-semibold text-[16px] leading-4 text-[#495057]">Accounts</h2>
+        <h2 className="font-semibold text-[16px] leading-4 text-[#495057]">
+          Accounts
+        </h2>
       </div>
       <div className="flex w-full items-center gap-2 overflow-hidden px-2 pb-2">
         <div className="flex h-11 w-[196px] shrink-0 items-center gap-2 rounded-lg bg-[var(--chart-3)] px-4 py-2">
@@ -17,15 +23,21 @@ export function AccountsTopCard() {
           </div>
           <p className="text-sm text-ink">All Accounts</p>
         </div>
-        <AllAccountsChip className="!bg-paper w-[196px] shrink-0" />
-        {ANALYTICS_ACCOUNTS.map((acct, i) => (
-          <AccountChip
-            key={i}
-            name={acct.name}
-            platform={acct.platform}
-            className="w-[196px] shrink-0"
-          />
-        ))}
+        {accounts.length === 0 ? (
+          <div className="flex h-11 w-[240px] shrink-0 items-center rounded-lg bg-paper px-4 text-sm text-muted">
+            No accounts connected yet
+          </div>
+        ) : (
+          accounts.map((acct) => (
+            <AccountChip
+              key={acct.id}
+              name={acct.name}
+              platform={acct.platform}
+              avatarUrl={acct.avatarUrl}
+              className="w-[196px] shrink-0"
+            />
+          ))
+        )}
       </div>
     </div>
   );

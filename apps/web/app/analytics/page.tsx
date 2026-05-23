@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getAnalyticsData } from "@/lib/analytics-data";
 import { Sidebar } from "@/app/dashboard/_components/Sidebar";
 import { AccountsTopCard } from "./_components/AccountsTopCard";
 import { BannerHero } from "./_components/BannerHero";
@@ -13,7 +14,7 @@ import { Recommendations } from "./_components/Recommendations";
 export default async function AnalyticsPage() {
   const hasSupabaseEnv = Boolean(
     process.env.NEXT_PUBLIC_SUPABASE_URL &&
-      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
   );
 
   if (!hasSupabaseEnv) {
@@ -30,20 +31,25 @@ export default async function AnalyticsPage() {
     redirect("/");
   }
 
+  const data = await getAnalyticsData();
+
   return (
-    <div className="flex min-h-screen items-start bg-[#e4eade] font-sans">
+    <div className="flex min-h-screen items-start bg-page font-sans">
       <Sidebar active="analytics" />
       <main className="flex min-w-0 flex-1 flex-col gap-5 p-5">
-        <AccountsTopCard />
+        <AccountsTopCard accounts={data.accounts} />
         <div className="flex w-full flex-col items-center gap-[91px] overflow-hidden rounded-3xl bg-paper py-3">
-          <BannerHero />
+          <BannerHero accounts={data.accounts} rangeDays={data.rangeDays} />
           <div className="flex w-full flex-col gap-9 px-9">
-            <StatGrid />
-            <RecentPosts />
-            <ChannelDistribution />
-            <ContentCalendar />
-            <AnalyticsContentTable />
-            <Recommendations />
+            <StatGrid stats={data.statGrid} />
+            <RecentPosts posts={data.recentPosts} />
+            <ChannelDistribution items={data.distribution} />
+            <ContentCalendar calendar={data.contentCalendar} />
+            <AnalyticsContentTable rows={data.contentRows} />
+            <Recommendations
+              recommendations={data.recommendations}
+              videoIdeas={data.videoIdeas}
+            />
           </div>
         </div>
       </main>
