@@ -40,6 +40,7 @@ const SAFE_INSTAGRAM_ACCOUNT_SELECT = {
   isActive: true,
   tokenExpiresAt: true,
   connectedAt: true,
+  disconnectedAt: true,
   createdAt: true,
   updatedAt: true,
 } satisfies Prisma.InstagramAccountSelect;
@@ -283,6 +284,7 @@ export class InstagramService {
       },
       data: {
         isActive: false,
+        disconnectedAt: new Date(),
       },
     });
 
@@ -421,6 +423,15 @@ export class InstagramService {
 
   private async upsertAccount(userId: string, data: AddInstagramAccountDto) {
     const accessTokenEncrypted = encryptSecret(data.accessToken);
+    const existingAccount = await this.findOwnedAccount(userId, data.igUserId);
+
+    if (existingAccount) {
+      return this.reactivateAccount(
+        existingAccount.id,
+        data,
+        accessTokenEncrypted,
+      );
+    }
 
     try {
       return await this.prisma.instagramAccount.create({
@@ -442,41 +453,64 @@ export class InstagramService {
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2002'
       ) {
-        const updateResult = await this.prisma.instagramAccount.updateMany({
-          where: {
-            igUserId: data.igUserId,
-            userId: userId,
-          },
-          data: {
-            username: data.username,
-            accessTokenEncrypted,
-            accountType: data.accountType,
-            pageId: data.pageId,
-            tokenExpiresAt: data.tokenExpiresAt
-              ? new Date(data.tokenExpiresAt)
-              : null,
-            isActive: true,
-          },
-        });
-
-        if (updateResult.count === 0) {
+        const concurrentlyCreatedAccount = await this.findOwnedAccount(
+          userId,
+          data.igUserId,
+        );
+        if (!concurrentlyCreatedAccount) {
           throw new ForbiddenException(
-            'Akun Instagram ini sudah ditautkan oleh pengguna lain.',
+            'This Instagram account is already connected to another user.',
           );
         }
 
-        const account = await this.prisma.instagramAccount.findUnique({
-          where: { igUserId: data.igUserId },
-          select: SAFE_INSTAGRAM_ACCOUNT_SELECT,
-        });
+        return this.reactivateAccount(
+          concurrentlyCreatedAccount.id,
+          data,
+          accessTokenEncrypted,
+        );
+      }
 
-        if (!account) {
-          throw new BadRequestException(
-            'Instagram account could not be saved.',
-          );
-        }
+      throw error;
+    }
+  }
 
-        return account;
+  private findOwnedAccount(userId: string, igUserId: string) {
+    return this.prisma.instagramAccount.findFirst({
+      where: { igUserId, userId },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true },
+    });
+  }
+
+  private async reactivateAccount(
+    accountId: string,
+    data: AddInstagramAccountDto,
+    accessTokenEncrypted: string,
+  ) {
+    try {
+      return await this.prisma.instagramAccount.update({
+        where: { id: accountId },
+        data: {
+          username: data.username,
+          accessTokenEncrypted,
+          accountType: data.accountType,
+          pageId: data.pageId,
+          tokenExpiresAt: data.tokenExpiresAt
+            ? new Date(data.tokenExpiresAt)
+            : null,
+          isActive: true,
+          disconnectedAt: null,
+        },
+        select: SAFE_INSTAGRAM_ACCOUNT_SELECT,
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ForbiddenException(
+          'This Instagram account is already connected to another user.',
+        );
       }
 
       throw error;
@@ -492,7 +526,11 @@ export class InstagramService {
   }
 
   async getDmConversations(userId: string, accountId?: string) {
-    await this.syncDmConversationsForUser(userId, accountId);
+    await this.syncDmConversationsForUser(userId, accountId).catch((error) => {
+      this.logger.warn(
+        `Instagram DM sync failed while listing cached conversations: ${this.getErrorMessage(error)}`,
+      );
+    });
 
     const conversations = await this.prisma.dmConversation.findMany({
       where: {
@@ -860,21 +898,42 @@ export class InstagramService {
       pageCount += 1;
       const response =
         await this.requestGraph<InstagramConversationListResponse>(nextUrl);
-      const responseConversations = Array.isArray(response.data)
-        ? response.data
-        : [];
-      const next =
-        typeof response.paging?.next === 'string' ? response.paging.next : null;
+      const responseConversations =
+        this.getInstagramConversationSummaries(response);
+      const next = this.getInstagramPagingNext(response);
 
-      conversations.push(
-        ...responseConversations.filter(
-          (conversation) => typeof conversation.id === 'string',
-        ),
-      );
+      conversations.push(...responseConversations);
       nextUrl = next ? new URL(next) : null;
     }
 
     return conversations;
+  }
+
+  private getInstagramConversationSummaries(
+    response: InstagramConversationListResponse,
+  ) {
+    const data: unknown = response.data;
+    if (!Array.isArray(data)) {
+      return [];
+    }
+
+    return data.filter((value) => this.isInstagramConversationSummary(value));
+  }
+
+  private isInstagramConversationSummary(
+    value: unknown,
+  ): value is InstagramConversationSummaryResponse {
+    if (!value || typeof value !== 'object') {
+      return false;
+    }
+
+    const { id } = value as { id?: unknown };
+    return typeof id === 'string' && Boolean(id);
+  }
+
+  private getInstagramPagingNext(response: InstagramConversationListResponse) {
+    const next = response.paging?.next;
+    return typeof next === 'string' ? next : null;
   }
 
   private async syncInstagramDmConversation(

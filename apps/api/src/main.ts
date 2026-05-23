@@ -18,19 +18,18 @@ type ReplayPayload = RequestPayload & {
 };
 
 function resolveAllowedOrigins() {
-  const configuredOrigins = process.env.WEB_ORIGIN?.split(',')
-    .map((origin) => origin.trim())
-    .filter(Boolean);
-
-  if (configuredOrigins?.length) {
-    return configuredOrigins;
-  }
+  const configuredOrigins =
+    process.env.WEB_ORIGIN?.split(',')
+      .map((origin) => origin.trim())
+      .filter(Boolean) ?? [];
 
   if (process.env.NODE_ENV === 'production') {
+    if (configuredOrigins.length) return configuredOrigins;
     return false;
   }
 
-  return ['http://localhost:3000', 'http://127.0.0.1:3000'];
+  const devDefaults = ['http://localhost:3000', 'http://127.0.0.1:3000'];
+  return Array.from(new Set([...configuredOrigins, ...devDefaults]));
 }
 
 function captureWebhookRawBody(adapter: FastifyAdapter) {

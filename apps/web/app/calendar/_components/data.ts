@@ -1,97 +1,94 @@
-export type EventStatus = "published" | "pending" | "draft";
+export type EventStatus = "published" | "scheduled" | "pending" | "draft";
 
-export type WeekEvent = {
+export type CalendarEventSource = "scheduled_post" | "google";
+
+export type CalendarPostType = "FEED" | "REEL" | "STORY" | "CAROUSEL";
+
+export type CalendarEvent = {
   id: string;
-  day: number;
-  hour: number;
+  source: CalendarEventSource;
   title: string;
-  time: string;
-  body: string;
+  start: string;
+  end: string | null;
+  allDay: boolean;
+  status: EventStatus | null;
+  postType: CalendarPostType | null;
+  accountId: string | null;
+  accountUsername: string | null;
+  caption: string | null;
+};
+
+export type CalendarData = {
+  googleConnected: boolean;
+  events: CalendarEvent[];
+};
+
+export type CalendarPostDetail = {
+  id: string;
+  title: string | null;
+  caption: string | null;
+  postType: CalendarPostType;
   status: EventStatus;
+  accountId: string;
+  accountUsername: string;
+  scheduledFor: string | null;
+  publishedAt: string | null;
+  createdAt: string;
+  media: {
+    id: string;
+    fileType: "IMAGE" | "VIDEO";
+    mimeType: string;
+    fileSize: number;
+    width: number | null;
+    height: number | null;
+    durationSeconds: number | null;
+    previewUrl: string | null;
+  }[];
+  latestFailure: {
+    id: string;
+    attemptNumber: number;
+    errorMessage: string | null;
+    startedAt: string;
+    retryable: boolean;
+  } | null;
 };
 
-export const WEEK_DAYS = [
-  { label: "MON", date: 25 },
-  { label: "TUE", date: 26 },
-  { label: "WED", date: 27 },
-  { label: "THU", date: 28 },
-  { label: "FRI", date: 29 },
-  { label: "SAT", date: 30 },
-  { label: "SUN", date: 31 },
-] as const;
-
-export const WEEK_HOURS = [1, 2, 3, 4] as const;
-
-export const WEEK_EVENTS: WeekEvent[] = [];
-
-export type MonthEvent = {
+export type CalendarWorkItem = {
+  id: string;
   title: string;
-  time: string;
-  status: "published" | "draft" | "pending";
+  postType: CalendarPostType;
+  status: "pending" | "draft";
+  accountUsername: string;
+  scheduledFor: string | null;
+  createdAt: string;
 };
 
-export type MonthCell = {
-  day: number;
-  outside?: boolean;
-  events?: MonthEvent[];
+export type CalendarWorkItems = {
+  pending: CalendarWorkItem[];
+  drafts: CalendarWorkItem[];
 };
 
-export const MONTH_GRID: MonthCell[][] = [
-  [
-    { day: 29, outside: true },
-    { day: 30, outside: true },
-    { day: 31, outside: true },
-    { day: 1 },
-    { day: 2 },
-    { day: 3 },
-    { day: 4 },
-  ],
-  [
-    { day: 5 },
-    { day: 6 },
-    { day: 7 },
-    { day: 8 },
-    { day: 9 },
-    { day: 10 },
-    { day: 11 },
-  ],
-  [
-    { day: 12 },
-    { day: 13 },
-    { day: 14 },
-    { day: 15 },
-    { day: 16 },
-    { day: 17 },
-    { day: 18 },
-  ],
-  [
-    { day: 19 },
-    { day: 20 },
-    { day: 21 },
-    { day: 22 },
-    { day: 23 },
-    { day: 24 },
-    { day: 25 },
-  ],
-  [
-    { day: 26 },
-    { day: 27 },
-    { day: 28 },
-    { day: 29 },
-    { day: 30 },
-    { day: 31 },
-    { day: 1, outside: true },
-  ],
-  [
-    { day: 2, outside: true },
-    { day: 3, outside: true },
-    { day: 4, outside: true },
-    { day: 5, outside: true },
-    { day: 6, outside: true },
-    { day: 7, outside: true },
-    { day: 8, outside: true },
-  ],
-];
+export type CalendarFailedPost = {
+  id: string;
+  title: string;
+  postType: CalendarPostType;
+  accountUsername: string;
+  scheduledFor: string | null;
+  attemptNumber: number;
+  errorMessage: string | null;
+  failedAt: string;
+  retryable: boolean;
+};
+
+export const EMPTY_CALENDAR: CalendarData = {
+  googleConnected: false,
+  events: [],
+};
+
+export const EMPTY_WORK_ITEMS: CalendarWorkItems = {
+  pending: [],
+  drafts: [],
+};
 
 export const MONTH_DAYS = [
   "MON",
@@ -102,3 +99,120 @@ export const MONTH_DAYS = [
   "SAT",
   "SUN",
 ] as const;
+
+export const WEEK_HOUR_START = 0;
+export const WEEK_HOUR_END = 23;
+
+const DAY_LABELS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"] as const;
+
+export type WeekDay = {
+  label: string;
+  date: number;
+  iso: string;
+};
+
+export function startOfWeekMonday(reference: Date): Date {
+  const d = new Date(
+    reference.getFullYear(),
+    reference.getMonth(),
+    reference.getDate(),
+  );
+  const day = d.getDay();
+  const offset = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + offset);
+  return d;
+}
+
+export function buildWeekDays(reference: Date): WeekDay[] {
+  const start = startOfWeekMonday(reference);
+  return Array.from({ length: 7 }, (_, idx) => {
+    const d = new Date(start);
+    d.setDate(start.getDate() + idx);
+    return {
+      label: DAY_LABELS[(d.getDay() + 7) % 7],
+      date: d.getDate(),
+      iso: toIsoDate(d),
+    };
+  });
+}
+
+export type MonthCell = {
+  day: number;
+  iso: string;
+  outside: boolean;
+};
+
+export function buildMonthGrid(reference: Date): MonthCell[][] {
+  const year = reference.getFullYear();
+  const month = reference.getMonth();
+  const firstOfMonth = new Date(year, month, 1);
+  const startWeekDay = firstOfMonth.getDay();
+  const offset = startWeekDay === 0 ? -6 : 1 - startWeekDay;
+  const gridStart = new Date(year, month, 1 + offset);
+
+  const grid: MonthCell[][] = [];
+  for (let row = 0; row < 6; row++) {
+    const week: MonthCell[] = [];
+    for (let col = 0; col < 7; col++) {
+      const cellDate = new Date(gridStart);
+      cellDate.setDate(gridStart.getDate() + row * 7 + col);
+      week.push({
+        day: cellDate.getDate(),
+        iso: toIsoDate(cellDate),
+        outside: cellDate.getMonth() !== month,
+      });
+    }
+    grid.push(week);
+  }
+  return grid;
+}
+
+export function toIsoDate(d: Date): string {
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+export function rangeForMonth(reference: Date): { from: Date; to: Date } {
+  const year = reference.getFullYear();
+  const month = reference.getMonth();
+  const from = new Date(year, month, 1);
+  const to = new Date(year, month + 1, 0, 23, 59, 59, 999);
+  return { from, to };
+}
+
+export function rangeForWeek(reference: Date): { from: Date; to: Date } {
+  const from = startOfWeekMonday(reference);
+  const to = new Date(from);
+  to.setDate(from.getDate() + 6);
+  to.setHours(23, 59, 59, 999);
+  return { from, to };
+}
+
+export function formatPeriodLabel(
+  view: "week" | "month",
+  reference: Date,
+): string {
+  const monthFmt = reference.toLocaleString("en-US", {
+    month: "long",
+    year: "numeric",
+  });
+  if (view === "month") return monthFmt;
+
+  const days = buildWeekDays(reference);
+  const first = new Date(`${days[0].iso}T00:00:00`);
+  const last = new Date(`${days[6].iso}T00:00:00`);
+  const firstMonth = first.toLocaleString("en-US", { month: "short" });
+  const lastMonth = last.toLocaleString("en-US", { month: "short" });
+  const firstYear = first.getFullYear();
+  const lastYear = last.getFullYear();
+
+  if (firstYear === lastYear && first.getMonth() === last.getMonth()) {
+    return `${firstMonth} ${first.getDate()}-${last.getDate()}, ${firstYear}`;
+  }
+  if (firstYear === lastYear) {
+    return `${firstMonth} ${first.getDate()} - ${lastMonth} ${last.getDate()}, ${firstYear}`;
+  }
+  return `${firstMonth} ${first.getDate()}, ${firstYear} - ${lastMonth} ${last.getDate()}, ${lastYear}`;
+}
