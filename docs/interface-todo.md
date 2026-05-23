@@ -56,38 +56,56 @@ Referensi sudah jalan: `apps/web/lib/dashboard-data.ts`, `apps/web/app/dashboard
 
 ---
 
-## 2. Calendar (Scheduling) — `apps/web/app/calendar/`
+## 2. Calendar (Scheduling) - `apps/web/app/calendar/`
 
-**Status**: ❌ Semua data hardcoded di `_components/data.ts`. Belum ada API hook.
+**Status**: In progress / MVP wired. Calendar data is API-backed, scheduled posts are stored in DB, Google Calendar events are merged when connected, the create modal supports media upload, multi-account targeting, schedule/post-now/draft actions, and immediate Instagram publishing for "Post Now". Remaining gap: scheduled-time publishing still needs the worker/BullMQ path.
 
 ### Files
 
 | Path | Purpose |
 |---|---|
-| `apps/web/app/calendar/page.tsx` | Server Component, auth check, render `<CalendarShell />` |
-| `apps/web/app/calendar/_components/CalendarShell.tsx` | Container (toggle weekly/monthly?) |
-| `apps/web/app/calendar/_components/CalendarHeader.tsx` | Navigasi bulan, tombol create, view toggle |
-| `apps/web/app/calendar/_components/MonthlyCalendar.tsx` | Grid bulan + event chips |
-| `apps/web/app/calendar/_components/WeeklyCalendar.tsx` | Grid mingguan |
-| `apps/web/app/calendar/_components/CreatePostModal.tsx` | Modal buat post baru |
-| `apps/web/app/calendar/_components/data.ts` | ❌ `WEEK_DAYS`, `WEEK_HOURS`, `MONTH_GRID`, `WeekEvent[]` semua hardcoded |
+| `apps/web/app/calendar/page.tsx` | Server Component, auth check, initial calendar fetch |
+| `apps/web/lib/calendar-data.ts` | `getCalendarData()` server fetch helper with `EMPTY_CALENDAR` fallback |
+| `apps/web/app/calendar/_components/CalendarShell.tsx` | Stateful calendar container, view switching, range refetch, error/empty states |
+| `apps/web/app/calendar/_components/CalendarHeader.tsx` | Navigation, week/month toggle, create modal launcher |
+| `apps/web/app/calendar/_components/MonthlyCalendar.tsx` | Dynamic month grid + event chips |
+| `apps/web/app/calendar/_components/WeeklyCalendar.tsx` | Dynamic week grid + event chips |
+| `apps/web/app/calendar/_components/CreatePostModal.tsx` | Post/story/reels modal, media upload, account multi-select, schedule/post-now/draft |
+| `apps/web/app/calendar/_components/data.ts` | Pure calendar types, date helpers, `EMPTY_CALENDAR` |
+| `apps/api/src/calendar/*` | `GET /calendar/events`, `POST /calendar/events`, DTO validation, event merge logic |
+| `apps/api/src/media/*` | Supabase Storage signed upload URLs + `MediaAsset` creation |
+| `apps/api/src/publishing/*` | Immediate Instagram publish flow for "Post Now" |
+
+### Done
+
+| Item | Catatan |
+|---|---|
+| API-backed calendar data | `GET /calendar/events?from=&to=` returns scheduled DB posts + Google Calendar events when connected. |
+| Removed hardcoded calendar events | Calendar data file now exports types/helpers/empty state, not dummy events. |
+| Dynamic week/month dates | Week and month grids are generated from `referenceIso`. |
+| Create modal submit flow | Modal calls `POST /calendar/events` and refreshes calendar after create. |
+| Media upload | Upload flow uses signed Supabase Storage URLs, then creates `MediaAsset` and `PostMedia` rows. |
+| Submit actions | `Schedule` requires date/time, `Post Now` skips date/time and publishes immediately, `Save as Draft` skips date/time. |
+| Account targeting | Modal supports selecting one or more connected Instagram accounts. |
+| Media rules | Feed posts use images; multiple feed images become carousel; Reels require video; Stories allow image or video. |
+| Feed image auto-crop | Feed/carousel images outside Instagram's `4:5` to `1.91:1` ratio are center-cropped in-browser before upload. |
 
 ### TODO
 
 | Item | Catatan |
 |---|---|
-| Buat `apps/web/lib/calendar-data.ts` dengan `getCalendarData()` | Pola sama: `apiFetch("/calendar/...")` → fallback `EMPTY_CALENDAR`. |
-| Backend endpoint `GET /calendar/events?from=&to=` | Source: Google Calendar API (read events) + DB (scheduled posts). |
-| Backend endpoint `POST /calendar/events` | Buat scheduled post → BullMQ job → publish ke IG saat `scheduledAt`. |
-| Hapus `MONTH_GRID`, `WEEK_EVENTS` di `_components/data.ts` | Ganti jadi pure types + `EMPTY_CALENDAR`. Komponen terima prop, render "No events scheduled" kalau kosong. |
-| `WEEK_DAYS` label tanggal hardcoded (25-31) | Generate dari `referenceDate` props (mirip `buildMonth` lama tapi pure-pure tanpa data, hanya grid tanggal). |
-| `CreatePostModal` belum punya submit handler | Wire ke `POST /calendar/events` setelah backend siap. Validasi: account, content, scheduledAt, media. |
-| Google Calendar OAuth flow | User harus connect Google account. Simpan refresh token enkripsi (`ENCRYPTION_KEY` sudah ada di .env). |
+| Worker/BullMQ scheduled publishing | Future `scheduledFor` posts are saved, but a worker/cron still needs to find due `READY` posts and call `InstagramPublisherService`. |
+| Approval workflow UI | `requiresApproval` creates `PENDING` posts, but there is no reviewer/approve screen yet. |
+| Draft management UI | `Save as Draft` creates `DRAFT` posts without date/time, but there is no drafts list/editor yet. |
+| Partial failure UX for multi-account publish | Modal posts to each selected account. If one account succeeds and another fails, add per-account result feedback. |
+| Google Calendar connect CTA | Calendar page shows a disconnected hint but does not yet include a direct connect button. |
+| Edit/delete/reschedule posts | Calendar renders scheduled posts but does not yet support editing existing entries. |
 
 ### Rekomendasi tambahan
 
-- Pisahkan "scheduled post events" (data app sendiri) dari "Google Calendar events" (eksternal) di payload. Frontend bisa style berbeda.
-- Empty state copy: "No scheduled posts" untuk weekly/monthly grid, "Connect Google Calendar to sync events" kalau OAuth belum.
+- Keep scheduled post events and Google events separate in the payload with `source: "scheduled_post" | "google"` so frontend styling can stay clear.
+- For scheduled publishing, reuse `InstagramPublisherService` instead of duplicating Meta Graph API logic in the worker.
+- Add explicit retry handling around failed `PublishAttempt` rows before enabling scheduled publishing in production.
 
 ---
 
