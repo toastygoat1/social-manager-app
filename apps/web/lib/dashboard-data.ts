@@ -23,6 +23,7 @@ type InstagramAccountResponse = {
   id: string;
   username: string;
   accountType: "PERSONAL" | "BUSINESS" | "CREATOR";
+  avatarUrl?: string | null;
   isActive: boolean;
 };
 
@@ -103,6 +104,7 @@ export async function getDashboardData(): Promise<DashboardData> {
       name: `@${account.username}`,
       platform:
         account.accountType === "CREATOR" ? "Instagram Creator" : "Instagram",
+      avatarUrl: account.avatarUrl ?? null,
     })),
   };
 }

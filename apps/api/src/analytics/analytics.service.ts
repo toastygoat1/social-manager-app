@@ -165,6 +165,7 @@ const ANALYTICS_POST_INCLUDE = {
       id: true,
       username: true,
       accountType: true,
+      avatarUrl: true,
     },
   },
   postAnalytics: {
@@ -207,6 +208,7 @@ export class AnalyticsService {
         id: true,
         username: true,
         accountType: true,
+        avatarUrl: true,
       },
     });
 
@@ -357,7 +359,7 @@ export class AnalyticsService {
             post.instagramAccount.accountType === 'CREATOR'
               ? 'Instagram Creator'
               : 'Instagram',
-          avatarUrl: null,
+          avatarUrl: post.instagramAccount.avatarUrl ?? null,
           tone: 'blue' as const,
         };
         const mediaItems = await Promise.all(
@@ -410,7 +412,12 @@ function parseRangeDays(range: string | undefined): number {
 }
 
 function mapAccount(
-  account: { id: string; username: string; accountType: string },
+  account: {
+    id: string;
+    username: string;
+    accountType: string;
+    avatarUrl?: string | null;
+  },
   index: number,
 ): AnalyticsAccount {
   return {
@@ -418,7 +425,7 @@ function mapAccount(
     name: `@${account.username}`,
     platform:
       account.accountType === 'CREATOR' ? 'Instagram Creator' : 'Instagram',
-    avatarUrl: null,
+    avatarUrl: account.avatarUrl ?? null,
     tone: ACCOUNT_TONES[index % ACCOUNT_TONES.length],
   };
 }

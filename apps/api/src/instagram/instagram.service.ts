@@ -36,6 +36,7 @@ const SAFE_INSTAGRAM_ACCOUNT_SELECT = {
   igUserId: true,
   username: true,
   accountType: true,
+  avatarUrl: true,
   pageId: true,
   isActive: true,
   tokenExpiresAt: true,
@@ -161,6 +162,7 @@ type InstagramProfileResponse = GraphApiError & {
   username: string;
   account_type?: string;
   media_count?: number;
+  profile_picture_url?: string;
 };
 
 type InstagramInsightsResponse = GraphApiError & {
@@ -407,11 +409,15 @@ export class InstagramService {
     const profile = await this.fetchInstagramProfile(
       longLivedToken.access_token,
     );
+    const avatarUrl = await this.fetchInstagramProfilePictureUrl(
+      longLivedToken.access_token,
+    );
     const connected = await this.upsertAccount(user.userId, {
       igUserId: profile.id,
       username: profile.username,
       accessToken: longLivedToken.access_token,
       accountType: this.normalizeAccountType(profile.account_type),
+      avatarUrl: avatarUrl ?? undefined,
       tokenExpiresAt: longLivedToken.expires_in
         ? new Date(Date.now() + longLivedToken.expires_in * 1000).toISOString()
         : undefined,
@@ -441,6 +447,7 @@ export class InstagramService {
           username: data.username,
           accessTokenEncrypted,
           accountType: data.accountType,
+          avatarUrl: data.avatarUrl ?? null,
           pageId: data.pageId,
           tokenExpiresAt: data.tokenExpiresAt
             ? new Date(data.tokenExpiresAt)
@@ -494,6 +501,7 @@ export class InstagramService {
           username: data.username,
           accessTokenEncrypted,
           accountType: data.accountType,
+          avatarUrl: data.avatarUrl ?? undefined,
           pageId: data.pageId,
           tokenExpiresAt: data.tokenExpiresAt
             ? new Date(data.tokenExpiresAt)
@@ -1126,6 +1134,22 @@ export class InstagramService {
     url.searchParams.set('access_token', accessToken);
 
     return this.requestGraph<InstagramProfileResponse>(url);
+  }
+
+  private async fetchInstagramProfilePictureUrl(accessToken: string) {
+    const url = this.createGraphUrl('me');
+    url.searchParams.set('fields', 'profile_picture_url');
+    url.searchParams.set('access_token', accessToken);
+
+    try {
+      const profile = await this.requestGraph<InstagramProfileResponse>(url);
+      return profile.profile_picture_url?.trim() || null;
+    } catch (error) {
+      this.logger.warn(
+        `Instagram profile picture fetch skipped: ${this.getErrorMessage(error)}`,
+      );
+      return null;
+    }
   }
 
   private async fetchAccountUploadCount(account: InstagramInsightsAccount) {

@@ -111,6 +111,7 @@ describe('AnalyticsService', () => {
         id: 'account-1',
         username: 'ambacafe',
         accountType: 'BUSINESS',
+        avatarUrl: 'https://example.test/avatar.jpg',
       },
     ]);
     prisma.contentPost.findMany
@@ -129,7 +130,7 @@ describe('AnalyticsService', () => {
         id: 'account-1',
         name: '@ambacafe',
         platform: 'Instagram',
-        avatarUrl: null,
+        avatarUrl: 'https://example.test/avatar.jpg',
         tone: 'blue',
       },
     ]);
@@ -178,7 +179,10 @@ describe('AnalyticsService', () => {
     ]);
     expect(overview.contentRows[0]).toMatchObject({
       id: 'post-1',
-      account: { name: '@ambacafe' },
+      account: {
+        name: '@ambacafe',
+        avatarUrl: 'https://example.test/avatar.jpg',
+      },
       views: 120,
       likes: 20,
       comments: 8,
@@ -224,6 +228,7 @@ function makePost(input: {
       id: 'account-1',
       username: 'ambacafe',
       accountType: 'BUSINESS',
+      avatarUrl: 'https://example.test/avatar.jpg',
     },
     postAnalytics: [
       {
