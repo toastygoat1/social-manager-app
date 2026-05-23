@@ -77,6 +77,7 @@ export type AnalyticsData = {
   accounts: Account[];
   selectedAccountId: string | null;
   rangeDays: number;
+  lastUpdatedAt: string | null;
   statGrid: AnalyticsStat[];
   recentPosts: RecentPost[];
   distribution: DistributionItem[];
@@ -121,6 +122,7 @@ export const EMPTY_ANALYTICS: AnalyticsData = {
   accounts: [],
   selectedAccountId: null,
   rangeDays: 30,
+  lastUpdatedAt: null,
   statGrid: EMPTY_STAT_GRID,
   recentPosts: [],
   distribution: [],

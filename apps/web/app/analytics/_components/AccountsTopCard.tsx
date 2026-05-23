@@ -1,11 +1,14 @@
 import Link from "next/link";
+import Image from "next/image";
 import type { Account } from "@/app/dashboard/_components/data";
+import { RefreshInsightsButton } from "./RefreshInsightsButton";
 import type { AnalyticsRange } from "./data";
 
 type AccountsTopCardProps = {
   accounts: Account[];
   selectedAccountId: string | null;
   range: AnalyticsRange;
+  lastUpdatedAt: string | null;
 };
 
 const RANGES: { label: string; value: AnalyticsRange }[] = [
@@ -37,7 +40,17 @@ function AccountFilterChip({
       }`}
     >
       <div className="relative flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-line text-[10px] font-medium text-muted">
-        {account.name.replace(/^@/, "").charAt(0).toUpperCase()}
+        {account.avatarUrl ? (
+          <Image
+            src={account.avatarUrl}
+            alt=""
+            width={28}
+            height={28}
+            className="size-7 object-cover"
+          />
+        ) : (
+          account.name.replace(/^@/, "").charAt(0).toUpperCase()
+        )}
       </div>
       <div className="flex min-w-0 flex-1 flex-col items-start">
         <p className="truncate text-xs leading-none text-ink">{account.name}</p>
@@ -53,6 +66,7 @@ export function AccountsTopCard({
   accounts,
   selectedAccountId,
   range,
+  lastUpdatedAt,
 }: AccountsTopCardProps) {
   return (
     <div className="flex w-full shrink-0 flex-col gap-2.5 overflow-x-auto overflow-y-hidden rounded-3xl bg-paper p-2.5">
@@ -60,20 +74,28 @@ export function AccountsTopCard({
         <h2 className="font-semibold text-[16px] leading-4 text-[#495057]">
           Accounts
         </h2>
-        <div className="flex shrink-0 items-center rounded-lg border border-line bg-card p-1">
-          {RANGES.map((item) => (
-            <Link
-              key={item.value}
-              href={analyticsHref(selectedAccountId, item.value)}
-              className={`flex h-8 min-w-12 items-center justify-center rounded-md px-3 text-xs font-medium transition ${
-                range === item.value
-                  ? "bg-paper text-ink"
-                  : "text-muted hover:text-ink"
-              }`}
-            >
-              {item.label}
-            </Link>
-          ))}
+        <div className="flex shrink-0 items-center gap-3">
+          <RefreshInsightsButton
+            selectedAccountId={selectedAccountId}
+            range={range}
+            lastUpdatedAt={lastUpdatedAt}
+            disabled={accounts.length === 0}
+          />
+          <div className="flex shrink-0 items-center rounded-lg border border-line bg-card p-1">
+            {RANGES.map((item) => (
+              <Link
+                key={item.value}
+                href={analyticsHref(selectedAccountId, item.value)}
+                className={`flex h-8 min-w-12 items-center justify-center rounded-md px-3 text-xs font-medium transition ${
+                  range === item.value
+                    ? "bg-paper text-ink"
+                    : "text-muted hover:text-ink"
+                }`}
+              >
+                {item.label}
+              </Link>
+            ))}
+          </div>
         </div>
       </div>
       <div className="flex w-full items-center gap-2 overflow-hidden px-2 pb-2">

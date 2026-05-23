@@ -1,8 +1,10 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import {
   MediaType,
   PostStatus,
@@ -11,6 +13,7 @@ import {
 } from '@social-manager/database';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MediaService } from '../media/media.service.js';
+import { decryptSecret } from '../common/crypto.util.js';
 
 type StatTrend = 'up' | 'down';
 type AccountTone = 'blue' | 'cyan' | 'pink' | 'yellow';
@@ -102,6 +105,7 @@ type AnalyticsOverview = {
   accounts: AnalyticsAccount[];
   selectedAccountId: string | null;
   rangeDays: number;
+  lastUpdatedAt: string | null;
   statGrid: AnalyticsMetric[];
   recentPosts: RecentPost[];
   distribution: DistributionItem[];
@@ -111,13 +115,66 @@ type AnalyticsOverview = {
   videoIdeas: VideoIdea[];
 };
 
+type RefreshInsightsResult = {
+  refreshed: number;
+  skipped: number;
+  failed: number;
+  fetchedAt: string | null;
+  errors: { postId: string; title: string; message: string }[];
+};
+
+type GraphApiError = {
+  error?: {
+    message?: string;
+    type?: string;
+    code?: number;
+  };
+};
+
+type InstagramInsightMetric = (typeof REFRESH_INSIGHT_METRICS)[number];
+
+type InstagramInsightsResponse = GraphApiError & {
+  data?: {
+    name?: string;
+    total_value?: { value?: unknown };
+    values?: { value?: unknown }[];
+  }[];
+};
+
+type InstagramMediaFieldsResponse = GraphApiError & {
+  id?: string;
+  like_count?: unknown;
+  comments_count?: unknown;
+};
+
+type PostInsightMetrics = {
+  likeCount: number | null;
+  commentsCount: number | null;
+  sharesCount: number | null;
+  savesCount: number | null;
+  reach: number | null;
+  impressions: number | null;
+  engagement: number | null;
+};
+
 const ACCOUNT_TONES: AccountTone[] = ['blue', 'cyan', 'pink', 'yellow'];
 const DEFAULT_RANGE_DAYS = 30;
+const DEFAULT_GRAPH_API_VERSION = 'v21.0';
 const ALLOWED_RANGE_DAYS = new Set([7, 30, 90]);
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MAX_RANGE_POSTS = 500;
 const MAX_RECENT_POSTS = 5;
 const MAX_CONTENT_ROWS = 20;
+const MAX_REFRESH_POSTS = 50;
+const REFRESH_INSIGHT_METRICS = [
+  'views',
+  'reach',
+  'likes',
+  'comments',
+  'shares',
+  'saved',
+  'total_interactions',
+] as const;
 const WEEKDAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 const MONTH_LABELS = [
   'January',
@@ -187,9 +244,12 @@ type AnalyticsPost = Prisma.ContentPostGetPayload<{
 
 @Injectable()
 export class AnalyticsService {
+  private readonly logger = new Logger(AnalyticsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly media: MediaService,
+    private readonly config: ConfigService,
   ) {}
 
   async getOverview(
@@ -230,6 +290,7 @@ export class AnalyticsService {
         accounts,
         selectedAccountId: options.accountId ?? null,
         rangeDays,
+        lastUpdatedAt: null,
         statGrid: buildStatGrid([], []),
         recentPosts: [],
         distribution: [],
@@ -269,6 +330,10 @@ export class AnalyticsService {
       accounts,
       selectedAccountId: options.accountId ?? null,
       rangeDays,
+      lastUpdatedAt: latestAnalyticsFetchedAt([
+        ...currentPosts,
+        ...recentPosts,
+      ]),
       statGrid: buildStatGrid(currentPosts, previousPosts),
       recentPosts: await this.mapRecentPosts(recentPosts),
       distribution: buildDistribution(currentPosts),
@@ -280,6 +345,123 @@ export class AnalyticsService {
       recommendations: [],
       videoIdeas: [],
     };
+  }
+
+  async refreshInsights(
+    userId: string,
+    options: { accountId?: string; range?: string } = {},
+  ): Promise<RefreshInsightsResult> {
+    const rangeDays = parseRangeDays(options.range);
+    const now = new Date();
+    const currentStart = new Date(now.getTime() - rangeDays * DAY_MS);
+
+    const accountRecords = await this.prisma.instagramAccount.findMany({
+      where: {
+        userId,
+        isActive: true,
+        ...(options.accountId ? { id: options.accountId } : {}),
+      },
+      select: {
+        id: true,
+        username: true,
+        accessTokenEncrypted: true,
+      },
+    });
+
+    if (options.accountId && accountRecords.length === 0) {
+      throw new NotFoundException('Instagram account was not found.');
+    }
+
+    if (accountRecords.length === 0) {
+      return {
+        refreshed: 0,
+        skipped: 0,
+        failed: 0,
+        fetchedAt: null,
+        errors: [],
+      };
+    }
+
+    const accountById = new Map(
+      accountRecords.map((account) => [account.id, account]),
+    );
+    const posts = await this.prisma.contentPost.findMany({
+      where: {
+        instagramAccountId: { in: accountRecords.map((account) => account.id) },
+        status: PostStatus.PUBLISHED,
+        igMediaId: { not: null },
+        publishedAt: { gte: currentStart, lt: now },
+      },
+      orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }],
+      take: MAX_REFRESH_POSTS,
+      select: {
+        id: true,
+        title: true,
+        caption: true,
+        igMediaId: true,
+        instagramAccountId: true,
+      },
+    });
+
+    const fetchedAt = new Date();
+    const result: RefreshInsightsResult = {
+      refreshed: 0,
+      skipped: 0,
+      failed: 0,
+      fetchedAt: posts.length > 0 ? fetchedAt.toISOString() : null,
+      errors: [],
+    };
+
+    for (const post of posts) {
+      const account = accountById.get(post.instagramAccountId);
+      if (!account || !post.igMediaId) {
+        result.skipped += 1;
+        continue;
+      }
+
+      try {
+        const metrics = await this.fetchPostInsightMetrics(
+          post.igMediaId,
+          decryptSecret(account.accessTokenEncrypted),
+        );
+
+        await this.prisma.postAnalytics.create({
+          data: {
+            contentPostId: post.id,
+            fetchedAt,
+            likeCount: metrics.likeCount,
+            commentsCount: metrics.commentsCount,
+            sharesCount: metrics.sharesCount,
+            savesCount: metrics.savesCount,
+            reach: metrics.reach,
+            impressions: metrics.impressions,
+            engagement: metrics.engagement,
+          },
+        });
+
+        result.refreshed += 1;
+      } catch (error) {
+        const message = this.getErrorMessage(error);
+        this.logger.warn(
+          `Instagram insight refresh failed for post ${post.id}: ${message}`,
+        );
+        result.failed += 1;
+        result.errors.push({
+          postId: post.id,
+          title: post.title ?? truncate(post.caption, 40) ?? 'Untitled post',
+          message,
+        });
+      }
+    }
+
+    if (result.refreshed === 0 && result.failed > 0) {
+      throw new BadRequestException(
+        result.errors[0]?.message ??
+          'Instagram insights could not be refreshed.',
+      );
+    }
+
+    return result;
   }
 
   private findPublishedPosts(
@@ -395,6 +577,163 @@ export class AnalyticsService {
         };
       }),
     );
+  }
+
+  private async fetchPostInsightMetrics(
+    igMediaId: string,
+    accessToken: string,
+  ): Promise<PostInsightMetrics> {
+    const [fieldsResult, insightsResult] = await Promise.allSettled([
+      this.fetchMediaFields(igMediaId, accessToken),
+      this.fetchMediaInsights(igMediaId, accessToken),
+    ]);
+
+    if (
+      fieldsResult.status === 'rejected' &&
+      insightsResult.status === 'rejected'
+    ) {
+      throw insightsResult.reason;
+    }
+
+    const fields =
+      fieldsResult.status === 'fulfilled' ? fieldsResult.value : null;
+    const insights: Map<InstagramInsightMetric, number> =
+      insightsResult.status === 'fulfilled'
+        ? insightsResult.value
+        : new Map<InstagramInsightMetric, number>();
+
+    return {
+      likeCount:
+        readNumber(fields?.like_count) ?? insights.get('likes') ?? null,
+      commentsCount:
+        readNumber(fields?.comments_count) ?? insights.get('comments') ?? null,
+      sharesCount: insights.get('shares') ?? null,
+      savesCount: insights.get('saved') ?? null,
+      reach: insights.get('reach') ?? null,
+      impressions: insights.get('views') ?? null,
+      engagement: insights.get('total_interactions') ?? null,
+    };
+  }
+
+  private async fetchMediaFields(igMediaId: string, accessToken: string) {
+    const url = this.createGraphUrl(igMediaId);
+    url.searchParams.set('fields', 'id,like_count,comments_count');
+    url.searchParams.set('access_token', accessToken);
+
+    return this.requestGraph<InstagramMediaFieldsResponse>(url);
+  }
+
+  private async fetchMediaInsights(igMediaId: string, accessToken: string) {
+    const url = this.createGraphUrl(`${igMediaId}/insights`);
+    url.searchParams.set('metric', REFRESH_INSIGHT_METRICS.join(','));
+    url.searchParams.set('access_token', accessToken);
+
+    try {
+      return this.mapInsightResponse(
+        await this.requestGraph<InstagramInsightsResponse>(url),
+      );
+    } catch (error) {
+      const fallback = await this.fetchMediaInsightsIndividually(
+        igMediaId,
+        accessToken,
+      );
+
+      if (fallback.size === 0) {
+        throw error;
+      }
+
+      return fallback;
+    }
+  }
+
+  private async fetchMediaInsightsIndividually(
+    igMediaId: string,
+    accessToken: string,
+  ) {
+    const entries = await Promise.all(
+      REFRESH_INSIGHT_METRICS.map(async (metric) => {
+        try {
+          const url = this.createGraphUrl(`${igMediaId}/insights`);
+          url.searchParams.set('metric', metric);
+          url.searchParams.set('access_token', accessToken);
+
+          const value = this.readInsightMetricValue(
+            await this.requestGraph<InstagramInsightsResponse>(url),
+            metric,
+          );
+
+          return value === null ? null : ([metric, value] as const);
+        } catch {
+          return null;
+        }
+      }),
+    );
+
+    const successfulEntries = entries.filter(
+      (entry): entry is [InstagramInsightMetric, number] => entry !== null,
+    );
+
+    return new Map(successfulEntries);
+  }
+
+  private mapInsightResponse(response: InstagramInsightsResponse) {
+    const insights = new Map<InstagramInsightMetric, number>();
+
+    for (const metric of REFRESH_INSIGHT_METRICS) {
+      const value = this.readInsightMetricValue(response, metric);
+      if (value !== null) insights.set(metric, value);
+    }
+
+    return insights;
+  }
+
+  private readInsightMetricValue(
+    response: InstagramInsightsResponse,
+    metric: InstagramInsightMetric,
+  ) {
+    const item = response.data?.find((insight) => insight.name === metric);
+    return (
+      readNumber(item?.total_value?.value) ??
+      readNumber(item?.values?.at(-1)?.value) ??
+      null
+    );
+  }
+
+  private async requestGraph<T extends GraphApiError>(url: URL): Promise<T> {
+    const response = await fetch(url);
+    const body = (await response.json().catch(() => ({}))) as T;
+
+    if (!response.ok || body.error) {
+      throw new Error(
+        body.error?.message ??
+          `Instagram API request failed with status ${response.status}`,
+      );
+    }
+
+    return body;
+  }
+
+  private createGraphUrl(path: string) {
+    return new URL(
+      `${this.getGraphBaseUrl()}/${path.startsWith('/') ? path.slice(1) : path}`,
+    );
+  }
+
+  private getGraphBaseUrl() {
+    return `https://graph.instagram.com/${this.getGraphApiVersion()}`;
+  }
+
+  private getGraphApiVersion() {
+    return (
+      this.config.get<string>('META_GRAPH_API_VERSION')?.trim() ||
+      DEFAULT_GRAPH_API_VERSION
+    );
+  }
+
+  private getErrorMessage(error: unknown) {
+    return error instanceof Error
+      ? error.message
+      : 'Instagram insights could not be refreshed.';
   }
 }
 
@@ -555,6 +894,26 @@ function buildContentCalendar(
 
 function latestAnalytics(post: AnalyticsPost) {
   return post.postAnalytics[0] ?? null;
+}
+
+function latestAnalyticsFetchedAt(posts: AnalyticsPost[]) {
+  const latest = posts
+    .map((post) => latestAnalytics(post)?.fetchedAt)
+    .filter((value): value is Date => value instanceof Date)
+    .sort((a, b) => b.getTime() - a.getTime())[0];
+
+  return latest?.toISOString() ?? null;
+}
+
+function readNumber(value: unknown) {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+
+  return null;
 }
 
 function summarizeMedia(mediaItems: { kind: MediaType }[]) {
