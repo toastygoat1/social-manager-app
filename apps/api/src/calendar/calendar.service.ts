@@ -11,9 +11,12 @@ import {
   type GoogleCalendarEvent,
 } from '../integrations/google/google.service.js';
 import { MediaType, PostStatus, type PostType } from '@social-manager/database';
+import { InstagramPublisherService } from '../publishing/instagram-publisher.service.js';
 
 export type CalendarEventSource = 'scheduled_post' | 'google';
 type CreateEventAction = 'SCHEDULE' | 'POST_NOW' | 'DRAFT';
+const FEED_IMAGE_MIN_ASPECT = 4 / 5;
+const FEED_IMAGE_MAX_ASPECT = 1.91;
 
 export type CalendarEvent = {
   id: string;
@@ -49,6 +52,7 @@ export class CalendarService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly google: GoogleService,
+    private readonly publisher: InstagramPublisherService,
   ) {}
 
   async listEvents(
@@ -150,7 +154,7 @@ export class CalendarService {
     const mediaAssets = mediaAssetIds.length
       ? await this.prisma.mediaAsset.findMany({
           where: { id: { in: mediaAssetIds }, userId },
-          select: { id: true, fileType: true },
+          select: { id: true, fileType: true, width: true, height: true },
         })
       : [];
 
@@ -160,8 +164,11 @@ export class CalendarService {
       );
     }
     validateMediaForPostType(input.postType, mediaAssets);
+    if (action === 'POST_NOW') {
+      validateMediaForPostNow(input.postType, mediaAssets);
+    }
 
-    const post = await this.prisma.$transaction(async (tx) => {
+    let post = await this.prisma.$transaction(async (tx) => {
       const created = await tx.contentPost.create({
         data: {
           instagramAccountId: account.id,
@@ -185,6 +192,10 @@ export class CalendarService {
 
       return created;
     });
+
+    if (action === 'POST_NOW') {
+      post = await this.publisher.publishNow(userId, post.id);
+    }
 
     return {
       id: `post:${post.id}`,
@@ -301,5 +312,40 @@ function validateMediaForPostType(
   }
   if (postType !== 'CAROUSEL' && mediaAssets.length > 1) {
     throw new BadRequestException('Only carousel posts can use multiple files');
+  }
+}
+
+function validateMediaForPostNow(
+  postType: PostType,
+  mediaAssets: {
+    fileType: MediaType;
+    width?: number | null;
+    height?: number | null;
+  }[],
+) {
+  if (mediaAssets.length === 0) {
+    throw new BadRequestException('Add media before posting now');
+  }
+  if (postType === 'CAROUSEL' && mediaAssets.length < 2) {
+    throw new BadRequestException('Carousel posts need at least 2 files');
+  }
+  if (postType === 'FEED' && mediaAssets[0]?.fileType !== 'IMAGE') {
+    throw new BadRequestException('Feed posts require an image upload');
+  }
+
+  if (postType === 'FEED' || postType === 'CAROUSEL') {
+    const unsupportedImage = mediaAssets.find((asset) => {
+      if (asset.fileType !== 'IMAGE' || !asset.width || !asset.height) {
+        return false;
+      }
+      const aspect = asset.width / asset.height;
+      return aspect < FEED_IMAGE_MIN_ASPECT || aspect > FEED_IMAGE_MAX_ASPECT;
+    });
+
+    if (unsupportedImage) {
+      throw new BadRequestException(
+        'Instagram feed images must be between 4:5 and 1.91:1',
+      );
+    }
   }
 }
