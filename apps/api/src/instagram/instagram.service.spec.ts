@@ -8,7 +8,7 @@ import {
 } from '@jest/globals';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
-import { InstagramAccountType } from '@social-manager/database';
+import { InstagramAccountType, Prisma } from '@social-manager/database';
 import { InstagramService } from './instagram.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { encryptSecret } from '../common/crypto.util.js';
@@ -23,9 +23,11 @@ describe('InstagramService', () => {
     };
     instagramAccount: {
       create: jest.Mock<PrismaFn>;
+      update: jest.Mock<PrismaFn>;
       updateMany: jest.Mock<PrismaFn>;
       findUnique: jest.Mock<PrismaFn>;
       findMany: jest.Mock<PrismaFn>;
+      findFirst: jest.Mock<PrismaFn>;
     };
     instagramStory: {
       upsert: jest.Mock<PrismaFn>;
@@ -45,9 +47,11 @@ describe('InstagramService', () => {
       },
       instagramAccount: {
         create: jest.fn<PrismaFn>(),
+        update: jest.fn<PrismaFn>(),
         updateMany: jest.fn<PrismaFn>(),
         findUnique: jest.fn<PrismaFn>(),
         findMany: jest.fn<PrismaFn>(),
+        findFirst: jest.fn<PrismaFn>(),
       },
       instagramStory: {
         upsert: jest.fn<PrismaFn>(),
@@ -93,6 +97,7 @@ describe('InstagramService', () => {
       isActive: true,
       tokenExpiresAt: null,
       connectedAt: new Date(),
+      disconnectedAt: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -148,8 +153,83 @@ describe('InstagramService', () => {
       },
       data: {
         isActive: false,
+        disconnectedAt: expect.any(Date),
       },
     });
+  });
+
+  it('reactivates an existing owned inactive account without creating a new row', async () => {
+    const account = {
+      id: 'account-1',
+      userId: 'user-1',
+      igUserId: 'ig-1',
+      username: 'brand',
+      accountType: InstagramAccountType.BUSINESS,
+      pageId: null,
+      isActive: true,
+      tokenExpiresAt: null,
+      connectedAt: new Date(),
+      disconnectedAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    prisma.instagramAccount.findFirst.mockResolvedValue({ id: account.id });
+    prisma.instagramAccount.update.mockResolvedValue(account);
+
+    const result = await service.addAccount(
+      { userId: 'user-1', email: 'user@example.com' },
+      {
+        igUserId: 'ig-1',
+        username: 'brand',
+        accessToken: 'fresh-token',
+        accountType: InstagramAccountType.BUSINESS,
+      },
+    );
+
+    expect(prisma.instagramAccount.create).not.toHaveBeenCalled();
+    const updateArgs = prisma.instagramAccount.update.mock.calls[0][0] as {
+      where: { id: string };
+      data: Record<string, unknown>;
+      select: Record<string, boolean>;
+    };
+    expect(updateArgs.where).toEqual({ id: 'account-1' });
+    expect(updateArgs.data).toEqual(
+      expect.objectContaining({
+        username: 'brand',
+        isActive: true,
+        disconnectedAt: null,
+      }),
+    );
+    expect(updateArgs.select).not.toHaveProperty('accessTokenEncrypted');
+    expect(result).toBe(account);
+  });
+
+  it('returns an English conflict when an active account belongs to another user', async () => {
+    const conflictError = new Prisma.PrismaClientKnownRequestError(
+      'Unique constraint failed on the fields: (`ig_user_id`)',
+      {
+        code: 'P2002',
+        clientVersion: 'test',
+        meta: { target: ['ig_user_id'] },
+      },
+    );
+
+    prisma.instagramAccount.create.mockRejectedValue(conflictError);
+    prisma.instagramAccount.updateMany.mockResolvedValue({ count: 0 });
+
+    await expect(
+      service.addAccount(
+        { userId: 'user-2', email: 'other@example.com' },
+        {
+          igUserId: 'ig-1',
+          username: 'brand',
+          accessToken: 'fresh-token',
+          accountType: InstagramAccountType.BUSINESS,
+        },
+      ),
+    ).rejects.toThrow(
+      'This Instagram account is already connected to another user.',
+    );
   });
 
   it('throws when removing a missing or inactive account', async () => {

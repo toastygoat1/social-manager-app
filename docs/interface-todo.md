@@ -57,38 +57,65 @@ Referensi sudah jalan: `apps/web/lib/dashboard-data.ts`, `apps/web/app/dashboard
 
 ---
 
-## 2. Calendar (Scheduling) — `apps/web/app/calendar/`
+## 2. Calendar (Scheduling) - `apps/web/app/calendar/`
 
-**Status**: ❌ Semua data hardcoded di `_components/data.ts`. Belum ada API hook.
+**Status**: In progress / publishable MVP wired. Calendar data is API-backed, scheduled posts are stored in DB, Google Calendar events are merged when connected, the create modal supports media upload, multi-account targeting with per-account results, schedule/post-now/draft actions, immediate Instagram publishing for "Post Now", BullMQ-backed scheduled publishing, post-detail popup workflows, an approval/draft work panel, scheduled-post management, and failed-publish retries. Remaining calendar-page gap: an optional direct Google Calendar connect CTA.
 
 ### Files
 
 | Path | Purpose |
 |---|---|
-| `apps/web/app/calendar/page.tsx` | Server Component, auth check, render `<CalendarShell />` |
-| `apps/web/app/calendar/_components/CalendarShell.tsx` | Container (toggle weekly/monthly?) |
-| `apps/web/app/calendar/_components/CalendarHeader.tsx` | Navigasi bulan, tombol create, view toggle |
-| `apps/web/app/calendar/_components/MonthlyCalendar.tsx` | Grid bulan + event chips |
-| `apps/web/app/calendar/_components/WeeklyCalendar.tsx` | Grid mingguan |
-| `apps/web/app/calendar/_components/CreatePostModal.tsx` | Modal buat post baru |
-| `apps/web/app/calendar/_components/data.ts` | ❌ `WEEK_DAYS`, `WEEK_HOURS`, `MONTH_GRID`, `WeekEvent[]` semua hardcoded |
+| `apps/web/app/calendar/page.tsx` | Server Component, auth check, initial calendar fetch |
+| `apps/web/lib/calendar-data.ts` | `getCalendarData()` server fetch helper with `EMPTY_CALENDAR` fallback |
+| `apps/web/app/calendar/_components/CalendarShell.tsx` | Stateful calendar container, view switching, range refetch, error/empty states |
+| `apps/web/app/calendar/_components/CalendarHeader.tsx` | Navigation, week/month toggle, create modal launcher |
+| `apps/web/app/calendar/_components/CalendarWorkPanel.tsx` | Review tabs for awaiting approval, drafts, and failed publish retries |
+| `apps/web/app/calendar/_components/MonthlyCalendar.tsx` | Dynamic month grid + event chips |
+| `apps/web/app/calendar/_components/WeeklyCalendar.tsx` | Dynamic week grid + event chips |
+| `apps/web/app/calendar/_components/CreatePostModal.tsx` | Post/story/reels modal, media upload, account multi-select, schedule/post-now/draft |
+| `apps/web/app/calendar/_components/PostDetailsModal.tsx` | Click-through post popup, draft/scheduled editing, approval, deletion, and failed-publish retry |
+| `apps/web/app/calendar/_components/data.ts` | Pure calendar types, date helpers, `EMPTY_CALENDAR` |
+| `apps/api/src/calendar/*` | Event/detail/create, work-item/failure feeds, draft/scheduled updates, approve, retry, and delete routes |
+| `apps/api/src/media/*` | Supabase Storage signed upload URLs + `MediaAsset` creation |
+| `apps/api/src/publishing/*` | Instagram publish flow for "Post Now" and guarded worker-triggered scheduled publishing |
+| `apps/api/src/queue/*` | BullMQ delayed-job producer plus replacement/removal support for reschedule, retry, and delete |
+| `apps/worker/src/index.ts` | BullMQ consumer that triggers due scheduled posts through the guarded API route |
+
+### Done
+
+| Item | Catatan |
+|---|---|
+| API-backed calendar data | `GET /calendar/events?from=&to=` returns scheduled DB posts + Google Calendar events when connected. |
+| Removed hardcoded calendar events | Calendar data file now exports types/helpers/empty state, not dummy events. |
+| Dynamic week/month dates | Week and month grids are generated from `referenceIso`. |
+| Create modal submit flow | Modal calls `POST /calendar/events` and refreshes calendar after create. |
+| Media upload | Upload flow uses signed Supabase Storage URLs, then creates `MediaAsset` and `PostMedia` rows. |
+| Submit actions | `Schedule` requires date/time, `Post Now` skips date/time and publishes immediately, `Save as Draft` skips date/time. |
+| Account targeting | Modal supports selecting one or more connected Instagram accounts. |
+| Media rules | Feed posts use images; multiple feed images become carousel; Reels require video; Stories allow image or video. |
+| Feed image auto-crop | Feed/carousel images outside Instagram's `4:5` to `1.91:1` ratio are center-cropped in-browser before upload. |
+| Scheduled-time publishing | `READY` scheduled posts are enqueued as delayed BullMQ jobs; the worker triggers the same Instagram publisher with retry attempt tracking. |
+| Calendar status labels | Queued `READY` posts display as Scheduled; only `PENDING` posts display as awaiting approval. |
+| Calendar post popup | Clicking an app-owned post/story/reel card opens its account, caption, status, schedule, and signed media previews. |
+| Approval from calendar | A `PENDING` post can be approved in its popup; approval changes it to `READY` and enqueues publishing for its scheduled time. |
+| Draft editor from calendar | `DRAFT` posts render on their creation date and open an editor for text, media attachments, schedule time, and optional approval. |
+| Scheduled content completeness | A post must contain publishable media before it can be scheduled, including when it will wait for approval. |
+| Multi-account result feedback | Submit results are shown per account; after a partial failure only failed accounts remain selected for a safe retry. |
+| Approval/draft work panel | The calendar page includes filtered tabs for pending approvals and drafts, so they do not need to be found by date alone. |
+| Scheduled-post management | Scheduled posts can be edited, rescheduled, or deleted from their popup while the delayed BullMQ job is kept in sync. |
+| Failed publish recovery | Failed due posts appear in the work panel and detail popup with their last error and a retry action. |
 
 ### TODO
 
 | Item | Catatan |
 |---|---|
-| Buat `apps/web/lib/calendar-data.ts` dengan `getCalendarData()` | Pola sama: `apiFetch("/calendar/...")` → fallback `EMPTY_CALENDAR`. |
-| Backend endpoint `GET /calendar/events?from=&to=` | Source: Google Calendar API (read events) + DB (scheduled posts). |
-| Backend endpoint `POST /calendar/events` | Buat scheduled post → BullMQ job → publish ke IG saat `scheduledAt`. |
-| Hapus `MONTH_GRID`, `WEEK_EVENTS` di `_components/data.ts` | Ganti jadi pure types + `EMPTY_CALENDAR`. Komponen terima prop, render "No events scheduled" kalau kosong. |
-| `WEEK_DAYS` label tanggal hardcoded (25-31) | Generate dari `referenceDate` props (mirip `buildMonth` lama tapi pure-pure tanpa data, hanya grid tanggal). |
-| `CreatePostModal` belum punya submit handler | Wire ke `POST /calendar/events` setelah backend siap. Validasi: account, content, scheduledAt, media. |
-| Google Calendar OAuth flow | User harus connect Google account. Simpan refresh token enkripsi (`ENCRYPTION_KEY` sudah ada di .env). |
+| Google Calendar connect CTA | Calendar page shows a disconnected hint but does not yet include a direct connect button. |
 
 ### Rekomendasi tambahan
 
-- Pisahkan "scheduled post events" (data app sendiri) dari "Google Calendar events" (eksternal) di payload. Frontend bisa style berbeda.
-- Empty state copy: "No scheduled posts" untuk weekly/monthly grid, "Connect Google Calendar to sync events" kalau OAuth belum.
+- Keep scheduled post events and Google events separate in the payload with `source: "scheduled_post" | "google"` so frontend styling can stay clear.
+- Keep `InstagramPublisherService` as the one Meta Graph API implementation; the worker should continue to trigger it through the guarded internal route.
+- Consider adding retry progress polling or worker completion notifications so a queued retry disappears without a page refresh.
 
 ---
 
