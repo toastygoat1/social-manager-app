@@ -2,10 +2,13 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
+  Headers,
   HttpCode,
   Param,
   Post,
   Body,
+  Query,
   UseGuards,
   Request,
 } from '@nestjs/common';
@@ -13,13 +16,35 @@ import { InstagramService } from './instagram.service.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { AddInstagramAccountDto } from './dto/add-instagram-account.dto.js';
 import { CompleteInstagramOAuthDto } from './dto/complete-instagram-oauth.dto.js';
+import { SendDmMessageDto } from './dto/send-dm-message.dto.js';
 import type { AuthedRequest } from '../auth/auth.types.js';
+import type { InstagramWebhookPayload } from './instagram-webhook.types.js';
 
-@UseGuards(JwtAuthGuard)
+interface InstagramWebhookRequest {
+  rawBody?: Buffer;
+}
+
 @Controller('instagram')
 export class InstagramController {
   constructor(private readonly instagramService: InstagramService) {}
 
+  @Get('webhooks')
+  @Header('Content-Type', 'text/plain')
+  verifyWebhook(@Query() query: Record<string, string | undefined>) {
+    return this.instagramService.verifyWebhookSubscription(query);
+  }
+
+  @Post('webhooks')
+  @HttpCode(200)
+  async receiveWebhook(
+    @Request() req: InstagramWebhookRequest,
+    @Headers('x-hub-signature-256') signature: string | undefined,
+    @Body() body: InstagramWebhookPayload,
+  ) {
+    return this.instagramService.receiveWebhook(body, req.rawBody, signature);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Post('accounts')
   async addAccount(
     @Request() req: AuthedRequest,
@@ -28,11 +53,13 @@ export class InstagramController {
     return this.instagramService.addAccount(req.user, body);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get('accounts')
   async getAccounts(@Request() req: AuthedRequest) {
     return this.instagramService.getAccounts(req.user.userId);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Delete('accounts/:accountId')
   @HttpCode(204)
   async removeAccount(
@@ -42,21 +69,59 @@ export class InstagramController {
     await this.instagramService.removeAccount(req.user.userId, accountId);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get('analytics/summary')
   getAnalyticsSummary(@Request() req: AuthedRequest) {
     return this.instagramService.getAnalyticsSummary(req.user.userId);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get('oauth/url')
   getOAuthUrl(@Request() req: AuthedRequest) {
     return this.instagramService.createOAuthUrl(req.user.userId);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Post('oauth/callback')
   completeOAuth(
     @Request() req: AuthedRequest,
     @Body() body: CompleteInstagramOAuthDto,
   ) {
     return this.instagramService.completeOAuth(req.user, body);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('dm/conversations')
+  async getDmConversations(
+    @Request() req: AuthedRequest,
+    @Query('accountId') accountId?: string,
+  ) {
+    return this.instagramService.getDmConversations(req.user.userId, accountId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('dm/conversations/:conversationId')
+  async getDmConversation(
+    @Request() req: AuthedRequest,
+    @Param('conversationId') conversationId: string,
+  ) {
+    return this.instagramService.getDmConversation(
+      req.user.userId,
+      conversationId,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('dm/conversations/:conversationId/messages')
+  async sendDmMessage(
+    @Request() req: AuthedRequest,
+    @Param('conversationId') conversationId: string,
+    @Body() body: SendDmMessageDto,
+  ) {
+    return this.instagramService.sendDmMessage(
+      req.user.userId,
+      conversationId,
+      body,
+    );
   }
 }
