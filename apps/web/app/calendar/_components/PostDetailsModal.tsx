@@ -247,6 +247,7 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [caption, setCaption] = useState("");
   const [scheduledFor, setScheduledFor] = useState(defaultScheduleValue);
@@ -261,6 +262,7 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
     let active = true;
     setPost(null);
     setError(null);
+    setNotice(null);
     setLoading(true);
 
     apiFetchBrowser<CalendarPostDetail>(`/calendar/posts/${postId}`)
@@ -320,12 +322,14 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
     if (!post) return;
     setSubmitting(true);
     setError(null);
+    setNotice(null);
     try {
       const updated = await apiFetchBrowser<CalendarPostDetail>(
         `/calendar/posts/${post.id}/approve`,
         { method: "POST" },
       );
       setPost(updated);
+      setNotice("Post approved and queued for publishing.");
       onChanged();
     } catch (submitError) {
       setError(readErrorMessage(submitError));
@@ -348,6 +352,7 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
 
     setSubmitting(true);
     setError(null);
+    setNotice(null);
     try {
       const addedMediaAssetIds = await uploadDraftMedia();
       const updated = await apiFetchBrowser<CalendarPostDetail>(
@@ -370,6 +375,9 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
       setPost(updated);
       setAttachedMedia(updated.media);
       setDraftUploads([]);
+      setNotice(
+        action === "SCHEDULE" ? "Draft scheduled successfully." : "Draft saved.",
+      );
       onChanged();
     } catch (submitError) {
       setError(readErrorMessage(submitError));
@@ -379,6 +387,8 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
   }
 
   const isDraft = post?.status === "draft";
+  const isScheduled = post?.status === "scheduled";
+  const isEditable = isDraft || isScheduled;
   const shownMedia = isDraft
     ? [...attachedMedia, ...draftUploads]
     : (post?.media ?? []);
@@ -479,6 +489,78 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
     setAttachedMedia((current) => current.filter((item) => item.id !== mediaId));
   }
 
+  async function updateScheduledPost() {
+    if (!post) return;
+    const date = new Date(scheduledFor);
+    if (Number.isNaN(date.getTime()) || date <= new Date()) {
+      setError("Pick a future schedule time.");
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const updated = await apiFetchBrowser<CalendarPostDetail>(
+        `/calendar/posts/${post.id}/scheduled`,
+        {
+          method: "PATCH",
+          body: {
+            title,
+            caption,
+            scheduledFor: date.toISOString(),
+          },
+        },
+      );
+      setPost(updated);
+      setNotice("Scheduled post updated.");
+      onChanged();
+    } catch (submitError) {
+      setError(readErrorMessage(submitError));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function deletePost() {
+    if (!post) return;
+    const confirmed = window.confirm(
+      "Delete this post? This action cannot be undone.",
+    );
+    if (!confirmed) return;
+    setSubmitting(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await apiFetchBrowser(`/calendar/posts/${post.id}`, { method: "DELETE" });
+      onChanged();
+      onClose();
+    } catch (submitError) {
+      setError(readErrorMessage(submitError));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function retryPublish() {
+    if (!post) return;
+    setSubmitting(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const updated = await apiFetchBrowser<CalendarPostDetail>(
+        `/calendar/posts/${post.id}/retry`,
+        { method: "POST" },
+      );
+      setPost(updated);
+      setNotice("Retry queued. Refresh after the worker processes it.");
+      onChanged();
+    } catch (submitError) {
+      setError(readErrorMessage(submitError));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   return (
     <div
       role="dialog"
@@ -515,7 +597,7 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
         ) : post ? (
           <div className="grid min-h-0 flex-1 grid-cols-1 overflow-y-auto md:grid-cols-[1.05fr_0.95fr]">
             <section className="flex flex-col gap-5 border-b border-line p-7 md:border-b-0 md:border-r">
-              {isDraft ? (
+              {isEditable ? (
                 <>
                   <input
                     value={title}
@@ -683,6 +765,45 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
                 </div>
               ) : null}
 
+              {isScheduled ? (
+                <div className="flex flex-col gap-4 rounded-xl border border-line bg-card p-4">
+                  <p className="text-sm font-semibold text-ink">
+                    Manage scheduled post
+                  </p>
+                  <label className="flex flex-col gap-1 text-xs font-medium text-muted">
+                    Schedule time
+                    <span className="flex h-10 items-center gap-2 rounded-lg border border-line bg-paper px-3">
+                      <Calendar className="size-4" />
+                      <input
+                        type="datetime-local"
+                        value={scheduledFor}
+                        min={toLocalDatetimeInputValue(new Date().toISOString())}
+                        onChange={(event) => setScheduledFor(event.target.value)}
+                        className="min-w-0 flex-1 bg-transparent text-sm text-ink focus:outline-none"
+                      />
+                    </span>
+                  </label>
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      disabled={submitting}
+                      onClick={() => void deletePost()}
+                      className="flex-1 rounded-lg border border-red-200 bg-paper px-4 py-2 text-sm font-semibold text-danger disabled:opacity-60"
+                    >
+                      Delete
+                    </button>
+                    <button
+                      type="button"
+                      disabled={submitting}
+                      onClick={() => void updateScheduledPost()}
+                      className="flex-1 rounded-lg bg-cta px-4 py-2 text-sm font-semibold text-paper disabled:opacity-60"
+                    >
+                      Save Changes
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+
               {post.status === "pending" ? (
                 <div className="rounded-xl border border-[#f7c852] bg-[#fff8e8] p-4">
                   <p className="text-sm font-semibold text-ink">
@@ -699,9 +820,53 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
                   >
                     {submitting ? "Approving..." : "Approve Post"}
                   </button>
+                  <button
+                    type="button"
+                    disabled={submitting}
+                    onClick={() => void deletePost()}
+                    className="mt-2 w-full rounded-lg border border-red-200 bg-paper px-4 py-2.5 text-sm font-semibold text-danger disabled:opacity-60"
+                  >
+                    Delete Post
+                  </button>
                 </div>
               ) : null}
 
+              {isDraft ? (
+                <button
+                  type="button"
+                  disabled={submitting}
+                  onClick={() => void deletePost()}
+                  className="rounded-lg border border-red-200 bg-paper px-4 py-2 text-sm font-semibold text-danger disabled:opacity-60"
+                >
+                  Delete Draft
+                </button>
+              ) : null}
+
+              {post.latestFailure ? (
+                <div className="rounded-xl border border-red-200 bg-red-50 p-4">
+                  <p className="text-sm font-semibold text-danger">
+                    Publishing failed
+                  </p>
+                  <p className="mt-1 text-xs text-muted">
+                    Attempt {post.latestFailure.attemptNumber}:{" "}
+                    {post.latestFailure.errorMessage || "Unknown publish error"}
+                  </p>
+                  <button
+                    type="button"
+                    disabled={submitting}
+                    onClick={() => void retryPublish()}
+                    className="mt-4 w-full rounded-lg bg-cta px-4 py-2.5 text-sm font-semibold text-paper disabled:opacity-60"
+                  >
+                    {submitting ? "Queueing..." : "Retry Publish"}
+                  </button>
+                </div>
+              ) : null}
+
+              {notice ? (
+                <p className="rounded-lg bg-[#e6f7fa] px-3 py-2 text-sm font-medium text-ink">
+                  {notice}
+                </p>
+              ) : null}
               {error ? (
                 <p className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-danger">
                   {error}

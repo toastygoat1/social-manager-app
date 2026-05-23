@@ -13,6 +13,7 @@ import {
 import {
   MediaType,
   PostStatus,
+  PublishAttemptStatus,
   type PostType,
   type Prisma,
 } from '@social-manager/database';
@@ -58,6 +59,10 @@ const POST_DETAIL_INCLUDE = {
     orderBy: { sortOrder: 'asc' },
     include: { mediaAsset: true },
   },
+  publishAttempts: {
+    orderBy: { startedAt: 'desc' },
+    take: 1,
+  },
 } satisfies Prisma.ContentPostInclude;
 
 type PostDetailRecord = Prisma.ContentPostGetPayload<{
@@ -85,6 +90,33 @@ export type CalendarPostDetail = {
     durationSeconds: number | null;
     previewUrl: string | null;
   }[];
+  latestFailure: {
+    id: string;
+    attemptNumber: number;
+    errorMessage: string | null;
+    startedAt: string;
+  } | null;
+};
+
+export type CalendarWorkItem = {
+  id: string;
+  title: string;
+  postType: PostType;
+  status: 'pending' | 'draft';
+  accountUsername: string;
+  scheduledFor: string | null;
+  createdAt: string;
+};
+
+export type CalendarFailedPost = {
+  id: string;
+  title: string;
+  postType: PostType;
+  accountUsername: string;
+  scheduledFor: string | null;
+  attemptNumber: number;
+  errorMessage: string | null;
+  failedAt: string;
 };
 
 const POST_STATUS_TO_UI: Record<
@@ -283,6 +315,73 @@ export class CalendarService {
     };
   }
 
+  async listWorkItems(userId: string): Promise<{
+    pending: CalendarWorkItem[];
+    drafts: CalendarWorkItem[];
+  }> {
+    const posts = await this.prisma.contentPost.findMany({
+      where: {
+        status: { in: [PostStatus.PENDING, PostStatus.DRAFT] },
+        instagramAccount: { userId, isActive: true },
+      },
+      include: {
+        instagramAccount: { select: { username: true } },
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
+
+    const items = posts.map((post) => ({
+      id: post.id,
+      title: post.title ?? post.caption?.slice(0, 60) ?? 'Untitled post',
+      postType: post.postType,
+      status:
+        post.status === PostStatus.PENDING
+          ? ('pending' as const)
+          : ('draft' as const),
+      accountUsername: post.instagramAccount.username,
+      scheduledFor: post.scheduledFor?.toISOString() ?? null,
+      createdAt: post.createdAt.toISOString(),
+    }));
+
+    return {
+      pending: items.filter((item) => item.status === 'pending'),
+      drafts: items.filter((item) => item.status === 'draft'),
+    };
+  }
+
+  async listFailedPosts(userId: string): Promise<CalendarFailedPost[]> {
+    const posts = await this.prisma.contentPost.findMany({
+      where: {
+        status: PostStatus.READY,
+        scheduledFor: { lte: new Date() },
+        instagramAccount: { userId, isActive: true },
+        publishAttempts: { some: { status: PublishAttemptStatus.FAILED } },
+      },
+      include: {
+        instagramAccount: { select: { username: true } },
+        publishAttempts: { orderBy: { startedAt: 'desc' }, take: 1 },
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
+
+    return posts.flatMap((post) => {
+      const attempt = post.publishAttempts[0];
+      if (!attempt || attempt.status !== PublishAttemptStatus.FAILED) return [];
+      return [
+        {
+          id: post.id,
+          title: post.title ?? post.caption?.slice(0, 60) ?? 'Untitled post',
+          postType: post.postType,
+          accountUsername: post.instagramAccount.username,
+          scheduledFor: post.scheduledFor?.toISOString() ?? null,
+          attemptNumber: attempt.attemptNumber,
+          errorMessage: attempt.errorMessage,
+          failedAt: attempt.startedAt.toISOString(),
+        },
+      ];
+    });
+  }
+
   async getPostDetail(
     userId: string,
     contentPostId: string,
@@ -419,6 +518,122 @@ export class CalendarService {
     return this.getPostDetail(userId, contentPostId);
   }
 
+  async updateScheduledPost(
+    userId: string,
+    contentPostId: string,
+    input: {
+      title?: string;
+      caption?: string;
+      scheduledFor?: string;
+    },
+  ): Promise<CalendarPostDetail> {
+    const post = await this.getOwnedPost(userId, contentPostId);
+    if (post.status !== PostStatus.READY || !post.scheduledFor) {
+      throw new BadRequestException('Only scheduled posts can be edited');
+    }
+
+    const nextScheduledFor = input.scheduledFor
+      ? parseFutureSchedule(input.scheduledFor)
+      : post.scheduledFor;
+    const scheduleChanged =
+      nextScheduledFor.getTime() !== post.scheduledFor.getTime();
+
+    if (scheduleChanged) {
+      await this.publishQueue.ensureAvailable();
+      try {
+        await this.publishQueue.replaceScheduledPost(post.id, nextScheduledFor);
+      } catch (error) {
+        try {
+          await this.publishQueue.enqueueScheduledPost(
+            post.id,
+            post.scheduledFor,
+          );
+        } catch {
+          this.logger.error(`Could not restore job for ${post.id}`);
+        }
+        throw error;
+      }
+    }
+
+    const data: {
+      title?: string | null;
+      caption?: string | null;
+      scheduledFor?: Date;
+    } = {};
+    if (input.title !== undefined)
+      data.title = normalizeOptionalText(input.title);
+    if (input.caption !== undefined) {
+      data.caption = normalizeOptionalText(input.caption);
+    }
+    if (scheduleChanged) data.scheduledFor = nextScheduledFor;
+
+    const result = await this.prisma.contentPost.updateMany({
+      where: { id: post.id, status: PostStatus.READY },
+      data,
+    });
+    if (result.count !== 1) {
+      if (scheduleChanged) {
+        await this.publishQueue.replaceScheduledPost(
+          post.id,
+          post.scheduledFor,
+        );
+      }
+      throw new BadRequestException('This scheduled post was already updated');
+    }
+
+    return this.getPostDetail(userId, contentPostId);
+  }
+
+  async retryFailedPost(
+    userId: string,
+    contentPostId: string,
+  ): Promise<CalendarPostDetail> {
+    const post = await this.getOwnedPost(userId, contentPostId);
+    const latestAttempt = post.publishAttempts[0];
+    if (
+      post.status !== PostStatus.READY ||
+      !post.scheduledFor ||
+      !latestAttempt ||
+      latestAttempt.status !== PublishAttemptStatus.FAILED
+    ) {
+      throw new BadRequestException('This post does not have a failed publish');
+    }
+    if (post.scheduledFor > new Date()) {
+      throw new BadRequestException('This post is not due for publishing yet');
+    }
+
+    validateMediaForPublishing(
+      post.postType,
+      post.postMedia.map((item) => item.mediaAsset),
+    );
+    await this.publishQueue.ensureAvailable();
+    await this.publishQueue.replaceScheduledPost(post.id, new Date());
+    return this.getPostDetail(userId, contentPostId);
+  }
+
+  async deletePost(userId: string, contentPostId: string): Promise<void> {
+    const post = await this.getOwnedPost(userId, contentPostId);
+    if (post.status === PostStatus.PUBLISHED) {
+      throw new BadRequestException('Published posts cannot be deleted here');
+    }
+
+    if (post.status === PostStatus.READY) {
+      await this.publishQueue.ensureAvailable();
+      await this.publishQueue.removeScheduledPost(post.id);
+    }
+
+    const result = await this.prisma.contentPost.deleteMany({
+      where: {
+        id: post.id,
+        status: post.status,
+        instagramAccount: { userId, isActive: true },
+      },
+    });
+    if (result.count !== 1) {
+      throw new BadRequestException('This post was already updated');
+    }
+  }
+
   private async getOwnedPost(userId: string, contentPostId: string) {
     const post = await this.prisma.contentPost.findFirst({
       where: {
@@ -449,6 +664,16 @@ export class CalendarService {
         ),
       })),
     );
+    const latestAttempt = post.publishAttempts[0];
+    const latestFailure =
+      latestAttempt?.status === PublishAttemptStatus.FAILED
+        ? {
+            id: latestAttempt.id,
+            attemptNumber: latestAttempt.attemptNumber,
+            errorMessage: latestAttempt.errorMessage,
+            startedAt: latestAttempt.startedAt.toISOString(),
+          }
+        : null;
 
     return {
       id: post.id,
@@ -462,6 +687,7 @@ export class CalendarService {
       publishedAt: post.publishedAt?.toISOString() ?? null,
       createdAt: post.createdAt.toISOString(),
       media,
+      latestFailure,
     };
   }
 
@@ -523,6 +749,17 @@ function normalizeOptionalText(value: string | undefined): string | null {
   return trimmed ? trimmed : null;
 }
 
+function parseFutureSchedule(value: string): Date {
+  const scheduledFor = new Date(value);
+  if (Number.isNaN(scheduledFor.getTime())) {
+    throw new BadRequestException('Invalid scheduledFor');
+  }
+  if (scheduledFor <= new Date()) {
+    throw new BadRequestException('scheduledFor must be in the future');
+  }
+  return scheduledFor;
+}
+
 function resolveCreateAction(
   input: {
     scheduledFor?: string;
@@ -542,13 +779,7 @@ function resolveCreateAction(
     throw new BadRequestException('scheduledFor is required');
   }
 
-  const scheduledFor = new Date(input.scheduledFor);
-  if (Number.isNaN(scheduledFor.getTime())) {
-    throw new BadRequestException('Invalid scheduledFor');
-  }
-  if (scheduledFor <= new Date()) {
-    throw new BadRequestException('scheduledFor must be in the future');
-  }
+  const scheduledFor = parseFutureSchedule(input.scheduledFor);
 
   return {
     scheduledFor,

@@ -183,7 +183,6 @@ export function CalendarHeader({
         defaultScheduledIso={referenceIso}
         onClose={() => setModalType(null)}
         onCreated={() => {
-          setModalType(null);
           onCreated();
         }}
       />

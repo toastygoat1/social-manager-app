@@ -3,13 +3,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiFetchBrowser } from "@/lib/api/browser-client";
 import { CalendarHeader, type CalendarView } from "./CalendarHeader";
+import { CalendarWorkPanel } from "./CalendarWorkPanel";
 import { MonthlyCalendar } from "./MonthlyCalendar";
 import { PostDetailsModal } from "./PostDetailsModal";
 import { WeeklyCalendar } from "./WeeklyCalendar";
 import {
   type CalendarEvent,
+  type CalendarFailedPost,
+  type CalendarWorkItems,
   type CalendarData,
   EMPTY_CALENDAR,
+  EMPTY_WORK_ITEMS,
   formatPeriodLabel,
   rangeForMonth,
   rangeForWeek,
@@ -29,6 +33,9 @@ export function CalendarShell({ initialReferenceIso, initialData }: Props) {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+  const [workItems, setWorkItems] = useState<CalendarWorkItems>(EMPTY_WORK_ITEMS);
+  const [failedPosts, setFailedPosts] = useState<CalendarFailedPost[]>([]);
+  const [operationsLoading, setOperationsLoading] = useState(false);
   const skipNextFetchRef = useRef(true);
 
   const range = useMemo(
@@ -61,6 +68,27 @@ export function CalendarShell({ initialReferenceIso, initialData }: Props) {
     }
   }, [range.from, range.to]);
 
+  const fetchOperations = useCallback(async () => {
+    setOperationsLoading(true);
+    try {
+      const [nextWorkItems, nextFailedPosts] = await Promise.all([
+        apiFetchBrowser<CalendarWorkItems>("/calendar/work-items"),
+        apiFetchBrowser<CalendarFailedPost[]>("/calendar/failed-posts"),
+      ]);
+      setWorkItems(nextWorkItems);
+      setFailedPosts(nextFailedPosts);
+    } catch {
+      setWorkItems(EMPTY_WORK_ITEMS);
+      setFailedPosts([]);
+    } finally {
+      setOperationsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void fetchOperations();
+  }, [fetchOperations]);
+
   useEffect(() => {
     if (skipNextFetchRef.current) {
       skipNextFetchRef.current = false;
@@ -71,8 +99,8 @@ export function CalendarShell({ initialReferenceIso, initialData }: Props) {
 
   const refresh = useCallback(() => {
     skipNextFetchRef.current = false;
-    fetchEvents();
-  }, [fetchEvents]);
+    void Promise.all([fetchEvents(), fetchOperations()]);
+  }, [fetchEvents, fetchOperations]);
 
   const periodLabel = formatPeriodLabel(view, reference);
 
@@ -117,6 +145,13 @@ export function CalendarShell({ initialReferenceIso, initialData }: Props) {
           ) : null}
         </div>
       ) : null}
+      <CalendarWorkPanel
+        workItems={workItems}
+        failedPosts={failedPosts}
+        loading={operationsLoading}
+        onOpenPost={setSelectedPostId}
+        onChanged={refresh}
+      />
       {view === "week" ? (
         <WeeklyCalendar
           reference={reference}
