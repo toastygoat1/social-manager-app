@@ -23,6 +23,7 @@ describe('InstagramService', () => {
     };
     instagramAccount: {
       create: jest.Mock<PrismaFn>;
+      update: jest.Mock<PrismaFn>;
       updateMany: jest.Mock<PrismaFn>;
       findUnique: jest.Mock<PrismaFn>;
       findMany: jest.Mock<PrismaFn>;
@@ -46,6 +47,7 @@ describe('InstagramService', () => {
       },
       instagramAccount: {
         create: jest.fn<PrismaFn>(),
+        update: jest.fn<PrismaFn>(),
         updateMany: jest.fn<PrismaFn>(),
         findUnique: jest.fn<PrismaFn>(),
         findMany: jest.fn<PrismaFn>(),
@@ -156,7 +158,7 @@ describe('InstagramService', () => {
     });
   });
 
-  it('reactivates an existing owned account conflict with a fresh token', async () => {
+  it('reactivates an existing owned inactive account without creating a new row', async () => {
     const account = {
       id: 'account-1',
       userId: 'user-1',
@@ -171,18 +173,8 @@ describe('InstagramService', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     };
-    const conflictError = new Prisma.PrismaClientKnownRequestError(
-      'Unique constraint failed on the fields: (`ig_user_id`)',
-      {
-        code: 'P2002',
-        clientVersion: 'test',
-        meta: { target: ['ig_user_id'] },
-      },
-    );
-
-    prisma.instagramAccount.create.mockRejectedValue(conflictError);
-    prisma.instagramAccount.updateMany.mockResolvedValue({ count: 1 });
-    prisma.instagramAccount.findFirst.mockResolvedValue(account);
+    prisma.instagramAccount.findFirst.mockResolvedValue({ id: account.id });
+    prisma.instagramAccount.update.mockResolvedValue(account);
 
     const result = await service.addAccount(
       { userId: 'user-1', email: 'user@example.com' },
@@ -194,17 +186,21 @@ describe('InstagramService', () => {
       },
     );
 
-    expect(prisma.instagramAccount.updateMany).toHaveBeenCalledWith({
-      where: {
-        igUserId: 'ig-1',
-        userId: 'user-1',
-      },
-      data: expect.objectContaining({
+    expect(prisma.instagramAccount.create).not.toHaveBeenCalled();
+    const updateArgs = prisma.instagramAccount.update.mock.calls[0][0] as {
+      where: { id: string };
+      data: Record<string, unknown>;
+      select: Record<string, boolean>;
+    };
+    expect(updateArgs.where).toEqual({ id: 'account-1' });
+    expect(updateArgs.data).toEqual(
+      expect.objectContaining({
         username: 'brand',
         isActive: true,
         disconnectedAt: null,
-      }) as Record<string, unknown>,
-    });
+      }),
+    );
+    expect(updateArgs.select).not.toHaveProperty('accessTokenEncrypted');
     expect(result).toBe(account);
   });
 

@@ -252,9 +252,9 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
   const [caption, setCaption] = useState("");
   const [scheduledFor, setScheduledFor] = useState(defaultScheduleValue);
   const [requiresApproval, setRequiresApproval] = useState(false);
-  const [attachedMedia, setAttachedMedia] = useState<CalendarPostDetail["media"]>(
-    [],
-  );
+  const [attachedMedia, setAttachedMedia] = useState<
+    CalendarPostDetail["media"]
+  >([]);
   const [draftUploads, setDraftUploads] = useState<DraftUpload[]>([]);
 
   useEffect(() => {
@@ -376,7 +376,9 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
       setAttachedMedia(updated.media);
       setDraftUploads([]);
       setNotice(
-        action === "SCHEDULE" ? "Draft scheduled successfully." : "Draft saved.",
+        action === "SCHEDULE"
+          ? "Draft scheduled successfully."
+          : "Draft saved.",
       );
       onChanged();
     } catch (submitError) {
@@ -388,7 +390,9 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
 
   const isDraft = post?.status === "draft";
   const isScheduled = post?.status === "scheduled";
-  const isEditable = isDraft || isScheduled;
+  const canManageScheduled =
+    isScheduled && post?.latestFailure?.retryable !== false;
+  const isEditable = isDraft || canManageScheduled;
   const shownMedia = isDraft
     ? [...attachedMedia, ...draftUploads]
     : (post?.media ?? []);
@@ -483,10 +487,14 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
     const upload = draftUploads.find((item) => item.id === mediaId);
     if (upload) {
       URL.revokeObjectURL(upload.previewUrl);
-      setDraftUploads((current) => current.filter((item) => item.id !== mediaId));
+      setDraftUploads((current) =>
+        current.filter((item) => item.id !== mediaId),
+      );
       return;
     }
-    setAttachedMedia((current) => current.filter((item) => item.id !== mediaId));
+    setAttachedMedia((current) =>
+      current.filter((item) => item.id !== mediaId),
+    );
   }
 
   async function updateScheduledPost() {
@@ -630,7 +638,10 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
                 {shownMedia.length ? (
                   <div className="grid grid-cols-2 gap-3">
                     {shownMedia.map((item) => (
-                      <div key={item.id} className="group relative overflow-hidden rounded-xl border border-line bg-card">
+                      <div
+                        key={item.id}
+                        className="group relative overflow-hidden rounded-xl border border-line bg-card"
+                      >
                         <div className="relative flex aspect-square items-center justify-center overflow-hidden bg-[#495057]">
                           {item.fileType === "IMAGE" && item.previewUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
@@ -701,7 +712,9 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
 
             <section className="flex flex-col gap-5 p-7">
               <div>
-                <h3 className="mb-2 text-sm font-semibold text-ink">Information</h3>
+                <h3 className="mb-2 text-sm font-semibold text-ink">
+                  Information
+                </h3>
                 <DetailRow label="Account" value={`@${post.accountUsername}`} />
                 <DetailRow label="Format" value={post.postType} />
                 <DetailRow label="Created" value={formatDate(post.createdAt)} />
@@ -727,8 +740,12 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
                       <input
                         type="datetime-local"
                         value={scheduledFor}
-                        min={toLocalDatetimeInputValue(new Date().toISOString())}
-                        onChange={(event) => setScheduledFor(event.target.value)}
+                        min={toLocalDatetimeInputValue(
+                          new Date().toISOString(),
+                        )}
+                        onChange={(event) =>
+                          setScheduledFor(event.target.value)
+                        }
                         className="min-w-0 flex-1 bg-transparent text-sm text-ink focus:outline-none"
                       />
                     </span>
@@ -765,7 +782,7 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
                 </div>
               ) : null}
 
-              {isScheduled ? (
+              {canManageScheduled ? (
                 <div className="flex flex-col gap-4 rounded-xl border border-line bg-card p-4">
                   <p className="text-sm font-semibold text-ink">
                     Manage scheduled post
@@ -777,8 +794,12 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
                       <input
                         type="datetime-local"
                         value={scheduledFor}
-                        min={toLocalDatetimeInputValue(new Date().toISOString())}
-                        onChange={(event) => setScheduledFor(event.target.value)}
+                        min={toLocalDatetimeInputValue(
+                          new Date().toISOString(),
+                        )}
+                        onChange={(event) =>
+                          setScheduledFor(event.target.value)
+                        }
                         className="min-w-0 flex-1 bg-transparent text-sm text-ink focus:outline-none"
                       />
                     </span>
@@ -845,20 +866,29 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
               {post.latestFailure ? (
                 <div className="rounded-xl border border-red-200 bg-red-50 p-4">
                   <p className="text-sm font-semibold text-danger">
-                    Publishing failed
+                    {post.latestFailure.retryable
+                      ? "Publishing failed"
+                      : "Publishing needs confirmation"}
                   </p>
                   <p className="mt-1 text-xs text-muted">
                     Attempt {post.latestFailure.attemptNumber}:{" "}
                     {post.latestFailure.errorMessage || "Unknown publish error"}
                   </p>
-                  <button
-                    type="button"
-                    disabled={submitting}
-                    onClick={() => void retryPublish()}
-                    className="mt-4 w-full rounded-lg bg-cta px-4 py-2.5 text-sm font-semibold text-paper disabled:opacity-60"
-                  >
-                    {submitting ? "Queueing..." : "Retry Publish"}
-                  </button>
+                  {post.latestFailure.retryable ? (
+                    <button
+                      type="button"
+                      disabled={submitting}
+                      onClick={() => void retryPublish()}
+                      className="mt-4 w-full rounded-lg bg-cta px-4 py-2.5 text-sm font-semibold text-paper disabled:opacity-60"
+                    >
+                      {submitting ? "Queueing..." : "Retry Publish"}
+                    </button>
+                  ) : (
+                    <p className="mt-3 text-xs font-medium text-danger">
+                      Check Instagram before creating or publishing this content
+                      again.
+                    </p>
+                  )}
                 </div>
               ) : null}
 

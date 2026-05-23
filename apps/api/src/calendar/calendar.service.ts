@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   Logger,
@@ -95,6 +96,7 @@ export type CalendarPostDetail = {
     attemptNumber: number;
     errorMessage: string | null;
     startedAt: string;
+    retryable: boolean;
   } | null;
 };
 
@@ -117,6 +119,7 @@ export type CalendarFailedPost = {
   attemptNumber: number;
   errorMessage: string | null;
   failedAt: string;
+  retryable: boolean;
 };
 
 const POST_STATUS_TO_UI: Record<
@@ -285,12 +288,23 @@ export class CalendarService {
         });
       }
 
-      if (publishWhenScheduled && scheduledFor) {
-        await this.publishQueue.enqueueScheduledPost(created.id, scheduledFor);
-      }
-
       return created;
     });
+
+    if (publishWhenScheduled && scheduledFor) {
+      try {
+        await this.publishQueue.enqueueScheduledPost(post.id, scheduledFor);
+      } catch (error) {
+        await this.prisma.contentPost
+          .delete({ where: { id: post.id } })
+          .catch((rollbackError: unknown) => {
+            this.logger.error(
+              `Could not remove unqueued scheduled post ${post.id}: ${readMessage(rollbackError)}`,
+            );
+          });
+        throw error;
+      }
+    }
 
     if (action === 'POST_NOW') {
       post = await this.publisher.publishNow(userId, post.id);
@@ -355,7 +369,12 @@ export class CalendarService {
         status: PostStatus.READY,
         scheduledFor: { lte: new Date() },
         instagramAccount: { userId, isActive: true },
-        publishAttempts: { some: { status: PublishAttemptStatus.FAILED } },
+        OR: [
+          { igMediaContainerId: { not: null } },
+          {
+            publishAttempts: { some: { status: PublishAttemptStatus.FAILED } },
+          },
+        ],
       },
       include: {
         instagramAccount: { select: { username: true } },
@@ -366,7 +385,13 @@ export class CalendarService {
 
     return posts.flatMap((post) => {
       const attempt = post.publishAttempts[0];
-      if (!attempt || attempt.status !== PublishAttemptStatus.FAILED) return [];
+      const requiresReview = !!post.igMediaContainerId;
+      if (
+        !requiresReview &&
+        (!attempt || attempt.status !== PublishAttemptStatus.FAILED)
+      ) {
+        return [];
+      }
       return [
         {
           id: post.id,
@@ -374,9 +399,14 @@ export class CalendarService {
           postType: post.postType,
           accountUsername: post.instagramAccount.username,
           scheduledFor: post.scheduledFor?.toISOString() ?? null,
-          attemptNumber: attempt.attemptNumber,
-          errorMessage: attempt.errorMessage,
-          failedAt: attempt.startedAt.toISOString(),
+          attemptNumber: attempt?.attemptNumber ?? 1,
+          errorMessage:
+            attempt?.errorMessage ??
+            (requiresReview
+              ? 'Publishing may have completed on Instagram; confirm it before retrying.'
+              : null),
+          failedAt: (attempt?.startedAt ?? post.updatedAt).toISOString(),
+          retryable: !requiresReview,
         },
       ];
     });
@@ -531,6 +561,11 @@ export class CalendarService {
     if (post.status !== PostStatus.READY || !post.scheduledFor) {
       throw new BadRequestException('Only scheduled posts can be edited');
     }
+    if (post.igMediaContainerId) {
+      throw new ConflictException(
+        'Publishing may already have completed on Instagram. Verify the result before editing this post.',
+      );
+    }
 
     const nextScheduledFor = input.scheduledFor
       ? parseFutureSchedule(input.scheduledFor)
@@ -567,18 +602,25 @@ export class CalendarService {
     }
     if (scheduleChanged) data.scheduledFor = nextScheduledFor;
 
-    const result = await this.prisma.contentPost.updateMany({
-      where: { id: post.id, status: PostStatus.READY },
-      data,
-    });
-    if (result.count !== 1) {
-      if (scheduleChanged) {
-        await this.publishQueue.replaceScheduledPost(
-          post.id,
-          post.scheduledFor,
+    try {
+      const result = await this.prisma.contentPost.updateMany({
+        where: { id: post.id, status: PostStatus.READY },
+        data,
+      });
+      if (result.count !== 1) {
+        throw new BadRequestException(
+          'This scheduled post was already updated',
         );
       }
-      throw new BadRequestException('This scheduled post was already updated');
+    } catch (error) {
+      if (scheduleChanged) {
+        await this.restoreScheduledPostJob(
+          post.id,
+          post.scheduledFor,
+          'scheduled post update',
+        );
+      }
+      throw error;
     }
 
     return this.getPostDetail(userId, contentPostId);
@@ -590,6 +632,11 @@ export class CalendarService {
   ): Promise<CalendarPostDetail> {
     const post = await this.getOwnedPost(userId, contentPostId);
     const latestAttempt = post.publishAttempts[0];
+    if (post.status === PostStatus.READY && post.igMediaContainerId) {
+      throw new ConflictException(
+        'Publishing may already have completed on Instagram. Verify the result before attempting another publish.',
+      );
+    }
     if (
       post.status !== PostStatus.READY ||
       !post.scheduledFor ||
@@ -616,21 +663,51 @@ export class CalendarService {
     if (post.status === PostStatus.PUBLISHED) {
       throw new BadRequestException('Published posts cannot be deleted here');
     }
+    if (post.status === PostStatus.READY && post.igMediaContainerId) {
+      throw new ConflictException(
+        'Publishing may already have completed on Instagram. Verify the result before deleting this post.',
+      );
+    }
 
     if (post.status === PostStatus.READY) {
       await this.publishQueue.ensureAvailable();
       await this.publishQueue.removeScheduledPost(post.id);
     }
 
-    const result = await this.prisma.contentPost.deleteMany({
-      where: {
-        id: post.id,
-        status: post.status,
-        instagramAccount: { userId, isActive: true },
-      },
-    });
-    if (result.count !== 1) {
-      throw new BadRequestException('This post was already updated');
+    try {
+      const result = await this.prisma.contentPost.deleteMany({
+        where: {
+          id: post.id,
+          status: post.status,
+          instagramAccount: { userId, isActive: true },
+        },
+      });
+      if (result.count !== 1) {
+        throw new BadRequestException('This post was already updated');
+      }
+    } catch (error) {
+      if (post.status === PostStatus.READY && post.scheduledFor) {
+        await this.restoreScheduledPostJob(
+          post.id,
+          post.scheduledFor,
+          'scheduled post deletion',
+        );
+      }
+      throw error;
+    }
+  }
+
+  private async restoreScheduledPostJob(
+    contentPostId: string,
+    scheduledFor: Date,
+    operation: string,
+  ) {
+    try {
+      await this.publishQueue.replaceScheduledPost(contentPostId, scheduledFor);
+    } catch (error) {
+      this.logger.error(
+        `Could not restore queued job after ${operation} for ${contentPostId}: ${readMessage(error)}`,
+      );
     }
   }
 
@@ -665,13 +742,22 @@ export class CalendarService {
       })),
     );
     const latestAttempt = post.publishAttempts[0];
+    const requiresReview =
+      post.status === PostStatus.READY && !!post.igMediaContainerId;
     const latestFailure =
-      latestAttempt?.status === PublishAttemptStatus.FAILED
+      latestAttempt?.status === PublishAttemptStatus.FAILED || requiresReview
         ? {
-            id: latestAttempt.id,
-            attemptNumber: latestAttempt.attemptNumber,
-            errorMessage: latestAttempt.errorMessage,
-            startedAt: latestAttempt.startedAt.toISOString(),
+            id: latestAttempt?.id ?? `review:${post.id}`,
+            attemptNumber: latestAttempt?.attemptNumber ?? 1,
+            errorMessage:
+              latestAttempt?.errorMessage ??
+              (requiresReview
+                ? 'Publishing may have completed on Instagram; confirm it before retrying.'
+                : null),
+            startedAt: (
+              latestAttempt?.startedAt ?? post.updatedAt
+            ).toISOString(),
+            retryable: !requiresReview,
           }
         : null;
 
@@ -742,6 +828,12 @@ function normalizeGoogleDate(
 
 function isCalendarEvent(event: CalendarEvent | null): event is CalendarEvent {
   return event !== null;
+}
+
+function readMessage(error: unknown) {
+  return error instanceof Error && error.message
+    ? error.message
+    : 'Unknown error';
 }
 
 function normalizeOptionalText(value: string | undefined): string | null {
