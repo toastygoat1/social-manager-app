@@ -19,9 +19,19 @@ type AsyncFn = (...args: unknown[]) => Promise<unknown>;
 describe('AnalyticsService', () => {
   let service: AnalyticsService;
   let prisma: {
-    instagramAccount: { findMany: jest.Mock<AsyncFn> };
+    instagramAccount: {
+      findMany: jest.Mock<AsyncFn>;
+      findFirst: jest.Mock<AsyncFn>;
+    };
     contentPost: { findMany: jest.Mock<AsyncFn> };
     postAnalytics: { create: jest.Mock<AsyncFn> };
+    analyticsNote: {
+      create: jest.Mock<AsyncFn>;
+      update: jest.Mock<AsyncFn>;
+      deleteMany: jest.Mock<AsyncFn>;
+      findMany: jest.Mock<AsyncFn>;
+      findFirst: jest.Mock<AsyncFn>;
+    };
   };
   let media: { createSignedPreviewUrl: jest.Mock<AsyncFn> };
   let config: { get: jest.Mock<(key: string) => string | undefined> };
@@ -32,9 +42,19 @@ describe('AnalyticsService', () => {
     process.env.ENCRYPTION_KEY = 'a'.repeat(64);
 
     prisma = {
-      instagramAccount: { findMany: jest.fn<AsyncFn>() },
+      instagramAccount: {
+        findMany: jest.fn<AsyncFn>(),
+        findFirst: jest.fn<AsyncFn>(),
+      },
       contentPost: { findMany: jest.fn<AsyncFn>() },
       postAnalytics: { create: jest.fn<AsyncFn>() },
+      analyticsNote: {
+        create: jest.fn<AsyncFn>(),
+        update: jest.fn<AsyncFn>(),
+        deleteMany: jest.fn<AsyncFn>(),
+        findMany: jest.fn<AsyncFn>().mockResolvedValue([]),
+        findFirst: jest.fn<AsyncFn>(),
+      },
     };
     media = {
       createSignedPreviewUrl: jest.fn<AsyncFn>(),
@@ -105,6 +125,7 @@ describe('AnalyticsService', () => {
       },
     ]);
     expect(overview.contentCalendar.label).toBe('May 2026');
+    expect(overview.notes).toEqual([]);
   });
 
   it('aggregates latest post analytics into stats, recent posts, distribution, and table rows', async () => {
@@ -217,6 +238,48 @@ describe('AnalyticsService', () => {
           mimeType: 'image/png',
         },
       ],
+    });
+    expect(overview.notes).toEqual([]);
+  });
+
+  it('creates an account-scoped analytics note', async () => {
+    const createdAt = new Date('2026-05-23T10:00:00Z');
+    const updatedAt = new Date('2026-05-23T10:00:00Z');
+    prisma.instagramAccount.findFirst.mockResolvedValue({ id: 'account-1' });
+    prisma.analyticsNote.create.mockResolvedValue({
+      id: 'note-1',
+      instagramAccountId: 'account-1',
+      body: 'Watch comment spikes after the reel.',
+      createdAt,
+      updatedAt,
+    });
+
+    const note = await service.createNote('user-1', {
+      accountId: 'account-1',
+      body: '  Watch comment spikes after the reel.  ',
+    });
+
+    expect(prisma.instagramAccount.findFirst).toHaveBeenCalledWith({
+      where: { id: 'account-1', userId: 'user-1', isActive: true },
+      select: { id: true },
+    });
+    expect(prisma.analyticsNote.create).toHaveBeenCalledWith({
+      data: {
+        userId: 'user-1',
+        instagramAccountId: 'account-1',
+        body: 'Watch comment spikes after the reel.',
+      },
+      select: expect.objectContaining({
+        id: true,
+        body: true,
+      }),
+    });
+    expect(note).toEqual({
+      id: 'note-1',
+      accountId: 'account-1',
+      body: 'Watch comment spikes after the reel.',
+      createdAt: '2026-05-23T10:00:00.000Z',
+      updatedAt: '2026-05-23T10:00:00.000Z',
     });
   });
 
