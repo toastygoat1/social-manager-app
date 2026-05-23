@@ -68,6 +68,7 @@ export default async function AnalyticsPage({
           accounts={data.accounts}
           selectedAccountId={data.selectedAccountId}
           range={`${data.rangeDays}d` as AnalyticsRange}
+          lastUpdatedAt={data.lastUpdatedAt}
         />
         <div className="flex w-full flex-col items-center gap-[91px] overflow-hidden rounded-3xl bg-paper py-3">
           <BannerHero

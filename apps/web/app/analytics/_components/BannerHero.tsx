@@ -1,3 +1,4 @@
+import Image from "next/image";
 import type { Account } from "@/app/dashboard/_components/data";
 
 type BannerHeroProps = {
@@ -54,7 +55,16 @@ export function BannerHero({
       </div>
       <div className="-mt-[82px] flex flex-col items-center gap-5">
         <div className="flex size-[164px] items-center justify-center overflow-hidden rounded-full bg-paper ring-4 ring-paper">
-          {avatarAccount ? (
+          {avatarAccount?.avatarUrl ? (
+            <Image
+              src={avatarAccount.avatarUrl}
+              alt=""
+              width={164}
+              height={164}
+              className="size-[164px] object-cover"
+              priority
+            />
+          ) : avatarAccount ? (
             <span className="text-[56px] font-semibold text-ink">
               {avatarAccount.name.replace(/^@/, "").charAt(0).toUpperCase()}
             </span>
