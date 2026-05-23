@@ -12,6 +12,7 @@ import {
 } from '../integrations/google/google.service.js';
 import { MediaType, PostStatus, type PostType } from '@social-manager/database';
 import { InstagramPublisherService } from '../publishing/instagram-publisher.service.js';
+import { PublishQueueService } from '../queue/publish-queue.service.js';
 
 export type CalendarEventSource = 'scheduled_post' | 'google';
 type CreateEventAction = 'SCHEDULE' | 'POST_NOW' | 'DRAFT';
@@ -53,6 +54,7 @@ export class CalendarService {
     private readonly prisma: PrismaService,
     private readonly google: GoogleService,
     private readonly publisher: InstagramPublisherService,
+    private readonly publishQueue: PublishQueueService,
   ) {}
 
   async listEvents(
@@ -164,8 +166,13 @@ export class CalendarService {
       );
     }
     validateMediaForPostType(input.postType, mediaAssets);
-    if (action === 'POST_NOW') {
-      validateMediaForPostNow(input.postType, mediaAssets);
+    const publishWhenScheduled =
+      action === 'SCHEDULE' && status === PostStatus.READY && !!scheduledFor;
+    if (action === 'POST_NOW' || publishWhenScheduled) {
+      validateMediaForPublishing(input.postType, mediaAssets);
+    }
+    if (publishWhenScheduled) {
+      await this.publishQueue.ensureAvailable();
     }
 
     let post = await this.prisma.$transaction(async (tx) => {
@@ -188,6 +195,10 @@ export class CalendarService {
             sortOrder,
           })),
         });
+      }
+
+      if (publishWhenScheduled && scheduledFor) {
+        await this.publishQueue.enqueueScheduledPost(created.id, scheduledFor);
       }
 
       return created;
@@ -315,7 +326,7 @@ function validateMediaForPostType(
   }
 }
 
-function validateMediaForPostNow(
+function validateMediaForPublishing(
   postType: PostType,
   mediaAssets: {
     fileType: MediaType;

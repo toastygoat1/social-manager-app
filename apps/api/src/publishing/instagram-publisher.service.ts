@@ -113,6 +113,39 @@ export class InstagramPublisherService {
     if (!post) {
       throw new NotFoundException('Post was not found');
     }
+
+    return this.publishPost(post, PublishTrigger.MANUAL);
+  }
+
+  async publishScheduled(contentPostId: string, jobReference?: string) {
+    const post = await this.prisma.contentPost.findUnique({
+      where: { id: contentPostId },
+      include: PUBLISHABLE_POST_INCLUDE,
+    });
+
+    if (!post || !post.instagramAccount.isActive) {
+      throw new NotFoundException('Post was not found');
+    }
+    if (post.status === PostStatus.PUBLISHED) {
+      return post;
+    }
+    if (post.status !== PostStatus.READY) {
+      throw new BadRequestException(
+        'Scheduled post is not approved for publishing',
+      );
+    }
+    if (!post.scheduledFor || post.scheduledFor > new Date()) {
+      throw new BadRequestException('Scheduled publish time has not arrived');
+    }
+
+    return this.publishPost(post, PublishTrigger.SCHEDULED, jobReference);
+  }
+
+  private async publishPost(
+    post: PublishablePost,
+    trigger: PublishTrigger,
+    jobReference?: string,
+  ) {
     if (post.status === PostStatus.PUBLISHED) {
       return post;
     }
@@ -120,7 +153,8 @@ export class InstagramPublisherService {
     this.validatePost(post);
     const attempt = await this.createPublishAttempt(
       post.id,
-      PublishTrigger.MANUAL,
+      trigger,
+      jobReference,
     );
 
     try {
@@ -165,6 +199,7 @@ export class InstagramPublisherService {
   private async createPublishAttempt(
     contentPostId: string,
     trigger: PublishTrigger,
+    jobReference?: string,
   ) {
     const previousAttempts = await this.prisma.publishAttempt.count({
       where: { contentPostId },
@@ -173,8 +208,12 @@ export class InstagramPublisherService {
     return this.prisma.publishAttempt.create({
       data: {
         contentPostId,
-        trigger,
+        trigger:
+          trigger === PublishTrigger.SCHEDULED && previousAttempts > 0
+            ? PublishTrigger.RETRY
+            : trigger,
         attemptNumber: previousAttempts + 1,
+        jobReference,
       },
     });
   }

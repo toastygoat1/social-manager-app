@@ -58,7 +58,7 @@ Referensi sudah jalan: `apps/web/lib/dashboard-data.ts`, `apps/web/app/dashboard
 
 ## 2. Calendar (Scheduling) - `apps/web/app/calendar/`
 
-**Status**: In progress / MVP wired. Calendar data is API-backed, scheduled posts are stored in DB, Google Calendar events are merged when connected, the create modal supports media upload, multi-account targeting, schedule/post-now/draft actions, and immediate Instagram publishing for "Post Now". Remaining gap: scheduled-time publishing still needs the worker/BullMQ path.
+**Status**: In progress / publishable MVP wired. Calendar data is API-backed, scheduled posts are stored in DB, Google Calendar events are merged when connected, the create modal supports media upload, multi-account targeting, schedule/post-now/draft actions, immediate Instagram publishing for "Post Now", and BullMQ-backed publishing at scheduled times. Remaining gap: approval/draft management and editing workflows.
 
 ### Files
 
@@ -74,7 +74,9 @@ Referensi sudah jalan: `apps/web/lib/dashboard-data.ts`, `apps/web/app/dashboard
 | `apps/web/app/calendar/_components/data.ts` | Pure calendar types, date helpers, `EMPTY_CALENDAR` |
 | `apps/api/src/calendar/*` | `GET /calendar/events`, `POST /calendar/events`, DTO validation, event merge logic |
 | `apps/api/src/media/*` | Supabase Storage signed upload URLs + `MediaAsset` creation |
-| `apps/api/src/publishing/*` | Immediate Instagram publish flow for "Post Now" |
+| `apps/api/src/publishing/*` | Instagram publish flow for "Post Now" and guarded worker-triggered scheduled publishing |
+| `apps/api/src/queue/*` | BullMQ delayed-job producer for scheduled `READY` posts |
+| `apps/worker/src/index.ts` | BullMQ consumer that triggers due scheduled posts through the guarded API route |
 
 ### Done
 
@@ -89,13 +91,14 @@ Referensi sudah jalan: `apps/web/lib/dashboard-data.ts`, `apps/web/app/dashboard
 | Account targeting | Modal supports selecting one or more connected Instagram accounts. |
 | Media rules | Feed posts use images; multiple feed images become carousel; Reels require video; Stories allow image or video. |
 | Feed image auto-crop | Feed/carousel images outside Instagram's `4:5` to `1.91:1` ratio are center-cropped in-browser before upload. |
+| Scheduled-time publishing | `READY` scheduled posts are enqueued as delayed BullMQ jobs; the worker triggers the same Instagram publisher with retry attempt tracking. |
 
 ### TODO
 
 | Item | Catatan |
 |---|---|
-| Worker/BullMQ scheduled publishing | Future `scheduledFor` posts are saved, but a worker/cron still needs to find due `READY` posts and call `InstagramPublisherService`. |
 | Approval workflow UI | `requiresApproval` creates `PENDING` posts, but there is no reviewer/approve screen yet. |
+| Queue on approval | When approval is added, approving a `PENDING` scheduled post must change it to `READY` and enqueue its delayed job. |
 | Draft management UI | `Save as Draft` creates `DRAFT` posts without date/time, but there is no drafts list/editor yet. |
 | Partial failure UX for multi-account publish | Modal posts to each selected account. If one account succeeds and another fails, add per-account result feedback. |
 | Google Calendar connect CTA | Calendar page shows a disconnected hint but does not yet include a direct connect button. |
@@ -104,8 +107,8 @@ Referensi sudah jalan: `apps/web/lib/dashboard-data.ts`, `apps/web/app/dashboard
 ### Rekomendasi tambahan
 
 - Keep scheduled post events and Google events separate in the payload with `source: "scheduled_post" | "google"` so frontend styling can stay clear.
-- For scheduled publishing, reuse `InstagramPublisherService` instead of duplicating Meta Graph API logic in the worker.
-- Add explicit retry handling around failed `PublishAttempt` rows before enabling scheduled publishing in production.
+- Keep `InstagramPublisherService` as the one Meta Graph API implementation; the worker should continue to trigger it through the guarded internal route.
+- Surface failed scheduled `PublishAttempt` rows in a future operations/retry view.
 
 ---
 
