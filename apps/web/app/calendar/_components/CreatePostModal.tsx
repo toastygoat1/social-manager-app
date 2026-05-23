@@ -3,6 +3,7 @@
 import {
   Bookmark,
   Calendar,
+  Check,
   ChevronDown,
   Heart,
   ImageIcon,
@@ -15,7 +16,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useEffect, useState } from "react";
-import { apiFetchBrowser } from "@/lib/api/browser-client";
+import { ApiError, apiFetchBrowser } from "@/lib/api/browser-client";
 import { createClient } from "@/lib/supabase/client";
 import type { CalendarPostType } from "./data";
 
@@ -42,6 +43,9 @@ type SelectedMedia = {
   file: File;
   previewUrl: string;
   kind: "image" | "video";
+  width?: number;
+  height?: number;
+  durationSeconds?: number;
 };
 
 type MediaUploadUrlResponse = {
@@ -77,6 +81,8 @@ const TYPE_TO_POST_TYPE: Record<CreatePostType, CalendarPostType> = {
 };
 
 const MAX_MEDIA_SIZE = 100 * 1024 * 1024;
+const FEED_IMAGE_MIN_ASPECT = 4 / 5;
+const FEED_IMAGE_MAX_ASPECT = 1.91;
 
 const SUBMIT_OPTIONS: {
   action: SubmitAction;
@@ -141,6 +147,7 @@ function mediaLimitForType(type: CreatePostType) {
 }
 
 function acceptForType(type: CreatePostType) {
+  if (type === "post") return "image/*";
   return type === "reels" ? "video/*" : "image/*,video/*";
 }
 
@@ -157,6 +164,9 @@ function validateMediaFiles(type: CreatePostType, files: File[]) {
   if (files.some((file) => !file.type.startsWith("image/") && !file.type.startsWith("video/"))) {
     return "Only image and video files are supported";
   }
+  if (type === "post" && files.some((file) => file.type.startsWith("video/"))) {
+    return "Posts support images only. Use reels for videos";
+  }
   if (type === "reels" && files.some((file) => !file.type.startsWith("video/"))) {
     return "Reels require a video file";
   }
@@ -170,6 +180,180 @@ function buildSelectedMedia(file: File): SelectedMedia {
     previewUrl: URL.createObjectURL(file),
     kind: file.type.startsWith("video/") ? "video" : "image",
   };
+}
+
+async function loadMediaMetadata(item: SelectedMedia): Promise<SelectedMedia> {
+  if (item.kind === "image") {
+    const image = await loadImage(item.previewUrl);
+    const { naturalWidth: width, naturalHeight: height } = image;
+    return { ...item, width, height };
+  }
+
+  const { width, height, durationSeconds } = await loadVideoMetadata(
+    item.previewUrl,
+  );
+  return { ...item, width, height, durationSeconds };
+}
+
+function loadImage(src: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("Could not read image dimensions"));
+    image.src = src;
+  });
+}
+
+function loadVideoMetadata(src: string) {
+  return new Promise<{
+    width: number;
+    height: number;
+    durationSeconds?: number;
+  }>((resolve, reject) => {
+    const video = document.createElement("video");
+    video.preload = "metadata";
+    video.onloadedmetadata = () =>
+      resolve({
+        width: video.videoWidth,
+        height: video.videoHeight,
+        durationSeconds: Number.isFinite(video.duration)
+          ? Math.max(1, Math.round(video.duration))
+          : undefined,
+      });
+    video.onerror = () => reject(new Error("Could not read video dimensions"));
+    video.src = src;
+  });
+}
+
+function hasMediaMetadata(item: SelectedMedia) {
+  return Boolean(item.width && item.height);
+}
+
+function ensureMediaMetadata(items: SelectedMedia[]) {
+  return Promise.all(
+    items.map((item) =>
+      hasMediaMetadata(item) ? Promise.resolve(item) : loadMediaMetadata(item),
+    ),
+  );
+}
+
+async function prepareMediaForType(type: CreatePostType, items: SelectedMedia[]) {
+  const withMetadata = await ensureMediaMetadata(items);
+  if (type !== "post") return withMetadata;
+
+  return Promise.all(withMetadata.map(cropFeedImageIfNeeded));
+}
+
+async function cropFeedImageIfNeeded(
+  item: SelectedMedia,
+): Promise<SelectedMedia> {
+  if (item.kind !== "image" || !item.width || !item.height) return item;
+
+  const aspect = item.width / item.height;
+  if (aspect >= FEED_IMAGE_MIN_ASPECT && aspect <= FEED_IMAGE_MAX_ASPECT) {
+    return item;
+  }
+
+  const image = await loadImage(item.previewUrl);
+  const targetAspect =
+    aspect < FEED_IMAGE_MIN_ASPECT
+      ? FEED_IMAGE_MIN_ASPECT
+      : FEED_IMAGE_MAX_ASPECT;
+  const sourceWidth =
+    aspect > targetAspect ? item.height * targetAspect : item.width;
+  const sourceHeight =
+    aspect > targetAspect ? item.height : item.width / targetAspect;
+  const sourceX = (item.width - sourceWidth) / 2;
+  const sourceY = (item.height - sourceHeight) / 2;
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(sourceWidth);
+  canvas.height = Math.round(sourceHeight);
+  const ctx = canvas.getContext("2d");
+
+  if (!ctx) throw new Error("Could not crop image");
+
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(
+    image,
+    sourceX,
+    sourceY,
+    sourceWidth,
+    sourceHeight,
+    0,
+    0,
+    canvas.width,
+    canvas.height,
+  );
+
+  const blob = await canvasToBlob(canvas, "image/jpeg", 0.92);
+  const croppedFile = new File([blob], toCroppedFileName(item.file.name), {
+    type: "image/jpeg",
+    lastModified: Date.now(),
+  });
+
+  if (croppedFile.size > MAX_MEDIA_SIZE) {
+    throw new Error("Cropped image is too large");
+  }
+
+  URL.revokeObjectURL(item.previewUrl);
+  return {
+    ...item,
+    file: croppedFile,
+    previewUrl: URL.createObjectURL(croppedFile),
+    width: canvas.width,
+    height: canvas.height,
+  };
+}
+
+function canvasToBlob(
+  canvas: HTMLCanvasElement,
+  type: string,
+  quality: number,
+) {
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => (blob ? resolve(blob) : reject(new Error("Could not crop image"))),
+      type,
+      quality,
+    );
+  });
+}
+
+function toCroppedFileName(name: string) {
+  const withoutExtension = name.replace(/\.[^.]+$/, "") || "image";
+  return `${withoutExtension}-instagram-crop.jpg`;
+}
+
+function validateSelectedMedia(type: CreatePostType, items: SelectedMedia[]) {
+  if (type !== "post") return null;
+
+  const unsupported = items.find((item) => {
+    if (item.kind !== "image" || !item.width || !item.height) return false;
+    const aspect = item.width / item.height;
+    return aspect < FEED_IMAGE_MIN_ASPECT || aspect > FEED_IMAGE_MAX_ASPECT;
+  });
+
+  if (!unsupported?.width || !unsupported.height) return null;
+
+  return `Instagram feed images must be between 4:5 and 1.91:1. This image is ${unsupported.width}x${unsupported.height}; crop it to square, 4:5, or 1.91:1.`;
+}
+
+function revokePreviewUrls(items: SelectedMedia[]) {
+  items.forEach((item) => URL.revokeObjectURL(item.previewUrl));
+}
+
+function readErrorMessage(error: unknown) {
+  if (error instanceof ApiError) {
+    const body = error.body;
+    if (body && typeof body === "object" && "message" in body) {
+      const message = (body as { message?: unknown }).message;
+      if (Array.isArray(message)) return message.join(", ");
+      if (typeof message === "string") return message;
+    }
+  }
+  if (error instanceof Error && error.message) return error.message;
+  return null;
 }
 
 function MediaTile({
@@ -225,9 +409,10 @@ function AccountChip({
   return (
     <button
       type="button"
+      aria-pressed={selected}
       onClick={onClick}
       className={`flex h-11 w-[196px] shrink-0 items-center gap-2 overflow-hidden rounded-lg border px-4 py-2 text-left ${
-        selected ? "border-cta bg-card" : "border-line bg-paper"
+        selected ? "border-[#1d6b81] bg-[#e6f7fa]" : "border-line bg-paper"
       }`}
     >
       <div className="grid size-7 shrink-0 grid-cols-2 grid-rows-2 gap-1 rounded-lg bg-ink p-1.5">
@@ -237,6 +422,9 @@ function AccountChip({
         <span className="rounded-[2px] bg-white" />
       </div>
       <span className="truncate text-sm leading-4 text-ink">@{username}</span>
+      {selected ? (
+        <Check className="ml-auto size-4 shrink-0 text-[#1d6b81]" strokeWidth={2.4} />
+      ) : null}
     </button>
   );
 }
@@ -277,9 +465,7 @@ export function CreatePostModal({
 }: Props) {
   const [accounts, setAccounts] = useState<InstagramAccountResponse[]>([]);
   const [accountsLoading, setAccountsLoading] = useState(false);
-  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(
-    null,
-  );
+  const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([]);
   const [title, setTitle] = useState("");
   const [caption, setCaption] = useState("");
   const [media, setMedia] = useState<SelectedMedia[]>([]);
@@ -314,11 +500,11 @@ export function CreatePostModal({
     apiFetchBrowser<InstagramAccountResponse[]>("/instagram/accounts")
       .then((list) => {
         setAccounts(list);
-        setSelectedAccountId((current) =>
-          list.some((account) => account.id === current)
-            ? current
-            : (list[0]?.id ?? null),
-        );
+        setSelectedAccountIds((current) => {
+          const validIds = new Set(list.map((account) => account.id));
+          const keptIds = current.filter((id) => validIds.has(id));
+          return keptIds.length ? keptIds : list[0]?.id ? [list[0].id] : [];
+        });
       })
       .catch(() => {
         if (process.env.NODE_ENV !== "production") {
@@ -339,7 +525,7 @@ export function CreatePostModal({
 
   useEffect(() => {
     if (!open && media.length) {
-      media.forEach((item) => URL.revokeObjectURL(item.previewUrl));
+      revokePreviewUrls(media);
       setMedia([]);
     }
   }, [open, media]);
@@ -347,11 +533,11 @@ export function CreatePostModal({
   if (!open) return null;
 
   const clearMedia = () => {
-    media.forEach((item) => URL.revokeObjectURL(item.previewUrl));
+    revokePreviewUrls(media);
     setMedia([]);
   };
 
-  const handleMediaChange = (files: FileList | null) => {
+  const handleMediaChange = async (files: FileList | null) => {
     if (!files) return;
     setError(null);
     const nextFiles = [...files];
@@ -361,7 +547,22 @@ export function CreatePostModal({
       setError(validationError);
       return;
     }
-    setMedia((current) => [...current, ...nextFiles.map(buildSelectedMedia)]);
+
+    const nextMedia = nextFiles.map(buildSelectedMedia);
+    try {
+      const preparedMedia = await prepareMediaForType(type, nextMedia);
+      const allMedia = [...media, ...preparedMedia];
+      const dimensionError = validateSelectedMedia(type, allMedia);
+      if (dimensionError) {
+        revokePreviewUrls(preparedMedia);
+        setError(dimensionError);
+        return;
+      }
+      setMedia(allMedia);
+    } catch {
+      revokePreviewUrls(nextMedia);
+      setError("Could not read media dimensions");
+    }
   };
 
   const removeMedia = (id: string) => {
@@ -372,15 +573,25 @@ export function CreatePostModal({
     });
   };
 
-  const uploadSelectedMedia = async (): Promise<string[]> => {
-    if (media.length === 0) return [];
+  const toggleAccount = (accountId: string) => {
+    setSelectedAccountIds((current) =>
+      current.includes(accountId)
+        ? current.filter((id) => id !== accountId)
+        : [...current, accountId],
+    );
+  };
+
+  const uploadSelectedMedia = async (
+    items: SelectedMedia[],
+  ): Promise<string[]> => {
+    if (items.length === 0) return [];
 
     const uploadIntent = await apiFetchBrowser<MediaUploadUrlResponse>(
       "/media/upload-urls",
       {
         method: "POST",
         body: {
-          files: media.map((item) => ({
+          files: items.map((item) => ({
             name: item.file.name,
             mimeType: item.file.type,
             fileSize: item.file.size,
@@ -391,7 +602,7 @@ export function CreatePostModal({
     const supabase = createClient();
 
     await Promise.all(
-      media.map(async (item, idx) => {
+      items.map(async (item, idx) => {
         const upload = uploadIntent.uploads[idx];
         const { error: uploadError } = await supabase.storage
           .from(upload.bucket)
@@ -407,10 +618,13 @@ export function CreatePostModal({
       {
         method: "POST",
         body: {
-          files: media.map((item, idx) => ({
+          files: items.map((item, idx) => ({
             storagePath: uploadIntent.uploads[idx].storagePath,
             mimeType: item.file.type,
             fileSize: item.file.size,
+            width: item.width,
+            height: item.height,
+            durationSeconds: item.durationSeconds,
           })),
         },
       },
@@ -422,8 +636,23 @@ export function CreatePostModal({
   const handleSubmit = async (action: SubmitAction) => {
     setError(null);
     setSubmitMenuOpen(false);
-    if (!selectedAccountId) {
-      setError("Select an account");
+    if (selectedAccountIds.length === 0) {
+      setError("Select at least one account");
+      return;
+    }
+    let mediaForSubmit: SelectedMedia[];
+    try {
+      mediaForSubmit = await prepareMediaForType(type, media);
+      if (mediaForSubmit.some((item, idx) => item !== media[idx])) {
+        setMedia(mediaForSubmit);
+      }
+    } catch {
+      setError("Could not read media dimensions");
+      return;
+    }
+    const mediaValidationError = validateSelectedMedia(type, mediaForSubmit);
+    if (mediaValidationError) {
+      setError(mediaValidationError);
       return;
     }
     let scheduledDate: Date | null = null;
@@ -445,46 +674,61 @@ export function CreatePostModal({
     setSubmitting(true);
     setSubmittingAction(action);
     try {
-      const mediaAssetIds = await uploadSelectedMedia();
-      await apiFetchBrowser("/calendar/events", {
-        method: "POST",
-        body: {
-          instagramAccountId: selectedAccountId,
-          postType:
-            type === "post" && mediaAssetIds.length > 1
-              ? "CAROUSEL"
-              : TYPE_TO_POST_TYPE[type],
-          action: ACTION_TO_API[action],
-          scheduledFor: scheduledDate?.toISOString(),
-          title: title || undefined,
-          caption: caption || undefined,
-          requiresApproval,
-          mediaAssetIds,
-        },
-      });
+      const mediaAssetIds = await uploadSelectedMedia(mediaForSubmit);
+      await Promise.all(
+        selectedAccountIds.map((instagramAccountId) =>
+          apiFetchBrowser("/calendar/events", {
+            method: "POST",
+            body: {
+              instagramAccountId,
+              postType:
+                type === "post" && mediaAssetIds.length > 1
+                  ? "CAROUSEL"
+                  : TYPE_TO_POST_TYPE[type],
+              action: ACTION_TO_API[action],
+              scheduledFor: scheduledDate?.toISOString(),
+              title: title || undefined,
+              caption: caption || undefined,
+              requiresApproval,
+              mediaAssetIds,
+            },
+          }),
+        ),
+      );
       setTitle("");
       setCaption("");
       clearMedia();
       onCreated();
-    } catch {
+    } catch (err) {
       if (process.env.NODE_ENV !== "production") {
         console.info(
-          "Scheduled post could not be created. Make sure the API server is running.",
+          "Post action could not be completed. Make sure the API server is running.",
         );
       }
-      setError(SUBMIT_ERROR[action]);
+      const detail = readErrorMessage(err);
+      setError(
+        detail ? `${SUBMIT_ERROR[action]}: ${detail}` : SUBMIT_ERROR[action],
+      );
     } finally {
       setSubmitting(false);
       setSubmittingAction(null);
     }
   };
 
-  const scheduleDisabled = submitting || accountsLoading || !selectedAccountId;
+  const scheduleDisabled =
+    submitting || accountsLoading || selectedAccountIds.length === 0;
   const minScheduledFor = toLocalDatetimeInputValue(new Date().toISOString());
   const previewMedia = media[0] ?? null;
   const submitButtonLabel = submittingAction
     ? SUBMITTING_LABEL[submittingAction]
     : "Schedule";
+  const selectedAccounts = accounts.filter((account) =>
+    selectedAccountIds.includes(account.id),
+  );
+  const previewAccountLabel =
+    selectedAccounts.length > 1
+      ? `${selectedAccounts[0].username} +${selectedAccounts.length - 1}`
+      : (selectedAccounts[0]?.username ?? "Preview");
 
   return (
     <div
@@ -514,8 +758,8 @@ export function CreatePostModal({
                   <AccountChip
                     key={acct.id}
                     username={acct.username}
-                    selected={selectedAccountId === acct.id}
-                    onClick={() => setSelectedAccountId(acct.id)}
+                    selected={selectedAccountIds.includes(acct.id)}
+                    onClick={() => toggleAccount(acct.id)}
                   />
                 ))}
               </div>
@@ -559,7 +803,7 @@ export function CreatePostModal({
                       multiple={type === "post"}
                       className="sr-only"
                       onChange={(e) => {
-                        handleMediaChange(e.target.files);
+                        void handleMediaChange(e.target.files);
                         e.target.value = "";
                       }}
                     />
@@ -665,9 +909,8 @@ export function CreatePostModal({
               <div className="flex size-[58px] shrink-0 items-center justify-center rounded-full bg-card">
                 <User className="size-8 text-muted" strokeWidth={1.6} />
               </div>
-              <p className="font-inter text-2xl text-ink">
-                {accounts.find((a) => a.id === selectedAccountId)?.username ??
-                  "Preview"}
+              <p className="min-w-0 truncate font-inter text-2xl text-ink">
+                {previewAccountLabel}
               </p>
             </div>
             <div className="relative flex h-[428px] w-full items-center justify-center overflow-hidden bg-[#495057]">
