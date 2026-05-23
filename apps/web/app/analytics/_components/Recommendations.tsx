@@ -32,9 +32,15 @@ export function Recommendations({
         )}
       </div>
       <div className="mt-2 flex w-full flex-col gap-3 border-t border-line pt-6">
+        <p className="text-base font-medium text-ink">Notes</p>
         {videoIdeas.length === 0 ? (
-          <div className="flex h-20 w-full items-center justify-center rounded-lg border border-line bg-paper text-sm text-muted">
-            No video ideas yet
+          <div className="flex min-h-32 w-full flex-col rounded-lg border border-line bg-paper px-5 py-4">
+            <p className="text-sm font-medium text-ink">No notes yet</p>
+            <div className="mt-4 flex flex-1 flex-col gap-3">
+              <span className="h-px w-full bg-line" />
+              <span className="h-px w-full bg-line" />
+              <span className="h-px w-full bg-line" />
+            </div>
           </div>
         ) : (
           videoIdeas.map((idea) => {

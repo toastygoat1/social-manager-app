@@ -2,13 +2,14 @@ import { apiFetch } from "@/lib/api/client";
 import {
   EMPTY_ANALYTICS,
   type AnalyticsData,
+  type AnalyticsRange,
 } from "@/app/analytics/_components/data";
 
 const ANALYTICS_OVERVIEW_ENDPOINT = "/analytics/overview";
 
 type AnalyticsDataOptions = {
   accountId?: string;
-  range?: "7d" | "30d" | "90d";
+  range?: AnalyticsRange;
 };
 
 export async function getAnalyticsData(

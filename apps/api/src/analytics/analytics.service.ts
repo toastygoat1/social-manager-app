@@ -81,6 +81,13 @@ type ContentRow = {
   comments: number | null;
   shares: number | null;
   media: string;
+  mediaItems: {
+    id: string;
+    kind: MediaType;
+    label: string;
+    previewUrl: string | null;
+    mimeType: string;
+  }[];
 };
 
 type Recommendation = { title: string; body: string };
@@ -166,7 +173,6 @@ const ANALYTICS_POST_INCLUDE = {
   },
   postMedia: {
     orderBy: { sortOrder: 'asc' },
-    take: 1,
     include: { mediaAsset: true },
   },
   _count: {
@@ -265,9 +271,10 @@ export class AnalyticsService {
       recentPosts: await this.mapRecentPosts(recentPosts),
       distribution: buildDistribution(currentPosts),
       contentCalendar: buildContentCalendar(calendarPosts, now),
-      contentRows: currentPosts
-        .slice(0, MAX_CONTENT_ROWS)
-        .map((post) => mapContentRow(post, accountById)),
+      contentRows: await this.mapContentRows(
+        currentPosts.slice(0, MAX_CONTENT_ROWS),
+        accountById,
+      ),
       recommendations: [],
       videoIdeas: [],
     };
@@ -331,6 +338,58 @@ export class AnalyticsService {
             { icon: 'share', value: latest?.sharesCount ?? null },
             { icon: 'save', value: latest?.savesCount ?? null },
           ],
+        };
+      }),
+    );
+  }
+
+  private async mapContentRows(
+    posts: AnalyticsPost[],
+    accountById: Map<string, AnalyticsAccount>,
+  ): Promise<ContentRow[]> {
+    return Promise.all(
+      posts.map(async (post) => {
+        const latest = latestAnalytics(post);
+        const account = accountById.get(post.instagramAccountId) ?? {
+          id: post.instagramAccount.id,
+          name: `@${post.instagramAccount.username}`,
+          platform:
+            post.instagramAccount.accountType === 'CREATOR'
+              ? 'Instagram Creator'
+              : 'Instagram',
+          avatarUrl: null,
+          tone: 'blue' as const,
+        };
+        const mediaItems = await Promise.all(
+          post.postMedia.map(async ({ mediaAsset }) => ({
+            id: mediaAsset.id,
+            kind: mediaAsset.fileType,
+            label:
+              mediaAsset.fileType === MediaType.VIDEO ? 'Video' : 'Picture',
+            previewUrl: await this.media.createSignedPreviewUrl(
+              mediaAsset.storagePath,
+            ),
+            mimeType: mediaAsset.mimeType,
+          })),
+        );
+
+        return {
+          id: post.id,
+          account,
+          contents: post.title ?? truncate(post.caption, 60) ?? 'Untitled post',
+          type: POST_TYPE_LABELS[post.postType],
+          status: formatPostStatus(post.status),
+          audio: '-',
+          datePost: formatDate(
+            post.publishedAt ?? post.scheduledFor ?? post.createdAt,
+          ),
+          caption: truncate(post.caption, 60) ?? '-',
+          views: latest?.impressions ?? null,
+          likes: latest?.likeCount ?? null,
+          comments: latest?.commentsCount ?? null,
+          shares: latest?.sharesCount ?? null,
+          media: summarizeMedia(mediaItems),
+          mediaItems,
         };
       }),
     );
@@ -487,43 +546,25 @@ function buildContentCalendar(
   };
 }
 
-function mapContentRow(
-  post: AnalyticsPost,
-  accountById: Map<string, AnalyticsAccount>,
-): ContentRow {
-  const latest = latestAnalytics(post);
-  const account = accountById.get(post.instagramAccountId) ?? {
-    id: post.instagramAccount.id,
-    name: `@${post.instagramAccount.username}`,
-    platform:
-      post.instagramAccount.accountType === 'CREATOR'
-        ? 'Instagram Creator'
-        : 'Instagram',
-    avatarUrl: null,
-    tone: 'blue' as const,
-  };
-
-  return {
-    id: post.id,
-    account,
-    contents: post.title ?? truncate(post.caption, 60) ?? 'Untitled post',
-    type: POST_TYPE_LABELS[post.postType],
-    status: formatPostStatus(post.status),
-    audio: '-',
-    datePost: formatDate(
-      post.publishedAt ?? post.scheduledFor ?? post.createdAt,
-    ),
-    caption: truncate(post.caption, 60) ?? '-',
-    views: latest?.impressions ?? null,
-    likes: latest?.likeCount ?? null,
-    comments: latest?.commentsCount ?? null,
-    shares: latest?.sharesCount ?? null,
-    media: post._count.postMedia > 0 ? String(post._count.postMedia) : '-',
-  };
-}
-
 function latestAnalytics(post: AnalyticsPost) {
   return post.postAnalytics[0] ?? null;
+}
+
+function summarizeMedia(mediaItems: { kind: MediaType }[]) {
+  if (mediaItems.length === 0) return '-';
+
+  const imageCount = mediaItems.filter(
+    (item) => item.kind === MediaType.IMAGE,
+  ).length;
+  const videoCount = mediaItems.filter(
+    (item) => item.kind === MediaType.VIDEO,
+  ).length;
+
+  if (imageCount > 0 && videoCount > 0) return `Mixed (${mediaItems.length})`;
+  if (videoCount > 1) return `Videos (${videoCount})`;
+  if (videoCount === 1) return 'Video';
+  if (imageCount > 1) return `Pictures (${imageCount})`;
+  return 'Picture';
 }
 
 function truncate(value: string | null | undefined, maxLength: number) {
