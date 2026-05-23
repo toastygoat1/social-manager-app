@@ -49,6 +49,7 @@ export type CalendarPostDetail = {
     attemptNumber: number;
     errorMessage: string | null;
     startedAt: string;
+    retryable: boolean;
   } | null;
 };
 
@@ -76,6 +77,7 @@ export type CalendarFailedPost = {
   attemptNumber: number;
   errorMessage: string | null;
   failedAt: string;
+  retryable: boolean;
 };
 
 export const EMPTY_CALENDAR: CalendarData = {

@@ -1,6 +1,7 @@
 import {
   BadGatewayException,
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -149,6 +150,11 @@ export class InstagramPublisherService {
     if (post.status === PostStatus.PUBLISHED) {
       return post;
     }
+    if (post.igMediaContainerId) {
+      throw new ConflictException(
+        'Publishing has already started for this post. Verify Instagram before trying again.',
+      );
+    }
 
     this.validatePost(post);
     const attempt = await this.createPublishAttempt(
@@ -192,6 +198,7 @@ export class InstagramPublisherService {
           errorMessage: message,
         },
       });
+      if (error instanceof ConflictException) throw error;
       throw new BadGatewayException(`Instagram publish failed: ${message}`);
     }
   }
@@ -226,28 +233,23 @@ export class InstagramPublisherService {
     );
     const media = await this.withSignedUrls(post.postMedia);
 
-    if (post.postType === PostType.CAROUSEL) {
-      return this.publishCarousel(post, media, accessToken);
-    }
-
-    const container = await this.createSingleMediaContainer(
-      post,
-      media[0],
-      accessToken,
-    );
-    await this.waitForContainer(container.id, accessToken);
+    const containerId =
+      post.postType === PostType.CAROUSEL
+        ? await this.createCarouselContainer(post, media, accessToken)
+        : await this.createSingleReadyContainer(post, media[0], accessToken);
+    await this.claimPublishContainer(post.id, containerId);
     return this.publishContainer(
       post.instagramAccount.igUserId,
-      container.id,
+      containerId,
       accessToken,
     );
   }
 
-  private async publishCarousel(
+  private async createCarouselContainer(
     post: PublishablePost,
     media: MediaForPublish[],
     accessToken: string,
-  ): Promise<PublishResult> {
+  ) {
     const childContainers = await Promise.all(
       media.map(async (item) => {
         const container = await this.createCarouselItemContainer(
@@ -270,11 +272,41 @@ export class InstagramPublisherService {
       accessToken,
     );
     await this.waitForContainer(parent.id, accessToken);
-    return this.publishContainer(
-      post.instagramAccount.igUserId,
-      parent.id,
+    return parent.id;
+  }
+
+  private async createSingleReadyContainer(
+    post: PublishablePost,
+    media: MediaForPublish,
+    accessToken: string,
+  ) {
+    const container = await this.createSingleMediaContainer(
+      post,
+      media,
       accessToken,
     );
+    await this.waitForContainer(container.id, accessToken);
+    return container.id;
+  }
+
+  private async claimPublishContainer(
+    contentPostId: string,
+    containerId: string,
+  ) {
+    const result = await this.prisma.contentPost.updateMany({
+      where: {
+        id: contentPostId,
+        status: PostStatus.READY,
+        igMediaContainerId: null,
+      },
+      data: { igMediaContainerId: containerId },
+    });
+
+    if (result.count !== 1) {
+      throw new ConflictException(
+        'Publishing has already started for this post. Verify Instagram before trying again.',
+      );
+    }
   }
 
   private async createSingleMediaContainer(

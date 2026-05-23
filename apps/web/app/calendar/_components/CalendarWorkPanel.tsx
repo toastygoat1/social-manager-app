@@ -101,7 +101,9 @@ export function CalendarWorkPanel({
           label="Failed publishes"
           onClick={() => setActive(active === "failed" ? null : "failed")}
         />
-        {loading ? <Loader2 className="ml-2 size-4 animate-spin text-muted" /> : null}
+        {loading ? (
+          <Loader2 className="ml-2 size-4 animate-spin text-muted" />
+        ) : null}
       </div>
 
       {active && !loading ? (
@@ -128,19 +130,25 @@ export function CalendarWorkPanel({
                       {post.errorMessage || "Publish failed"}
                     </p>
                   </button>
-                  <button
-                    type="button"
-                    disabled={retryingId === post.id}
-                    onClick={() => void retry(post)}
-                    className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-paper text-danger disabled:opacity-60"
-                    aria-label={`Retry ${post.title}`}
-                  >
-                    {retryingId === post.id ? (
-                      <Loader2 className="size-4 animate-spin" />
-                    ) : (
-                      <RotateCcw className="size-4" />
-                    )}
-                  </button>
+                  {post.retryable ? (
+                    <button
+                      type="button"
+                      disabled={retryingId === post.id}
+                      onClick={() => void retry(post)}
+                      className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-paper text-danger disabled:opacity-60"
+                      aria-label={`Retry ${post.title}`}
+                    >
+                      {retryingId === post.id ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <RotateCcw className="size-4" />
+                      )}
+                    </button>
+                  ) : (
+                    <span className="max-w-[92px] shrink-0 text-right text-[11px] font-medium text-danger">
+                      Check Instagram first
+                    </span>
+                  )}
                 </article>
               ))
             ) : (
@@ -165,7 +173,9 @@ export function CalendarWorkPanel({
           )}
         </div>
       ) : null}
-      {error ? <p className="mt-2 text-xs font-medium text-danger">{error}</p> : null}
+      {error ? (
+        <p className="mt-2 text-xs font-medium text-danger">{error}</p>
+      ) : null}
     </section>
   );
 }
