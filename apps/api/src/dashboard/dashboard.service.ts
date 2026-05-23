@@ -92,6 +92,7 @@ export class DashboardService {
       select: {
         id: true,
         username: true,
+        avatarUrl: true,
       },
     });
 
@@ -99,7 +100,7 @@ export class DashboardService {
       id: acct.id,
       name: acct.username,
       platform: 'Instagram',
-      avatarUrl: null,
+      avatarUrl: acct.avatarUrl ?? null,
       tone: ACCOUNT_TONES[idx % ACCOUNT_TONES.length],
     }));
 
