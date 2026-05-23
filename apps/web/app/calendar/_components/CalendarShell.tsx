@@ -4,8 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiFetchBrowser } from "@/lib/api/browser-client";
 import { CalendarHeader, type CalendarView } from "./CalendarHeader";
 import { MonthlyCalendar } from "./MonthlyCalendar";
+import { PostDetailsModal } from "./PostDetailsModal";
 import { WeeklyCalendar } from "./WeeklyCalendar";
 import {
+  type CalendarEvent,
   type CalendarData,
   EMPTY_CALENDAR,
   formatPeriodLabel,
@@ -26,6 +28,7 @@ export function CalendarShell({ initialReferenceIso, initialData }: Props) {
   const [data, setData] = useState<CalendarData>(initialData);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const skipNextFetchRef = useRef(true);
 
   const range = useMemo(
@@ -85,6 +88,13 @@ export function CalendarShell({ initialReferenceIso, initialData }: Props) {
 
   const goToday = () => setReference(new Date());
 
+  const openPost = (event: CalendarEvent) => {
+    if (event.source !== "scheduled_post" || !event.id.startsWith("post:")) {
+      return;
+    }
+    setSelectedPostId(event.id.slice("post:".length));
+  };
+
   return (
     <div className="flex h-screen min-w-0 flex-1 flex-col gap-5 overflow-hidden bg-page px-9 pb-9">
       <CalendarHeader
@@ -112,14 +122,21 @@ export function CalendarShell({ initialReferenceIso, initialData }: Props) {
           reference={reference}
           events={data.events}
           loading={loading}
+          onOpenPost={openPost}
         />
       ) : (
         <MonthlyCalendar
           reference={reference}
           events={data.events}
           loading={loading}
+          onOpenPost={openPost}
         />
       )}
+      <PostDetailsModal
+        postId={selectedPostId}
+        onClose={() => setSelectedPostId(null)}
+        onChanged={refresh}
+      />
     </div>
   );
 }

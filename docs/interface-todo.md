@@ -58,7 +58,7 @@ Referensi sudah jalan: `apps/web/lib/dashboard-data.ts`, `apps/web/app/dashboard
 
 ## 2. Calendar (Scheduling) - `apps/web/app/calendar/`
 
-**Status**: In progress / publishable MVP wired. Calendar data is API-backed, scheduled posts are stored in DB, Google Calendar events are merged when connected, the create modal supports media upload, multi-account targeting, schedule/post-now/draft actions, immediate Instagram publishing for "Post Now", and BullMQ-backed publishing at scheduled times. Remaining gap: approval/draft management and editing workflows.
+**Status**: In progress / publishable MVP wired. Calendar data is API-backed, scheduled posts are stored in DB, Google Calendar events are merged when connected, the create modal supports media upload, multi-account targeting, schedule/post-now/draft actions, immediate Instagram publishing for "Post Now", BullMQ-backed scheduled publishing, and post-detail popup workflows for approval and draft editing. Remaining gaps: broader management actions and some supporting UX.
 
 ### Files
 
@@ -71,8 +71,9 @@ Referensi sudah jalan: `apps/web/lib/dashboard-data.ts`, `apps/web/app/dashboard
 | `apps/web/app/calendar/_components/MonthlyCalendar.tsx` | Dynamic month grid + event chips |
 | `apps/web/app/calendar/_components/WeeklyCalendar.tsx` | Dynamic week grid + event chips |
 | `apps/web/app/calendar/_components/CreatePostModal.tsx` | Post/story/reels modal, media upload, account multi-select, schedule/post-now/draft |
+| `apps/web/app/calendar/_components/PostDetailsModal.tsx` | Click-through post popup, media/details preview, pending approval action, draft editor |
 | `apps/web/app/calendar/_components/data.ts` | Pure calendar types, date helpers, `EMPTY_CALENDAR` |
-| `apps/api/src/calendar/*` | `GET /calendar/events`, `POST /calendar/events`, DTO validation, event merge logic |
+| `apps/api/src/calendar/*` | Event list/create plus post detail, draft update, and approve routes; DTO validation and event merge logic |
 | `apps/api/src/media/*` | Supabase Storage signed upload URLs + `MediaAsset` creation |
 | `apps/api/src/publishing/*` | Instagram publish flow for "Post Now" and guarded worker-triggered scheduled publishing |
 | `apps/api/src/queue/*` | BullMQ delayed-job producer for scheduled `READY` posts |
@@ -93,17 +94,19 @@ Referensi sudah jalan: `apps/web/lib/dashboard-data.ts`, `apps/web/app/dashboard
 | Feed image auto-crop | Feed/carousel images outside Instagram's `4:5` to `1.91:1` ratio are center-cropped in-browser before upload. |
 | Scheduled-time publishing | `READY` scheduled posts are enqueued as delayed BullMQ jobs; the worker triggers the same Instagram publisher with retry attempt tracking. |
 | Calendar status labels | Queued `READY` posts display as Scheduled; only `PENDING` posts display as awaiting approval. |
+| Calendar post popup | Clicking an app-owned post/story/reel card opens its account, caption, status, schedule, and signed media previews. |
+| Approval from calendar | A `PENDING` post can be approved in its popup; approval changes it to `READY` and enqueues publishing for its scheduled time. |
+| Draft editor from calendar | `DRAFT` posts render on their creation date and open an editor for text, media attachments, schedule time, and optional approval. |
+| Scheduled content completeness | A post must contain publishable media before it can be scheduled, including when it will wait for approval. |
 
 ### TODO
 
 | Item | Catatan |
 |---|---|
-| Approval workflow UI | `requiresApproval` creates `PENDING` posts, but there is no reviewer/approve screen yet. |
-| Queue on approval | When approval is added, approving a `PENDING` scheduled post must change it to `READY` and enqueue its delayed job. |
-| Draft management UI | `Save as Draft` creates `DRAFT` posts without date/time, but there is no drafts list/editor yet. |
 | Partial failure UX for multi-account publish | Modal posts to each selected account. If one account succeeds and another fails, add per-account result feedback. |
 | Google Calendar connect CTA | Calendar page shows a disconnected hint but does not yet include a direct connect button. |
-| Edit/delete/reschedule posts | Calendar renders scheduled posts but does not yet support editing existing entries. |
+| Approval/draft inbox | Popup actions exist from calendar cards; add a dedicated filtered inbox if reviewers need to process many pending posts or find old drafts quickly. |
+| Edit/delete/reschedule published-ready posts | Draft editing exists, but already-scheduled entries do not yet support editing, deletion, or rescheduling. |
 
 ### Rekomendasi tambahan
 

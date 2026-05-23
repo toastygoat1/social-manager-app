@@ -70,15 +70,21 @@ function formatTime(event: CalendarEvent): string {
   });
 }
 
-function EventCard({ event }: { event: CalendarEvent }) {
+function EventCard({
+  event,
+  onOpenPost,
+}: {
+  event: CalendarEvent;
+  onOpenPost: (event: CalendarEvent) => void;
+}) {
   const isGoogle = event.source === "google";
   const status = event.status ?? "draft";
   const statusStyle = STATUS_STYLE[status];
   const style = isGoogle ? GOOGLE_STYLE : statusStyle;
   const StatusIcon = isGoogle ? CalendarIcon : statusStyle.Icon;
   const AvatarIcon = isGoogle ? CalendarIcon : User;
-  return (
-    <div className="flex w-full flex-col overflow-hidden rounded-2xl border border-line bg-paper">
+  const content = (
+    <>
       <div className="h-[68px] w-full bg-gradient-to-br from-[#1d3b2a] via-[#0f1a2b] to-[#1f2a3a]">
         <div className="m-2 inline-flex flex-col gap-0.5 rounded-sm bg-paper/90 px-1.5 py-1">
           <span className="text-[7px] font-semibold leading-none text-ink">
@@ -113,7 +119,26 @@ function EventCard({ event }: { event: CalendarEvent }) {
           {style.label}
         </span>
       </div>
-    </div>
+    </>
+  );
+
+  if (isGoogle) {
+    return (
+      <div className="flex w-full flex-col overflow-hidden rounded-2xl border border-line bg-paper">
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => onOpenPost(event)}
+      aria-label={`View ${event.title}`}
+      className="flex w-full flex-col overflow-hidden rounded-2xl border border-line bg-paper text-left transition hover:border-cta-edge hover:shadow-sm"
+    >
+      {content}
+    </button>
   );
 }
 
@@ -121,9 +146,15 @@ type Props = {
   reference: Date;
   events: CalendarEvent[];
   loading: boolean;
+  onOpenPost: (event: CalendarEvent) => void;
 };
 
-export function WeeklyCalendar({ reference, events, loading }: Props) {
+export function WeeklyCalendar({
+  reference,
+  events,
+  loading,
+  onOpenPost,
+}: Props) {
   const weekDays = buildWeekDays(reference);
   const hours = Array.from(
     { length: WEEK_HOUR_END - WEEK_HOUR_START + 1 },
@@ -196,7 +227,11 @@ export function WeeklyCalendar({ reference, events, loading }: Props) {
                     className="flex flex-col gap-2 overflow-y-auto border-r border-line p-2 transition-colors last:border-r-0 hover:bg-card/40"
                   >
                     {cellEvents.map((e) => (
-                      <EventCard key={e.id} event={e} />
+                      <EventCard
+                        key={e.id}
+                        event={e}
+                        onOpenPost={onOpenPost}
+                      />
                     ))}
                   </div>
                 );

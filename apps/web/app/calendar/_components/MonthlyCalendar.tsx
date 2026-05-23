@@ -34,11 +34,17 @@ function formatTime(event: CalendarEvent): string {
   });
 }
 
-function EventChip({ event }: { event: CalendarEvent }) {
+function EventChip({
+  event,
+  onOpenPost,
+}: {
+  event: CalendarEvent;
+  onOpenPost: (event: CalendarEvent) => void;
+}) {
   const status = event.source === "google" ? null : (event.status ?? "draft");
   const badge = status ? STATUS_BADGE[status] : null;
-  return (
-    <div className="flex h-[34px] w-full items-center overflow-hidden rounded-2xl border border-line bg-paper opacity-80">
+  const content = (
+    <>
       <div className="flex flex-1 items-center gap-2 pl-2">
         <span className="flex size-4 shrink-0 items-center justify-center rounded-full bg-card text-muted">
           {event.source === "google" ? (
@@ -61,16 +67,37 @@ function EventChip({ event }: { event: CalendarEvent }) {
           <badge.Icon className="size-3 text-paper" strokeWidth={2.5} />
         </div>
       ) : null}
-    </div>
+    </>
+  );
+
+  if (event.source === "google") {
+    return (
+      <div className="flex h-[34px] w-full items-center overflow-hidden rounded-2xl border border-line bg-paper opacity-80">
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => onOpenPost(event)}
+      aria-label={`View ${event.title}`}
+      className="flex h-[34px] w-full items-center overflow-hidden rounded-2xl border border-line bg-paper text-left opacity-80 transition hover:border-cta-edge hover:opacity-100"
+    >
+      {content}
+    </button>
   );
 }
 
 function DayCell({
   cell,
   events,
+  onOpenPost,
 }: {
   cell: MonthCell;
   events: CalendarEvent[];
+  onOpenPost: (event: CalendarEvent) => void;
 }) {
   return (
     <div
@@ -87,7 +114,9 @@ function DayCell({
       </p>
       {events.length > 0 ? (
         <div className="mt-2 flex min-h-0 w-full flex-1 flex-col gap-2 overflow-y-auto">
-          {events.map((e) => <EventChip key={e.id} event={e} />)}
+          {events.map((e) => (
+            <EventChip key={e.id} event={e} onOpenPost={onOpenPost} />
+          ))}
         </div>
       ) : null}
       {cell.outside ? (
@@ -101,9 +130,15 @@ type Props = {
   reference: Date;
   events: CalendarEvent[];
   loading: boolean;
+  onOpenPost: (event: CalendarEvent) => void;
 };
 
-export function MonthlyCalendar({ reference, events, loading }: Props) {
+export function MonthlyCalendar({
+  reference,
+  events,
+  loading,
+  onOpenPost,
+}: Props) {
   const grid = buildMonthGrid(reference);
   const eventsByIso = new Map<string, CalendarEvent[]>();
   for (const evt of events) {
@@ -151,6 +186,7 @@ export function MonthlyCalendar({ reference, events, loading }: Props) {
                 key={`${ri}-${ci}`}
                 cell={cell}
                 events={eventsByIso.get(cell.iso) ?? []}
+                onOpenPost={onOpenPost}
               />
             ))}
           </div>
