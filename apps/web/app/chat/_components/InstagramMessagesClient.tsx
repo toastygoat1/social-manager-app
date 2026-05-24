@@ -125,6 +125,7 @@ export function InstagramMessagesClient({
   const [isLoadingThread, setIsLoadingThread] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   const selectedAccount = useMemo(
     () => accounts.find((account) => account.id === selectedAccountId),
@@ -194,7 +195,14 @@ export function InstagramMessagesClient({
   }, [initialSelectedAccountId, initialSelectedConversationId]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ block: "end" });
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    const distanceFromBottom =
+      container.scrollHeight - container.scrollTop - container.clientHeight;
+    const nearBottom = distanceFromBottom < 120;
+    if (nearBottom) {
+      messagesEndRef.current?.scrollIntoView({ block: "end" });
+    }
   }, [conversation?.messages.length, selectedConversationId]);
 
   async function loadConversation(conversationId: string, accountId = selectedAccountId) {
@@ -316,7 +324,9 @@ export function InstagramMessagesClient({
             <select
               value={selectedAccountId}
               onChange={(event) => void handleAccountChange(event.target.value)}
-              className="min-w-0 flex-1 bg-transparent text-sm outline-none"
+              aria-label="Instagram account filter"
+              style={{ backgroundColor: "var(--bg-light)", color: "var(--text)" }}
+              className="min-w-0 flex-1 text-sm outline-none"
             >
               <option value={ALL_ACCOUNTS}>All Accounts</option>
               {accounts.map((account) => (
@@ -436,7 +446,7 @@ export function InstagramMessagesClient({
             </p>
             <p className="truncate text-center text-[10px] font-medium leading-4 text-[#00a83b] opacity-70">
               {conversation
-                ? `${accountName(conversation.instagramAccount)} - ${formatDate(
+                ? `${accountName(conversation.instagramAccount)} – ${formatDate(
                     conversation.lastMessageAt,
                   )}`
                 : "No conversation selected"}
@@ -456,6 +466,7 @@ export function InstagramMessagesClient({
         {conversation ? (
           <>
             <div
+              ref={messagesContainerRef}
               role="log"
               aria-live="polite"
               aria-label="Conversation messages"

@@ -14,6 +14,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { PostDetailsModal } from "@/app/calendar/_components/PostDetailsModal";
 import { formatNumber } from "@/lib/format";
+import { APP_LOCALE } from "@/lib/locale";
 import type { PostStat, RecentPost } from "./data";
 
 const ICONS = {
@@ -24,12 +25,20 @@ const ICONS = {
   save: Bookmark,
 } as const;
 
+const STAT_LABELS: Record<PostStat["icon"], string> = {
+  heart: "Likes",
+  eye: "Views",
+  comments: "Comments",
+  share: "Shares",
+  save: "Saves",
+};
+
 function StatChip({ stat }: { stat: PostStat }) {
   const Icon = ICONS[stat.icon];
   return (
     <div
       className="flex h-[15px] min-w-8 items-center justify-center gap-[3px] overflow-hidden"
-      aria-label={`${stat.icon}: ${formatNumber(stat.value)}`}
+      aria-label={`${STAT_LABELS[stat.icon]}: ${formatNumber(stat.value)}`}
     >
       <Icon className="size-3 text-muted" strokeWidth={1.8} aria-hidden="true" />
       <span className="text-[12px] font-medium leading-[8px] text-muted [font-variant-numeric:tabular-nums]">
@@ -42,11 +51,12 @@ function StatChip({ stat }: { stat: PostStat }) {
 function MediaPreview({ post }: { post: RecentPost }) {
   if (post.mediaUrl && post.mediaType === "IMAGE") {
     return (
-      <div
-        className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: `url("${post.mediaUrl}")` }}
-        aria-label={post.title}
-        role="img"
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={post.mediaUrl}
+        alt={post.title}
+        loading="lazy"
+        className="absolute inset-0 h-full w-full object-cover"
       />
     );
   }
@@ -68,21 +78,29 @@ function MediaPreview({ post }: { post: RecentPost }) {
   );
 }
 
+const RELATIVE_FORMATTER = new Intl.RelativeTimeFormat(APP_LOCALE, {
+  numeric: "auto",
+});
+
 function formatTimeAgo(value: string | null) {
-  if (!value) return "-";
+  if (!value) return "—";
 
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
+  if (Number.isNaN(date.getTime())) return "—";
 
-  const diffMs = Date.now() - date.getTime();
+  const diffMs = date.getTime() - Date.now();
   const minute = 60 * 1000;
   const hour = 60 * minute;
   const day = 24 * hour;
+  const absDiff = Math.abs(diffMs);
 
-  if (diffMs < hour)
-    return `${Math.max(1, Math.floor(diffMs / minute))} min ago`;
-  if (diffMs < day) return `${Math.floor(diffMs / hour)} hours ago`;
-  return `${Math.floor(diffMs / day)} days ago`;
+  if (absDiff < hour) {
+    return RELATIVE_FORMATTER.format(Math.round(diffMs / minute), "minute");
+  }
+  if (absDiff < day) {
+    return RELATIVE_FORMATTER.format(Math.round(diffMs / hour), "hour");
+  }
+  return RELATIVE_FORMATTER.format(Math.round(diffMs / day), "day");
 }
 
 export function RecentPosts({

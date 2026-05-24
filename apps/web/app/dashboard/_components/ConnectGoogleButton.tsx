@@ -19,14 +19,16 @@ export function ConnectGoogleButton() {
           data: { session },
         } = await supabase.auth.getSession();
         if (!session?.access_token) {
-          setError("Not signed in");
+          setError("You are signed out. Sign in again to connect Google Calendar.");
           return;
         }
         const res = await fetch(`${API_BASE_URL}/integrations/google/auth`, {
           headers: { Authorization: `Bearer ${session.access_token}` },
         });
         if (!res.ok) {
-          setError(`Failed: ${res.status}`);
+          setError(
+            `Could not start Google sign-in (status ${res.status}). Try again in a moment or sign out and back in.`,
+          );
           return;
         }
         const { authUrl } = (await res.json()) as { authUrl: string };

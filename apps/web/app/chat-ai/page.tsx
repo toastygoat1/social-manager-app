@@ -70,6 +70,7 @@ export default async function ChatAiPage() {
             </label>
             <input
               id="chat-ai-input"
+              name="message"
               type="text"
               autoComplete="off"
               placeholder="Type message…"

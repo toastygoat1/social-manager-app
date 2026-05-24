@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { ApiError, apiFetchBrowser } from "@/lib/api/browser-client";
+import { APP_LOCALE } from "@/lib/locale";
 import type {
   CalendarFailedPost,
   CalendarPostDetail,
@@ -28,7 +29,7 @@ type Props = {
 
 function formatWhen(value: string | null) {
   if (!value) return "No schedule";
-  return new Date(value).toLocaleString("en-US", {
+  return new Date(value).toLocaleString(APP_LOCALE, {
     dateStyle: "medium",
     timeStyle: "short",
   });
@@ -124,7 +125,7 @@ export function CalendarWorkPanel({
                       {post.title}
                     </p>
                     <p className="truncate text-xs text-muted">
-                      @{post.accountUsername} - {post.postType}
+                      @{post.accountUsername} – {post.postType}
                     </p>
                     <p className="mt-1 truncate text-xs text-danger">
                       {post.errorMessage || "Publish failed"}
@@ -228,7 +229,7 @@ function WorkItemCard({
     >
       <p className="truncate text-sm font-semibold text-ink">{post.title}</p>
       <p className="truncate text-xs text-muted">
-        @{post.accountUsername} - {post.postType}
+        @{post.accountUsername} – {post.postType}
       </p>
       <p className="mt-1 text-xs text-muted">
         {formatWhen(post.scheduledFor ?? post.createdAt)}

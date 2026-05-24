@@ -81,9 +81,9 @@ export function UploadChart({ bars }: UploadChartProps) {
               No upload data yet
             </div>
           ) : (
-            bars.map((bar, i) => (
+            bars.map((bar) => (
               <div
-                key={i}
+                key={bar.label}
                 className="flex h-full w-16 shrink-0 flex-col items-center justify-end gap-2"
               >
                 <span className="text-xs leading-none text-muted">

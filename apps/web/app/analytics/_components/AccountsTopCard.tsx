@@ -129,7 +129,7 @@ export function AccountsTopCard({
   return (
     <div className="flex w-full shrink-0 flex-col gap-2.5 overflow-x-auto overflow-y-hidden rounded-3xl bg-paper p-2.5">
       <div className="flex w-full flex-wrap items-center justify-between gap-4 px-6 pt-[18px] pb-0">
-        <h2 className="font-semibold text-[16px] leading-4 text-[#495057]">
+        <h2 className="font-semibold text-[16px] leading-4 text-muted">
           Accounts
         </h2>
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-3">

@@ -152,7 +152,7 @@ export function Sidebar({
         aria-disabled="true"
         className="flex size-9 cursor-not-allowed items-center justify-center rounded-xl text-muted opacity-50"
       >
-        <Settings className="size-6" strokeWidth={1.6} aria-hidden="true" />
+        <Settings className="size-[18px]" strokeWidth={1.6} aria-hidden="true" />
       </button>
       <ProfilePicture profile={profile} />
     </aside>

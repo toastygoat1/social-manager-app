@@ -141,7 +141,7 @@ export function RefreshInsightsButton({
         ) : (
           <RefreshCw className="size-3.5" strokeWidth={2} />
         )}
-        <span>{isRefreshing ? "Refreshing" : "Refresh insights"}</span>
+        <span>{isRefreshing ? "Refreshing…" : "Refresh insights"}</span>
       </button>
     </div>
   );

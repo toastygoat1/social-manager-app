@@ -124,7 +124,11 @@ export function CalendarShell({ initialReferenceIso, initialData }: Props) {
   };
 
   return (
-    <div className="flex h-screen min-w-0 flex-1 flex-col gap-5 overflow-hidden bg-page px-9 pb-9">
+    <main
+      id="main-content"
+      className="flex h-screen min-w-0 flex-1 flex-col gap-5 overflow-hidden bg-page px-9 pb-9"
+    >
+      <h1 className="sr-only">Calendar</h1>
       <CalendarHeader
         view={view}
         onViewChange={setView}
@@ -136,7 +140,11 @@ export function CalendarShell({ initialReferenceIso, initialData }: Props) {
         referenceIso={reference.toISOString()}
       />
       {errorMessage || !data.googleConnected ? (
-        <div className="flex min-h-10 shrink-0 flex-wrap items-center gap-3 rounded-lg border border-line bg-paper px-4 py-2 text-xs font-medium text-muted">
+        <div
+          role="status"
+          aria-live="polite"
+          className="flex min-h-10 shrink-0 flex-wrap items-center gap-3 rounded-lg border border-line bg-paper px-4 py-2 text-xs font-medium text-muted"
+        >
           {errorMessage ? (
             <span className="text-danger">{errorMessage}</span>
           ) : null}
@@ -172,6 +180,6 @@ export function CalendarShell({ initialReferenceIso, initialData }: Props) {
         onClose={() => setSelectedPostId(null)}
         onChanged={refresh}
       />
-    </div>
+    </main>
   );
 }

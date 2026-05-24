@@ -175,9 +175,9 @@ export function MonthlyCalendar({
         </div>
       ) : null}
       <div className="flex h-12 shrink-0 items-stretch bg-line">
-        {MONTH_DAYS.map((d, i) => (
+        {MONTH_DAYS.map((d) => (
           <div
-            key={i}
+            key={d}
             className="flex flex-1 items-center justify-center border-[0.855px] border-line bg-paper p-2.5 text-[13px] font-medium text-muted"
           >
             {d}
@@ -185,11 +185,11 @@ export function MonthlyCalendar({
         ))}
       </div>
       <div className="flex flex-1 flex-col">
-        {grid.map((row, ri) => (
-          <div key={ri} className="flex flex-1 items-stretch">
-            {row.map((cell, ci) => (
+        {grid.map((row) => (
+          <div key={row[0]?.iso ?? row[0]?.day} className="flex flex-1 items-stretch">
+            {row.map((cell) => (
               <DayCell
-                key={`${ri}-${ci}`}
+                key={cell.iso}
                 cell={cell}
                 events={eventsByIso.get(cell.iso) ?? []}
                 onOpenPost={onOpenPost}

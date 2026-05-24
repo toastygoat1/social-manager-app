@@ -70,7 +70,7 @@ function eventDateKey(evt: CalEvent): string | null {
 
 function ChevronLeft() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
+    <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4" aria-hidden="true">
       <path d="M15 6l-6 6 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
@@ -78,7 +78,7 @@ function ChevronLeft() {
 
 function ChevronRight() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
+    <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4" aria-hidden="true">
       <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
@@ -89,6 +89,7 @@ function ChevronDown({ open }: { open: boolean }) {
     <svg
       viewBox="0 0 24 24"
       fill="none"
+      aria-hidden="true"
       className={`h-3 w-3 transition-transform ${open ? "rotate-180" : ""}`}
     >
       <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -98,7 +99,7 @@ function ChevronDown({ open }: { open: boolean }) {
 
 function CalendarIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
+    <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4" aria-hidden="true">
       <rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="1.5" />
       <path d="M3 9h18M8 3v4M16 3v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
     </svg>
@@ -107,7 +108,7 @@ function CalendarIcon() {
 
 function GridIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
+    <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4" aria-hidden="true">
       <rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="1.5" />
       <rect x="14" y="3" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="1.5" />
       <rect x="3" y="14" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="1.5" />
@@ -334,7 +335,7 @@ function CalendarView({ calendar }: { calendar: CalendarMonth }) {
               type="button"
               onClick={togglePicker}
               aria-label="Pick month and year"
-              aria-haspopup="dialog"
+              aria-haspopup="menu"
               aria-expanded={pickerOpen}
               className="ml-1 flex items-center gap-1 text-sm font-medium"
             >
@@ -427,7 +428,7 @@ function CalendarView({ calendar }: { calendar: CalendarMonth }) {
           >
             {grid.map((cell, index) => (
               <div
-                key={index}
+                key={`${cell.muted ? "m" : "d"}-${cell.day}-${index}`}
                 className={`border-r border-b border-line px-2 py-1 text-[11px] ${
                   cell.muted ? "text-muted" : "text-ink"
                 } ${index % 7 === 6 ? "border-r-0" : ""} ${

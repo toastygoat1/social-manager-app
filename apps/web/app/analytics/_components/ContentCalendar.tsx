@@ -51,7 +51,7 @@ function Cell({
         {cell.day}
       </span>
       {events?.map((e, i) => (
-        <EventChip key={i} {...e} compact={compact} />
+        <EventChip key={`${e.label}-${e.time}-${i}`} {...e} compact={compact} />
       ))}
     </div>
   );
@@ -91,9 +91,13 @@ export function ContentCalendar({
             ))}
           </div>
           {calendar.rows.map((row, ri) => (
-            <div key={ri} className="flex w-full">
+            <div key={`row-${ri}-${row[0]?.day ?? ""}`} className="flex w-full">
               {row.map((cell, ci) => (
-                <Cell key={ci} cell={cell} compact={compact} />
+                <Cell
+                  key={`${ri}-${ci}-${cell.day}`}
+                  cell={cell}
+                  compact={compact}
+                />
               ))}
             </div>
           ))}
