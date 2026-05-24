@@ -79,7 +79,8 @@ export function CompareAccountPicker({
             aria-label="Left comparison account"
             value={leftAccountId ?? ""}
             onChange={(event) => updateLeftAccount(event.target.value)}
-            className="h-9 w-full min-w-48 rounded-lg border border-line bg-card px-3 text-sm text-ink outline-none transition focus:border-ink sm:w-56"
+            style={{ backgroundColor: "var(--bg)", color: "var(--text)" }}
+            className="h-9 w-full min-w-48 rounded-lg border border-line px-3 text-sm transition focus:border-ink sm:w-56"
           >
             <option value="" disabled>
               Select account
@@ -111,7 +112,8 @@ export function CompareAccountPicker({
             aria-label="Right comparison account"
             value={rightAccountId ?? ""}
             onChange={(event) => updateRightAccount(event.target.value)}
-            className="h-9 w-full min-w-48 rounded-lg border border-line bg-card px-3 text-sm text-ink outline-none transition focus:border-ink sm:w-56"
+            style={{ backgroundColor: "var(--bg)", color: "var(--text)" }}
+            className="h-9 w-full min-w-48 rounded-lg border border-line px-3 text-sm transition focus:border-ink sm:w-56"
           >
             <option value="" disabled>
               Select account

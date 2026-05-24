@@ -84,7 +84,7 @@ export default async function DashboardPage({
   return (
     <div className="flex min-h-screen items-start bg-page font-sans">
       <Sidebar profile={profile} />
-      <main className="flex min-w-0 flex-1 flex-col items-center">
+      <main id="main-content" className="flex min-w-0 flex-1 flex-col items-center">
         <div className="flex w-full max-w-[1372px] flex-col gap-5 p-8">
           <section className="flex h-[692px] w-full items-start gap-5">
             <div className="flex h-full min-w-0 flex-1 flex-col gap-5 rounded-3xl">

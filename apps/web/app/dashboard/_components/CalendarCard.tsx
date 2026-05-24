@@ -171,8 +171,8 @@ type CalendarCardProps = {
 
 export function CalendarCard({ calendar }: CalendarCardProps) {
   return (
-    <div className="flex h-full shrink-0 flex-col items-start overflow-hidden rounded-2xl border border-line bg-card p-6">
-      <div className="flex h-[274px] w-[595px] flex-col overflow-hidden rounded-md border border-line bg-paper">
+    <div className="flex h-full min-w-0 flex-1 flex-col items-start overflow-hidden rounded-2xl border border-line bg-card p-6">
+      <div className="flex h-[274px] w-full max-w-[595px] flex-col overflow-hidden rounded-md border border-line bg-paper">
         {calendar ? (
           <CalendarView calendar={calendar} />
         ) : (
@@ -266,8 +266,15 @@ function CalendarView({ calendar }: { calendar: CalendarMonth }) {
         setPickerOpen(false);
       }
     }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setPickerOpen(false);
+    }
     document.addEventListener("mousedown", onPointerDown);
-    return () => document.removeEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
   }, [pickerOpen]);
 
   const grid = useMemo(() => {
@@ -326,8 +333,10 @@ function CalendarView({ calendar }: { calendar: CalendarMonth }) {
             <button
               type="button"
               onClick={togglePicker}
-              className="ml-1 flex items-center gap-1 text-sm font-medium"
               aria-label="Pick month and year"
+              aria-haspopup="dialog"
+              aria-expanded={pickerOpen}
+              className="ml-1 flex items-center gap-1 text-sm font-medium"
             >
               {periodLabel}
               <ChevronDown open={pickerOpen} />

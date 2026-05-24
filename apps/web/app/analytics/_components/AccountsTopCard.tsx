@@ -78,6 +78,7 @@ function AccountFilterChip({
   return (
     <Link
       href={analyticsHref({ accountId: account.id, range })}
+      aria-current={active ? "page" : undefined}
       className={`flex h-11 w-[196px] shrink-0 items-center gap-2 overflow-hidden rounded-lg px-4 py-2 transition ${
         active ? "bg-[var(--chart-3)]" : "bg-paper hover:bg-card"
       }`}
@@ -141,30 +142,50 @@ export function AccountsTopCard({
           <div className="flex shrink-0 items-center rounded-lg border border-line bg-card p-1">
             <Link
               href={analyticsHref({ accountId: selectedAccountId, range })}
+              aria-current={isCompareMode ? undefined : "page"}
               className={`flex h-8 items-center gap-2 rounded-md px-3 text-xs font-medium transition ${
                 isCompareMode
                   ? "text-muted hover:text-ink"
                   : "bg-paper text-ink"
               }`}
             >
-              <LayoutDashboard className="size-3.5" strokeWidth={1.8} />
+              <LayoutDashboard
+                className="size-3.5"
+                strokeWidth={1.8}
+                aria-hidden="true"
+              />
               <span>Single</span>
             </Link>
             {accounts.length < 2 ? (
-              <span className="flex h-8 cursor-not-allowed items-center gap-2 rounded-md px-3 text-xs font-medium text-muted opacity-60">
-                <Columns2 className="size-3.5" strokeWidth={1.8} />
+              <button
+                type="button"
+                disabled
+                aria-disabled="true"
+                title="Connect at least two Instagram accounts to compare"
+                className="flex h-8 cursor-not-allowed items-center gap-2 rounded-md px-3 text-xs font-medium text-muted opacity-60"
+              >
+                <Columns2
+                  className="size-3.5"
+                  strokeWidth={1.8}
+                  aria-hidden="true"
+                />
                 <span>Compare</span>
-              </span>
+              </button>
             ) : (
               <Link
                 href={compareModeHref}
+                aria-current={isCompareMode ? "page" : undefined}
                 className={`flex h-8 items-center gap-2 rounded-md px-3 text-xs font-medium transition ${
                   isCompareMode
                     ? "bg-paper text-ink"
                     : "text-muted hover:text-ink"
                 }`}
               >
-                <Columns2 className="size-3.5" strokeWidth={1.8} />
+                <Columns2
+                  className="size-3.5"
+                  strokeWidth={1.8}
+                  aria-hidden="true"
+                />
                 <span>Compare</span>
               </Link>
             )}
@@ -186,6 +207,8 @@ export function AccountsTopCard({
                         range: item.value,
                       })
                 }
+                aria-current={range === item.value ? "page" : undefined}
+                aria-label={`Last ${item.label}`}
                 className={`flex h-8 min-w-12 items-center justify-center rounded-md px-3 text-xs font-medium transition ${
                   range === item.value
                     ? "bg-paper text-ink"
@@ -201,6 +224,7 @@ export function AccountsTopCard({
       <div className="flex w-full items-center gap-2 overflow-hidden px-2 pb-2">
         <Link
           href={analyticsHref({ accountId: null, range })}
+          aria-current={!selectedAccountId && !isCompareMode ? "page" : undefined}
           className={`flex h-11 w-[196px] shrink-0 items-center gap-2 rounded-lg px-4 py-2 transition ${
             selectedAccountId || isCompareMode
               ? "bg-paper hover:bg-card"

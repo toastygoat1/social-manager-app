@@ -44,7 +44,7 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
   return (
     <div className="flex h-screen items-start overflow-hidden bg-page font-sans">
       <Sidebar active="chat" profile={getUserProfile(user)} />
-      <main className="flex h-screen min-w-0 flex-1 flex-col items-center p-5">
+      <main id="main-content" className="flex h-screen min-w-0 flex-1 flex-col items-center p-5">
         <div className="flex h-full w-full max-w-[1340px] items-start overflow-hidden rounded-2xl bg-paper">
           <InstagramMessagesClient
             initialSelectedAccountId={accountId ?? ALL_ACCOUNTS}

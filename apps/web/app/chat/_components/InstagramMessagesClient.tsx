@@ -354,9 +354,16 @@ export function InstagramMessagesClient({
 
           <div className="min-h-0 flex-1 overflow-y-auto pb-3">
             {isLoadingConversations ? (
-              <div className="flex items-center gap-2 px-4 py-6 text-sm text-muted">
-                <Loader2 className="size-4 animate-spin" strokeWidth={1.8} />
-                Loading
+              <div
+                className="flex items-center gap-2 px-4 py-6 text-sm text-muted"
+                aria-live="polite"
+              >
+                <Loader2
+                  className="size-4 animate-spin"
+                  strokeWidth={1.8}
+                  aria-hidden="true"
+                />
+                Loading…
               </div>
             ) : conversations.length ? (
               <div className="flex flex-col items-center justify-center gap-1">
@@ -369,6 +376,7 @@ export function InstagramMessagesClient({
                       key={item.id}
                       type="button"
                       onClick={() => void loadConversation(item.id)}
+                      aria-current={isSelected ? "true" : undefined}
                       className={`relative flex h-[76px] w-full items-center gap-3 rounded-lg px-3 text-left transition ${
                         isSelected ? "bg-bg" : "hover:bg-bg"
                       }`}
@@ -437,18 +445,30 @@ export function InstagramMessagesClient({
         </div>
 
         {error ? (
-          <div className="border-b border-line bg-[#fff7f7] px-4 py-3 text-sm text-danger">
+          <div
+            role="alert"
+            className="border-b border-line bg-[#fff7f7] px-4 py-3 text-sm text-danger"
+          >
             {error}
           </div>
         ) : null}
 
         {conversation ? (
           <>
-            <div className="flex min-h-0 w-full flex-1 flex-col gap-7 overflow-y-auto p-5">
+            <div
+              role="log"
+              aria-live="polite"
+              aria-label="Conversation messages"
+              className="flex min-h-0 w-full flex-1 flex-col gap-7 overflow-y-auto p-5"
+            >
               {isLoadingThread ? (
-                <div className="flex items-center gap-2 text-sm text-muted">
-                  <Loader2 className="size-4 animate-spin" strokeWidth={1.8} />
-                  Loading
+                <div className="flex items-center gap-2 text-sm text-muted" aria-live="polite">
+                  <Loader2
+                    className="size-4 animate-spin"
+                    strokeWidth={1.8}
+                    aria-hidden="true"
+                  />
+                  Loading…
                 </div>
               ) : conversation.messages.length ? (
                 conversation.messages.map((message) => {
@@ -490,15 +510,24 @@ export function InstagramMessagesClient({
               onSubmit={(event) => void handleSend(event)}
               className="flex shrink-0 items-end gap-3 border-t border-line bg-paper p-4"
             >
+              <label htmlFor="chat-composer" className="sr-only">
+                Reply to {conversation ? participantName(conversation) : "conversation"}
+              </label>
               <textarea
+                id="chat-composer"
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
                 onKeyDown={handleComposerKeyDown}
                 maxLength={2000}
                 rows={2}
+                aria-keyshortcuts="Enter"
+                aria-describedby="chat-composer-hint"
                 className="min-h-11 flex-1 resize-none rounded-xl border border-line bg-paper px-3 py-2 text-[15px] text-ink outline-none transition focus:border-cta focus:ring-2 focus:ring-cta/20"
-                placeholder="Reply"
+                placeholder="Reply…"
               />
+              <span id="chat-composer-hint" className="sr-only">
+                Press Enter to send, Shift + Enter for a new line.
+              </span>
               <button
                 type="submit"
                 disabled={!draft.trim() || isSending}

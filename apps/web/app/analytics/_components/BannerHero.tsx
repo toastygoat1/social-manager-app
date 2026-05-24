@@ -109,7 +109,7 @@ export function BannerHero({
         </div>
         <div className="flex flex-col items-center gap-2 text-center">
           <h2
-            className={`font-semibold leading-none text-ink ${
+            className={`text-balance font-semibold leading-none text-ink ${
               compact ? "text-2xl" : "text-[32px]"
             }`}
           >

@@ -101,7 +101,7 @@ export function Sidebar({
         <SnowflakeLogo />
       </div>
 
-      <nav className="flex flex-col items-center gap-3">
+      <nav aria-label="Primary" className="flex flex-col items-center gap-3">
         {NAV_ITEMS.map(({ key, label, Icon, href }) => {
           const isActive = key === active;
           const className = `flex size-9 items-center justify-center rounded-xl transition ${
@@ -109,8 +109,18 @@ export function Sidebar({
           }`;
           if (href) {
             return (
-              <Link key={key} href={href} aria-label={label} className={className}>
-                <Icon className="size-[18px]" strokeWidth={1.6} />
+              <Link
+                key={key}
+                href={href}
+                aria-label={label}
+                aria-current={isActive ? "page" : undefined}
+                className={className}
+              >
+                <Icon
+                  className="size-[18px]"
+                  strokeWidth={1.6}
+                  aria-hidden="true"
+                />
               </Link>
             );
           }
@@ -119,9 +129,14 @@ export function Sidebar({
               key={key}
               type="button"
               aria-label={label}
+              aria-current={isActive ? "page" : undefined}
               className={className}
             >
-              <Icon className="size-[18px]" strokeWidth={1.6} />
+              <Icon
+                className="size-[18px]"
+                strokeWidth={1.6}
+                aria-hidden="true"
+              />
             </button>
           );
         })}
