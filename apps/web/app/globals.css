@@ -1,18 +1,18 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: oklch(0.985 0.004 220);
+  --foreground: oklch(0.2 0.012 220);
 
-  --bg: #fafafa;
-  --bg-light: #ffffff;
-  --bg-dark: #f5f5f5;
-  --border: #ededed;
-  --text: #0d0d0d;
-  --text-muted: #4c4c4c;
+  --bg: oklch(0.975 0.005 220);
+  --bg-light: oklch(0.995 0.003 220);
+  --bg-dark: oklch(0.96 0.006 220);
+  --border: oklch(0.91 0.008 220);
+  --text: oklch(0.2 0.012 220);
+  --text-muted: oklch(0.52 0.014 220);
   --cta: #3ac1d6;
   --cta-border: #1fa8c0;
-  --line-icon: #33363f;
+  --line-icon: oklch(0.32 0.018 220);
 
   --chart-1: #318cfb;
   --chart-2: #1fd1c0;

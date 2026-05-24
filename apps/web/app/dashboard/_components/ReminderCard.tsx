@@ -1,6 +1,6 @@
 import type { Reminder } from "./data";
 
-type ReminderCardProps = {
+type ReminderBlockProps = {
   reminder: Reminder | null;
 };
 
@@ -11,29 +11,34 @@ function formatTimeRange(startsAt: string, endsAt: string): string {
       minute: "2-digit",
       hour12: false,
     });
-    return `${fmt.format(new Date(startsAt))} - ${fmt.format(new Date(endsAt))}`;
+    return `${fmt.format(new Date(startsAt))}–${fmt.format(new Date(endsAt))}`;
   } catch {
-    return `${startsAt} - ${endsAt}`;
+    return `${startsAt}–${endsAt}`;
   }
 }
 
-export function ReminderCard({ reminder }: ReminderCardProps) {
+export function ReminderCard({ reminder }: ReminderBlockProps) {
   return (
-    <div className="flex h-full flex-1 flex-col items-center gap-[69px] overflow-hidden rounded-xl border border-line bg-card p-6 text-center text-ink">
-      <h3 className="text-xl font-medium leading-none">Reminder Today</h3>
-      {reminder ? (
-        <div className="flex w-full flex-col items-center gap-8">
-          <p className="text-[32px] font-semibold leading-tight">{reminder.title}</p>
-          <p className="text-xs leading-none">
+    <div className="flex flex-col gap-3">
+      <header className="flex items-baseline justify-between border-b border-line pb-3">
+        <h2 className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted">
+          Today
+        </h2>
+        {reminder ? (
+          <span className="font-inter text-xs tabular-nums text-muted">
             {formatTimeRange(reminder.startsAt, reminder.endsAt)}
+          </span>
+        ) : null}
+      </header>
+      {reminder ? (
+        <div className="flex items-baseline gap-3">
+          <span className="size-1.5 shrink-0 translate-y-[-3px] rounded-full bg-cta" aria-hidden="true" />
+          <p className="text-2xl font-medium leading-snug text-ink">
+            {reminder.title}
           </p>
         </div>
       ) : (
-        <div className="flex w-full flex-col items-center gap-8">
-          <p className="text-[32px] font-semibold leading-tight text-muted">
-            No reminders today
-          </p>
-        </div>
+        <p className="text-sm text-muted">No reminders today.</p>
       )}
     </div>
   );

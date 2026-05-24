@@ -1,28 +1,38 @@
-import { AccountChip, AllAccountsChip } from "./AccountChip";
+import { AccountChip } from "./AccountChip";
 import { ConnectInstagramButton } from "./ConnectInstagramButton";
 import type { Account } from "./data";
 
 type AccountsListProps = {
   accounts: Account[];
+  total: number | null;
   statusMessage?: string | null;
   statusTone?: "success" | "danger" | null;
 };
 
 export function AccountsList({
   accounts,
+  total,
   statusMessage,
   statusTone,
 }: AccountsListProps) {
+  const totalLabel =
+    total === null || total === undefined
+      ? "—"
+      : total === 1
+        ? "1 connected"
+        : `${total} connected`;
+
   return (
-    <div className="flex w-72 min-h-0 flex-1 flex-col items-start gap-4 overflow-hidden rounded-2xl border border-line bg-card p-6">
-      <div className="flex w-full items-center">
-        <h3 className="text-xl font-medium leading-none text-ink">Accounts</h3>
-        <div className="flex-1" />
+    <div className="flex min-h-0 flex-col gap-3">
+      <header className="flex items-baseline justify-between border-b border-line pb-3">
+        <h2 className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted">
+          Accounts · {totalLabel}
+        </h2>
         <ConnectInstagramButton />
-      </div>
+      </header>
       {statusMessage ? (
         <p
-          className={`w-full rounded-lg border px-3 py-2 text-xs leading-4 ${
+          className={`rounded-md border px-3 py-2 text-xs leading-4 ${
             statusTone === "danger"
               ? "border-red-200 bg-red-50 text-danger"
               : "border-emerald-200 bg-emerald-50 text-success"
@@ -31,11 +41,10 @@ export function AccountsList({
           {statusMessage}
         </p>
       ) : null}
-      <div className="flex w-full min-h-0 flex-1 flex-col gap-2 overflow-y-auto overflow-x-hidden">
-        <AllAccountsChip className="w-full" />
+      <div className="flex min-h-0 flex-col gap-1 overflow-y-auto pr-1">
         {accounts.length === 0 ? (
-          <p className="px-2 py-4 text-xs text-muted">
-            No Instagram accounts connected yet
+          <p className="py-2 text-xs text-muted">
+            No Instagram accounts connected yet.
           </p>
         ) : (
           accounts.map((acct) => (
