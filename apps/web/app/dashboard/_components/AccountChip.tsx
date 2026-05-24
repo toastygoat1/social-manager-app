@@ -58,6 +58,7 @@ export function AccountChip({
 }: AccountChipProps) {
   const router = useRouter();
   const [isRemoving, setIsRemoving] = useState(false);
+  const [removeError, setRemoveError] = useState<string | null>(null);
 
   async function removeAccount() {
     if (!accountId) return;
@@ -65,6 +66,7 @@ export function AccountChip({
     const confirmed = window.confirm(`Remove ${name} from this workspace?`);
     if (!confirmed) return;
 
+    setRemoveError(null);
     setIsRemoving(true);
 
     try {
@@ -77,51 +79,71 @@ export function AccountChip({
       router.refresh();
     } catch (error) {
       setIsRemoving(false);
-      window.alert(getRemoveErrorMessage(error));
+      setRemoveError(getRemoveErrorMessage(error));
     }
   }
 
   return (
-    <div
-      className={`flex h-11 items-center gap-2 overflow-hidden rounded-lg bg-paper px-4 py-2 ${className ?? ""}`}
-    >
-      <div className="relative size-7 shrink-0 overflow-hidden rounded-full bg-line">
-        {avatarUrl ? (
-          <Image
-            src={avatarUrl}
-            alt=""
-            width={28}
-            height={28}
-            className="size-7 object-cover"
-          />
-        ) : (
-          <div className="flex size-7 items-center justify-center text-[10px] font-medium text-muted">
-            {getFallbackInitial(name)}
-          </div>
-        )}
-      </div>
-      <div className="flex min-w-0 flex-1 flex-col items-start">
-        <p className="truncate text-xs leading-none text-ink">{name}</p>
-        <div className="mt-0.5 flex items-center gap-0.5 text-[10px] text-muted">
-          <Instagram className="size-2.5" strokeWidth={1.8} />
-          <span className="truncate leading-4">{platform}</span>
-        </div>
-      </div>
-      {accountId ? (
-        <button
-          type="button"
-          onClick={removeAccount}
-          disabled={isRemoving}
-          title="Remove account"
-          aria-label={`Remove ${name}`}
-          className="flex size-7 shrink-0 items-center justify-center rounded-lg text-muted transition hover:bg-red-50 hover:text-danger disabled:pointer-events-none disabled:opacity-60"
-        >
-          {isRemoving ? (
-            <LoaderCircle className="size-3.5 animate-spin" strokeWidth={2} />
+    <div className={`flex flex-col gap-1 ${className ?? ""}`}>
+      <div className="flex h-11 items-center gap-2 overflow-hidden rounded-lg bg-paper px-4 py-2">
+        <div className="relative size-7 shrink-0 overflow-hidden rounded-full bg-line">
+          {avatarUrl ? (
+            <Image
+              src={avatarUrl}
+              alt=""
+              width={28}
+              height={28}
+              className="size-7 object-cover"
+            />
           ) : (
-            <Trash2 className="size-3.5" strokeWidth={2} />
+            <div className="flex size-7 items-center justify-center text-[10px] font-medium text-muted">
+              {getFallbackInitial(name)}
+            </div>
           )}
-        </button>
+        </div>
+        <div className="flex min-w-0 flex-1 flex-col items-start">
+          <p className="truncate text-xs leading-none text-ink">{name}</p>
+          <div className="mt-0.5 flex items-center gap-0.5 text-[10px] text-muted">
+            <Instagram
+              className="size-2.5"
+              strokeWidth={1.8}
+              aria-hidden="true"
+            />
+            <span className="truncate leading-4">{platform}</span>
+          </div>
+        </div>
+        {accountId ? (
+          <button
+            type="button"
+            onClick={removeAccount}
+            disabled={isRemoving}
+            title="Remove account"
+            aria-label={`Remove ${name}`}
+            className="flex size-7 shrink-0 items-center justify-center rounded-lg text-muted transition hover:bg-red-50 hover:text-danger disabled:pointer-events-none disabled:opacity-60"
+          >
+            {isRemoving ? (
+              <LoaderCircle
+                className="size-3.5 animate-spin"
+                strokeWidth={2}
+                aria-hidden="true"
+              />
+            ) : (
+              <Trash2
+                className="size-3.5"
+                strokeWidth={2}
+                aria-hidden="true"
+              />
+            )}
+          </button>
+        ) : null}
+      </div>
+      {removeError ? (
+        <p
+          role="alert"
+          className="rounded-md bg-red-50 px-2 py-1 text-[11px] leading-tight text-danger"
+        >
+          {removeError}
+        </p>
       ) : null}
     </div>
   );

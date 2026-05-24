@@ -27,9 +27,12 @@ const ICONS = {
 function StatChip({ stat }: { stat: PostStat }) {
   const Icon = ICONS[stat.icon];
   return (
-    <div className="flex h-[15px] min-w-8 items-center justify-center gap-[3px] overflow-hidden">
-      <Icon className="size-3 text-muted" strokeWidth={1.8} />
-      <span className="text-[12px] font-medium leading-[8px] text-muted">
+    <div
+      className="flex h-[15px] min-w-8 items-center justify-center gap-[3px] overflow-hidden"
+      aria-label={`${stat.icon}: ${formatNumber(stat.value)}`}
+    >
+      <Icon className="size-3 text-muted" strokeWidth={1.8} aria-hidden="true" />
+      <span className="text-[12px] font-medium leading-[8px] text-muted [font-variant-numeric:tabular-nums]">
         {formatNumber(stat.value)}
       </span>
     </div>
@@ -51,8 +54,16 @@ function MediaPreview({ post }: { post: RecentPost }) {
   const Icon = post.mediaType === "VIDEO" ? Video : ImageIcon;
 
   return (
-    <div className="flex size-full items-center justify-center bg-card">
-      <Icon className="size-9 text-muted" strokeWidth={1.6} />
+    <div
+      className="flex size-full items-center justify-center bg-card"
+      role="img"
+      aria-label={`${post.mediaType === "VIDEO" ? "Video" : "Image"} placeholder for ${post.title}`}
+    >
+      <Icon
+        className="size-9 text-muted"
+        strokeWidth={1.6}
+        aria-hidden="true"
+      />
     </div>
   );
 }
@@ -90,13 +101,13 @@ export function RecentPosts({
         compact ? "gap-5 px-3 py-4" : "gap-9 px-6 py-5"
       }`}
     >
-      <p
+      <h2
         className={`w-full text-ink ${
           compact ? "text-lg leading-6" : "text-[20px] leading-[31.5px]"
         }`}
       >
         Recent Posts
-      </p>
+      </h2>
       <div
         className={`flex w-full items-center overflow-x-auto ${
           compact ? "justify-start gap-3 p-2" : "justify-center gap-5 p-4"
@@ -147,6 +158,7 @@ export function RecentPosts({
                 <Clock
                   className="size-[15.7px] text-muted"
                   strokeWidth={1.6}
+                  aria-hidden="true"
                 />
                 <span className="text-[12.2px] text-muted">
                   {formatTimeAgo(post.publishedAt)}

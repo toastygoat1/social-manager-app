@@ -7,6 +7,7 @@ import {
   TriangleAlert,
   User,
 } from "lucide-react";
+import { APP_LOCALE } from "@/lib/locale";
 import {
   buildWeekDays,
   type CalendarEvent,
@@ -64,7 +65,7 @@ function formatHour(hour: number): string {
 function formatTime(event: CalendarEvent): string {
   if (event.allDay) return "All day";
   const d = new Date(event.start);
-  return d.toLocaleTimeString("en-US", {
+  return d.toLocaleTimeString(APP_LOCALE, {
     hour: "numeric",
     minute: "2-digit",
   });
@@ -175,9 +176,16 @@ export function WeeklyCalendar({
   return (
     <div className="relative flex w-full flex-1 flex-col overflow-hidden rounded-2xl border border-line bg-paper">
       {loading ? (
-        <div className="absolute right-3 top-3 z-20 flex items-center gap-2 rounded-full border border-line bg-paper px-3 py-1 text-xs font-medium text-muted shadow-sm">
-          <Loader2 className="size-3 animate-spin" strokeWidth={2} />
-          <span>Loading</span>
+        <div
+          aria-live="polite"
+          className="absolute right-3 top-3 z-20 flex items-center gap-2 rounded-full border border-line bg-paper px-3 py-1 text-xs font-medium text-muted shadow-sm"
+        >
+          <Loader2
+            className="size-3 animate-spin"
+            strokeWidth={2}
+            aria-hidden="true"
+          />
+          <span>Loading…</span>
         </div>
       ) : null}
       {!loading && events.length === 0 ? (

@@ -14,7 +14,11 @@ function EventChip({
 }) {
   return (
     <div className="flex items-center gap-1 rounded-md border border-line bg-paper px-1 py-0.5">
-      <Clock className="size-2.5 text-muted" strokeWidth={1.6} />
+      <Clock
+        className="size-2.5 text-muted"
+        strokeWidth={1.6}
+        aria-hidden="true"
+      />
       <span className="truncate text-[8px] text-ink">{label}</span>
       {compact ? null : <span className="text-[8px] text-muted">{time}</span>}
       <span
@@ -67,9 +71,9 @@ export function ContentCalendar({
       }`}
     >
       <div className="flex w-full items-center justify-between">
-        <p className={compact ? "text-lg text-ink" : "text-xl text-ink"}>
+        <h2 className={compact ? "text-lg text-ink" : "text-xl text-ink"}>
           Content Calendar
-        </p>
+        </h2>
         {calendar ? (
           <span className="text-sm text-muted">{calendar.label}</span>
         ) : null}

@@ -25,7 +25,9 @@ function LegendRow({
       >
         {item.label}
       </span>
-      <span className="text-sm text-muted">{item.percentage}%</span>
+      <span className="text-sm text-muted [font-variant-numeric:tabular-nums]">
+        {item.percentage}%
+      </span>
     </div>
   );
 }
@@ -112,9 +114,9 @@ export function ChannelDistribution({
         compact ? "px-3 py-4" : "px-6 py-5"
       }`}
     >
-      <p className={compact ? "text-lg text-ink" : "text-xl text-ink"}>
+      <h2 className={compact ? "text-lg text-ink" : "text-xl text-ink"}>
         Content Channel Distribution
-      </p>
+      </h2>
       {items.length === 0 ? (
         <div className="flex h-36 w-full items-center justify-center rounded-2xl border border-line bg-paper text-sm text-muted">
           No content distribution yet
