@@ -40,14 +40,14 @@ export function UploadChart({ bars }: UploadChartProps) {
   const yTicks = getYAxisTicks(axisMax);
 
   return (
-    <div className="flex h-full shrink-0 flex-col gap-2 overflow-hidden rounded-2xl border border-line bg-card p-6">
-      <div className="flex items-start justify-between gap-4">
-        <h3 className="text-xl font-medium leading-none text-ink">
-          Upload Chart
-        </h3>
-        <div className="flex items-center gap-3 text-[10px] leading-none text-muted">
+    <div className="flex flex-col gap-3">
+      <header className="flex items-baseline justify-between gap-4 border-b border-line pb-3">
+        <h2 className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted">
+          Publishing activity
+        </h2>
+        <div className="flex items-center gap-4 text-[10px] leading-none text-muted">
           {LEGEND_ITEMS.map((item) => (
-            <div key={item.label} className="flex items-center gap-1">
+            <div key={item.label} className="flex items-center gap-1.5">
               <span
                 className="size-2 rounded-sm"
                 style={{ background: item.color }}
@@ -56,29 +56,29 @@ export function UploadChart({ bars }: UploadChartProps) {
             </div>
           ))}
         </div>
-      </div>
-      <div className="flex min-h-0 flex-1 items-stretch">
-        <div className="flex h-full flex-col items-end justify-end gap-6 pb-12 text-xs text-ink">
+      </header>
+      <div className="flex h-[260px] min-w-0 items-stretch">
+        <div className="flex h-full flex-col items-end justify-end gap-6 pb-10 font-inter text-[10px] tabular-nums text-muted">
           {yTicks.map((t) => (
             <span key={t}>{formatNumber(t)}</span>
           ))}
         </div>
-        <div className="ml-6 flex h-full w-[584px] items-end gap-4 overflow-x-auto">
+        <div className="ml-4 flex min-w-0 flex-1 items-end gap-3 overflow-x-auto">
           {bars.length === 0 ? (
             <div className="flex h-full w-full items-center justify-center text-sm text-muted">
-              No upload data yet
+              No upload data yet.
             </div>
           ) : (
             bars.map((bar, i) => (
               <div
                 key={i}
-                className="flex h-full w-16 shrink-0 flex-col items-center justify-end gap-2"
+                className="flex h-full min-w-[44px] flex-1 flex-col items-center justify-end gap-2"
               >
-                <span className="text-xs leading-none text-muted">
+                <span className="font-inter text-[10px] leading-none tabular-nums text-muted">
                   {formatNumber(bar.value)}
                 </span>
                 <div
-                  className="flex w-10 flex-col-reverse overflow-hidden rounded-lg transition-[height]"
+                  className="flex w-full max-w-10 flex-col-reverse overflow-hidden rounded-sm"
                   style={{
                     height: `${Math.max((bar.value / axisMax) * CHART_HEIGHT, 4)}px`,
                   }}
@@ -95,7 +95,7 @@ export function UploadChart({ bars }: UploadChartProps) {
                     />
                   ))}
                 </div>
-                <p className="w-full truncate text-center text-xs leading-none text-ink">
+                <p className="w-full truncate text-center text-[10px] leading-none text-muted">
                   {bar.label}
                 </p>
               </div>

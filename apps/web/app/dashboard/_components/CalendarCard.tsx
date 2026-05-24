@@ -171,8 +171,13 @@ type CalendarCardProps = {
 
 export function CalendarCard({ calendar }: CalendarCardProps) {
   return (
-    <div className="flex h-full shrink-0 flex-col items-start overflow-hidden rounded-2xl border border-line bg-card p-6">
-      <div className="flex h-[274px] w-[595px] flex-col overflow-hidden rounded-md border border-line bg-paper">
+    <div className="flex flex-col gap-3">
+      <header className="flex items-baseline justify-between border-b border-line pb-3">
+        <h2 className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted">
+          Upcoming
+        </h2>
+      </header>
+      <div className="flex h-[300px] w-full min-w-0 flex-col overflow-hidden rounded-md border border-line bg-paper">
         {calendar ? (
           <CalendarView calendar={calendar} />
         ) : (
