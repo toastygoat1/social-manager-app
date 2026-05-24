@@ -182,6 +182,58 @@ describe('InstagramService', () => {
     expect(findManyArgs.select).not.toHaveProperty('accessTokenEncrypted');
   });
 
+  it('backfills missing profile pictures when listing accounts', async () => {
+    const account = {
+      id: 'account-1',
+      userId: 'user-1',
+      igUserId: 'ig-1',
+      username: 'brand',
+      accountType: InstagramAccountType.BUSINESS,
+      avatarUrl: null,
+      pageId: null,
+      isActive: true,
+      tokenExpiresAt: null,
+      connectedAt: new Date(),
+      disconnectedAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    prisma.instagramAccount.findMany
+      .mockResolvedValueOnce([account])
+      .mockResolvedValueOnce([
+        {
+          id: 'account-1',
+          accessTokenEncrypted: encryptSecret('ig-token'),
+        },
+      ]);
+    prisma.instagramAccount.update.mockResolvedValue({ id: 'account-1' });
+    const fetchMock = jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: 'ig-1',
+          profile_picture_url: 'https://cdninstagram.com/avatar.jpg',
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      ),
+    );
+
+    const result = await service.getAccounts('user-1');
+
+    const profileUrl = fetchMock.mock.calls[0]?.[0] as URL;
+    expect(profileUrl.pathname).toBe('/v21.0/me');
+    expect(profileUrl.searchParams.get('fields')).toBe('profile_picture_url');
+    expect(profileUrl.searchParams.get('access_token')).toBe('ig-token');
+    expect(prisma.instagramAccount.update).toHaveBeenCalledWith({
+      where: { id: 'account-1' },
+      data: { avatarUrl: 'https://cdninstagram.com/avatar.jpg' },
+      select: { id: true },
+    });
+    expect(result[0]).toMatchObject({
+      id: 'account-1',
+      avatarUrl: 'https://cdninstagram.com/avatar.jpg',
+    });
+  });
+
   it('lists DM conversations for accounts owned by the user', async () => {
     const sentAt = new Date();
     const lastMessage = {

@@ -1,84 +1,151 @@
-import { DISTRIBUTION_LEFT, DISTRIBUTION_RIGHT, type DistributionItem } from "./data";
+import type { DistributionItem } from "./data";
 
-function LegendRow({ item }: { item: DistributionItem }) {
+function LegendRow({
+  item,
+  compact = false,
+}: {
+  item: DistributionItem;
+  compact?: boolean;
+}) {
   return (
-    <div className="flex w-64 items-center gap-5 rounded-lg border border-line bg-paper px-3 py-[7px]">
+    <div
+      className={`flex items-center rounded-lg border border-line bg-paper px-3 py-[7px] ${
+        compact ? "w-full gap-3" : "w-64 gap-5"
+      }`}
+    >
       <span
         className="size-3.5 shrink-0 rounded-full"
         style={{ backgroundColor: item.color }}
         aria-hidden="true"
       />
-      <span className="text-xl font-medium text-ink">{item.label}</span>
+      <span
+        className={`min-w-0 flex-1 truncate font-medium text-ink ${
+          compact ? "text-sm" : "text-xl"
+        }`}
+      >
+        {item.label}
+      </span>
+      <span className="text-sm text-muted">{item.percentage}%</span>
     </div>
   );
 }
 
-function DonutChart() {
-  const segments = [
-    { color: "var(--chart-1)", value: 18 },
-    { color: "var(--chart-2)", value: 14 },
-    { color: "var(--chart-3)", value: 13 },
-    { color: "var(--chart-4)", value: 12 },
-    { color: "var(--chart-5)", value: 11 },
-    { color: "var(--chart-6)", value: 9 },
-    { color: "var(--chart-7)", value: 8 },
-    { color: "var(--chart-8)", value: 6 },
-    { color: "var(--chart-9)", value: 5 },
-    { color: "var(--chart-10)", value: 4 },
-  ];
-  const total = segments.reduce((sum, s) => sum + s.value, 0);
+function DonutChart({
+  items,
+  compact = false,
+}: {
+  items: DistributionItem[];
+  compact?: boolean;
+}) {
+  const total = items.reduce((sum, s) => sum + s.value, 0);
   const radius = 80;
   const stroke = 50;
   const circumference = 2 * Math.PI * radius;
+  const { segments } = items.reduce(
+    (acc, item) => {
+      const fraction = item.value / total;
+      const dash = fraction * circumference;
 
-  let offset = 0;
+      return {
+        offset: acc.offset + dash,
+        segments: [
+          ...acc.segments,
+          {
+            item,
+            dash,
+            gap: circumference - dash,
+            dashOffset: -acc.offset,
+          },
+        ],
+      };
+    },
+    {
+      offset: 0,
+      segments: [] as {
+        item: DistributionItem;
+        dash: number;
+        gap: number;
+        dashOffset: number;
+      }[],
+    },
+  );
+
   return (
-    <svg viewBox="0 0 200 200" className="size-[200px]" aria-hidden="true">
+    <svg
+      viewBox="0 0 200 200"
+      className={compact ? "size-[150px]" : "size-[200px]"}
+      aria-hidden="true"
+    >
       <g transform="rotate(-90 100 100)">
-        {segments.map((seg, i) => {
-          const fraction = seg.value / total;
-          const dash = fraction * circumference;
-          const gap = circumference - dash;
-          const dashOffset = -offset;
-          offset += dash;
-          return (
-            <circle
-              key={i}
-              cx="100"
-              cy="100"
-              r={radius}
-              fill="none"
-              stroke={seg.color}
-              strokeWidth={stroke}
-              strokeDasharray={`${dash} ${gap}`}
-              strokeDashoffset={dashOffset}
-            />
-          );
-        })}
+        {segments.map(({ item, dash, gap, dashOffset }) => (
+          <circle
+            key={item.label}
+            cx="100"
+            cy="100"
+            r={radius}
+            fill="none"
+            stroke={item.color}
+            strokeWidth={stroke}
+            strokeDasharray={`${dash} ${gap}`}
+            strokeDashoffset={dashOffset}
+          />
+        ))}
       </g>
     </svg>
   );
 }
 
-export function ChannelDistribution() {
+export function ChannelDistribution({
+  items,
+  compact = false,
+}: {
+  items: DistributionItem[];
+  compact?: boolean;
+}) {
+  const midpoint = Math.ceil(items.length / 2);
+  const leftItems = items.slice(0, midpoint);
+  const rightItems = items.slice(midpoint);
+
   return (
-    <div className="flex w-full flex-col items-start gap-5 overflow-hidden rounded-[17px] px-6 py-5">
-      <p className="text-xl text-ink">Content Channel Distribution</p>
-      <div className="flex w-full items-center justify-center gap-[60px]">
-        <DonutChart />
-        <div className="flex items-center gap-6">
-          <div className="flex flex-col gap-3">
-            {DISTRIBUTION_LEFT.map((item) => (
-              <LegendRow key={item.label} item={item} />
-            ))}
-          </div>
-          <div className="flex flex-col gap-3">
-            {DISTRIBUTION_RIGHT.map((item) => (
-              <LegendRow key={item.label} item={item} />
-            ))}
+    <div
+      className={`flex w-full flex-col items-start gap-5 overflow-hidden rounded-[17px] ${
+        compact ? "px-3 py-4" : "px-6 py-5"
+      }`}
+    >
+      <p className={compact ? "text-lg text-ink" : "text-xl text-ink"}>
+        Content Channel Distribution
+      </p>
+      {items.length === 0 ? (
+        <div className="flex h-36 w-full items-center justify-center rounded-2xl border border-line bg-paper text-sm text-muted">
+          No content distribution yet
+        </div>
+      ) : (
+        <div
+          className={`flex w-full flex-col items-center justify-center ${
+            compact ? "gap-5" : "gap-8 xl:flex-row xl:gap-[60px]"
+          }`}
+        >
+          <DonutChart items={items} compact={compact} />
+          <div
+            className={
+              compact
+                ? "grid w-full grid-cols-1 gap-3 sm:grid-cols-2"
+                : "flex flex-col items-center gap-3 md:flex-row md:items-start md:gap-6"
+            }
+          >
+            <div className="flex min-w-0 flex-col gap-3">
+              {leftItems.map((item) => (
+                <LegendRow key={item.label} item={item} compact={compact} />
+              ))}
+            </div>
+            <div className="flex min-w-0 flex-col gap-3">
+              {rightItems.map((item) => (
+                <LegendRow key={item.label} item={item} compact={compact} />
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
