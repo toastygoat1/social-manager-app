@@ -146,10 +146,13 @@ export function Sidebar({
 
       <button
         type="button"
-        aria-label="Settings"
-        className="flex size-9 items-center justify-center rounded-xl text-muted hover:bg-card"
+        aria-label="Settings (coming soon)"
+        title="Settings (coming soon)"
+        disabled
+        aria-disabled="true"
+        className="flex size-9 cursor-not-allowed items-center justify-center rounded-xl text-muted opacity-50"
       >
-        <Settings className="size-6" strokeWidth={1.6} />
+        <Settings className="size-6" strokeWidth={1.6} aria-hidden="true" />
       </button>
       <ProfilePicture profile={profile} />
     </aside>

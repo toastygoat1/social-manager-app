@@ -11,6 +11,7 @@ import {
   X,
 } from "lucide-react";
 import { ApiError, apiFetchBrowser } from "@/lib/api/browser-client";
+import { APP_LOCALE } from "@/lib/locale";
 import type { AnalyticsNote, Recommendation } from "./data";
 
 type RecommendationsProps = {
@@ -32,7 +33,7 @@ function formatNoteDate(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
 
-  return date.toLocaleDateString("en-US", {
+  return date.toLocaleDateString(APP_LOCALE, {
     month: "short",
     day: "numeric",
   });
@@ -133,7 +134,7 @@ export function Recommendations({
 
   return (
     <div className="flex w-full flex-col items-start gap-6 overflow-hidden px-6 py-5">
-      <p className="text-xl text-ink">Recommendation</p>
+      <h2 className="text-xl text-ink">Recommendation</h2>
       <div className="flex w-full flex-col items-center gap-4">
         {recommendations.length === 0 ? (
           <div className="flex h-24 w-full max-w-[860px] items-center justify-center rounded-lg border border-line bg-paper text-sm text-muted">
@@ -155,19 +156,23 @@ export function Recommendations({
       </div>
       <div className="mt-2 flex w-full flex-col gap-3 border-t border-line pt-6">
         <div className="flex items-center justify-between gap-4">
-          <p className="text-base font-medium text-ink">Notes</p>
+          <h3 className="text-base font-medium text-ink">Notes</h3>
           <span className="text-xs text-muted">{notes.length} saved</span>
         </div>
         <form
           onSubmit={createNote}
           className="flex w-full flex-col gap-3 rounded-lg border border-line bg-paper px-4 py-4"
         >
+          <label htmlFor="recommendation-note-draft" className="sr-only">
+            Write a note
+          </label>
           <textarea
+            id="recommendation-note-draft"
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             maxLength={500}
             rows={3}
-            placeholder="Write a note..."
+            placeholder="Write a note…"
             className="min-h-20 w-full resize-y rounded-lg border border-line bg-card px-3 py-2 text-sm text-ink outline-none transition placeholder:text-muted focus:border-ink"
           />
           <div className="flex items-center justify-between gap-3">
@@ -178,16 +183,22 @@ export function Recommendations({
               className="flex h-9 items-center gap-2 rounded-lg bg-ink px-3 text-xs font-medium text-white transition hover:bg-ink/90 disabled:pointer-events-none disabled:opacity-60"
             >
               {pendingAction === "create" ? (
-                <LoaderCircle className="size-3.5 animate-spin" />
+                <LoaderCircle
+                  className="size-3.5 animate-spin"
+                  aria-hidden="true"
+                />
               ) : (
-                <Plus className="size-3.5" />
+                <Plus className="size-3.5" aria-hidden="true" />
               )}
               <span>Add note</span>
             </button>
           </div>
         </form>
         {error ? (
-          <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-danger">
+          <p
+            role="alert"
+            className="rounded-lg bg-red-50 px-3 py-2 text-sm text-danger"
+          >
             {error}
           </p>
         ) : null}
@@ -241,9 +252,12 @@ export function Recommendations({
                             className="flex size-8 items-center justify-center rounded-lg text-success transition hover:bg-emerald-50 disabled:pointer-events-none disabled:opacity-50"
                           >
                             {isUpdating ? (
-                              <LoaderCircle className="size-4 animate-spin" />
+                              <LoaderCircle
+                                className="size-4 animate-spin"
+                                aria-hidden="true"
+                              />
                             ) : (
-                              <Check className="size-4" />
+                              <Check className="size-4" aria-hidden="true" />
                             )}
                           </button>
                           <button
@@ -253,7 +267,7 @@ export function Recommendations({
                             aria-label="Cancel"
                             className="flex size-8 items-center justify-center rounded-lg text-muted transition hover:bg-card hover:text-ink"
                           >
-                            <X className="size-4" />
+                            <X className="size-4" aria-hidden="true" />
                           </button>
                         </>
                       ) : (
@@ -265,7 +279,7 @@ export function Recommendations({
                             aria-label="Edit note"
                             className="flex size-8 items-center justify-center rounded-lg text-muted transition hover:bg-card hover:text-ink"
                           >
-                            <Pencil className="size-4" />
+                            <Pencil className="size-4" aria-hidden="true" />
                           </button>
                           <button
                             type="button"
@@ -276,9 +290,12 @@ export function Recommendations({
                             className="flex size-8 items-center justify-center rounded-lg text-muted transition hover:bg-red-50 hover:text-danger disabled:pointer-events-none disabled:opacity-50"
                           >
                             {isDeleting ? (
-                              <LoaderCircle className="size-4 animate-spin" />
+                              <LoaderCircle
+                                className="size-4 animate-spin"
+                                aria-hidden="true"
+                              />
                             ) : (
-                              <Trash2 className="size-4" />
+                              <Trash2 className="size-4" aria-hidden="true" />
                             )}
                           </button>
                         </>

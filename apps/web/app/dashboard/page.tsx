@@ -121,7 +121,7 @@ export default async function DashboardPage({
             </aside>
           </section>
 
-          <section className="flex h-[500px] w-full items-start overflow-x-auto">
+          <section className="flex h-[500px] w-full items-start">
             <ContentTable rows={data.contentRows} />
           </section>
         </div>

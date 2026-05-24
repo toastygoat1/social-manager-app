@@ -38,9 +38,12 @@ function Trend({ stat }: { stat: AnalyticsStat }) {
     : "text-danger border-danger";
 
   return (
-    <div className="flex min-w-0 items-center gap-1">
+    <div
+      className="flex min-w-0 items-center gap-1"
+      aria-label={`${isUp ? "Up" : "Down"} ${formatNumber(stat.delta)}, ${isUp ? "increase" : "decrease"} from previous period`}
+    >
       <span
-        className={`flex items-center justify-center gap-0.5 rounded-sm border-[0.5px] px-1 text-xs ${tone}`}
+        className={`flex items-center justify-center gap-0.5 rounded-sm border-[0.5px] px-1 text-xs [font-variant-numeric:tabular-nums] ${tone}`}
       >
         {formatNumber(stat.delta)}
         <Arrow className={`h-1 w-[7px] ${isUp ? "rotate-180" : ""}`} />
@@ -88,11 +91,12 @@ export function StatGrid({
                 <Icon
                   className={compact ? "size-5 text-ink" : "size-[22px] text-ink"}
                   strokeWidth={1.8}
+                  aria-hidden="true"
                 />
               </div>
             </div>
             <p
-              className={`font-medium leading-none text-ink ${
+              className={`font-medium leading-none text-ink [font-variant-numeric:tabular-nums] ${
                 compact ? "text-[30px]" : "text-[36px]"
               }`}
             >

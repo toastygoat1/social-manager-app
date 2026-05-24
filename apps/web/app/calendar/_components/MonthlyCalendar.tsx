@@ -26,9 +26,11 @@ const STATUS_BADGE: Record<
   pending: { bg: "bg-[#fbd177]", Icon: TriangleAlert },
 };
 
+import { APP_LOCALE } from "@/lib/locale";
+
 function formatTime(event: CalendarEvent): string {
   if (event.allDay) return "All day";
-  return new Date(event.start).toLocaleTimeString("en-US", {
+  return new Date(event.start).toLocaleTimeString(APP_LOCALE, {
     hour: "numeric",
     minute: "2-digit",
   });
@@ -46,7 +48,10 @@ function EventChip({
   const content = (
     <>
       <div className="flex flex-1 items-center gap-2 pl-2">
-        <span className="flex size-4 shrink-0 items-center justify-center rounded-full bg-card text-muted">
+        <span
+          className="flex size-4 shrink-0 items-center justify-center rounded-full bg-card text-muted"
+          aria-hidden="true"
+        >
           {event.source === "google" ? (
             <CalendarIcon className="size-2.5" strokeWidth={2} />
           ) : (
@@ -63,6 +68,7 @@ function EventChip({
       {badge ? (
         <div
           className={`flex h-full w-[21px] shrink-0 items-center justify-center ${badge.bg}`}
+          aria-hidden="true"
         >
           <badge.Icon className="size-3 text-paper" strokeWidth={2.5} />
         </div>
