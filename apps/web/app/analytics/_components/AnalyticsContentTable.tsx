@@ -268,11 +268,12 @@ function MediaPreview({
     );
   } else {
     content = (
-      <div
-        aria-label={title}
-        className="aspect-square w-full bg-card bg-contain bg-center bg-no-repeat"
-        role="img"
-        style={{ backgroundImage: `url("${item.previewUrl}")` }}
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={item.previewUrl}
+        alt={title}
+        loading="lazy"
+        className="aspect-square w-full bg-card object-contain"
       />
     );
   }

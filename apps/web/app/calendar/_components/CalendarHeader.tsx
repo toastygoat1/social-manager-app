@@ -100,6 +100,7 @@ export function CalendarHeader({
         <button
           type="button"
           onClick={onToday}
+          aria-label="Go to today"
           className="text-2xl font-semibold text-ink"
         >
           Today
@@ -114,7 +115,7 @@ export function CalendarHeader({
         </button>
       </div>
 
-      <div className="h-9 w-1 rounded-full bg-[#495057]" />
+      <div className="h-9 w-1 rounded-full bg-muted" aria-hidden="true" />
 
       <div className="flex h-8 items-center gap-1 px-1 text-base font-semibold text-ink">
         <span>{periodLabel}</span>

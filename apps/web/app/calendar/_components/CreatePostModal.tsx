@@ -450,8 +450,9 @@ function Switch({
   return (
     <button
       type="button"
+      role="switch"
       onClick={onToggle}
-      aria-pressed={on}
+      aria-checked={on}
       aria-label="Require approval before publishing"
       className="pt-1"
     >
@@ -833,14 +834,22 @@ export function CreatePostModal({
             <h2 className="text-xl font-semibold text-ink">{TYPE_LABEL[type]}</h2>
             <div className="flex h-[524px] w-full flex-col gap-6 overflow-hidden rounded-2xl border border-line p-6">
               <div className="flex flex-1 flex-col gap-2.5 overflow-hidden p-2.5">
+                <label htmlFor="create-post-title" className="sr-only">
+                  Post title
+                </label>
                 <input
+                  id="create-post-title"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="Post title"
                   maxLength={200}
                   className="h-10 w-full shrink-0 border-b border-line bg-transparent text-base font-semibold text-ink placeholder:text-muted focus:outline-none"
                 />
+                <label htmlFor="create-post-caption" className="sr-only">
+                  Caption
+                </label>
                 <textarea
+                  id="create-post-caption"
                   value={caption}
                   onChange={(e) => setCaption(e.target.value)}
                   placeholder="Write a caption"

@@ -84,7 +84,7 @@ export function BannerHero({
           {avatarAccount?.avatarUrl ? (
             <Image
               src={avatarAccount.avatarUrl}
-              alt=""
+              alt={`${avatarAccount.name} profile picture`}
               width={compact ? 96 : 164}
               height={compact ? 96 : 164}
               className={compact ? "size-24 object-cover" : "size-[164px] object-cover"}

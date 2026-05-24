@@ -11,6 +11,7 @@ import {
   X,
 } from "lucide-react";
 import { ApiError, apiFetchBrowser } from "@/lib/api/browser-client";
+import { useFocusTrap } from "@/lib/use-focus-trap";
 import { Instagram } from "./icons";
 
 const POPUP_W = 520;
@@ -77,6 +78,24 @@ export function ConnectInstagramButton() {
   const popupCloseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  useFocusTrap(dialogRef, isOpen);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closeModal();
+    };
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKey);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   function cleanupPopup() {
     if (pollRef.current) {
@@ -308,12 +327,17 @@ export function ConnectInstagramButton() {
       ) : null}
 
       {isOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 px-4">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 px-4 [overscroll-behavior:contain]"
+          onClick={closeModal}
+        >
           <div
+            ref={dialogRef}
             role="dialog"
             aria-modal="true"
             aria-labelledby="connect-instagram-title"
-            className="w-full max-w-[460px] rounded-lg border border-line bg-paper shadow-xl"
+            className="w-full max-w-[460px] rounded-lg border border-line bg-paper shadow-xl outline-none"
+            onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-center gap-3 border-b border-line px-5 py-4">
               <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-card text-ink">
@@ -333,10 +357,11 @@ export function ConnectInstagramButton() {
               <button
                 type="button"
                 onClick={closeModal}
+                aria-label="Close"
                 title="Close"
                 className="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted transition hover:bg-card hover:text-ink"
               >
-                <X className="size-4" strokeWidth={2} />
+                <X className="size-4" strokeWidth={2} aria-hidden="true" />
               </button>
             </div>
 

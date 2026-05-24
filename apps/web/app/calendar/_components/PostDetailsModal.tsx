@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { ApiError, apiFetchBrowser } from "@/lib/api/browser-client";
+import { APP_LOCALE } from "@/lib/locale";
 import { createClient } from "@/lib/supabase/client";
 import { useFocusTrap } from "@/lib/use-focus-trap";
 import type { CalendarPostDetail, EventStatus } from "./data";
@@ -97,7 +98,7 @@ function defaultScheduleValue() {
 
 function formatDate(value: string | null) {
   if (!value) return "Not set";
-  return new Date(value).toLocaleString("en-US", {
+  return new Date(value).toLocaleString(APP_LOCALE, {
     dateStyle: "medium",
     timeStyle: "short",
   });
@@ -615,14 +616,22 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
             <section className="flex flex-col gap-5 border-b border-line p-7 md:border-b-0 md:border-r">
               {isEditable ? (
                 <>
+                  <label htmlFor="post-details-title" className="sr-only">
+                    Post title
+                  </label>
                   <input
+                    id="post-details-title"
                     value={title}
                     onChange={(event) => setTitle(event.target.value)}
                     placeholder="Post title"
                     maxLength={200}
                     className="h-11 border-b border-line bg-transparent text-lg font-semibold text-ink placeholder:text-muted focus:outline-none"
                   />
+                  <label htmlFor="post-details-caption" className="sr-only">
+                    Caption
+                  </label>
                   <textarea
+                    id="post-details-caption"
                     value={caption}
                     onChange={(event) => setCaption(event.target.value)}
                     placeholder="Write a caption"
@@ -675,7 +684,7 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
                           )}
                         </div>
                         <p className="px-3 pt-2 text-xs font-semibold text-ink">
-                          {item.fileType === "IMAGE" ? "Image" : "Video"} -{" "}
+                          {item.fileType === "IMAGE" ? "Image" : "Video"} –{" "}
                           {formatFileSize(item.fileSize)}
                         </p>
                         <p className="px-3 pb-2 text-[11px] text-muted [font-variant-numeric:tabular-nums]">
