@@ -24,6 +24,11 @@ export class AddInstagramAccountDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(512)
+  avatarUrl?: string;
+
+  @IsOptional()
+  @IsString()
   @MaxLength(64)
   pageId?: string;
 

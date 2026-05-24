@@ -36,6 +36,7 @@ const SAFE_INSTAGRAM_ACCOUNT_SELECT = {
   igUserId: true,
   username: true,
   accountType: true,
+  avatarUrl: true,
   pageId: true,
   isActive: true,
   tokenExpiresAt: true,
@@ -161,6 +162,7 @@ type InstagramProfileResponse = GraphApiError & {
   username: string;
   account_type?: string;
   media_count?: number;
+  profile_picture_url?: string;
 };
 
 type InstagramInsightsResponse = GraphApiError & {
@@ -268,11 +270,29 @@ export class InstagramService {
   }
 
   async getAccounts(userId: string) {
-    return this.prisma.instagramAccount.findMany({
+    const accounts = await this.prisma.instagramAccount.findMany({
       where: { userId, isActive: true },
       orderBy: { createdAt: 'desc' },
       select: SAFE_INSTAGRAM_ACCOUNT_SELECT,
     });
+
+    const missingAvatarIds = accounts
+      .filter((account) => !account.avatarUrl)
+      .map((account) => account.id);
+
+    if (missingAvatarIds.length === 0) return accounts;
+
+    const syncedAvatars = await this.syncMissingAccountAvatars(
+      userId,
+      missingAvatarIds,
+    );
+
+    if (syncedAvatars.size === 0) return accounts;
+
+    return accounts.map((account) => ({
+      ...account,
+      avatarUrl: syncedAvatars.get(account.id) ?? account.avatarUrl,
+    }));
   }
 
   async removeAccount(userId: string, accountId: string) {
@@ -407,11 +427,15 @@ export class InstagramService {
     const profile = await this.fetchInstagramProfile(
       longLivedToken.access_token,
     );
+    const avatarUrl = await this.fetchInstagramProfilePictureUrl(
+      longLivedToken.access_token,
+    );
     const connected = await this.upsertAccount(user.userId, {
       igUserId: profile.id,
       username: profile.username,
       accessToken: longLivedToken.access_token,
       accountType: this.normalizeAccountType(profile.account_type),
+      avatarUrl: avatarUrl ?? undefined,
       tokenExpiresAt: longLivedToken.expires_in
         ? new Date(Date.now() + longLivedToken.expires_in * 1000).toISOString()
         : undefined,
@@ -441,6 +465,7 @@ export class InstagramService {
           username: data.username,
           accessTokenEncrypted,
           accountType: data.accountType,
+          avatarUrl: data.avatarUrl ?? null,
           pageId: data.pageId,
           tokenExpiresAt: data.tokenExpiresAt
             ? new Date(data.tokenExpiresAt)
@@ -494,6 +519,7 @@ export class InstagramService {
           username: data.username,
           accessTokenEncrypted,
           accountType: data.accountType,
+          avatarUrl: data.avatarUrl ?? undefined,
           pageId: data.pageId,
           tokenExpiresAt: data.tokenExpiresAt
             ? new Date(data.tokenExpiresAt)
@@ -1126,6 +1152,70 @@ export class InstagramService {
     url.searchParams.set('access_token', accessToken);
 
     return this.requestGraph<InstagramProfileResponse>(url);
+  }
+
+  private async fetchInstagramProfilePictureUrl(accessToken: string) {
+    const url = this.createGraphUrl('me');
+    url.searchParams.set('fields', 'profile_picture_url');
+    url.searchParams.set('access_token', accessToken);
+
+    try {
+      const profile = await this.requestGraph<InstagramProfileResponse>(url);
+      return profile.profile_picture_url?.trim() || null;
+    } catch (error) {
+      this.logger.warn(
+        `Instagram profile picture fetch skipped: ${this.getErrorMessage(error)}`,
+      );
+      return null;
+    }
+  }
+
+  private async syncMissingAccountAvatars(
+    userId: string,
+    accountIds: string[],
+  ) {
+    const accounts = await this.prisma.instagramAccount.findMany({
+      where: {
+        userId,
+        isActive: true,
+        id: { in: accountIds },
+      },
+      select: {
+        id: true,
+        accessTokenEncrypted: true,
+      },
+    });
+
+    const updates = await Promise.all(
+      accounts.map(async (account) => {
+        try {
+          const avatarUrl = await this.fetchInstagramProfilePictureUrl(
+            decryptSecret(account.accessTokenEncrypted),
+          );
+
+          if (!avatarUrl) return null;
+
+          await this.prisma.instagramAccount.update({
+            where: { id: account.id },
+            data: { avatarUrl },
+            select: { id: true },
+          });
+
+          return [account.id, avatarUrl] as const;
+        } catch (error) {
+          this.logger.warn(
+            `Instagram profile picture sync skipped for account ${account.id}: ${this.getErrorMessage(error)}`,
+          );
+          return null;
+        }
+      }),
+    );
+
+    return new Map(
+      updates.filter((entry): entry is NonNullable<typeof entry> =>
+        Boolean(entry),
+      ),
+    );
   }
 
   private async fetchAccountUploadCount(account: InstagramInsightsAccount) {

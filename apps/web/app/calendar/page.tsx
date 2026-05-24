@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { Sidebar } from "@/app/dashboard/_components/Sidebar";
 import { createClient } from "@/lib/supabase/server";
 import { getCalendarData } from "@/lib/calendar-data";
+import { getUserProfile } from "@/lib/supabase/user-profile";
 import { rangeForMonth } from "./_components/data";
 import { CalendarShell } from "./_components/CalendarShell";
 
@@ -31,7 +32,7 @@ export default async function CalendarPage() {
 
   return (
     <div className="flex min-h-screen items-start bg-page font-sans">
-      <Sidebar active="scheduling" />
+      <Sidebar active="scheduling" profile={getUserProfile(user)} />
       <CalendarShell
         initialReferenceIso={now.toISOString()}
         initialData={initialData}
