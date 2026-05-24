@@ -1,3 +1,4 @@
+import { APP_LOCALE } from "@/lib/locale";
 import type { Reminder } from "./data";
 
 type ReminderCardProps = {
@@ -6,14 +7,14 @@ type ReminderCardProps = {
 
 function formatTimeRange(startsAt: string, endsAt: string): string {
   try {
-    const fmt = new Intl.DateTimeFormat("id-ID", {
+    const fmt = new Intl.DateTimeFormat(APP_LOCALE, {
       hour: "2-digit",
       minute: "2-digit",
       hour12: false,
     });
-    return `${fmt.format(new Date(startsAt))} - ${fmt.format(new Date(endsAt))}`;
+    return `${fmt.format(new Date(startsAt))} – ${fmt.format(new Date(endsAt))}`;
   } catch {
-    return `${startsAt} - ${endsAt}`;
+    return `${startsAt} – ${endsAt}`;
   }
 }
 

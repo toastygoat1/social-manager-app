@@ -13,9 +13,10 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ApiError, apiFetchBrowser } from "@/lib/api/browser-client";
 import { createClient } from "@/lib/supabase/client";
+import { useFocusTrap } from "@/lib/use-focus-trap";
 import type { CalendarPostDetail, EventStatus } from "./data";
 
 type Props = {
@@ -256,6 +257,9 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
     CalendarPostDetail["media"]
   >([]);
   const [draftUploads, setDraftUploads] = useState<DraftUpload[]>([]);
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  useFocusTrap(dialogRef, postId !== null);
 
   useEffect(() => {
     if (!postId) return;
@@ -574,12 +578,13 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
       role="dialog"
       aria-modal="true"
       aria-label="Post details"
-      className="fixed inset-0 z-50 flex items-center justify-center p-3"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 [overscroll-behavior:contain]"
       style={{ backgroundColor: "rgba(89, 89, 89, 0.8)" }}
       onClick={onClose}
     >
       <div
-        className="flex max-h-[calc(100vh-24px)] w-[940px] max-w-[calc(100vw-24px)] flex-col overflow-hidden rounded-3xl border border-line bg-paper shadow-xl"
+        ref={dialogRef}
+        className="flex max-h-[calc(100vh-24px)] w-[940px] max-w-[calc(100vw-24px)] flex-col overflow-hidden rounded-3xl border border-line bg-paper shadow-xl outline-none"
         onClick={(event) => event.stopPropagation()}
       >
         <header className="flex shrink-0 items-center justify-between border-b border-line px-7 py-5">
@@ -598,9 +603,12 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
         </header>
 
         {loading ? (
-          <div className="flex h-64 items-center justify-center gap-2 text-sm font-medium text-muted">
-            <Loader2 className="size-5 animate-spin" />
-            Loading post...
+          <div
+            className="flex h-64 items-center justify-center gap-2 text-sm font-medium text-muted"
+            aria-live="polite"
+          >
+            <Loader2 className="size-5 animate-spin" aria-hidden="true" />
+            Loading post…
           </div>
         ) : post ? (
           <div className="grid min-h-0 flex-1 grid-cols-1 overflow-y-auto md:grid-cols-[1.05fr_0.95fr]">
@@ -647,7 +655,9 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
                               src={item.previewUrl}
-                              alt=""
+                              alt={`Post media${item.width && item.height ? ` (${item.width} by ${item.height})` : ""}`}
+                              width={item.width ?? 400}
+                              height={item.height ?? 400}
                               className="h-full w-full object-cover"
                             />
                           ) : item.fileType === "VIDEO" && item.previewUrl ? (
@@ -668,9 +678,9 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
                           {item.fileType === "IMAGE" ? "Image" : "Video"} -{" "}
                           {formatFileSize(item.fileSize)}
                         </p>
-                        <p className="px-3 pb-2 text-[11px] text-muted">
+                        <p className="px-3 pb-2 text-[11px] text-muted [font-variant-numeric:tabular-nums]">
                           {item.width && item.height
-                            ? `${item.width} x ${item.height}`
+                            ? `${item.width} × ${item.height}`
                             : item.mimeType}
                         </p>
                         {isDraft ? (
@@ -839,7 +849,7 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
                     onClick={() => void approve()}
                     className="mt-4 w-full rounded-lg bg-cta px-4 py-2.5 text-sm font-semibold text-paper disabled:opacity-60"
                   >
-                    {submitting ? "Approving..." : "Approve Post"}
+                    {submitting ? "Approving…" : "Approve Post"}
                   </button>
                   <button
                     type="button"
@@ -881,7 +891,7 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
                       onClick={() => void retryPublish()}
                       className="mt-4 w-full rounded-lg bg-cta px-4 py-2.5 text-sm font-semibold text-paper disabled:opacity-60"
                     >
-                      {submitting ? "Queueing..." : "Retry Publish"}
+                      {submitting ? "Queueing…" : "Retry Publish"}
                     </button>
                   ) : (
                     <p className="mt-3 text-xs font-medium text-danger">
@@ -893,12 +903,19 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
               ) : null}
 
               {notice ? (
-                <p className="rounded-lg bg-[#e6f7fa] px-3 py-2 text-sm font-medium text-ink">
+                <p
+                  role="status"
+                  aria-live="polite"
+                  className="rounded-lg bg-[#e6f7fa] px-3 py-2 text-sm font-medium text-ink"
+                >
                   {notice}
                 </p>
               ) : null}
               {error ? (
-                <p className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-danger">
+                <p
+                  role="alert"
+                  className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-danger"
+                >
                   {error}
                 </p>
               ) : null}

@@ -30,7 +30,7 @@ export default async function Home({ searchParams }: HomePageProps) {
   }
 
   return (
-    <main className="flex flex-1 items-center justify-center bg-zinc-100 px-4 py-10">
+    <main id="main-content" className="flex flex-1 items-center justify-center bg-zinc-100 px-4 py-10">
       <section className="w-full max-w-xl rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm">
         <p className="text-sm font-medium text-zinc-500">Social Manager App</p>
         <h1 className="mt-2 text-2xl font-semibold text-zinc-900">
@@ -41,7 +41,11 @@ export default async function Home({ searchParams }: HomePageProps) {
         </p>
 
         {statusMessage ? (
-          <p className="mt-4 rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-700">
+          <p
+            role="status"
+            aria-live="polite"
+            className="mt-4 rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-700"
+          >
             {statusMessage}
           </p>
         ) : null}
@@ -55,7 +59,7 @@ export default async function Home({ searchParams }: HomePageProps) {
         ) : userEmail ? (
           <div className="mt-6 space-y-4">
             <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-              Sign in as {userEmail}
+              Signed in as {userEmail}
             </p>
             <div className="flex flex-wrap gap-3">
               <Link
@@ -99,8 +103,11 @@ export default async function Home({ searchParams }: HomePageProps) {
                 name="email"
                 type="email"
                 required
+                autoComplete="email"
+                inputMode="email"
+                spellCheck={false}
                 placeholder="you@example.com"
-                className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none transition focus:border-zinc-500"
+                className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 transition focus:border-zinc-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900"
               />
             </div>
             <div>
@@ -116,18 +123,21 @@ export default async function Home({ searchParams }: HomePageProps) {
                 type="password"
                 required
                 minLength={6}
-                placeholder="At least 6 characters"
-                className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none transition focus:border-zinc-500"
+                autoComplete="current-password"
+                placeholder="At least 6 characters…"
+                className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 transition focus:border-zinc-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900"
               />
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <button
+                type="submit"
                 formAction={signIn}
                 className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-700"
               >
                 Sign in
               </button>
               <button
+                type="submit"
                 formAction={signUp}
                 className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-100"
               >

@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 :root {
+  color-scheme: light;
   --background: #ffffff;
   --foreground: #171717;
 
@@ -65,4 +66,44 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+/* Visible keyboard focus for everything interactive that doesn't already
+   replace the outline. Uses :focus-visible so click focus stays quiet. */
+:where(a, button, [role="button"], [role="menuitem"], [role="tab"], input, select, textarea, summary, [tabindex]:not([tabindex="-1"]))
+  :focus-visible,
+:where(a, button, [role="button"], [role="menuitem"], [role="tab"], input, select, textarea, summary, [tabindex]:not([tabindex="-1"])):focus-visible {
+  outline: 2px solid var(--cta-border);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Skip link — hidden until focused */
+.skip-to-content {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 100;
+  padding: 0.5rem 1rem;
+  background: var(--text);
+  color: var(--bg-light);
+  font-weight: 600;
+  border-radius: 0 0 8px 0;
+  transform: translateY(-110%);
+  transition: transform 150ms ease;
+}
+.skip-to-content:focus-visible {
+  transform: translateY(0);
+}
+
+/* Honor user motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }

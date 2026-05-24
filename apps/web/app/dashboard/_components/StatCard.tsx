@@ -22,20 +22,31 @@ export function StatCard({ title, value, delta, trend, trendLabel }: StatCardPro
         ? "Decrease from last month"
         : "");
 
+  const trendDirection = trend === "up" ? "Up" : trend === "down" ? "Down" : "";
+  const trendAriaLabel =
+    trend && hasComparison
+      ? `${trendDirection} ${formatNumber(delta)}. ${computedLabel}`
+      : undefined;
+
   return (
     <div className="flex flex-1 flex-col items-start justify-between overflow-hidden rounded-2xl border border-line bg-card p-6">
       <h3 className="text-xl font-medium leading-none text-ink">{title}</h3>
-      <p className="text-4xl font-medium leading-none text-ink">{formatNumber(value)}</p>
+      <p className="text-4xl font-medium leading-none text-ink [font-variant-numeric:tabular-nums]">
+        {formatNumber(value)}
+      </p>
       {trend && hasComparison ? (
-        <div className="flex items-center justify-center gap-1">
+        <div
+          className="flex items-center justify-center gap-1"
+          aria-label={trendAriaLabel}
+        >
           <span
-            className={`flex items-center justify-center gap-px rounded-sm border-[0.5px] px-px text-xs ${tone}`}
+            className={`flex items-center justify-center gap-px rounded-sm border-[0.5px] px-px text-xs [font-variant-numeric:tabular-nums] ${tone}`}
           >
             {formatNumber(delta)}
             {trend === "up" ? (
-              <ArrowDropUp className="size-2" />
+              <ArrowDropUp className="size-2" aria-hidden="true" />
             ) : (
-              <ArrowDropDown className="size-2" />
+              <ArrowDropDown className="size-2" aria-hidden="true" />
             )}
           </span>
           <span className={`text-xs ${labelTone}`}>{computedLabel}</span>

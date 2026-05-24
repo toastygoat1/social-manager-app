@@ -1,3 +1,4 @@
+import { APP_LOCALE } from "@/lib/locale";
 import type { ChartBar } from "./data";
 
 const CHART_HEIGHT = 188;
@@ -26,7 +27,7 @@ function getYAxisTicks(max: number) {
 }
 
 function formatNumber(value: number) {
-  return value.toLocaleString("id-ID");
+  return value.toLocaleString(APP_LOCALE);
 }
 
 function getSegments(bar: ChartBar) {
@@ -38,6 +39,12 @@ function getSegments(bar: ChartBar) {
 export function UploadChart({ bars }: UploadChartProps) {
   const axisMax = getNiceAxisMax(Math.max(...bars.map((bar) => bar.value), 0));
   const yTicks = getYAxisTicks(axisMax);
+  const chartSummary =
+    bars.length === 0
+      ? "Upload chart: no data yet."
+      : `Upload chart: ${bars
+          .map((bar) => `${bar.label} ${formatNumber(bar.value)}`)
+          .join(", ")}.`;
 
   return (
     <div className="flex h-full shrink-0 flex-col gap-2 overflow-hidden rounded-2xl border border-line bg-card p-6">
@@ -51,14 +58,19 @@ export function UploadChart({ bars }: UploadChartProps) {
               <span
                 className="size-2 rounded-sm"
                 style={{ background: item.color }}
+                aria-hidden="true"
               />
               <span>{item.label}</span>
             </div>
           ))}
         </div>
       </div>
-      <div className="flex min-h-0 flex-1 items-stretch">
-        <div className="flex h-full flex-col items-end justify-end gap-6 pb-12 text-xs text-ink">
+      <div
+        className="flex min-h-0 flex-1 items-stretch"
+        role="img"
+        aria-label={chartSummary}
+      >
+        <div className="flex h-full flex-col items-end justify-end gap-6 pb-12 text-xs text-ink [font-variant-numeric:tabular-nums]">
           {yTicks.map((t) => (
             <span key={t}>{formatNumber(t)}</span>
           ))}

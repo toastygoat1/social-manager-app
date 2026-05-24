@@ -15,9 +15,10 @@ import {
   User,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ApiError, apiFetchBrowser } from "@/lib/api/browser-client";
 import { createClient } from "@/lib/supabase/client";
+import { useFocusTrap } from "@/lib/use-focus-trap";
 import type { CalendarPostType } from "./data";
 
 export type CreatePostType = "post" | "story" | "reels";
@@ -108,9 +109,9 @@ const ACTION_TO_API: Record<SubmitAction, "SCHEDULE" | "POST_NOW" | "DRAFT"> = {
 };
 
 const SUBMITTING_LABEL: Record<SubmitAction, string> = {
-  schedule: "Scheduling...",
-  "post-now": "Posting...",
-  draft: "Saving...",
+  schedule: "Scheduling…",
+  "post-now": "Posting…",
+  draft: "Saving…",
 };
 
 const SUBMIT_ERROR: Record<SubmitAction, string> = {
@@ -376,12 +377,15 @@ function MediaTile({
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={media.previewUrl}
-          alt=""
+          alt={`Selected image: ${media.file.name}`}
+          width={media.width ?? 100}
+          height={media.height ?? 100}
           className="h-full w-full object-cover"
         />
       ) : (
         <video
           src={media.previewUrl}
+          aria-label={`Selected video: ${media.file.name}`}
           className="h-full w-full object-cover"
           muted
           playsInline
@@ -448,13 +452,14 @@ function Switch({
       type="button"
       onClick={onToggle}
       aria-pressed={on}
+      aria-label="Require approval before publishing"
       className="pt-1"
     >
       <div
-        className={`relative h-5 w-9 rounded-full ${on ? "bg-cta" : "bg-line"}`}
+        className={`relative h-5 w-9 rounded-full transition-colors duration-150 ${on ? "bg-cta" : "bg-line"}`}
       >
         <div
-          className={`absolute top-0.5 size-4 rounded-full bg-paper shadow-[0_2px_4px_0_rgba(39,39,39,0.1)] transition-all ${
+          className={`absolute top-0.5 size-4 rounded-full bg-paper shadow-[0_2px_4px_0_rgba(39,39,39,0.1)] transition-[left] duration-150 ${
             on ? "left-[18px]" : "left-0.5"
           }`}
         />
@@ -488,11 +493,27 @@ export function CreatePostModal({
   const [accountResults, setAccountResults] = useState<AccountSubmitResult[]>(
     [],
   );
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  useFocusTrap(dialogRef, open);
+
+  const hasUnsavedChanges =
+    title.length > 0 || caption.length > 0 || media.length > 0;
+
+  const requestClose = () => {
+    if (
+      hasUnsavedChanges &&
+      !window.confirm("Discard this draft? Unsaved changes will be lost.")
+    ) {
+      return;
+    }
+    onClose();
+  };
 
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") requestClose();
     };
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -501,7 +522,8 @@ export function CreatePostModal({
       document.body.style.overflow = prev;
       window.removeEventListener("keydown", onKey);
     };
-  }, [open, onClose]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -773,19 +795,22 @@ export function CreatePostModal({
       role="dialog"
       aria-modal="true"
       aria-label={TYPE_LABEL[type]}
-      className="fixed inset-0 z-50 flex items-center justify-center p-2.5"
+      className="fixed inset-0 z-50 flex items-center justify-center p-2.5 [overscroll-behavior:contain]"
       style={{ backgroundColor: "rgba(89, 89, 89, 0.8)" }}
-      onClick={onClose}
+      onClick={requestClose}
     >
       <div
-        className="flex h-[900px] max-h-[calc(100vh-20px)] w-[1280px] max-w-[calc(100vw-20px)] items-stretch overflow-hidden rounded-3xl"
+        ref={dialogRef}
+        className="flex h-[900px] max-h-[calc(100vh-20px)] w-[1280px] max-w-[calc(100vw-20px)] items-stretch overflow-hidden rounded-3xl outline-none"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex flex-1 flex-col gap-5 overflow-y-auto rounded-l-3xl border border-line bg-paper p-6">
           <section className="flex w-full flex-col gap-1">
             <h2 className="text-xl font-semibold text-ink">Publish To</h2>
             {accountsLoading ? (
-              <p className="text-sm text-muted">Loading accounts...</p>
+              <p className="text-sm text-muted" aria-live="polite">
+                Loading accounts…
+              </p>
             ) : accounts.length === 0 ? (
               <p className="text-sm text-muted">
                 No Instagram accounts connected yet.
@@ -873,7 +898,9 @@ export function CreatePostModal({
           </div>
 
           {error ? (
-            <p className="text-sm font-medium text-red-600">{error}</p>
+            <p role="alert" className="text-sm font-medium text-red-600">
+              {error}
+            </p>
           ) : null}
           {accountResults.length ? (
             <div className="flex flex-col gap-2 rounded-xl border border-line bg-card p-3">
@@ -903,19 +930,25 @@ export function CreatePostModal({
           <div className="flex w-full items-center gap-4">
             <button
               type="button"
-              onClick={onClose}
+              onClick={requestClose}
               className="flex h-8 w-[78px] items-center justify-center rounded-lg bg-paper text-xs font-bold leading-4 text-muted"
             >
               Cancel
             </button>
             <div className="flex-1" />
             <label className="flex h-8 items-center gap-2 rounded-lg border border-muted bg-paper px-4 cursor-pointer">
-              <Calendar className="size-4 text-muted" strokeWidth={1.8} />
+              <Calendar
+                className="size-4 text-muted"
+                strokeWidth={1.8}
+                aria-hidden="true"
+              />
+              <span className="sr-only">Scheduled date and time</span>
               <input
                 type="datetime-local"
                 value={scheduledFor}
                 min={minScheduledFor}
                 onChange={(e) => setScheduledFor(e.target.value)}
+                aria-label="Scheduled date and time"
                 className="bg-transparent text-xs font-medium leading-4 text-muted focus:outline-none"
               />
             </label>
@@ -978,7 +1011,9 @@ export function CreatePostModal({
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={previewMedia.previewUrl}
-                  alt=""
+                  alt={`Post preview: ${previewMedia.file.name}`}
+                  width={previewMedia.width ?? 408}
+                  height={previewMedia.height ?? 428}
                   className="h-full w-full object-cover"
                 />
               ) : previewMedia?.kind === "video" ? (

@@ -33,16 +33,21 @@ export function ChatList() {
                   {c.name}
                 </p>
                 <p className="truncate text-[14px] leading-5 tracking-[-0.15px] text-muted">
-                  {c.snippet} · {c.time}
+                  {c.snippet}&nbsp;·&nbsp;{c.time}
                 </p>
               </div>
               {c.read ? (
                 <CircleCheck
                   className="size-[14px] shrink-0 text-muted"
                   strokeWidth={1.6}
+                  aria-label="Read"
                 />
               ) : (
-                <span className="size-[14px] shrink-0 rounded-full border border-muted" />
+                <span
+                  className="size-[14px] shrink-0 rounded-full border border-muted"
+                  role="img"
+                  aria-label="Unread"
+                />
               )}
             </button>
           ))}

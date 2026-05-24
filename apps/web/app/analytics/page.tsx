@@ -125,7 +125,7 @@ export default async function AnalyticsPage({
   return (
     <div className="flex min-h-screen items-start bg-page font-sans">
       <Sidebar active="analytics" profile={getUserProfile(user)} />
-      <main className="flex min-w-0 flex-1 flex-col gap-5 p-5">
+      <main id="main-content" className="flex min-w-0 flex-1 flex-col gap-5 p-5">
         <AccountsTopCard
           accounts={data.accounts}
           selectedAccountId={data.selectedAccountId}
