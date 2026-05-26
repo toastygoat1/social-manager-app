@@ -84,22 +84,28 @@ function getProfileInitial(profile?: UserProfile | null) {
   return label?.trim().charAt(0).toUpperCase() || "G";
 }
 
+function AccountAvatar({ account }: { account: Account }) {
+  return (
+    <span className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[#3ac1d6] text-xs font-semibold text-white">
+      {account.avatarUrl ? (
+        <Image
+          src={account.avatarUrl}
+          alt=""
+          width={32}
+          height={32}
+          className="size-full object-cover"
+        />
+      ) : (
+        getAccountInitial(account.name)
+      )}
+    </span>
+  );
+}
+
 function AccountRow({ account }: { account: Account }) {
   return (
-    <li className="flex h-12 items-center gap-3 rounded-lg px-2 transition-colors hover:bg-[#f7f5f1]">
-      <span className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[#3ac1d6] text-xs font-semibold text-white">
-        {account.avatarUrl ? (
-          <Image
-            src={account.avatarUrl}
-            alt=""
-            width={32}
-            height={32}
-            className="size-full object-cover"
-          />
-        ) : (
-          getAccountInitial(account.name)
-        )}
-      </span>
+    <li className="flex h-12 items-center gap-3 rounded-lg px-3 transition-colors hover:bg-[#f7f5f1]">
+      <AccountAvatar account={account} />
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-medium leading-5 text-[#292824]">
           {account.name}
@@ -126,17 +132,17 @@ function GoogleAccount({
     <footer className="mt-auto border-t border-[#eeeae4] pt-4">
       <div
         className={`flex items-center rounded-lg py-2 transition-[gap,padding,background-color] duration-300 hover:bg-[#f7f5f1] ${
-          isCollapsed ? "justify-center px-0" : "gap-3 px-2"
+          isCollapsed ? "justify-center px-0" : "gap-3 px-3"
         }`}
         title={isCollapsed ? name : undefined}
       >
-        <span className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#f1eeea] text-sm font-semibold text-[#57524b]">
+        <span className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#f1eeea] text-sm font-semibold text-[#57524b]">
           {profile?.avatarUrl ? (
             <Image
               src={profile.avatarUrl}
               alt={`${name} profile picture`}
-              width={40}
-              height={40}
+              width={36}
+              height={36}
               className="size-full object-cover"
             />
           ) : (
@@ -180,8 +186,8 @@ export function SidebarPanel({
       }`}
     >
       <header
-        className={`mb-8 flex h-[33px] items-center transition-[gap,padding] duration-300 ${
-          isCollapsed ? "gap-0 px-0" : "gap-2 px-0"
+        className={`mb-7 flex h-[33px] items-center transition-[gap,padding] duration-300 ${
+          isCollapsed ? "justify-center gap-0 px-0" : "gap-4 px-3"
         }`}
       >
         <SnowflakeLogo />
@@ -194,7 +200,7 @@ export function SidebarPanel({
         </p>
       </header>
 
-      <nav aria-label="Primary" className="flex flex-col gap-1.5">
+      <nav aria-label="Primary" className="flex flex-col gap-0.5">
         {NAV_ITEMS.map(({ key, label, Icon, href, badge }) => {
           const isActive = key === active;
 
@@ -205,7 +211,7 @@ export function SidebarPanel({
               aria-label={label}
               aria-current={isActive ? "page" : undefined}
               title={isCollapsed ? label : undefined}
-              className={`relative flex h-11 items-center rounded-lg text-sm transition-[gap,padding,background-color,color] duration-300 ${
+              className={`flex h-10 items-center rounded-lg text-sm transition-[gap,padding,background-color,color] duration-300 ${
                 isCollapsed ? "justify-center gap-0 px-0" : "gap-3 px-3"
               } ${
                 isActive
@@ -213,13 +219,6 @@ export function SidebarPanel({
                   : "text-[#5d5953] hover:bg-[#f7f5f1] hover:text-[#292824]"
               }`}
             >
-              {isActive ? (
-                <span
-                  className={`absolute top-1/2 h-7 w-[3px] -translate-y-1/2 rounded-r-full bg-[#5b7cef] transition-[left] duration-300 ${
-                    isCollapsed ? "-left-2" : "-left-4"
-                  }`}
-                />
-              ) : null}
               <Icon className="size-[18px] shrink-0" strokeWidth={1.8} />
               <span
                 className={`overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-200 ${
@@ -247,11 +246,11 @@ export function SidebarPanel({
         className={`overflow-hidden transition-[max-height,margin,opacity] duration-300 ease-in-out ${
           isCollapsed
             ? "pointer-events-none mt-0 max-h-0 opacity-0"
-            : "mt-8 max-h-[2000px] opacity-100"
+            : "mt-6 max-h-[2000px] opacity-100"
         }`}
       >
         <section aria-label="Accounts">
-          <div className="mb-3 flex items-center justify-between px-2">
+          <div className="mb-3 flex items-center justify-between px-3">
             <h2 className="text-xs font-medium tracking-[0.13em] text-[#8a867e]">
               ACCOUNTS
             </h2>
@@ -305,6 +304,30 @@ export function SidebarPanel({
         </section>
       </div>
 
+      <div
+        className={`overflow-hidden transition-[max-height,margin,opacity] duration-300 ease-in-out ${
+          isCollapsed && accounts.length > 0
+            ? "mt-6 max-h-[440px] opacity-100"
+            : "pointer-events-none mt-0 max-h-0 opacity-0"
+        }`}
+      >
+        <ul className="flex flex-col items-center gap-2" aria-label="Connected accounts">
+          {visibleAccounts.map((account) => (
+            <li key={account.id} title={account.name}>
+              <AccountAvatar account={account} />
+            </li>
+          ))}
+          {additionalAccounts.length > 0 ? (
+            <li
+              title={`${additionalAccounts.length} more connected accounts`}
+              className="flex size-8 items-center justify-center rounded-lg bg-[#f1eeea] text-xs font-medium text-[#817d75]"
+            >
+              +{additionalAccounts.length}
+            </li>
+          ) : null}
+        </ul>
+      </div>
+
       <button
         type="button"
         aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
@@ -312,7 +335,7 @@ export function SidebarPanel({
         onClick={() => setIsCollapsed((collapsed) => !collapsed)}
         title={isCollapsed ? "Expand sidebar" : undefined}
         className={`mt-auto mb-3 flex h-10 items-center rounded-lg text-sm text-[#817d75] transition-[gap,padding,background-color,color] duration-300 hover:bg-[#f7f5f1] hover:text-[#292824] ${
-          isCollapsed ? "justify-center gap-0 px-0" : "gap-3 px-2"
+          isCollapsed ? "justify-center gap-0 px-0" : "gap-3 px-3"
         }`}
       >
         {isCollapsed ? (
