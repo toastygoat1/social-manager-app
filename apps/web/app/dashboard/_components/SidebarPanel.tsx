@@ -192,22 +192,6 @@ export function SidebarPanel({
         >
           Snowflake
         </p>
-        <button
-          type="button"
-          aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          aria-expanded={!isCollapsed}
-          onClick={() => setIsCollapsed((collapsed) => !collapsed)}
-          title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className={`flex size-7 shrink-0 items-center justify-center rounded-md text-[#817d75] transition-[margin,background-color,color] hover:bg-[#f1eeea] hover:text-[#292824] ${
-            isCollapsed ? "ml-1" : "ml-auto"
-          }`}
-        >
-          {isCollapsed ? (
-            <PanelLeftOpen className="size-4" strokeWidth={1.8} />
-          ) : (
-            <PanelLeftClose className="size-4" strokeWidth={1.8} />
-          )}
-        </button>
       </header>
 
       <nav aria-label="Primary" className="flex flex-col gap-1.5">
@@ -320,6 +304,30 @@ export function SidebarPanel({
           ) : null}
         </section>
       </div>
+
+      <button
+        type="button"
+        aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+        aria-expanded={!isCollapsed}
+        onClick={() => setIsCollapsed((collapsed) => !collapsed)}
+        title={isCollapsed ? "Expand sidebar" : undefined}
+        className={`mt-auto mb-3 flex h-10 items-center rounded-lg text-sm text-[#817d75] transition-[gap,padding,background-color,color] duration-300 hover:bg-[#f7f5f1] hover:text-[#292824] ${
+          isCollapsed ? "justify-center gap-0 px-0" : "gap-3 px-2"
+        }`}
+      >
+        {isCollapsed ? (
+          <PanelLeftOpen className="size-[18px] shrink-0" strokeWidth={1.8} />
+        ) : (
+          <PanelLeftClose className="size-[18px] shrink-0" strokeWidth={1.8} />
+        )}
+        <span
+          className={`overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-200 ${
+            isCollapsed ? "max-w-0 opacity-0" : "max-w-[132px] opacity-100"
+          }`}
+        >
+          Collapse sidebar
+        </span>
+      </button>
 
       <GoogleAccount isCollapsed={isCollapsed} profile={profile} />
     </aside>
