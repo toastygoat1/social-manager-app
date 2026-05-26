@@ -3,6 +3,7 @@ import Image from "next/image";
 import { redirect } from "next/navigation";
 import { Sidebar } from "@/app/dashboard/_components/Sidebar";
 import { createClient } from "@/lib/supabase/server";
+import { getUserProfile } from "@/lib/supabase/user-profile";
 
 export default async function ChatAiPage() {
   const hasSupabaseEnv = Boolean(
@@ -26,7 +27,7 @@ export default async function ChatAiPage() {
 
   return (
     <div className="flex h-screen items-start bg-[#e4eade] font-sans">
-      <Sidebar active="snow-ai" />
+      <Sidebar active="snow-ai" profile={getUserProfile(user)} />
       <main className="flex h-screen min-w-0 flex-1 items-center justify-center bg-[#f1f1f0] p-8">
         <div className="flex h-full w-full max-w-[1254px] flex-col items-center justify-center gap-[10px] overflow-hidden rounded-3xl bg-paper px-8">
           <Image

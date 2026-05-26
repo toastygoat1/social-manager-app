@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getDashboardData } from "@/lib/dashboard-data";
+import { getUserProfile } from "@/lib/supabase/user-profile";
 import { AccountsList } from "./_components/AccountsList";
 import { CalendarCard } from "./_components/CalendarCard";
 import { ContentTable } from "./_components/ContentTable";
@@ -78,9 +79,11 @@ export default async function DashboardPage({
   }
 
   const data = await getDashboardData();
+  const profile = getUserProfile(user);
+
   return (
     <div className="flex min-h-screen items-start bg-page font-sans">
-      <Sidebar accounts={data.accounts} />
+      <Sidebar accounts={data.accounts} profile={profile} />
       <main className="flex min-w-0 flex-1 flex-col items-center">
         <div className="flex w-full max-w-[1372px] flex-col gap-5 p-8">
           <section className="flex h-[692px] w-full items-start gap-5">
