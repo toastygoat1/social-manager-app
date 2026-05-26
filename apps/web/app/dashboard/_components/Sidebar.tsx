@@ -10,6 +10,7 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { apiFetch } from "@/lib/api/client";
+import type { UserProfile } from "@/lib/supabase/user-profile";
 import type { Account } from "./data";
 
 type LucideIcon = ComponentType<SVGProps<SVGSVGElement> & { strokeWidth?: number }>;
@@ -32,6 +33,7 @@ type NavItem = {
 type SidebarProps = {
   active?: SidebarKey;
   accounts?: Account[];
+  profile?: UserProfile | null;
 };
 
 const NAV_ITEMS: NavItem[] = [
@@ -79,6 +81,11 @@ function SnowflakeLogo() {
 
 function getAccountInitial(name: string) {
   return name.replace(/^@/, "").trim().charAt(0).toUpperCase() || "I";
+}
+
+function getProfileInitial(profile?: UserProfile | null) {
+  const label = profile?.name ?? profile?.email;
+  return label?.trim().charAt(0).toUpperCase() || "G";
 }
 
 async function getConnectedAccounts() {
@@ -130,9 +137,44 @@ function AccountRow({ account }: { account: Account }) {
   );
 }
 
+function GoogleAccount({ profile }: { profile?: UserProfile | null }) {
+  const name = profile?.name ?? profile?.email ?? "Google account";
+
+  return (
+    <footer className="mt-auto border-t border-[#eeeae4] pt-3">
+      <div className="flex items-center gap-2 rounded-[6px] px-1 py-1.5">
+        <span className="flex size-[26px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#f1eeea] text-[10px] font-semibold text-[#57524b]">
+          {profile?.avatarUrl ? (
+            <Image
+              src={profile.avatarUrl}
+              alt={`${name} profile picture`}
+              width={26}
+              height={26}
+              className="size-full object-cover"
+            />
+          ) : (
+            getProfileInitial(profile)
+          )}
+        </span>
+        <span className="min-w-0">
+          <span className="block truncate text-[10px] font-medium leading-[12px] text-[#292824]">
+            {name}
+          </span>
+          {profile?.email && profile.name ? (
+            <span className="block truncate text-[8px] leading-[10px] text-[#817d75]">
+              {profile.email}
+            </span>
+          ) : null}
+        </span>
+      </div>
+    </footer>
+  );
+}
+
 export async function Sidebar({
   active = "dashboard",
   accounts: providedAccounts,
+  profile,
 }: SidebarProps) {
   const accounts = providedAccounts ?? (await getConnectedAccounts());
   const visibleAccounts = accounts.slice(0, VISIBLE_ACCOUNT_COUNT);
@@ -230,6 +272,8 @@ export async function Sidebar({
           </details>
         ) : null}
       </section>
+
+      <GoogleAccount profile={profile} />
     </aside>
   );
 }
