@@ -181,7 +181,7 @@ export async function Sidebar({
   const additionalAccounts = accounts.slice(VISIBLE_ACCOUNT_COUNT);
 
   return (
-    <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col overflow-y-auto border-r border-[#eeeae4] bg-[#fffefa] px-4 py-5 font-sans">
+    <aside className="sticky top-0 flex h-screen w-[236px] shrink-0 flex-col overflow-y-auto border-r border-[#eeeae4] bg-[#fffefa] px-4 py-5 font-sans">
       <header className="mb-8 flex items-center gap-3 px-2">
         <SnowflakeLogo />
         <p className="text-lg font-semibold leading-none text-[#242321]">
