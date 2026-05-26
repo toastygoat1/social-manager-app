@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getAnalyticsData } from "@/lib/analytics-data";
-import { getUserProfile } from "@/lib/supabase/user-profile";
 import { Sidebar } from "@/app/dashboard/_components/Sidebar";
 import { AccountsTopCard } from "./_components/AccountsTopCard";
 import { BannerHero } from "./_components/BannerHero";
@@ -124,7 +123,7 @@ export default async function AnalyticsPage({
 
   return (
     <div className="flex min-h-screen items-start bg-page font-sans">
-      <Sidebar active="analytics" profile={getUserProfile(user)} />
+      <Sidebar active="analytics" accounts={data.accounts} />
       <main className="flex min-w-0 flex-1 flex-col gap-5 p-5">
         <AccountsTopCard
           accounts={data.accounts}

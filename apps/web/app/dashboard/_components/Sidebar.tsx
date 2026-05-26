@@ -5,10 +5,12 @@ import {
   ChevronDown,
   Home,
   Inbox,
-  PenLine,
+  Sparkles,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
-import type { UserProfile } from "@/lib/supabase/user-profile";
+import { apiFetch } from "@/lib/api/client";
+import type { Account } from "./data";
 
 type LucideIcon = ComponentType<SVGProps<SVGSVGElement> & { strokeWidth?: number }>;
 
@@ -27,129 +29,28 @@ type NavItem = {
   badge?: string;
 };
 
-type Client = {
-  name: string;
-  summary: string;
-  initials: string;
-  channel: string;
-  color: string;
-};
-
 type SidebarProps = {
   active?: SidebarKey;
-  profile?: UserProfile | null;
+  accounts?: Account[];
 };
 
 const NAV_ITEMS: NavItem[] = [
   { key: "dashboard", label: "Overview", Icon: Home, href: "/dashboard" },
   { key: "scheduling", label: "Calendar", Icon: CalendarDays, href: "/calendar" },
-  { key: "snow-ai", label: "Composer", Icon: PenLine, href: "/chat-ai" },
+  { key: "snow-ai", label: "Snow AI", Icon: Sparkles, href: "/chat-ai" },
   { key: "chat", label: "Inbox", Icon: Inbox, href: "/chat", badge: "24" },
   { key: "analytics", label: "Insights", Icon: BarChart3, href: "/analytics" },
 ];
 
-const CLIENTS: Client[] = [
-  {
-    name: "Ambacafe",
-    summary: "F&B - 48.2K",
-    initials: "A",
-    channel: "IG",
-    color: "bg-[#e88866]",
-  },
-  {
-    name: "StarCoffee",
-    summary: "F&B - 124.8K",
-    initials: "S",
-    channel: "IG",
-    color: "bg-[#ce6248]",
-  },
-  {
-    name: "Lume Studios",
-    summary: "Creative - 22.1K",
-    initials: "LS",
-    channel: "IG",
-    color: "bg-[#8585e4]",
-  },
-  {
-    name: "North Bakery",
-    summary: "F&B - 91.3K",
-    initials: "NB",
-    channel: "IG",
-    color: "bg-[#cfac66]",
-  },
-  {
-    name: "Nomad Tea Co",
-    summary: "F&B - 18.9K",
-    initials: "NT",
-    channel: "IG",
-    color: "bg-[#69a682]",
-  },
-  {
-    name: "Maven Yoga",
-    summary: "Wellness - 65.4K",
-    initials: "MY",
-    channel: "IG",
-    color: "bg-[#b87aa9]",
-  },
-  {
-    name: "Hive Hardware",
-    summary: "Retail - 9.8K",
-    initials: "HH",
-    channel: "LI",
-    color: "bg-[#d7a646]",
-  },
-  {
-    name: "Tactile Print",
-    summary: "Creative - 14.2K",
-    initials: "TP",
-    channel: "IG",
-    color: "bg-[#57768d]",
-  },
-  {
-    name: "Brume Skincare",
-    summary: "Beauty - 32.1K",
-    initials: "BS",
-    channel: "IG",
-    color: "bg-[#b3796d]",
-  },
-  {
-    name: "Olive Studio",
-    summary: "Creative - 8.2K",
-    initials: "OS",
-    channel: "IG",
-    color: "bg-[#858c6d]",
-  },
-  {
-    name: "Forge Fitness",
-    summary: "Wellness - 51.7K",
-    initials: "FF",
-    channel: "IG",
-    color: "bg-[#5b8790]",
-  },
-  {
-    name: "Cove Living",
-    summary: "Home - 11.9K",
-    initials: "CL",
-    channel: "LI",
-    color: "bg-[#607ba9]",
-  },
-  {
-    name: "Bloom Florals",
-    summary: "Retail - 24.6K",
-    initials: "BF",
-    channel: "IG",
-    color: "bg-[#c47b99]",
-  },
-  {
-    name: "Atelier Home",
-    summary: "Home - 17.4K",
-    initials: "AH",
-    channel: "IG",
-    color: "bg-[#ad7c60]",
-  },
-];
+type InstagramAccountResponse = {
+  id: string;
+  username: string;
+  accountType: "PERSONAL" | "BUSINESS" | "CREATOR";
+  avatarUrl?: string | null;
+  isActive: boolean;
+};
 
-const VISIBLE_CLIENT_COUNT = 8;
+const VISIBLE_ACCOUNT_COUNT = 8;
 
 function SnowflakeLogo() {
   return (
@@ -176,32 +77,66 @@ function SnowflakeLogo() {
   );
 }
 
-function ClientRow({ client }: { client: Client }) {
+function getAccountInitial(name: string) {
+  return name.replace(/^@/, "").trim().charAt(0).toUpperCase() || "I";
+}
+
+async function getConnectedAccounts() {
+  try {
+    const accounts = await apiFetch<InstagramAccountResponse[]>("/instagram/accounts");
+
+    return accounts
+      .filter((account) => account.isActive)
+      .map((account) => ({
+        id: account.id,
+        name: `@${account.username}`,
+        platform:
+          account.accountType === "CREATOR" ? "Instagram Creator" : "Instagram",
+        avatarUrl: account.avatarUrl ?? null,
+      }));
+  } catch {
+    return [];
+  }
+}
+
+function AccountRow({ account }: { account: Account }) {
   return (
     <li className="flex h-[31px] items-center gap-2 px-1">
-      <span
-        className={`flex size-[18px] shrink-0 items-center justify-center rounded-[5px] text-[7px] font-semibold text-white ${client.color}`}
-      >
-        {client.initials}
+      <span className="flex size-[18px] shrink-0 items-center justify-center overflow-hidden rounded-[5px] bg-[#3ac1d6] text-[8px] font-semibold text-white">
+        {account.avatarUrl ? (
+          <Image
+            src={account.avatarUrl}
+            alt=""
+            width={18}
+            height={18}
+            className="size-full object-cover"
+          />
+        ) : (
+          getAccountInitial(account.name)
+        )}
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[10px] font-medium leading-[12px] text-[#292824]">
-          {client.name}
+          {account.name}
         </span>
         <span className="block truncate text-[8px] leading-[10px] text-[#817d75]">
-          {client.summary}
+          {account.platform}
         </span>
       </span>
       <span className="self-start pt-[6px] text-[7px] font-medium text-[#8e8a82]">
-        {client.channel}
+        IG
       </span>
     </li>
   );
 }
 
-export function Sidebar({ active = "dashboard" }: SidebarProps) {
-  const visibleClients = CLIENTS.slice(0, VISIBLE_CLIENT_COUNT);
-  const additionalClients = CLIENTS.slice(VISIBLE_CLIENT_COUNT);
+export async function Sidebar({
+  active = "dashboard",
+  accounts: providedAccounts,
+}: SidebarProps) {
+  const accounts = providedAccounts ?? (await getConnectedAccounts());
+  const visibleAccounts = accounts.slice(0, VISIBLE_ACCOUNT_COUNT);
+  const additionalAccounts = accounts.slice(VISIBLE_ACCOUNT_COUNT);
 
   return (
     <aside className="sticky top-0 flex h-screen w-[180px] shrink-0 flex-col overflow-y-auto border-r border-[#eeeae4] bg-[#fffefa] px-[13px] py-4 font-sans">
@@ -242,12 +177,12 @@ export function Sidebar({ active = "dashboard" }: SidebarProps) {
         })}
       </nav>
 
-      <section className="mt-[24px]" aria-label="Clients">
+      <section className="mt-[24px]" aria-label="Accounts">
         <div className="mb-2 flex items-center justify-between px-1">
           <h2 className="text-[8px] font-medium tracking-[0.13em] text-[#8a867e]">
-            CLIENTS
+            ACCOUNTS
           </h2>
-          <span className="text-[8px] text-[#8a867e]">{CLIENTS.length}</span>
+          <span className="text-[8px] text-[#8a867e]">{accounts.length}</span>
         </div>
         <div className="mb-[5px] flex h-[35px] items-center gap-2 rounded-[6px] border border-[#e6e1da] bg-[#f8f6f2] px-[7px]">
           <span className="flex size-[18px] items-center justify-center rounded-[5px] border border-[#e1dcd4] text-[9px] font-semibold text-[#756f66]">
@@ -255,37 +190,45 @@ export function Sidebar({ active = "dashboard" }: SidebarProps) {
           </span>
           <div className="min-w-0">
             <p className="truncate text-[10px] font-medium leading-[12px] text-[#292824]">
-              All clients
+              All accounts
             </p>
             <p className="text-[8px] leading-[10px] text-[#817d75]">
-              14 accounts
+              {accounts.length} connected
             </p>
           </div>
         </div>
 
-        <ul>
-          {visibleClients.map((client) => (
-            <ClientRow key={client.name} client={client} />
-          ))}
-        </ul>
-
-        <details className="group mt-1">
-          <summary className="flex h-[27px] cursor-pointer list-none items-center gap-[7px] rounded-[5px] px-1 text-[9px] text-[#393733] transition-colors hover:bg-[#f7f5f1] [&::-webkit-details-marker]:hidden">
-            <ChevronDown
-              className="size-[12px] shrink-0 transition-transform group-open:rotate-180"
-              strokeWidth={1.8}
-            />
-            <span className="group-open:hidden">
-              Show {additionalClients.length} more
-            </span>
-            <span className="hidden group-open:inline">Show less</span>
-          </summary>
-          <ul className="mt-1">
-            {additionalClients.map((client) => (
-              <ClientRow key={client.name} client={client} />
+        {accounts.length === 0 ? (
+          <p className="px-1 py-3 text-[9px] leading-4 text-[#817d75]">
+            No accounts connected yet
+          </p>
+        ) : (
+          <ul>
+            {visibleAccounts.map((account) => (
+              <AccountRow key={account.id} account={account} />
             ))}
           </ul>
-        </details>
+        )}
+
+        {additionalAccounts.length > 0 ? (
+          <details className="group mt-1">
+            <summary className="flex h-[27px] cursor-pointer list-none items-center gap-[7px] rounded-[5px] px-1 text-[9px] text-[#393733] transition-colors hover:bg-[#f7f5f1] [&::-webkit-details-marker]:hidden">
+              <ChevronDown
+                className="size-[12px] shrink-0 transition-transform group-open:rotate-180"
+                strokeWidth={1.8}
+              />
+              <span className="group-open:hidden">
+                Show {additionalAccounts.length} more
+              </span>
+              <span className="hidden group-open:inline">Show less</span>
+            </summary>
+            <ul className="mt-1">
+              {additionalAccounts.map((account) => (
+                <AccountRow key={account.id} account={account} />
+              ))}
+            </ul>
+          </details>
+        ) : null}
       </section>
     </aside>
   );
