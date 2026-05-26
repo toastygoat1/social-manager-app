@@ -64,7 +64,7 @@ function SnowflakeLogo() {
       xmlns="http://www.w3.org/2000/svg"
       role="img"
       aria-label="Snowflake logo"
-      className="h-[25px] w-[24px] shrink-0"
+      className="h-[33px] w-[31px] shrink-0"
     >
       <path d="M15.5 4.54004L15.5 27.8859" stroke="#3AC1D6" strokeWidth="2.09452" />
       <circle cx="15.4993" cy="2.91824" r="1.87098" stroke="#3AC1D6" strokeWidth="2.09452" />
@@ -108,14 +108,14 @@ async function getConnectedAccounts() {
 
 function AccountRow({ account }: { account: Account }) {
   return (
-    <li className="flex h-[31px] items-center gap-2 px-1">
-      <span className="flex size-[18px] shrink-0 items-center justify-center overflow-hidden rounded-[5px] bg-[#3ac1d6] text-[8px] font-semibold text-white">
+    <li className="flex h-12 items-center gap-3 rounded-lg px-2 transition-colors hover:bg-[#f7f5f1]">
+      <span className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[#3ac1d6] text-xs font-semibold text-white">
         {account.avatarUrl ? (
           <Image
             src={account.avatarUrl}
             alt=""
-            width={18}
-            height={18}
+            width={32}
+            height={32}
             className="size-full object-cover"
           />
         ) : (
@@ -123,14 +123,14 @@ function AccountRow({ account }: { account: Account }) {
         )}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[10px] font-medium leading-[12px] text-[#292824]">
+        <span className="block truncate text-sm font-medium leading-5 text-[#292824]">
           {account.name}
         </span>
-        <span className="block truncate text-[8px] leading-[10px] text-[#817d75]">
+        <span className="block truncate text-xs leading-4 text-[#817d75]">
           {account.platform}
         </span>
       </span>
-      <span className="self-start pt-[6px] text-[7px] font-medium text-[#8e8a82]">
+      <span className="text-[10px] font-medium text-[#8e8a82]">
         IG
       </span>
     </li>
@@ -141,15 +141,15 @@ function GoogleAccount({ profile }: { profile?: UserProfile | null }) {
   const name = profile?.name ?? profile?.email ?? "Google account";
 
   return (
-    <footer className="mt-auto border-t border-[#eeeae4] pt-3">
-      <div className="flex items-center gap-2 rounded-[6px] px-1 py-1.5">
-        <span className="flex size-[26px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#f1eeea] text-[10px] font-semibold text-[#57524b]">
+    <footer className="mt-auto border-t border-[#eeeae4] pt-4">
+      <div className="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-[#f7f5f1]">
+        <span className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#f1eeea] text-sm font-semibold text-[#57524b]">
           {profile?.avatarUrl ? (
             <Image
               src={profile.avatarUrl}
               alt={`${name} profile picture`}
-              width={26}
-              height={26}
+              width={40}
+              height={40}
               className="size-full object-cover"
             />
           ) : (
@@ -157,11 +157,11 @@ function GoogleAccount({ profile }: { profile?: UserProfile | null }) {
           )}
         </span>
         <span className="min-w-0">
-          <span className="block truncate text-[10px] font-medium leading-[12px] text-[#292824]">
+          <span className="block truncate text-sm font-medium leading-5 text-[#292824]">
             {name}
           </span>
           {profile?.email && profile.name ? (
-            <span className="block truncate text-[8px] leading-[10px] text-[#817d75]">
+            <span className="block truncate text-xs leading-4 text-[#817d75]">
               {profile.email}
             </span>
           ) : null}
@@ -181,15 +181,15 @@ export async function Sidebar({
   const additionalAccounts = accounts.slice(VISIBLE_ACCOUNT_COUNT);
 
   return (
-    <aside className="sticky top-0 flex h-screen w-[180px] shrink-0 flex-col overflow-y-auto border-r border-[#eeeae4] bg-[#fffefa] px-[13px] py-4 font-sans">
-      <header className="mb-[21px] flex items-center gap-2 px-0.5">
+    <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col overflow-y-auto border-r border-[#eeeae4] bg-[#fffefa] px-4 py-5 font-sans">
+      <header className="mb-8 flex items-center gap-3 px-2">
         <SnowflakeLogo />
-        <p className="text-[12px] font-semibold leading-none text-[#242321]">
+        <p className="text-lg font-semibold leading-none text-[#242321]">
           Snowflake
         </p>
       </header>
 
-      <nav aria-label="Primary" className="flex flex-col gap-1">
+      <nav aria-label="Primary" className="flex flex-col gap-1.5">
         {NAV_ITEMS.map(({ key, label, Icon, href, badge }) => {
           const isActive = key === active;
 
@@ -198,19 +198,19 @@ export async function Sidebar({
               key={key}
               href={href}
               aria-current={isActive ? "page" : undefined}
-              className={`relative flex h-[25px] items-center gap-[9px] rounded-[5px] px-[7px] text-[10px] transition-colors ${
+              className={`relative flex h-11 items-center gap-3 rounded-lg px-3 text-sm transition-colors ${
                 isActive
                   ? "bg-[#f5f3ef] font-medium text-[#292824]"
                   : "text-[#5d5953] hover:bg-[#f7f5f1] hover:text-[#292824]"
               }`}
             >
               {isActive ? (
-                <span className="absolute -left-[13px] top-1/2 h-[17px] w-[2px] -translate-y-1/2 rounded-r-full bg-[#5b7cef]" />
+                <span className="absolute -left-4 top-1/2 h-7 w-[3px] -translate-y-1/2 rounded-r-full bg-[#5b7cef]" />
               ) : null}
-              <Icon className="size-[12px] shrink-0" strokeWidth={1.8} />
+              <Icon className="size-[18px] shrink-0" strokeWidth={1.8} />
               <span>{label}</span>
               {badge ? (
-                <span className="ml-auto rounded-full bg-[#ede9e0] px-[5px] py-[1px] text-[8px] leading-[10px] text-[#77726b]">
+                <span className="ml-auto rounded-full bg-[#ede9e0] px-2 py-0.5 text-xs leading-4 text-[#77726b]">
                   {badge}
                 </span>
               ) : null}
@@ -219,29 +219,29 @@ export async function Sidebar({
         })}
       </nav>
 
-      <section className="mt-[24px]" aria-label="Accounts">
-        <div className="mb-2 flex items-center justify-between px-1">
-          <h2 className="text-[8px] font-medium tracking-[0.13em] text-[#8a867e]">
+      <section className="mt-8" aria-label="Accounts">
+        <div className="mb-3 flex items-center justify-between px-2">
+          <h2 className="text-xs font-medium tracking-[0.13em] text-[#8a867e]">
             ACCOUNTS
           </h2>
-          <span className="text-[8px] text-[#8a867e]">{accounts.length}</span>
+          <span className="text-xs text-[#8a867e]">{accounts.length}</span>
         </div>
-        <div className="mb-[5px] flex h-[35px] items-center gap-2 rounded-[6px] border border-[#e6e1da] bg-[#f8f6f2] px-[7px]">
-          <span className="flex size-[18px] items-center justify-center rounded-[5px] border border-[#e1dcd4] text-[9px] font-semibold text-[#756f66]">
+        <div className="mb-2 flex h-14 items-center gap-3 rounded-lg border border-[#e6e1da] bg-[#f8f6f2] px-3">
+          <span className="flex size-8 items-center justify-center rounded-lg border border-[#e1dcd4] text-sm font-semibold text-[#756f66]">
             #
           </span>
           <div className="min-w-0">
-            <p className="truncate text-[10px] font-medium leading-[12px] text-[#292824]">
+            <p className="truncate text-sm font-medium leading-5 text-[#292824]">
               All accounts
             </p>
-            <p className="text-[8px] leading-[10px] text-[#817d75]">
+            <p className="text-xs leading-4 text-[#817d75]">
               {accounts.length} connected
             </p>
           </div>
         </div>
 
         {accounts.length === 0 ? (
-          <p className="px-1 py-3 text-[9px] leading-4 text-[#817d75]">
+          <p className="px-2 py-4 text-sm leading-5 text-[#817d75]">
             No accounts connected yet
           </p>
         ) : (
@@ -253,10 +253,10 @@ export async function Sidebar({
         )}
 
         {additionalAccounts.length > 0 ? (
-          <details className="group mt-1">
-            <summary className="flex h-[27px] cursor-pointer list-none items-center gap-[7px] rounded-[5px] px-1 text-[9px] text-[#393733] transition-colors hover:bg-[#f7f5f1] [&::-webkit-details-marker]:hidden">
+          <details className="group mt-2">
+            <summary className="flex h-10 cursor-pointer list-none items-center gap-2 rounded-lg px-2 text-sm text-[#393733] transition-colors hover:bg-[#f7f5f1] [&::-webkit-details-marker]:hidden">
               <ChevronDown
-                className="size-[12px] shrink-0 transition-transform group-open:rotate-180"
+                className="size-4 shrink-0 transition-transform group-open:rotate-180"
                 strokeWidth={1.8}
               />
               <span className="group-open:hidden">
