@@ -174,8 +174,14 @@ export function SidebarPanel({
   profile,
 }: SidebarPanelProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [logoSpinCycle, setLogoSpinCycle] = useState(0);
   const visibleAccounts = accounts.slice(0, VISIBLE_ACCOUNT_COUNT);
   const additionalAccounts = accounts.slice(VISIBLE_ACCOUNT_COUNT);
+
+  function toggleSidebar() {
+    setIsCollapsed((collapsed) => !collapsed);
+    setLogoSpinCycle((cycle) => cycle + 1);
+  }
 
   return (
     <aside
@@ -190,7 +196,16 @@ export function SidebarPanel({
           isCollapsed ? "justify-center gap-0 px-0" : "gap-4 px-3"
         }`}
       >
-        <SnowflakeLogo />
+        <span
+          key={logoSpinCycle}
+          className={`flex shrink-0 items-center justify-center ${
+            logoSpinCycle > 0
+              ? "animate-[spin_700ms_cubic-bezier(0.22,1,0.36,1)] motion-reduce:animate-none"
+              : ""
+          }`}
+        >
+          <SnowflakeLogo />
+        </span>
         <p
           className={`overflow-hidden whitespace-nowrap text-lg font-semibold leading-none text-[#242321] transition-[max-width,opacity] duration-200 ${
             isCollapsed ? "max-w-0 opacity-0" : "max-w-[92px] opacity-100"
@@ -219,7 +234,15 @@ export function SidebarPanel({
                   : "text-[#5d5953] hover:bg-[#f7f5f1] hover:text-[#292824]"
               }`}
             >
-              <Icon className="size-[18px] shrink-0" strokeWidth={1.8} />
+              <span className="relative flex shrink-0 items-center justify-center">
+                <Icon className="size-[18px]" strokeWidth={1.8} />
+                {badge && isCollapsed ? (
+                  <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute -right-1 -top-1 size-2 rounded-full bg-[#c5bfb5]"
+                  />
+                ) : null}
+              </span>
               <span
                 className={`overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-200 ${
                   isCollapsed ? "max-w-0 opacity-0" : "max-w-[110px] opacity-100"
@@ -227,12 +250,7 @@ export function SidebarPanel({
               >
                 {label}
               </span>
-              {badge && isCollapsed ? (
-                <span
-                  aria-hidden="true"
-                  className="absolute right-3 top-2 size-2 rounded-full bg-[#c5bfb5]"
-                />
-              ) : badge ? (
+              {badge && !isCollapsed ? (
                 <span className="ml-auto rounded-full bg-[#ede9e0] px-2 py-0.5 text-xs leading-4 text-[#77726b]">
                   {badge}
                 </span>
@@ -332,7 +350,7 @@ export function SidebarPanel({
         type="button"
         aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         aria-expanded={!isCollapsed}
-        onClick={() => setIsCollapsed((collapsed) => !collapsed)}
+        onClick={toggleSidebar}
         title={isCollapsed ? "Expand sidebar" : undefined}
         className={`mt-auto mb-3 flex h-10 items-center rounded-lg text-sm text-[#817d75] transition-[gap,padding,background-color,color] duration-300 hover:bg-[#f7f5f1] hover:text-[#292824] ${
           isCollapsed ? "justify-center gap-0 px-0" : "gap-3 px-3"
