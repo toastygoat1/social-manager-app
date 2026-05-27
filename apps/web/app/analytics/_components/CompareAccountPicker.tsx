@@ -65,21 +65,23 @@ export function CompareAccountPicker({
   }
 
   return (
-    <div className="flex w-full flex-col gap-3 rounded-2xl border border-line bg-paper px-4 py-4 md:flex-row md:items-center md:justify-between">
+    <section className="flex w-full flex-col gap-4 rounded-[10px] border border-line bg-paper p-[18px] lg:flex-row lg:items-center lg:justify-between">
       <div className="flex min-w-0 flex-col">
-        <p className="text-lg font-medium text-ink">Compare Accounts</p>
-        <span className="text-xs text-muted">
-          {range.replace("d", "")}-day analytics
+        <p className="text-sm font-semibold text-ink">Comparing</p>
+        <span className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
+          Select two accounts / {range.replace("d", "")}-day analytics
         </span>
       </div>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <label className="flex min-w-0 items-center gap-2">
-          <span className="text-xs font-medium text-muted">Left</span>
+          <span className="flex size-5 items-center justify-center rounded bg-[#5e6ad2] font-mono text-[10px] text-white">
+            A
+          </span>
           <select
             aria-label="Left comparison account"
             value={leftAccountId ?? ""}
             onChange={(event) => updateLeftAccount(event.target.value)}
-            className="h-9 w-full min-w-48 rounded-lg border border-line bg-card px-3 text-sm text-ink outline-none transition focus:border-ink sm:w-56"
+            className="h-9 w-full min-w-48 rounded-lg border border-line bg-paper px-3 text-xs text-ink outline-none transition focus:border-[#5e6ad2] sm:w-52"
           >
             <option value="" disabled>
               Select account
@@ -101,17 +103,19 @@ export function CompareAccountPicker({
           disabled={!leftAccountId || !rightAccountId}
           title="Swap accounts"
           aria-label="Swap comparison accounts"
-          className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-line bg-card text-muted transition hover:bg-paper hover:text-ink disabled:pointer-events-none disabled:opacity-50"
+          className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-line bg-paper text-muted transition hover:bg-card hover:text-ink disabled:pointer-events-none disabled:opacity-50"
         >
           <ArrowLeftRight className="size-4" strokeWidth={1.8} />
         </button>
         <label className="flex min-w-0 items-center gap-2">
-          <span className="text-xs font-medium text-muted">Right</span>
+          <span className="flex size-5 items-center justify-center rounded bg-[#5e6ad2] font-mono text-[10px] text-white">
+            B
+          </span>
           <select
             aria-label="Right comparison account"
             value={rightAccountId ?? ""}
             onChange={(event) => updateRightAccount(event.target.value)}
-            className="h-9 w-full min-w-48 rounded-lg border border-line bg-card px-3 text-sm text-ink outline-none transition focus:border-ink sm:w-56"
+            className="h-9 w-full min-w-48 rounded-lg border border-line bg-paper px-3 text-xs text-ink outline-none transition focus:border-[#5e6ad2] sm:w-52"
           >
             <option value="" disabled>
               Select account
@@ -128,6 +132,6 @@ export function CompareAccountPicker({
           </select>
         </label>
       </div>
-    </div>
+    </section>
   );
 }

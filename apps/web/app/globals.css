@@ -67,6 +67,31 @@ body {
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
 
+.analytics-theme {
+  --bg: #f6f5f1;
+  --bg-light: #ffffff;
+  --bg-dark: #fafaf8;
+  --border: #e7e5df;
+  --text: #1a1a18;
+  --text-muted: #84827a;
+  --cta: #5e6ad2;
+  --cta-border: #4e59bd;
+  --success: #1f8a5b;
+  --danger: #c44747;
+  --chart-1: #5e6ad2;
+  --chart-2: #e27d60;
+  --chart-3: #3c9d74;
+  --chart-4: #d4a547;
+  --chart-5: #a86dbc;
+  --chart-6: #4b7fb8;
+  --chart-7: #3c9d74;
+  --chart-8: #e27d60;
+}
+
+.analytics-serif {
+  font-family: Georgia, "Times New Roman", serif;
+}
+
 .schedule-datetime-input::-webkit-calendar-picker-indicator {
   display: none;
 }

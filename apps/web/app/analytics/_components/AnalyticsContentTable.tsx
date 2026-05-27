@@ -7,18 +7,16 @@ import { useState, type ReactNode } from "react";
 import type { AnalyticsContentRow, AnalyticsMediaItem } from "./data";
 
 const COLUMNS: { label: string; width: number }[] = [
-  { label: "Accounts", width: 260 },
-  { label: "Contents", width: 280 },
-  { label: "Type", width: 110 },
-  { label: "Status", width: 110 },
-  { label: "Audio", width: 110 },
-  { label: "Date Post", width: 110 },
-  { label: "Caption", width: 110 },
+  { label: "Content", width: 265 },
+  { label: "Account", width: 210 },
+  { label: "Type", width: 90 },
+  { label: "Status", width: 115 },
+  { label: "Date", width: 110 },
   { label: "Views", width: 90 },
-  { label: "Like", width: 70 },
-  { label: "Comments", width: 110 },
+  { label: "Likes", width: 90 },
+  { label: "Comments", width: 105 },
   { label: "Shares", width: 90 },
-  { label: "Media", width: 130 },
+  { label: "Media", width: 120 },
 ];
 
 const TOTAL_WIDTH = COLUMNS.reduce((sum, c) => sum + c.width, 0);
@@ -32,7 +30,7 @@ function Cell({
 }) {
   return (
     <div
-      className="flex h-full shrink-0 items-center px-4 py-2"
+      className="flex h-full shrink-0 items-center px-3 py-2"
       style={{ width: `${width}px` }}
     >
       {children}
@@ -50,19 +48,31 @@ export function AnalyticsContentTable({
   );
 
   return (
-    <div className="flex w-full flex-col gap-4 overflow-hidden rounded-[17px] border border-line px-6 py-5">
-      <p className="text-xl text-ink">Content Table</p>
-      <div className="flex w-full flex-col gap-2 overflow-x-auto">
-        <div className="flex h-10 items-center">
+    <section className="flex min-w-0 flex-col gap-5 overflow-hidden rounded-[10px] border border-line bg-paper p-[18px]">
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-semibold text-ink">Content table</h2>
+          <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
+            {rows.length} items / current period
+          </p>
+        </div>
+        <span className="rounded-lg border border-line px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
+          All formats
+        </span>
+      </header>
+      <div className="flex w-full flex-col overflow-x-auto">
+        <div className="flex h-9 items-center border-b border-line">
           {COLUMNS.map((c) => (
             <Cell key={c.label} width={c.width}>
-              <span className="text-base text-ink">{c.label}</span>
+              <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-muted">
+                {c.label}
+              </span>
             </Cell>
           ))}
         </div>
         {rows.length === 0 ? (
           <div
-            className="flex h-20 items-center justify-center border-t border-line text-sm text-muted"
+            className="flex h-20 items-center justify-center text-sm text-muted"
             style={{ width: `${TOTAL_WIDTH}px` }}
           >
             No content posted yet
@@ -79,7 +89,25 @@ export function AnalyticsContentTable({
           onClose={() => setPreviewRow(null)}
         />
       ) : null}
-    </div>
+    </section>
+  );
+}
+
+function StatusPill({ status }: { status: string }) {
+  const tone =
+    status.toLowerCase() === "published"
+      ? "bg-emerald-50 text-success"
+      : status.toLowerCase() === "scheduled"
+        ? "bg-indigo-50 text-[#5e6ad2]"
+        : "bg-card text-muted";
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full px-2 py-1 font-mono text-[10px] ${tone}`}
+    >
+      <span className="size-1.5 rounded-full bg-current" />
+      {status}
+    </span>
   );
 }
 
@@ -93,10 +121,15 @@ function Row({
   const hasMedia = row.mediaItems.length > 0;
 
   return (
-    <div className="flex h-10 items-center border-t border-line">
+    <div className="flex h-[54px] items-center border-b border-line transition hover:bg-card">
+      <Cell width={265}>
+        <span className="truncate text-[12px] font-medium text-ink">
+          {row.contents}
+        </span>
+      </Cell>
       <div
         className="flex h-full shrink-0 items-center px-3 py-2"
-        style={{ width: 260 }}
+        style={{ width: 210 }}
       >
         <AccountChip
           name={row.account.name}
@@ -105,46 +138,35 @@ function Row({
           className="w-full"
         />
       </div>
-      <Cell width={280}>
-        <span className="font-inter truncate text-base text-muted">
-          {row.contents}
-        </span>
+      <Cell width={90}>
+        <span className="text-xs text-muted">{row.type}</span>
+      </Cell>
+      <Cell width={115}>
+        <StatusPill status={row.status} />
       </Cell>
       <Cell width={110}>
-        <span className="text-base text-muted">{row.type}</span>
-      </Cell>
-      <Cell width={110}>
-        <span className="text-base text-muted">{row.status}</span>
-      </Cell>
-      <Cell width={110}>
-        <span className="text-base text-muted">{row.audio}</span>
-      </Cell>
-      <Cell width={110}>
-        <span className="text-base text-muted">{row.datePost}</span>
-      </Cell>
-      <Cell width={110}>
-        <span className="truncate text-base text-muted">{row.caption}</span>
+        <span className="font-mono text-[11px] text-muted">{row.datePost}</span>
       </Cell>
       <Cell width={90}>
-        <span className="text-base text-muted">{formatNumber(row.views)}</span>
+        <span className="font-mono text-xs text-muted">{formatNumber(row.views)}</span>
       </Cell>
-      <Cell width={70}>
-        <span className="text-base text-muted">{formatNumber(row.likes)}</span>
+      <Cell width={90}>
+        <span className="font-mono text-xs text-muted">{formatNumber(row.likes)}</span>
       </Cell>
-      <Cell width={110}>
-        <span className="text-base text-muted">
+      <Cell width={105}>
+        <span className="font-mono text-xs text-muted">
           {formatNumber(row.comments)}
         </span>
       </Cell>
       <Cell width={90}>
-        <span className="text-base text-muted">{formatNumber(row.shares)}</span>
+        <span className="font-mono text-xs text-muted">{formatNumber(row.shares)}</span>
       </Cell>
-      <Cell width={130}>
+      <Cell width={120}>
         {hasMedia ? (
           <button
             type="button"
             onClick={() => onPreview(row)}
-            className="flex max-w-full items-center gap-2 rounded-md border border-line bg-paper px-2 py-1 text-sm text-ink transition hover:bg-card"
+            className="flex max-w-full items-center gap-1.5 rounded-md border border-line bg-paper px-2 py-1 text-[11px] text-ink transition hover:bg-card"
           >
             {row.mediaItems[0].kind === "VIDEO" ? (
               <Play className="size-3.5 shrink-0" strokeWidth={1.8} />
@@ -154,7 +176,7 @@ function Row({
             <span className="truncate">{row.media}</span>
           </button>
         ) : (
-          <span className="text-base text-muted">{row.media}</span>
+          <span className="text-xs text-muted">{row.media}</span>
         )}
       </Cell>
     </div>
