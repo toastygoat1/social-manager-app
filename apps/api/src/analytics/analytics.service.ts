@@ -19,9 +19,19 @@ import { UpdateAnalyticsNoteDto } from './dto/update-analytics-note.dto.js';
 
 type StatTrend = 'up' | 'down';
 type AccountTone = 'blue' | 'cyan' | 'pink' | 'yellow';
-type StatId = 'comments' | 'shares' | 'saves' | 'likes';
+type StatId =
+  | 'views'
+  | 'reach'
+  | 'interactions'
+  | 'likes'
+  | 'comments'
+  | 'saves'
+  | 'shares';
 type PostStatIcon = 'heart' | 'eye' | 'comments' | 'share' | 'save';
 type AnalyticsMetricField =
+  | 'impressions'
+  | 'reach'
+  | 'engagement'
   | 'commentsCount'
   | 'sharesCount'
   | 'savesCount'
@@ -58,6 +68,40 @@ type DistributionItem = {
   value: number;
   percentage: number;
   color: string;
+};
+
+type PerformanceMetric = 'views' | 'reach' | 'interactions' | 'likes';
+type PerformancePoint = {
+  label: string;
+  date: string;
+  postCount: number;
+  views: number;
+  reach: number;
+  interactions: number;
+  likes: number;
+};
+
+type BestTimeCell = {
+  day: number;
+  hour: number;
+  score: number | null;
+  postCount: number;
+};
+
+type BestTimeInsight = {
+  timezone: 'UTC';
+  cells: BestTimeCell[];
+  sampleSize: number;
+  topWindow: string | null;
+};
+
+type AccountPerformance = {
+  account: AnalyticsAccount;
+  postCount: number;
+  views: number | null;
+  reach: number | null;
+  interactions: number | null;
+  engagementRate: number | null;
 };
 
 type CalendarEvent = { label: string; time: string; color: string };
@@ -110,6 +154,9 @@ type AnalyticsOverview = {
   rangeDays: number;
   lastUpdatedAt: string | null;
   statGrid: AnalyticsMetric[];
+  performanceSeries: PerformancePoint[];
+  bestTime: BestTimeInsight;
+  leaderboard: AccountPerformance[];
   recentPosts: RecentPost[];
   distribution: DistributionItem[];
   contentCalendar: ContentCalendar;
@@ -200,10 +247,17 @@ const STAT_DEFINITIONS: {
   title: string;
   metric: AnalyticsMetricField;
 }[] = [
-  { id: 'comments', title: 'Total Comments', metric: 'commentsCount' },
-  { id: 'shares', title: 'Total Shared', metric: 'sharesCount' },
-  { id: 'saves', title: 'Total Saves', metric: 'savesCount' },
+  { id: 'views', title: 'Total Views', metric: 'impressions' },
+  { id: 'reach', title: 'Total Reach', metric: 'reach' },
+  {
+    id: 'interactions',
+    title: 'Interactions',
+    metric: 'engagement',
+  },
   { id: 'likes', title: 'Total Likes', metric: 'likeCount' },
+  { id: 'comments', title: 'Total Comments', metric: 'commentsCount' },
+  { id: 'saves', title: 'Total Saves', metric: 'savesCount' },
+  { id: 'shares', title: 'Total Shares', metric: 'sharesCount' },
 ];
 
 const POST_TYPE_ORDER: PostType[] = ['STORY', 'FEED', 'REEL', 'CAROUSEL'];
@@ -308,6 +362,9 @@ export class AnalyticsService {
         rangeDays,
         lastUpdatedAt: null,
         statGrid: buildStatGrid([], []),
+        performanceSeries: [],
+        bestTime: buildBestTime([]),
+        leaderboard: [],
         recentPosts: [],
         distribution: [],
         contentCalendar: buildContentCalendar([], now),
@@ -321,45 +378,56 @@ export class AnalyticsService {
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
-    const [currentPosts, previousPosts, recentPosts, calendarPosts] =
-      await Promise.all([
-        this.findPublishedPosts(accountIds, currentStart, now, MAX_RANGE_POSTS),
-        this.findPublishedPosts(
-          accountIds,
-          previousStart,
-          currentStart,
-          MAX_RANGE_POSTS,
-        ),
-        this.findRecentPosts(accountIds),
-        this.findPublishedPosts(
-          accountIds,
-          monthStart,
-          nextMonthStart,
-          MAX_RANGE_POSTS,
-        ),
-      ]);
+    const [currentPosts, previousPosts, calendarPosts] = await Promise.all([
+      this.findPublishedPosts(accountIds, currentStart, now, MAX_RANGE_POSTS),
+      this.findPublishedPosts(
+        accountIds,
+        previousStart,
+        currentStart,
+        MAX_RANGE_POSTS,
+      ),
+      this.findPublishedPosts(
+        accountIds,
+        monthStart,
+        nextMonthStart,
+        MAX_RANGE_POSTS,
+      ),
+    ]);
 
     const accountById = new Map(
       accounts.map((account) => [account.id, account]),
     );
+    const distribution = buildDistribution(currentPosts);
+    const bestTime = buildBestTime(currentPosts);
 
     return {
       accounts,
       selectedAccountId: options.accountId ?? null,
       rangeDays,
-      lastUpdatedAt: latestAnalyticsFetchedAt([
-        ...currentPosts,
-        ...recentPosts,
-      ]),
+      lastUpdatedAt: latestAnalyticsFetchedAt(currentPosts),
       statGrid: buildStatGrid(currentPosts, previousPosts),
-      recentPosts: await this.mapRecentPosts(recentPosts),
-      distribution: buildDistribution(currentPosts),
+      performanceSeries: buildPerformanceSeries(
+        currentPosts,
+        currentStart,
+        rangeDays,
+      ),
+      bestTime,
+      leaderboard: buildLeaderboard(
+        currentPosts,
+        selectedAccountRecords.map((record) => accountById.get(record.id)!),
+      ),
+      recentPosts: await this.mapRecentPosts(findTopPosts(currentPosts)),
+      distribution,
       contentCalendar: buildContentCalendar(calendarPosts, now),
       contentRows: await this.mapContentRows(
         currentPosts.slice(0, MAX_CONTENT_ROWS),
         accountById,
       ),
-      recommendations: [],
+      recommendations: buildRecommendations(
+        currentPosts,
+        distribution,
+        bestTime,
+      ),
       notes: await this.findNotes(userId, options.accountId),
       videoIdeas: [],
     };
@@ -581,19 +649,6 @@ export class AnalyticsService {
       },
       orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }],
       take,
-      include: ANALYTICS_POST_INCLUDE,
-    });
-  }
-
-  private findRecentPosts(accountIds: string[]) {
-    return this.prisma.contentPost.findMany({
-      where: {
-        instagramAccountId: { in: accountIds },
-        status: PostStatus.PUBLISHED,
-        publishedAt: { not: null },
-      },
-      orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }],
-      take: MAX_RECENT_POSTS,
       include: ANALYTICS_POST_INCLUDE,
     });
   }
@@ -941,6 +996,234 @@ function buildMetric(
   };
 }
 
+const PERFORMANCE_FIELDS: Record<PerformanceMetric, AnalyticsMetricField> = {
+  views: 'impressions',
+  reach: 'reach',
+  interactions: 'engagement',
+  likes: 'likeCount',
+};
+
+function buildPerformanceSeries(
+  posts: AnalyticsPost[],
+  periodStart: Date,
+  rangeDays: number,
+): PerformancePoint[] {
+  const hasAnalytics = posts.some((post) => latestAnalytics(post) !== null);
+  if (!hasAnalytics) return [];
+
+  const bucketDays = rangeDays <= 7 ? 1 : rangeDays <= 30 ? 5 : 15;
+  const bucketCount = Math.ceil(rangeDays / bucketDays);
+  const series = Array.from({ length: bucketCount }, (_, index) => {
+    const date = new Date(periodStart.getTime() + index * bucketDays * DAY_MS);
+
+    return {
+      label: formatChartDate(date),
+      date: date.toISOString(),
+      postCount: 0,
+      views: 0,
+      reach: 0,
+      interactions: 0,
+      likes: 0,
+    };
+  });
+
+  for (const post of posts) {
+    if (!post.publishedAt) continue;
+
+    const offset = post.publishedAt.getTime() - periodStart.getTime();
+    const index = Math.floor(offset / (bucketDays * DAY_MS));
+    const point = series[index];
+
+    if (!point) continue;
+    point.postCount += 1;
+
+    for (const [metric, field] of Object.entries(PERFORMANCE_FIELDS) as [
+      PerformanceMetric,
+      AnalyticsMetricField,
+    ][]) {
+      point[metric] += latestAnalytics(post)?.[field] ?? 0;
+    }
+  }
+
+  return series;
+}
+
+function buildBestTime(posts: AnalyticsPost[]): BestTimeInsight {
+  const values = new Map<string, { total: number; postCount: number }>();
+
+  for (const post of posts) {
+    if (!post.publishedAt) continue;
+
+    const interactions = getInteractions(post);
+    if (interactions === null) continue;
+
+    const day = post.publishedAt.getUTCDay();
+    const hour = post.publishedAt.getUTCHours();
+    const key = `${day}:${hour}`;
+    const cell = values.get(key) ?? { total: 0, postCount: 0 };
+    cell.total += interactions;
+    cell.postCount += 1;
+    values.set(key, cell);
+  }
+
+  const averages = [...values.values()].map(
+    (value) => value.total / value.postCount,
+  );
+  const highestAverage = Math.max(0, ...averages);
+  let topCell: { day: number; hour: number; average: number } | null = null;
+  const cells: BestTimeCell[] = [];
+
+  for (let day = 0; day < 7; day += 1) {
+    for (let hour = 0; hour < 24; hour += 1) {
+      const cell = values.get(`${day}:${hour}`);
+      const average = cell ? cell.total / cell.postCount : null;
+
+      if (average !== null && (!topCell || average > topCell.average)) {
+        topCell = { day, hour, average };
+      }
+
+      cells.push({
+        day,
+        hour,
+        score:
+          average === null || highestAverage === 0
+            ? null
+            : average / highestAverage,
+        postCount: cell?.postCount ?? 0,
+      });
+    }
+  }
+
+  return {
+    timezone: 'UTC',
+    cells,
+    sampleSize: [...values.values()].reduce(
+      (sum, value) => sum + value.postCount,
+      0,
+    ),
+    topWindow:
+      topCell && highestAverage > 0
+        ? `${WEEKDAYS[topCell.day]} ${formatHour(topCell.hour)} UTC`
+        : null,
+  };
+}
+
+function buildLeaderboard(
+  posts: AnalyticsPost[],
+  accounts: AnalyticsAccount[],
+): AccountPerformance[] {
+  return accounts
+    .map((account) => {
+      const accountPosts = posts.filter(
+        (post) => post.instagramAccountId === account.id,
+      );
+      const reach = sumLatestAnalytics(accountPosts, 'reach');
+      const interactions = sumLatestAnalytics(accountPosts, 'engagement');
+
+      return {
+        account,
+        postCount: accountPosts.length,
+        views: sumLatestAnalytics(accountPosts, 'impressions'),
+        reach,
+        interactions,
+        engagementRate:
+          reach && interactions !== null
+            ? Number(((interactions / reach) * 100).toFixed(2))
+            : null,
+      };
+    })
+    .sort((left, right) => leaderboardScore(right) - leaderboardScore(left));
+}
+
+function leaderboardScore(row: AccountPerformance) {
+  return row.reach ?? row.views ?? row.interactions ?? -1;
+}
+
+function findTopPosts(posts: AnalyticsPost[]) {
+  return [...posts]
+    .sort((left, right) => postScore(right) - postScore(left))
+    .slice(0, MAX_RECENT_POSTS);
+}
+
+function postScore(post: AnalyticsPost) {
+  const analytics = latestAnalytics(post);
+  return (
+    analytics?.reach ?? analytics?.impressions ?? analytics?.engagement ?? -1
+  );
+}
+
+function buildRecommendations(
+  posts: AnalyticsPost[],
+  distribution: DistributionItem[],
+  bestTime: BestTimeInsight,
+): Recommendation[] {
+  const recommendations: Recommendation[] = [];
+  const rankedFormats = POST_TYPE_ORDER.map((postType) => {
+    const formatPosts = posts.filter((post) => post.postType === postType);
+
+    return {
+      label: POST_TYPE_LABELS[postType],
+      postCount: formatPosts.length,
+      reach: sumLatestAnalytics(formatPosts, 'reach'),
+      views: sumLatestAnalytics(formatPosts, 'impressions'),
+    };
+  })
+    .filter((format) => format.postCount > 0)
+    .sort(
+      (left, right) =>
+        (right.reach ?? right.views ?? -1) - (left.reach ?? left.views ?? -1),
+    );
+  const leadingFormat = rankedFormats[0];
+
+  if (
+    leadingFormat &&
+    (leadingFormat.reach !== null || leadingFormat.views !== null)
+  ) {
+    const metric = leadingFormat.reach !== null ? 'reach' : 'views';
+    const value = leadingFormat.reach ?? leadingFormat.views ?? 0;
+    recommendations.push({
+      title: `${leadingFormat.label} is your leading format by ${metric}`,
+      body: `${leadingFormat.postCount} published ${leadingFormat.label.toLowerCase()} item(s) generated ${value.toLocaleString('en-US')} ${metric} in this period. Consider testing more content in this format.`,
+    });
+  }
+
+  if (bestTime.topWindow && bestTime.sampleSize >= 2) {
+    recommendations.push({
+      title: `Your strongest observed publishing window is ${bestTime.topWindow}`,
+      body: `This is calculated from interactions on ${bestTime.sampleSize} published posts in the selected period. Schedule a future post in this window and compare its results.`,
+    });
+  }
+
+  const topDistribution = [...distribution].sort(
+    (left, right) => right.percentage - left.percentage,
+  )[0];
+  if (topDistribution && topDistribution.percentage >= 60) {
+    recommendations.push({
+      title: `${topDistribution.label} makes up ${topDistribution.percentage}% of published content`,
+      body: 'Your content mix is concentrated in one format. Testing an additional format can reveal new reach or interaction opportunities.',
+    });
+  }
+
+  return recommendations;
+}
+
+function getInteractions(post: AnalyticsPost) {
+  const analytics = latestAnalytics(post);
+  if (!analytics) return null;
+  if (analytics.engagement !== null) return analytics.engagement;
+
+  const values = [
+    analytics.likeCount,
+    analytics.commentsCount,
+    analytics.sharesCount,
+    analytics.savesCount,
+  ].filter((value): value is number => typeof value === 'number');
+
+  return values.length > 0
+    ? values.reduce((sum, value) => sum + value, 0)
+    : null;
+}
+
 function buildDistribution(posts: AnalyticsPost[]): DistributionItem[] {
   const counts = new Map<PostType, number>();
 
@@ -1072,6 +1355,18 @@ function formatTime(date: Date) {
   return date.toLocaleTimeString('en-US', {
     hour: 'numeric',
     minute: '2-digit',
+  });
+}
+
+function formatHour(hour: number) {
+  return `${String(hour).padStart(2, '0')}:00`;
+}
+
+function formatChartDate(date: Date) {
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    timeZone: 'UTC',
   });
 }
 

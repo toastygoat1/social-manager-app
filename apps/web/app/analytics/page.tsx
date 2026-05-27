@@ -6,6 +6,9 @@ import { Sidebar } from "@/app/dashboard/_components/Sidebar";
 import { AccountsTopCard } from "./_components/AccountsTopCard";
 import { BannerHero } from "./_components/BannerHero";
 import { StatGrid } from "./_components/StatGrid";
+import { PerformanceTrend } from "./_components/PerformanceTrend";
+import { BestTimeCard } from "./_components/BestTimeCard";
+import { AccountLeaderboard } from "./_components/AccountLeaderboard";
 import { RecentPosts } from "./_components/RecentPosts";
 import { ChannelDistribution } from "./_components/ChannelDistribution";
 import { ContentCalendar } from "./_components/ContentCalendar";
@@ -159,6 +162,19 @@ export default async function AnalyticsPage({
           ) : (
             <>
               <StatGrid stats={data.statGrid} />
+              <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(360px,1fr)]">
+                <PerformanceTrend
+                  points={data.performanceSeries}
+                  rangeDays={data.rangeDays}
+                />
+                <BestTimeCard insight={data.bestTime} />
+              </div>
+              {data.leaderboard.length > 1 ? (
+                <AccountLeaderboard
+                  rows={data.leaderboard}
+                  range={`${data.rangeDays}d` as AnalyticsRange}
+                />
+              ) : null}
               <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(340px,1fr)]">
                 <RecentPosts posts={data.recentPosts} />
                 <ChannelDistribution items={data.distribution} />

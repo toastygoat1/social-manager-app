@@ -92,7 +92,7 @@ export function RecentPosts({
       <header>
         <h2 className="text-sm font-semibold text-ink">Top performing posts</h2>
         <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
-          Recent published content
+          Ranked by reach, then views / current period
         </p>
       </header>
       <div
