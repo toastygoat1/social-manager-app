@@ -121,12 +121,6 @@ export default async function AnalyticsPage({
           : Promise.resolve(null),
       ])
     : [null, null];
-  const selectedAccount =
-    data.accounts.find((account) => account.id === data.selectedAccountId) ??
-    null;
-  const contextLabel = isCompareMode
-    ? "Compare"
-    : selectedAccount?.name ?? "All accounts";
 
   return (
     <div className="flex min-h-screen items-start bg-[#fafaf8] font-sans">
@@ -136,18 +130,6 @@ export default async function AnalyticsPage({
         profile={getUserProfile(user)}
       />
       <main className="analytics-theme flex min-w-0 flex-1 flex-col bg-page font-inter text-ink">
-        <header className="sticky top-0 z-20 flex h-12 items-center justify-between border-b border-line bg-page/90 px-5 backdrop-blur-sm sm:px-7">
-          <div className="flex items-center gap-2 text-[12px] text-muted">
-            <span>Workspace</span>
-            <span className="text-[#b5b3ab]">/</span>
-            <span>Insights</span>
-            <span className="text-[#b5b3ab]">/</span>
-            <span className="text-ink">{contextLabel}</span>
-          </div>
-          <p className="hidden font-mono text-[10px] uppercase tracking-[0.1em] text-muted sm:block">
-            Analytics
-          </p>
-        </header>
         <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-4 px-5 py-8 sm:px-7 sm:py-9">
           <BannerHero
             accounts={data.accounts}
@@ -155,14 +137,16 @@ export default async function AnalyticsPage({
             rangeDays={data.rangeDays}
             compareMode={isCompareMode}
           />
-          <AccountsTopCard
-            accounts={data.accounts}
-            selectedAccountId={data.selectedAccountId}
-            range={`${data.rangeDays}d` as AnalyticsRange}
-            lastUpdatedAt={data.lastUpdatedAt}
-            isCompareMode={isCompareMode}
-            compareAccountIds={[compareLeftAccountId, compareRightAccountId]}
-          />
+          <div className="sticky top-3 z-20">
+            <AccountsTopCard
+              accounts={data.accounts}
+              selectedAccountId={data.selectedAccountId}
+              range={`${data.rangeDays}d` as AnalyticsRange}
+              lastUpdatedAt={data.lastUpdatedAt}
+              isCompareMode={isCompareMode}
+              compareAccountIds={[compareLeftAccountId, compareRightAccountId]}
+            />
+          </div>
           {isCompareMode ? (
             <AnalyticsCompareView
               accounts={data.accounts}
