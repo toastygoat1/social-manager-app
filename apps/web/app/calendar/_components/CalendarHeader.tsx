@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { CreatePostModal, type CreatePostType } from "./CreatePostModal";
 
-export type CalendarView = "week" | "month";
+export type CalendarView = "month" | "week" | "day" | "list";
 
 type Props = {
   view: CalendarView;
@@ -208,13 +208,20 @@ export function CalendarHeader({
               label="Week"
               selected={view === "week"}
               onClick={() => onViewChange("week")}
+              divided
             />
-            <span className="flex items-center border-l border-[#e7e1d6] px-2.5 text-[#918b80]">
-              Day
-            </span>
-            <span className="flex items-center border-l border-[#e7e1d6] px-2.5 text-[#918b80]">
-              List
-            </span>
+            <ViewButton
+              label="Day"
+              selected={view === "day"}
+              onClick={() => onViewChange("day")}
+              divided
+            />
+            <ViewButton
+              label="List"
+              selected={view === "list"}
+              onClick={() => onViewChange("list")}
+              divided
+            />
           </div>
         </div>
       </div>
@@ -244,20 +251,22 @@ function ViewButton({
   label,
   selected,
   onClick,
+  divided = false,
 }: {
   label: string;
   selected: boolean;
   onClick: () => void;
+  divided?: boolean;
 }) {
   return (
     <button
       type="button"
       aria-pressed={selected}
       onClick={onClick}
-      className={`px-2.5 ${
+      className={`px-2.5 ${divided ? "border-l border-[#e7e1d6]" : ""} ${
         selected
           ? "bg-[#f5f1e9] font-semibold text-[#27231c]"
-          : "border-l border-[#e7e1d6] bg-paper text-[#736c62]"
+          : "bg-paper text-[#736c62]"
       }`}
     >
       {label}
