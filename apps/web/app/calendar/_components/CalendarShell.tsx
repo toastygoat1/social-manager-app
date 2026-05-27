@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiFetchBrowser } from "@/lib/api/browser-client";
 import { CalendarHeader, type CalendarView } from "./CalendarHeader";
 import { CalendarWorkPanel } from "./CalendarWorkPanel";
+import { DailyCalendar } from "./DailyCalendar";
+import { ListCalendar } from "./ListCalendar";
 import { MonthlyCalendar } from "./MonthlyCalendar";
 import { PostDetailsModal } from "./PostDetailsModal";
 import { WeeklyCalendar } from "./WeeklyCalendar";
@@ -15,6 +17,7 @@ import {
   EMPTY_CALENDAR,
   EMPTY_WORK_ITEMS,
   formatPeriodLabel,
+  rangeForDay,
   rangeForMonth,
   rangeForWeek,
   toIsoDate,
@@ -40,7 +43,11 @@ export function CalendarShell({ initialReferenceIso, initialData }: Props) {
   const skipNextFetchRef = useRef(true);
 
   const range = useMemo(
-    () => (view === "week" ? rangeForWeek(reference) : rangeForMonth(reference)),
+    () => {
+      if (view === "week") return rangeForWeek(reference);
+      if (view === "day") return rangeForDay(reference);
+      return rangeForMonth(reference);
+    },
     [view, reference],
   );
 
@@ -116,6 +123,8 @@ export function CalendarShell({ initialReferenceIso, initialData }: Props) {
     const next = new Date(reference);
     if (view === "week") {
       next.setDate(next.getDate() + delta * 7);
+    } else if (view === "day") {
+      next.setDate(next.getDate() + delta);
     } else {
       next.setMonth(next.getMonth() + delta);
     }
@@ -159,17 +168,31 @@ export function CalendarShell({ initialReferenceIso, initialData }: Props) {
         </div>
       ) : null}
       <main className="flex min-h-0 flex-1 flex-col px-4 pt-2">
-        {view === "week" ? (
+        {view === "month" ? (
+          <MonthlyCalendar
+            reference={reference}
+            todayIso={todayIso}
+            events={data.events}
+            loading={loading}
+            onOpenPost={openPost}
+          />
+        ) : view === "week" ? (
           <WeeklyCalendar
             reference={reference}
             events={data.events}
             loading={loading}
             onOpenPost={openPost}
           />
-        ) : (
-          <MonthlyCalendar
+        ) : view === "day" ? (
+          <DailyCalendar
             reference={reference}
-            todayIso={todayIso}
+            events={data.events}
+            loading={loading}
+            onOpenPost={openPost}
+          />
+        ) : (
+          <ListCalendar
+            reference={reference}
             events={data.events}
             loading={loading}
             onOpenPost={openPost}

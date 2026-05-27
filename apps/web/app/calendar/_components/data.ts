@@ -186,15 +186,33 @@ export function rangeForWeek(reference: Date): { from: Date; to: Date } {
   return { from, to };
 }
 
+export function rangeForDay(reference: Date): { from: Date; to: Date } {
+  const from = new Date(
+    reference.getFullYear(),
+    reference.getMonth(),
+    reference.getDate(),
+  );
+  const to = new Date(from);
+  to.setHours(23, 59, 59, 999);
+  return { from, to };
+}
+
 export function formatPeriodLabel(
-  view: "week" | "month",
+  view: "month" | "week" | "day" | "list",
   reference: Date,
 ): string {
   const monthFmt = reference.toLocaleString("en-US", {
     month: "long",
     year: "numeric",
   });
-  if (view === "month") return monthFmt;
+  if (view === "month" || view === "list") return monthFmt;
+  if (view === "day") {
+    return reference.toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    });
+  }
 
   const days = buildWeekDays(reference);
   const first = new Date(`${days[0].iso}T00:00:00`);
