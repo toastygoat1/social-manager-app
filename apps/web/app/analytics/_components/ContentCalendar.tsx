@@ -1,4 +1,3 @@
-import { Clock } from "lucide-react";
 import type { CalendarCell, ContentCalendarMonth } from "./data";
 
 function EventChip({
@@ -13,15 +12,16 @@ function EventChip({
   compact?: boolean;
 }) {
   return (
-    <div className="flex items-center gap-1 rounded-md border border-line bg-paper px-1 py-0.5">
-      <Clock className="size-2.5 text-muted" strokeWidth={1.6} />
-      <span className="truncate text-[8px] text-ink">{label}</span>
-      {compact ? null : <span className="text-[8px] text-muted">{time}</span>}
-      <span
-        className="size-1.5 rounded-full"
-        style={{ backgroundColor: color }}
-        aria-hidden="true"
-      />
+    <div
+      className="flex min-w-0 items-center gap-1.5 rounded-[3px] bg-card px-1.5 py-1 text-[10px]"
+      style={{ borderLeft: `2px solid ${color}` }}
+    >
+      <span className="truncate text-ink">{label}</span>
+      {compact ? null : (
+        <span className="ml-auto shrink-0 font-mono text-[9px] text-muted">
+          {time}
+        </span>
+      )}
     </div>
   );
 }
@@ -37,17 +37,19 @@ function Cell({
 
   return (
     <div
-      className={`flex min-w-0 flex-1 flex-col gap-1 overflow-hidden border-r border-b border-line bg-paper last:border-r-0 ${
-        compact ? "h-[82px] p-1.5" : "h-[120px] p-2"
-      }`}
+      className={`flex min-w-0 flex-1 flex-col gap-1.5 border-r border-b border-line p-2 last:border-r-0 ${
+        cell.muted ? "bg-card text-[#b5b3ab]" : "bg-paper"
+      } ${compact ? "min-h-[74px]" : "min-h-[96px]"}`}
     >
       <span
-        className={`text-[14px] font-medium ${cell.muted ? "text-muted" : "text-ink"}`}
+        className={`font-mono text-[11px] ${
+          cell.muted ? "text-[#b5b3ab]" : "text-ink"
+        }`}
       >
         {cell.day}
       </span>
-      {events?.map((e, i) => (
-        <EventChip key={i} {...e} compact={compact} />
+      {events?.map((event, index) => (
+        <EventChip key={index} {...event} compact={compact} />
       ))}
     </div>
   );
@@ -61,44 +63,49 @@ export function ContentCalendar({
   compact?: boolean;
 }) {
   return (
-    <div
-      className={`flex w-full flex-col items-start gap-5 overflow-hidden rounded-[17px] ${
-        compact ? "px-3 py-4" : "px-6 py-5"
+    <section
+      className={`flex min-w-0 flex-col rounded-[10px] border border-line bg-paper ${
+        compact ? "gap-4 p-4" : "gap-5 p-[18px]"
       }`}
     >
-      <div className="flex w-full items-center justify-between">
-        <p className={compact ? "text-lg text-ink" : "text-xl text-ink"}>
-          Content Calendar
-        </p>
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-semibold text-ink">Content calendar</h2>
+          <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
+            Published content schedule
+          </p>
+        </div>
         {calendar ? (
-          <span className="text-sm text-muted">{calendar.label}</span>
+          <span className="rounded-lg border border-line px-3 py-1.5 font-mono text-[11px] text-muted">
+            {calendar.label}
+          </span>
         ) : null}
-      </div>
+      </header>
       {calendar ? (
-        <div className="flex w-full flex-col overflow-hidden rounded-2xl border border-line">
-          <div className="flex w-full border-b border-line">
-            {calendar.weekdays.map((d) => (
+        <div className="flex w-full flex-col overflow-hidden rounded-lg border border-line">
+          <div className="flex w-full border-b border-line bg-card">
+            {calendar.weekdays.map((day) => (
               <div
-                key={d}
-                className="flex min-w-0 flex-1 items-center justify-center border-r border-line bg-paper py-2 text-[10px] font-medium text-muted last:border-r-0"
+                key={day}
+                className="flex min-w-0 flex-1 items-center border-r border-line px-2 py-2 font-mono text-[10px] uppercase tracking-[0.08em] text-muted last:border-r-0"
               >
-                {d}
+                {day}
               </div>
             ))}
           </div>
-          {calendar.rows.map((row, ri) => (
-            <div key={ri} className="flex w-full">
-              {row.map((cell, ci) => (
-                <Cell key={ci} cell={cell} compact={compact} />
+          {calendar.rows.map((row, rowIndex) => (
+            <div key={rowIndex} className="flex w-full">
+              {row.map((cell, cellIndex) => (
+                <Cell key={cellIndex} cell={cell} compact={compact} />
               ))}
             </div>
           ))}
         </div>
       ) : (
-        <div className="flex h-32 w-full items-center justify-center rounded-2xl border border-line bg-paper text-sm text-muted">
+        <div className="flex h-32 items-center justify-center rounded-lg bg-card text-sm text-muted">
           No calendar data yet
         </div>
       )}
-    </div>
+    </section>
   );
 }

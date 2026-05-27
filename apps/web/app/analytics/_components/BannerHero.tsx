@@ -5,119 +5,117 @@ type BannerHeroProps = {
   accounts: Account[];
   selectedAccountId: string | null;
   rangeDays: number;
+  compareMode?: boolean;
   compact?: boolean;
 };
 
-const BANNER_TILES = [
-  "var(--chart-1)",
-  "var(--chart-3)",
-  "var(--chart-7)",
-  "var(--chart-8)",
-  "var(--chart-2)",
-  "var(--chart-6)",
-];
+function accountInitial(account: Account) {
+  return account.name.replace(/^@/, "").charAt(0).toUpperCase() || "I";
+}
+
+function AccountMark({
+  account,
+  compact = false,
+}: {
+  account: Account;
+  compact?: boolean;
+}) {
+  return (
+    <span
+      className={`flex shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-page bg-[#5e6ad2] font-medium text-white ${
+        compact ? "size-8 text-[11px]" : "size-9 text-xs"
+      }`}
+    >
+      {account.avatarUrl ? (
+        <Image
+          src={account.avatarUrl}
+          alt=""
+          width={compact ? 32 : 36}
+          height={compact ? 32 : 36}
+          className="size-full object-cover"
+        />
+      ) : (
+        accountInitial(account)
+      )}
+    </span>
+  );
+}
 
 export function BannerHero({
   accounts,
   selectedAccountId,
   rangeDays,
+  compareMode = false,
   compact = false,
 }: BannerHeroProps) {
   const selectedAccount =
     accounts.find((account) => account.id === selectedAccountId) ?? null;
-  const title = selectedAccount
-    ? selectedAccount.name
-    : accounts.length === 1
-      ? accounts[0].name
-      : accounts.length > 1
-        ? "All Accounts"
-        : "Analytics";
-  const subtitle =
-    selectedAccount || accounts.length > 0
-      ? `${rangeDays}-day performance`
-      : "No accounts connected yet";
-  const avatarAccount =
-    selectedAccount ?? (accounts.length === 1 ? accounts[0] : null);
+  const shownAccounts = selectedAccount ? [selectedAccount] : accounts.slice(0, 4);
+
+  if (compact) {
+    return (
+      <section className="flex items-center justify-between gap-4 rounded-[10px] border border-line bg-paper p-4">
+        <div className="flex min-w-0 items-center gap-3">
+          {selectedAccount ? <AccountMark account={selectedAccount} compact /> : null}
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium text-ink">
+              {selectedAccount?.name ?? "Select account"}
+            </p>
+            <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.06em] text-muted">
+              {rangeDays}-day snapshot
+            </p>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  const title = compareMode
+    ? "Compare."
+    : selectedAccount
+      ? `${selectedAccount.name}.`
+      : "Everything, in one frame.";
+  const subtitle = compareMode
+    ? "Set accounts side by side. Find the signal."
+    : selectedAccount
+      ? `${selectedAccount.platform} / ${rangeDays}-day performance`
+      : accounts.length > 0
+        ? `${accounts.length} Instagram accounts / last ${rangeDays} days`
+        : "Connect an Instagram account to start tracking performance.";
 
   return (
-    <div
-      className={`relative flex w-full flex-col items-center ${
-        compact ? "p-0" : "p-3"
-      }`}
-    >
-      <div
-        className={`relative flex w-full overflow-hidden bg-ink ${
-          compact ? "h-[178px] rounded-2xl" : "h-[300px] rounded-3xl"
-        }`}
-      >
-        <div className="grid h-full w-full grid-cols-3 grid-rows-2 opacity-90 md:grid-cols-6 md:grid-rows-1">
-          {BANNER_TILES.map((color, index) => (
-            <div
-              key={`${color}-${index}`}
-              className="relative overflow-hidden"
-              style={{ backgroundColor: color }}
-            >
-              <div
-                className={`absolute inset-x-4 rounded-t-2xl border-x border-t border-white/30 ${
-                  compact ? "bottom-4 h-14" : "bottom-6 h-24"
-                }`}
-              />
-              <div
-                className={`absolute inset-x-7 rounded-t-xl border-x border-t border-white/20 ${
-                  compact ? "bottom-4 h-8" : "bottom-6 h-14"
-                }`}
-              />
-            </div>
-          ))}
+    <section className="grid gap-7 pb-2 md:grid-cols-[1fr_auto] md:items-end">
+      <div>
+        <p className="mb-4 font-mono text-[10px] uppercase tracking-[0.14em] text-muted">
+          Analytics / {rangeDays}-day snapshot
+        </p>
+        <h1 className="analytics-serif max-w-4xl text-[clamp(2.9rem,6vw,5rem)] font-normal leading-[0.96] tracking-[-0.04em] text-ink">
+          {title}
+        </h1>
+        <p className="mt-4 text-sm text-muted">{subtitle}</p>
+      </div>
+      <div className="flex flex-col items-start gap-3 md:items-end">
+        {shownAccounts.length > 0 ? (
+          <div className="flex">
+            {shownAccounts.map((account, index) => (
+              <span
+                key={account.id}
+                className={index > 0 ? "-ml-2" : undefined}
+              >
+                <AccountMark account={account} />
+              </span>
+            ))}
+          </div>
+        ) : null}
+        <div className="flex flex-col md:items-end">
+          <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted">
+            Tracking
+          </span>
+          <span className="font-mono text-sm text-ink">
+            {selectedAccount ? "1 account" : `${accounts.length} accounts`}
+          </span>
         </div>
       </div>
-      <div
-        className={`flex flex-col items-center ${
-          compact ? "-mt-12 gap-3" : "-mt-[82px] gap-5"
-        }`}
-      >
-        <div
-          className={`flex items-center justify-center overflow-hidden rounded-full bg-paper ring-4 ring-paper ${
-            compact ? "size-24" : "size-[164px]"
-          }`}
-        >
-          {avatarAccount?.avatarUrl ? (
-            <Image
-              src={avatarAccount.avatarUrl}
-              alt=""
-              width={compact ? 96 : 164}
-              height={compact ? 96 : 164}
-              className={compact ? "size-24 object-cover" : "size-[164px] object-cover"}
-              priority
-            />
-          ) : avatarAccount ? (
-            <span
-              className={`font-semibold text-ink ${
-                compact ? "text-[34px]" : "text-[56px]"
-              }`}
-            >
-              {avatarAccount.name.replace(/^@/, "").charAt(0).toUpperCase()}
-            </span>
-          ) : (
-            <div className="grid size-16 grid-cols-2 grid-rows-2 gap-2 rounded-2xl bg-ink p-3">
-              <span className="rounded bg-white" />
-              <span className="rounded bg-white" />
-              <span className="rounded bg-white" />
-              <span className="rounded bg-white" />
-            </div>
-          )}
-        </div>
-        <div className="flex flex-col items-center gap-2 text-center">
-          <h2
-            className={`font-semibold leading-none text-ink ${
-              compact ? "text-2xl" : "text-[32px]"
-            }`}
-          >
-            {title}
-          </h2>
-          <p className="text-sm text-muted">{subtitle}</p>
-        </div>
-      </div>
-    </div>
+    </section>
   );
 }

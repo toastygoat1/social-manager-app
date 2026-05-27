@@ -1,5 +1,5 @@
-import Link from "next/link";
 import Image from "next/image";
+import Link from "next/link";
 import { Columns2, LayoutDashboard } from "lucide-react";
 import type { Account } from "@/app/dashboard/_components/data";
 import { RefreshInsightsButton } from "./RefreshInsightsButton";
@@ -66,7 +66,25 @@ function resolveCompareAccountIds(
   return [compareLeft, compareRight] as const;
 }
 
-function AccountFilterChip({
+function Avatar({ account }: { account: Account }) {
+  return (
+    <span className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#5e6ad2] text-[11px] font-medium text-white">
+      {account.avatarUrl ? (
+        <Image
+          src={account.avatarUrl}
+          alt=""
+          width={28}
+          height={28}
+          className="size-full object-cover"
+        />
+      ) : (
+        account.name.replace(/^@/, "").charAt(0).toUpperCase()
+      )}
+    </span>
+  );
+}
+
+function AccountChip({
   account,
   active,
   range,
@@ -78,29 +96,14 @@ function AccountFilterChip({
   return (
     <Link
       href={analyticsHref({ accountId: account.id, range })}
-      className={`flex h-11 w-[196px] shrink-0 items-center gap-2 overflow-hidden rounded-lg px-4 py-2 transition ${
-        active ? "bg-[var(--chart-3)]" : "bg-paper hover:bg-card"
+      className={`flex shrink-0 items-center gap-2 rounded-full border px-2.5 py-1.5 text-xs transition ${
+        active
+          ? "border-[#d8d6cf] bg-card text-ink"
+          : "border-line bg-paper text-muted hover:border-[#d8d6cf] hover:text-ink"
       }`}
     >
-      <div className="relative flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-line text-[10px] font-medium text-muted">
-        {account.avatarUrl ? (
-          <Image
-            src={account.avatarUrl}
-            alt=""
-            width={28}
-            height={28}
-            className="size-7 object-cover"
-          />
-        ) : (
-          account.name.replace(/^@/, "").charAt(0).toUpperCase()
-        )}
-      </div>
-      <div className="flex min-w-0 flex-1 flex-col items-start">
-        <p className="truncate text-xs leading-none text-ink">{account.name}</p>
-        <span className="mt-0.5 truncate text-[10px] leading-4 text-muted">
-          {account.platform}
-        </span>
-      </div>
+      <Avatar account={account} />
+      <span className="max-w-36 truncate">{account.name}</span>
     </Link>
   );
 }
@@ -113,6 +116,8 @@ export function AccountsTopCard({
   isCompareMode = false,
   compareAccountIds = [null, null],
 }: AccountsTopCardProps) {
+  const selectedAccount =
+    accounts.find((account) => account.id === selectedAccountId) ?? null;
   const [compareLeft, compareRight] = resolveCompareAccountIds(
     accounts,
     selectedAccountId,
@@ -126,51 +131,62 @@ export function AccountsTopCard({
   });
 
   return (
-    <div className="flex w-full shrink-0 flex-col gap-2.5 overflow-x-auto overflow-y-hidden rounded-3xl bg-paper p-2.5">
-      <div className="flex w-full flex-wrap items-center justify-between gap-4 px-6 pt-[18px] pb-0">
-        <h2 className="font-semibold text-[16px] leading-4 text-[#495057]">
-          Accounts
-        </h2>
-        <div className="flex shrink-0 flex-wrap items-center justify-end gap-3">
+    <section className="flex w-full flex-col gap-3 rounded-[10px] border border-line bg-paper p-3.5">
+      <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
+        <div className="flex min-w-0 items-center gap-3">
+          {selectedAccount ? (
+            <Avatar account={selectedAccount} />
+          ) : (
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-ink font-mono text-[11px] font-medium text-page">
+              {accounts.length}
+            </span>
+          )}
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold text-ink">
+              {selectedAccount?.name ?? "All accounts"}
+            </p>
+            <p className="truncate font-mono text-[10px] uppercase tracking-[0.06em] text-muted">
+              {selectedAccount?.platform ??
+                `${accounts.length} Instagram accounts / aggregated view`}
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2.5">
           <RefreshInsightsButton
             selectedAccountId={selectedAccountId}
             range={range}
             lastUpdatedAt={lastUpdatedAt}
             disabled={accounts.length === 0}
           />
-          <div className="flex shrink-0 items-center rounded-lg border border-line bg-card p-1">
+          <div className="flex overflow-hidden rounded-lg border border-line bg-paper">
             <Link
               href={analyticsHref({ accountId: selectedAccountId, range })}
-              className={`flex h-8 items-center gap-2 rounded-md px-3 text-xs font-medium transition ${
-                isCompareMode
-                  ? "text-muted hover:text-ink"
-                  : "bg-paper text-ink"
+              className={`flex h-8 items-center gap-1.5 border-r border-line px-3 text-xs transition ${
+                isCompareMode ? "text-muted hover:text-ink" : "bg-card text-ink"
               }`}
             >
-              <LayoutDashboard className="size-3.5" strokeWidth={1.8} />
-              <span>Single</span>
+              <LayoutDashboard className="size-3.5" strokeWidth={1.7} />
+              Overview
             </Link>
             {accounts.length < 2 ? (
-              <span className="flex h-8 cursor-not-allowed items-center gap-2 rounded-md px-3 text-xs font-medium text-muted opacity-60">
-                <Columns2 className="size-3.5" strokeWidth={1.8} />
-                <span>Compare</span>
+              <span className="flex h-8 items-center gap-1.5 px-3 text-xs text-muted opacity-50">
+                <Columns2 className="size-3.5" strokeWidth={1.7} />
+                Compare
               </span>
             ) : (
               <Link
                 href={compareModeHref}
-                className={`flex h-8 items-center gap-2 rounded-md px-3 text-xs font-medium transition ${
-                  isCompareMode
-                    ? "bg-paper text-ink"
-                    : "text-muted hover:text-ink"
+                className={`flex h-8 items-center gap-1.5 px-3 text-xs transition ${
+                  isCompareMode ? "bg-card text-ink" : "text-muted hover:text-ink"
                 }`}
               >
-                <Columns2 className="size-3.5" strokeWidth={1.8} />
-                <span>Compare</span>
+                <Columns2 className="size-3.5" strokeWidth={1.7} />
+                Compare
               </Link>
             )}
           </div>
-          <div className="flex shrink-0 items-center rounded-lg border border-line bg-card p-1">
-            {RANGES.map((item) => (
+          <div className="flex overflow-hidden rounded-lg border border-line bg-paper">
+            {RANGES.map((item, index) => (
               <Link
                 key={item.value}
                 href={
@@ -186,9 +202,11 @@ export function AccountsTopCard({
                         range: item.value,
                       })
                 }
-                className={`flex h-8 min-w-12 items-center justify-center rounded-md px-3 text-xs font-medium transition ${
+                className={`flex h-8 min-w-11 items-center justify-center px-3 font-mono text-[11px] transition ${
+                  index < RANGES.length - 1 ? "border-r border-line" : ""
+                } ${
                   range === item.value
-                    ? "bg-paper text-ink"
+                    ? "bg-card text-ink"
                     : "text-muted hover:text-ink"
                 }`}
               >
@@ -198,42 +216,32 @@ export function AccountsTopCard({
           </div>
         </div>
       </div>
-      <div className="flex w-full items-center gap-2 overflow-hidden px-2 pb-2">
-        <Link
-          href={analyticsHref({ accountId: null, range })}
-          className={`flex h-11 w-[196px] shrink-0 items-center gap-2 rounded-lg px-4 py-2 transition ${
-            selectedAccountId || isCompareMode
-              ? "bg-paper hover:bg-card"
-              : "bg-[var(--chart-3)]"
-          }`}
-        >
-          <div className="grid size-7 shrink-0 grid-cols-2 grid-rows-2 gap-1 rounded-lg bg-ink p-1.5">
-            <span className="rounded-[2px] bg-white" />
-            <span className="rounded-[2px] bg-white" />
-            <span className="rounded-[2px] bg-white" />
-            <span className="rounded-[2px] bg-white" />
-          </div>
-          <p className="text-sm text-ink">All Accounts</p>
-        </Link>
-        {accounts.length === 0 ? (
-          <div className="flex h-11 w-[240px] shrink-0 items-center rounded-lg bg-paper px-4 text-sm text-muted">
-            No accounts connected yet
-          </div>
-        ) : (
-          accounts.map((acct) => (
-            <AccountFilterChip
-              key={acct.id}
-              account={acct}
+      {accounts.length > 0 ? (
+        <div className="flex items-center gap-2 overflow-x-auto border-t border-line pt-3">
+          <Link
+            href={analyticsHref({ accountId: null, range })}
+            className={`flex shrink-0 items-center rounded-full border px-3 py-2 text-xs transition ${
+              !selectedAccountId && !isCompareMode
+                ? "border-[#d8d6cf] bg-card text-ink"
+                : "border-line text-muted hover:border-[#d8d6cf] hover:text-ink"
+            }`}
+          >
+            All accounts
+          </Link>
+          {accounts.map((account) => (
+            <AccountChip
+              key={account.id}
+              account={account}
               active={
                 isCompareMode
-                  ? compareLeft === acct.id || compareRight === acct.id
-                  : selectedAccountId === acct.id
+                  ? compareLeft === account.id || compareRight === account.id
+                  : selectedAccountId === account.id
               }
               range={range}
             />
-          ))
-        )}
-      </div>
-    </div>
+          ))}
+        </div>
+      ) : null}
+    </section>
   );
 }

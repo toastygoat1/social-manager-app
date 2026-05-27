@@ -121,24 +121,48 @@ export default async function AnalyticsPage({
           : Promise.resolve(null),
       ])
     : [null, null];
+  const selectedAccount =
+    data.accounts.find((account) => account.id === data.selectedAccountId) ??
+    null;
+  const contextLabel = isCompareMode
+    ? "Compare"
+    : selectedAccount?.name ?? "All accounts";
 
   return (
-    <div className="flex min-h-screen items-start bg-page font-sans">
+    <div className="flex min-h-screen items-start bg-[#fafaf8] font-sans">
       <Sidebar
         active="analytics"
         accounts={data.accounts}
         profile={getUserProfile(user)}
       />
-      <main className="flex min-w-0 flex-1 flex-col gap-5 p-5">
-        <AccountsTopCard
-          accounts={data.accounts}
-          selectedAccountId={data.selectedAccountId}
-          range={`${data.rangeDays}d` as AnalyticsRange}
-          lastUpdatedAt={data.lastUpdatedAt}
-          isCompareMode={isCompareMode}
-          compareAccountIds={[compareLeftAccountId, compareRightAccountId]}
-        />
-        <div className="flex w-full flex-col items-center gap-[91px] overflow-hidden rounded-3xl bg-paper py-3">
+      <main className="analytics-theme flex min-w-0 flex-1 flex-col bg-page font-inter text-ink">
+        <header className="sticky top-0 z-20 flex h-12 items-center justify-between border-b border-line bg-page/90 px-5 backdrop-blur-sm sm:px-7">
+          <div className="flex items-center gap-2 text-[12px] text-muted">
+            <span>Workspace</span>
+            <span className="text-[#b5b3ab]">/</span>
+            <span>Insights</span>
+            <span className="text-[#b5b3ab]">/</span>
+            <span className="text-ink">{contextLabel}</span>
+          </div>
+          <p className="hidden font-mono text-[10px] uppercase tracking-[0.1em] text-muted sm:block">
+            Analytics
+          </p>
+        </header>
+        <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-4 px-5 py-8 sm:px-7 sm:py-9">
+          <BannerHero
+            accounts={data.accounts}
+            selectedAccountId={data.selectedAccountId}
+            rangeDays={data.rangeDays}
+            compareMode={isCompareMode}
+          />
+          <AccountsTopCard
+            accounts={data.accounts}
+            selectedAccountId={data.selectedAccountId}
+            range={`${data.rangeDays}d` as AnalyticsRange}
+            lastUpdatedAt={data.lastUpdatedAt}
+            isCompareMode={isCompareMode}
+            compareAccountIds={[compareLeftAccountId, compareRightAccountId]}
+          />
           {isCompareMode ? (
             <AnalyticsCompareView
               accounts={data.accounts}
@@ -150,25 +174,24 @@ export default async function AnalyticsPage({
             />
           ) : (
             <>
-              <BannerHero
-                accounts={data.accounts}
-                selectedAccountId={data.selectedAccountId}
-                rangeDays={data.rangeDays}
-              />
-              <div className="flex w-full flex-col gap-9 px-9">
-                <StatGrid stats={data.statGrid} />
+              <StatGrid stats={data.statGrid} />
+              <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(340px,1fr)]">
                 <RecentPosts posts={data.recentPosts} />
                 <ChannelDistribution items={data.distribution} />
-                <ContentCalendar calendar={data.contentCalendar} />
-                <AnalyticsContentTable rows={data.contentRows} />
-                <Recommendations
-                  recommendations={data.recommendations}
-                  notes={data.notes}
-                  selectedAccountId={data.selectedAccountId}
-                />
               </div>
+              <ContentCalendar calendar={data.contentCalendar} />
+              <AnalyticsContentTable rows={data.contentRows} />
+              <Recommendations
+                recommendations={data.recommendations}
+                notes={data.notes}
+                selectedAccountId={data.selectedAccountId}
+              />
             </>
           )}
+          <footer className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-5 font-mono text-[11px] text-muted">
+            <span>Snowflake / Social media manager</span>
+            <span>Live insights from connected Instagram accounts</span>
+          </footer>
         </div>
       </main>
     </div>

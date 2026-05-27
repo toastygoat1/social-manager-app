@@ -2,7 +2,6 @@
 
 import {
   Bookmark,
-  Clock,
   Eye,
   Heart,
   ImageIcon,
@@ -27,9 +26,9 @@ const ICONS = {
 function StatChip({ stat }: { stat: PostStat }) {
   const Icon = ICONS[stat.icon];
   return (
-    <div className="flex h-[15px] min-w-8 items-center justify-center gap-[3px] overflow-hidden">
+    <div className="flex min-w-0 items-center gap-1 overflow-hidden">
       <Icon className="size-3 text-muted" strokeWidth={1.8} />
-      <span className="text-[12px] font-medium leading-[8px] text-muted">
+      <span className="font-mono text-[10px] text-muted">
         {formatNumber(stat.value)}
       </span>
     </div>
@@ -85,72 +84,61 @@ export function RecentPosts({
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
 
   return (
-    <div
-      className={`flex w-full flex-col items-center justify-center overflow-hidden rounded-[17px] ${
-        compact ? "gap-5 px-3 py-4" : "gap-9 px-6 py-5"
+    <section
+      className={`flex min-w-0 flex-col rounded-[10px] border border-line bg-paper ${
+        compact ? "gap-4 p-4" : "gap-5 p-[18px]"
       }`}
     >
-      <p
-        className={`w-full text-ink ${
-          compact ? "text-lg leading-6" : "text-[20px] leading-[31.5px]"
-        }`}
-      >
-        Recent Posts
-      </p>
+      <header>
+        <h2 className="text-sm font-semibold text-ink">Top performing posts</h2>
+        <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
+          Recent published content
+        </p>
+      </header>
       <div
-        className={`flex w-full items-center overflow-x-auto ${
-          compact ? "justify-start gap-3 p-2" : "justify-center gap-5 p-4"
+        className={`grid w-full gap-3 ${
+          compact
+            ? "grid-cols-1"
+            : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
         }`}
       >
         {posts.length === 0 ? (
-          <div className="flex h-32 w-full items-center justify-center rounded-2xl border border-line bg-paper text-sm text-muted">
+          <div className="col-span-full flex h-36 items-center justify-center rounded-lg bg-card text-sm text-muted">
             No recent posts
           </div>
         ) : (
-          posts.map((post) => (
+          posts.map((post, index) => (
             <button
               type="button"
               key={post.id}
               onClick={() => setSelectedPostId(post.id)}
-              className={`flex shrink-0 flex-col items-start gap-[5px] overflow-hidden rounded-2xl border border-line bg-paper text-left shadow-[0_2.6px_2.6px_2px_rgba(0,0,0,0.25)] transition hover:-translate-y-0.5 hover:shadow-[0_4px_8px_2px_rgba(0,0,0,0.2)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink ${
-                compact ? "p-3" : "p-4"
-              }`}
+              className="flex min-w-0 flex-col overflow-hidden rounded-lg border border-line bg-paper text-left transition hover:bg-card focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5e6ad2]"
             >
-              <div
-                className={`relative overflow-hidden rounded-2xl ${
-                  compact ? "h-[124px] w-[176px]" : "h-[147px] w-[207px]"
-                }`}
-              >
+              <div className="relative aspect-[4/3] w-full overflow-hidden bg-card">
                 <MediaPreview post={post} />
+                <span className="analytics-serif absolute left-3 top-3 text-[28px] italic leading-none text-ink">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+                <span
+                  className="absolute bottom-3 left-3 rounded border border-line bg-page px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.04em] text-ink"
+                >
+                  {post.badge.label}
+                </span>
               </div>
-              <div className="flex h-[66px] w-full flex-col justify-center gap-3 overflow-hidden px-1">
-                <p className="text-center text-[10.5px] text-muted">
+              <div className="flex w-full flex-col gap-3 p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="line-clamp-2 min-h-9 text-[12px] leading-[18px] text-ink">
                   {post.title}
-                </p>
-                <div className="flex h-[17px] w-full items-center gap-[7px] overflow-hidden px-0.5">
+                  </p>
+                  <span className="shrink-0 font-mono text-[10px] text-muted">
+                    {formatTimeAgo(post.publishedAt)}
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-line pt-3">
                   {post.stats.map((stat) => (
                     <StatChip key={stat.icon} stat={stat} />
                   ))}
                 </div>
-              </div>
-              <div className="flex w-[81px] items-center gap-[13px] overflow-hidden rounded-lg border-[0.65px] border-line px-1 py-1">
-                <span
-                  className="size-2 rounded-full"
-                  style={{ backgroundColor: post.badge.color }}
-                  aria-hidden="true"
-                />
-                <p className="text-[13px] font-medium text-ink">
-                  {post.badge.label}
-                </p>
-              </div>
-              <div className="flex w-full items-center gap-1.5 pr-4">
-                <Clock
-                  className="size-[15.7px] text-muted"
-                  strokeWidth={1.6}
-                />
-                <span className="text-[12.2px] text-muted">
-                  {formatTimeAgo(post.publishedAt)}
-                </span>
               </div>
             </button>
           ))
@@ -161,6 +149,6 @@ export function RecentPosts({
         onClose={() => setSelectedPostId(null)}
         onChanged={() => router.refresh()}
       />
-    </div>
+    </section>
   );
 }

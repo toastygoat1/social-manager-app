@@ -132,21 +132,29 @@ export function Recommendations({
   }
 
   return (
-    <div className="flex w-full flex-col items-start gap-6 overflow-hidden px-6 py-5">
-      <p className="text-xl text-ink">Recommendation</p>
-      <div className="flex w-full flex-col items-center gap-4">
+    <section className="flex min-w-0 flex-col gap-5 overflow-hidden rounded-[10px] border border-line bg-paper p-[18px]">
+      <header>
+        <h2 className="text-sm font-semibold text-ink">Recommendations</h2>
+        <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
+          Insights and working notes
+        </p>
+      </header>
+      <div className="flex w-full flex-col gap-3">
         {recommendations.length === 0 ? (
-          <div className="flex h-24 w-full max-w-[860px] items-center justify-center rounded-lg border border-line bg-paper text-sm text-muted">
+          <div className="flex h-20 w-full items-center justify-center rounded-lg bg-card text-sm text-muted">
             No recommendations yet
           </div>
         ) : (
           recommendations.map((rec) => (
             <div
               key={rec.title}
-              className="flex w-full max-w-[860px] flex-col gap-2 rounded-lg border border-line bg-paper px-5 py-4"
+              className="flex w-full flex-col gap-2 rounded-r-lg border-l-2 border-[#5e6ad2] bg-card px-4 py-3.5"
             >
-              <p className="text-sm font-medium text-ink">{rec.title}</p>
-              <p className="text-[11px] leading-[18px] text-muted">
+              <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-[#5e6ad2]">
+                Insight
+              </p>
+              <p className="text-sm font-semibold text-ink">{rec.title}</p>
+              <p className="text-xs leading-5 text-muted">
                 {rec.body}
               </p>
             </div>
@@ -155,12 +163,14 @@ export function Recommendations({
       </div>
       <div className="mt-2 flex w-full flex-col gap-3 border-t border-line pt-6">
         <div className="flex items-center justify-between gap-4">
-          <p className="text-base font-medium text-ink">Notes</p>
-          <span className="text-xs text-muted">{notes.length} saved</span>
+          <p className="text-sm font-semibold text-ink">Notes</p>
+          <span className="font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
+            {notes.length} saved
+          </span>
         </div>
         <form
           onSubmit={createNote}
-          className="flex w-full flex-col gap-3 rounded-lg border border-line bg-paper px-4 py-4"
+          className="flex w-full flex-col gap-3 rounded-lg bg-card p-4"
         >
           <textarea
             value={draft}
@@ -168,14 +178,14 @@ export function Recommendations({
             maxLength={500}
             rows={3}
             placeholder="Write a note..."
-            className="min-h-20 w-full resize-y rounded-lg border border-line bg-card px-3 py-2 text-sm text-ink outline-none transition placeholder:text-muted focus:border-ink"
+            className="min-h-20 w-full resize-y rounded-lg border border-line bg-paper px-3 py-2 text-sm text-ink outline-none transition placeholder:text-muted focus:border-[#5e6ad2]"
           />
           <div className="flex items-center justify-between gap-3">
             <span className="text-[11px] text-muted">{draft.length}/500</span>
             <button
               type="submit"
               disabled={!draft.trim() || pendingAction === "create"}
-              className="flex h-9 items-center gap-2 rounded-lg bg-ink px-3 text-xs font-medium text-white transition hover:bg-ink/90 disabled:pointer-events-none disabled:opacity-60"
+              className="flex h-9 items-center gap-2 rounded-lg bg-[#5e6ad2] px-3 text-xs font-medium text-white transition hover:bg-[#4e59bd] disabled:pointer-events-none disabled:opacity-60"
             >
               {pendingAction === "create" ? (
                 <LoaderCircle className="size-3.5 animate-spin" />
@@ -192,7 +202,7 @@ export function Recommendations({
           </p>
         ) : null}
         {notes.length === 0 ? (
-          <div className="flex min-h-32 w-full flex-col rounded-lg border border-line bg-paper px-5 py-4">
+          <div className="flex min-h-28 w-full flex-col rounded-lg bg-card px-5 py-4">
             <p className="text-sm font-medium text-ink">No notes yet</p>
             <div className="mt-4 flex flex-1 flex-col gap-3">
               <span className="h-px w-full bg-line" />
@@ -218,7 +228,7 @@ export function Recommendations({
                       onChange={(event) => setEditingBody(event.target.value)}
                       maxLength={500}
                       rows={3}
-                      className="min-h-20 w-full resize-y rounded-lg border border-line bg-card px-3 py-2 text-sm text-ink outline-none transition focus:border-ink"
+                      className="min-h-20 w-full resize-y rounded-lg border border-line bg-card px-3 py-2 text-sm text-ink outline-none transition focus:border-[#5e6ad2]"
                     />
                   ) : (
                     <p className="whitespace-pre-wrap text-sm leading-6 text-ink">
@@ -291,6 +301,6 @@ export function Recommendations({
           </div>
         )}
       </div>
-    </div>
+    </section>
   );
 }
