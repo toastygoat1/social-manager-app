@@ -1,18 +1,24 @@
 "use client";
 
 import {
+  AtSign,
   Bookmark,
   Calendar,
   Check,
+  CircleAlert,
   ChevronDown,
   Heart,
+  Hash,
   ImageIcon,
   MessageCircle,
+  MoreHorizontal,
   Play,
+  Plus,
   Send,
+  Sparkles,
   Trash2,
-  Upload,
   User,
+  X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -21,6 +27,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { CalendarPostType } from "./data";
 
 export type CreatePostType = "post" | "story" | "reels";
+type ComposePostType = CreatePostType | "carousel";
 type SubmitAction = "schedule" | "post-now" | "draft";
 
 type Props = {
@@ -75,16 +82,18 @@ type AccountSubmitResult = {
   message?: string;
 };
 
-const TYPE_LABEL: Record<CreatePostType, string> = {
-  post: "Your Post",
-  story: "Your Story",
-  reels: "Your Reels",
+const TYPE_LABEL: Record<ComposePostType, string> = {
+  post: "Post",
+  story: "Story",
+  reels: "Reel",
+  carousel: "Carousel",
 };
 
-const TYPE_TO_POST_TYPE: Record<CreatePostType, CalendarPostType> = {
+const TYPE_TO_POST_TYPE: Record<ComposePostType, CalendarPostType> = {
   post: "FEED",
   story: "STORY",
   reels: "REEL",
+  carousel: "CAROUSEL",
 };
 
 const MAX_MEDIA_SIZE = 100 * 1024 * 1024;
@@ -134,35 +143,31 @@ function defaultScheduledInputValue(iso: string): string {
   );
 }
 
-function MediaPlaceholder({ size = 100 }: { size?: number }) {
+function MediaPlaceholder() {
   return (
-    <div
-      className="flex shrink-0 items-center justify-center rounded-2xl bg-[#495057]"
-      style={{ width: size, height: size }}
-    >
+    <div className="flex h-full w-full items-center justify-center rounded-lg bg-gradient-to-br from-[#e8e1d8] to-[#d8d2c8]">
       <ImageIcon
-        className="text-[#d9d9d9]"
-        style={{ width: size * 0.42, height: size * 0.42 }}
+        className="size-10 text-[#a49d92]"
         strokeWidth={1.4}
       />
     </div>
   );
 }
 
-function mediaLimitForType(type: CreatePostType) {
-  return type === "post" ? 10 : 1;
+function mediaLimitForType(type: ComposePostType) {
+  return type === "post" || type === "carousel" ? 10 : 1;
 }
 
-function acceptForType(type: CreatePostType) {
-  if (type === "post") return "image/*";
+function acceptForType(type: ComposePostType) {
+  if (type === "post" || type === "carousel") return "image/*";
   return type === "reels" ? "video/*" : "image/*,video/*";
 }
 
-function validateMediaFiles(type: CreatePostType, files: File[]) {
+function validateMediaFiles(type: ComposePostType, files: File[]) {
   const limit = mediaLimitForType(type);
   if (files.length > limit) {
-    return type === "post"
-      ? "Posts can include up to 10 files"
+    return type === "post" || type === "carousel"
+      ? "Posts and carousels can include up to 10 files"
       : "Stories and reels can include 1 file";
   }
   if (files.some((file) => file.size > MAX_MEDIA_SIZE)) {
@@ -171,8 +176,11 @@ function validateMediaFiles(type: CreatePostType, files: File[]) {
   if (files.some((file) => !file.type.startsWith("image/") && !file.type.startsWith("video/"))) {
     return "Only image and video files are supported";
   }
-  if (type === "post" && files.some((file) => file.type.startsWith("video/"))) {
-    return "Posts support images only. Use reels for videos";
+  if (
+    (type === "post" || type === "carousel") &&
+    files.some((file) => file.type.startsWith("video/"))
+  ) {
+    return "Posts and carousels support images only. Use reels for videos";
   }
   if (type === "reels" && files.some((file) => !file.type.startsWith("video/"))) {
     return "Reels require a video file";
@@ -244,9 +252,9 @@ function ensureMediaMetadata(items: SelectedMedia[]) {
   );
 }
 
-async function prepareMediaForType(type: CreatePostType, items: SelectedMedia[]) {
+async function prepareMediaForType(type: ComposePostType, items: SelectedMedia[]) {
   const withMetadata = await ensureMediaMetadata(items);
-  if (type !== "post") return withMetadata;
+  if (type !== "post" && type !== "carousel") return withMetadata;
 
   return Promise.all(withMetadata.map(cropFeedImageIfNeeded));
 }
@@ -332,8 +340,8 @@ function toCroppedFileName(name: string) {
   return `${withoutExtension}-instagram-crop.jpg`;
 }
 
-function validateSelectedMedia(type: CreatePostType, items: SelectedMedia[]) {
-  if (type !== "post") return null;
+function validateSelectedMedia(type: ComposePostType, items: SelectedMedia[]) {
+  if (type !== "post" && type !== "carousel") return null;
 
   const unsupported = items.find((item) => {
     if (item.kind !== "image" || !item.width || !item.height) return false;
@@ -365,13 +373,15 @@ function readErrorMessage(error: unknown) {
 
 function MediaTile({
   media,
+  isCover,
   onRemove,
 }: {
   media: SelectedMedia;
+  isCover: boolean;
   onRemove: () => void;
 }) {
   return (
-    <div className="group relative h-[100px] w-[100px] shrink-0 overflow-hidden rounded-2xl bg-[#495057]">
+    <div className="group relative h-[188px] min-w-0 overflow-hidden rounded-lg bg-[#495057]">
       {media.kind === "image" ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -392,13 +402,21 @@ function MediaTile({
           <Play className="size-7 fill-current" strokeWidth={1.5} />
         </div>
       ) : null}
+      {isCover ? (
+        <span className="absolute left-2 top-2 rounded bg-paper px-1.5 py-1 text-[8px] font-semibold uppercase tracking-wide text-[#423c35]">
+          Cover
+        </span>
+      ) : null}
+      <span className="absolute bottom-2 left-2 rounded bg-[#181610]/80 px-1.5 py-1 text-[8px] font-semibold uppercase text-white">
+        {media.kind === "video" ? "MP4" : "JPG"}
+      </span>
       <button
         type="button"
         aria-label="Remove media"
         onClick={onRemove}
-        className="absolute right-2 top-2 flex size-7 items-center justify-center rounded-full bg-ink/70 text-paper opacity-0 transition-opacity group-hover:opacity-100"
+        className="absolute right-2 top-2 flex size-6 items-center justify-center rounded-full bg-ink/70 text-paper opacity-0 transition-opacity group-hover:opacity-100"
       >
-        <Trash2 className="size-3.5" strokeWidth={2} />
+        <Trash2 className="size-3" strokeWidth={2} />
       </button>
     </div>
   );
@@ -418,19 +436,23 @@ function AccountChip({
       type="button"
       aria-pressed={selected}
       onClick={onClick}
-      className={`flex h-11 w-[196px] shrink-0 items-center gap-2 overflow-hidden rounded-lg border px-4 py-2 text-left ${
-        selected ? "border-[#1d6b81] bg-[#e6f7fa]" : "border-line bg-paper"
+      className={`flex h-[44px] min-w-[164px] shrink-0 items-center gap-2 overflow-hidden rounded-md border px-2.5 py-1.5 text-left ${
+        selected ? "border-[#dcd6cb] bg-paper" : "border-[#eee9df] bg-[#fbfaf7]"
       }`}
     >
-      <div className="grid size-7 shrink-0 grid-cols-2 grid-rows-2 gap-1 rounded-lg bg-ink p-1.5">
-        <span className="rounded-[2px] bg-white" />
-        <span className="rounded-[2px] bg-white" />
-        <span className="rounded-[2px] bg-white" />
-        <span className="rounded-[2px] bg-white" />
-      </div>
-      <span className="truncate text-sm leading-4 text-ink">@{username}</span>
+      <span className="flex size-5 shrink-0 items-center justify-center rounded bg-[#4e8b73] text-[9px] font-semibold uppercase text-white">
+        {username.slice(0, 2)}
+      </span>
+      <span className="min-w-0 flex-1 truncate">
+        <span className="block truncate text-[11px] font-medium leading-4 text-[#302b23]">
+          {username}
+        </span>
+        <span className="block truncate text-[9px] text-[#837c73]">
+          IG - @{username}
+        </span>
+      </span>
       {selected ? (
-        <Check className="ml-auto size-4 shrink-0 text-[#1d6b81]" strokeWidth={2.4} />
+        <X className="size-3 shrink-0 text-[#968f84]" strokeWidth={2} />
       ) : null}
     </button>
   );
@@ -448,14 +470,14 @@ function Switch({
       type="button"
       onClick={onToggle}
       aria-pressed={on}
-      className="pt-1"
+      className="shrink-0"
     >
       <div
-        className={`relative h-5 w-9 rounded-full ${on ? "bg-cta" : "bg-line"}`}
+        className={`relative h-[18px] w-8 rounded-full ${on ? "bg-[#607ffc]" : "bg-[#dbd6cd]"}`}
       >
         <div
-          className={`absolute top-0.5 size-4 rounded-full bg-paper shadow-[0_2px_4px_0_rgba(39,39,39,0.1)] transition-all ${
-            on ? "left-[18px]" : "left-0.5"
+          className={`absolute top-0.5 size-3.5 rounded-full bg-paper shadow-[0_2px_4px_0_rgba(39,39,39,0.1)] transition-all ${
+            on ? "left-[16px]" : "left-0.5"
           }`}
         />
       </div>
@@ -470,6 +492,7 @@ export function CreatePostModal({
   onClose,
   onCreated,
 }: Props) {
+  const [composeType, setComposeType] = useState<ComposePostType>(type);
   const [accounts, setAccounts] = useState<InstagramAccountResponse[]>([]);
   const [accountsLoading, setAccountsLoading] = useState(false);
   const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([]);
@@ -483,6 +506,9 @@ export function CreatePostModal({
   const [submitting, setSubmitting] = useState(false);
   const [submittingAction, setSubmittingAction] =
     useState<SubmitAction | null>(null);
+  const [primaryAction, setPrimaryAction] = useState<"schedule" | "post-now">(
+    "schedule",
+  );
   const [submitMenuOpen, setSubmitMenuOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [accountResults, setAccountResults] = useState<AccountSubmitResult[]>(
@@ -530,9 +556,11 @@ export function CreatePostModal({
 
   useEffect(() => {
     if (open) {
+      setComposeType(type);
+      setPrimaryAction("schedule");
       setScheduledFor(defaultScheduledInputValue(defaultScheduledIso));
     }
-  }, [open, defaultScheduledIso]);
+  }, [open, type, defaultScheduledIso]);
 
   useEffect(() => {
     if (!open && media.length) {
@@ -553,7 +581,7 @@ export function CreatePostModal({
     setError(null);
     const nextFiles = [...files];
     const combinedFiles = [...media.map((item) => item.file), ...nextFiles];
-    const validationError = validateMediaFiles(type, combinedFiles);
+    const validationError = validateMediaFiles(composeType, combinedFiles);
     if (validationError) {
       setError(validationError);
       return;
@@ -561,9 +589,9 @@ export function CreatePostModal({
 
     const nextMedia = nextFiles.map(buildSelectedMedia);
     try {
-      const preparedMedia = await prepareMediaForType(type, nextMedia);
+      const preparedMedia = await prepareMediaForType(composeType, nextMedia);
       const allMedia = [...media, ...preparedMedia];
-      const dimensionError = validateSelectedMedia(type, allMedia);
+      const dimensionError = validateSelectedMedia(composeType, allMedia);
       if (dimensionError) {
         revokePreviewUrls(preparedMedia);
         setError(dimensionError);
@@ -652,9 +680,17 @@ export function CreatePostModal({
       setError("Select at least one account");
       return;
     }
+    const typeValidationError = validateMediaFiles(
+      composeType,
+      media.map((item) => item.file),
+    );
+    if (typeValidationError) {
+      setError(typeValidationError);
+      return;
+    }
     let mediaForSubmit: SelectedMedia[];
     try {
-      mediaForSubmit = await prepareMediaForType(type, media);
+      mediaForSubmit = await prepareMediaForType(composeType, media);
       if (mediaForSubmit.some((item, idx) => item !== media[idx])) {
         setMedia(mediaForSubmit);
       }
@@ -662,9 +698,17 @@ export function CreatePostModal({
       setError("Could not read media dimensions");
       return;
     }
-    const mediaValidationError = validateSelectedMedia(type, mediaForSubmit);
+    const mediaValidationError = validateSelectedMedia(composeType, mediaForSubmit);
     if (mediaValidationError) {
       setError(mediaValidationError);
+      return;
+    }
+    if (
+      action !== "draft" &&
+      composeType === "carousel" &&
+      mediaForSubmit.length < 2
+    ) {
+      setError("Carousels require at least 2 images before publishing");
       return;
     }
     let scheduledDate: Date | null = null;
@@ -698,9 +742,9 @@ export function CreatePostModal({
               body: {
                 instagramAccountId,
                 postType:
-                  type === "post" && mediaAssetIds.length > 1
+                  composeType === "post" && mediaAssetIds.length > 1
                     ? "CAROUSEL"
-                    : TYPE_TO_POST_TYPE[type],
+                    : TYPE_TO_POST_TYPE[composeType],
                 action: ACTION_TO_API[action],
                 scheduledFor: scheduledDate?.toISOString(),
                 title: title || undefined,
@@ -759,7 +803,9 @@ export function CreatePostModal({
   const previewMedia = media[0] ?? null;
   const submitButtonLabel = submittingAction
     ? SUBMITTING_LABEL[submittingAction]
-    : "Schedule";
+    : primaryAction === "post-now"
+      ? "Post now"
+      : "Schedule";
   const selectedAccounts = accounts.filter((account) =>
     selectedAccountIds.includes(account.id),
   );
@@ -767,78 +813,194 @@ export function CreatePostModal({
     selectedAccounts.length > 1
       ? `${selectedAccounts[0].username} +${selectedAccounts.length - 1}`
       : (selectedAccounts[0]?.username ?? "Preview");
+  const isCarouselPreview =
+    composeType === "carousel" || (composeType === "post" && media.length > 1);
+  const captionCount = caption.length;
 
   return (
     <div
       role="dialog"
       aria-modal="true"
-      aria-label={TYPE_LABEL[type]}
-      className="fixed inset-0 z-50 flex items-center justify-center p-2.5"
-      style={{ backgroundColor: "rgba(89, 89, 89, 0.8)" }}
+      aria-label="Schedule a post"
+      className="fixed inset-0 z-50 flex items-center justify-center p-2"
+      style={{ backgroundColor: "rgba(42, 39, 33, 0.36)" }}
       onClick={onClose}
     >
       <div
-        className="flex h-[900px] max-h-[calc(100vh-20px)] w-[1280px] max-w-[calc(100vw-20px)] items-stretch overflow-hidden rounded-3xl"
+        className="flex h-[min(860px,calc(100vh-16px))] w-[min(1240px,calc(100vw-16px))] flex-col overflow-hidden rounded-xl border border-[#e7e1d6] bg-[#fffdfa] shadow-[0_22px_60px_rgba(42,39,33,0.18)]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex flex-1 flex-col gap-5 overflow-y-auto rounded-l-3xl border border-line bg-paper p-6">
-          <section className="flex w-full flex-col gap-1">
-            <h2 className="text-xl font-semibold text-ink">Publish To</h2>
-            {accountsLoading ? (
-              <p className="text-sm text-muted">Loading accounts...</p>
-            ) : accounts.length === 0 ? (
-              <p className="text-sm text-muted">
-                No Instagram accounts connected yet.
-              </p>
-            ) : (
-              <div className="flex w-full gap-2.5 overflow-x-auto rounded-2xl bg-paper p-2">
-                {accounts.map((acct) => (
-                  <AccountChip
-                    key={acct.id}
-                    username={acct.username}
-                    selected={selectedAccountIds.includes(acct.id)}
-                    onClick={() => toggleAccount(acct.id)}
-                  />
+        <header className="flex h-[60px] shrink-0 items-center justify-between border-b border-[#ece7de] px-5">
+          <div>
+            <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-[#898278]">
+              Compose
+            </p>
+            <h2 className="mt-0.5 text-base font-semibold tracking-[-0.02em] text-[#171510]">
+              Schedule a post
+            </h2>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              disabled={scheduleDisabled}
+              onClick={() => void handleSubmit("draft")}
+              className="h-7 rounded-full border border-[#e7e1d6] bg-paper px-3 text-[10px] font-medium text-[#534e47] disabled:opacity-50"
+            >
+              Save draft
+            </button>
+            <button type="button" aria-label="More options" className="text-[#797268]">
+              <MoreHorizontal className="size-4" />
+            </button>
+            <button
+              type="button"
+              aria-label="Close compose window"
+              onClick={onClose}
+              className="flex size-7 items-center justify-center rounded-full text-[#797268] hover:bg-[#f3f0ea]"
+            >
+              <X className="size-3.5" />
+            </button>
+          </div>
+        </header>
+
+        <div className="flex min-h-0 flex-1">
+          <div className="flex min-w-0 flex-1 flex-col gap-4 overflow-y-auto border-r border-[#ece7de] px-6 py-4">
+            <div className="flex items-center gap-2 text-[10px] text-[#7d756b]">
+              <span className="flex h-6 items-center gap-1 rounded-full bg-[#edf0ff] px-2 text-[#506bc8]">
+                <span className="flex size-4 items-center justify-center rounded-full bg-[#607ffc] text-[9px] font-semibold text-white">
+                  1
+                </span>
+                Accounts
+              </span>
+              <span className="flex h-6 items-center gap-1 rounded-full bg-[#edf0ff] px-2 text-[#506bc8]">
+                <span className="flex size-4 items-center justify-center rounded-full border border-[#607ffc]" />
+                Content
+              </span>
+              <span className="flex h-6 items-center gap-1 rounded-full bg-[#f7f5f0] px-2">
+                <span className="flex size-4 items-center justify-center rounded-full border border-[#ddd7cd] text-[9px]">
+                  3
+                </span>
+                Schedule
+              </span>
+            </div>
+
+            <section>
+              <div className="mb-2 flex items-center justify-between">
+                <h3 className="text-[11px] font-semibold text-[#27231d]">Publish to</h3>
+                <span className="text-[10px] text-[#817a70]">
+                  {selectedAccountIds.length} account{selectedAccountIds.length === 1 ? "" : "s"} selected
+                </span>
+              </div>
+              {accountsLoading ? (
+                <p className="text-xs text-[#817a70]">Loading accounts...</p>
+              ) : accounts.length === 0 ? (
+                <p className="text-xs text-[#817a70]">
+                  No Instagram accounts connected yet.
+                </p>
+              ) : (
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  {accounts.map((account) => (
+                    <AccountChip
+                      key={account.id}
+                      username={account.username}
+                      selected={selectedAccountIds.includes(account.id)}
+                      onClick={() => toggleAccount(account.id)}
+                    />
+                  ))}
+                  <span className="flex h-[44px] shrink-0 items-center gap-1.5 rounded-md border border-dashed border-[#ddd7cd] px-3 text-[10px] text-[#686158]">
+                    <Plus className="size-3" />
+                    Add account
+                  </span>
+                </div>
+              )}
+            </section>
+
+            <section>
+              <h3 className="mb-2 text-[11px] font-semibold text-[#27231d]">Post type</h3>
+              <div className="grid grid-cols-4 gap-1.5">
+                {(["post", "story", "reels", "carousel"] as const).map((option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    aria-pressed={composeType === option}
+                    onClick={() => setComposeType(option)}
+                    className={`h-8 rounded-md border text-[11px] font-medium ${
+                      composeType === option
+                        ? "border-[#6682fa] bg-[#e7edff] text-[#4f69ca]"
+                        : "border-[#e7e1d6] bg-paper text-[#534e47]"
+                    }`}
+                  >
+                    {TYPE_LABEL[option]}
+                  </button>
                 ))}
               </div>
-            )}
-          </section>
+            </section>
 
-          <section className="flex w-full flex-col gap-1">
-            <h2 className="text-xl font-semibold text-ink">{TYPE_LABEL[type]}</h2>
-            <div className="flex h-[524px] w-full flex-col gap-6 overflow-hidden rounded-2xl border border-line p-6">
-              <div className="flex flex-1 flex-col gap-2.5 overflow-hidden p-2.5">
+            <section>
+              <div className="mb-2 flex items-center justify-between">
+                <h3 className="text-[11px] font-semibold text-[#27231d]">Caption</h3>
+                <div className="flex items-center gap-3 text-[10px] text-[#766f66]">
+                  <span className="inline-flex items-center gap-1">
+                    <Sparkles className="size-3" />
+                    Suggest
+                  </span>
+                  <Hash className="size-3" />
+                  <AtSign className="size-3" />
+                </div>
+              </div>
+              <div className="overflow-hidden rounded-md border border-[#e7e1d6] bg-paper">
                 <input
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Post title"
+                  placeholder="Post title (optional)"
                   maxLength={200}
-                  className="h-10 w-full shrink-0 border-b border-line bg-transparent text-base font-semibold text-ink placeholder:text-muted focus:outline-none"
+                  className="h-9 w-full border-b border-[#eee9df] bg-transparent px-3 text-[11px] font-medium text-[#302b23] placeholder:text-[#9a9388] focus:outline-none"
                 />
                 <textarea
                   value={caption}
                   onChange={(e) => setCaption(e.target.value)}
-                  placeholder="Write a caption"
-                  className="h-full w-full resize-none bg-transparent text-base leading-4 text-ink placeholder:text-muted focus:outline-none"
+                  maxLength={2200}
+                  placeholder="Write a caption..."
+                  className="h-[82px] w-full resize-none bg-transparent px-3 py-2.5 text-[11px] leading-5 text-[#302b23] placeholder:text-[#9a9388] focus:outline-none"
                 />
+                <div className="flex h-7 items-center justify-between border-t border-[#eee9df] px-3 text-[9px] text-[#827a71]">
+                  <span>{captionCount} / 2,200 - 0 hashtags - 0 mentions</span>
+                  <span className="inline-flex items-center gap-2">
+                    <span className="flex gap-0.5">
+                      <span className="h-1 w-3 bg-[#6e9d76]" />
+                      <span className="h-1 w-3 bg-[#6e9d76]" />
+                      <span className="h-1 w-3 bg-[#6e9d76]" />
+                      <span className="h-1 w-3 bg-[#ded9cf]" />
+                    </span>
+                    Readability: good
+                  </span>
+                </div>
               </div>
-              <div className="h-px w-full rounded-[34px] bg-line" />
-              <div className="flex items-center gap-2.5 overflow-x-auto">
-                {media.map((item) => (
+            </section>
+
+            <section>
+              <div className="mb-2 flex items-center justify-between">
+                <h3 className="text-[11px] font-semibold text-[#27231d]">Media</h3>
+                <span className="text-[10px] text-[#817a70]">
+                  {media.length} of {mediaLimitForType(composeType)} attached - 1080 x 1350 recommended
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {media.map((item, index) => (
                   <MediaTile
                     key={item.id}
                     media={item}
+                    isCover={index === 0}
                     onRemove={() => removeMedia(item.id)}
                   />
                 ))}
-                {media.length < mediaLimitForType(type) ? (
-                  <label className="flex h-[100px] w-[100px] shrink-0 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-muted bg-card text-muted">
-                    <Upload className="size-7" strokeWidth={1.7} />
-                    <span className="text-xs font-semibold">Upload</span>
+                {media.length < mediaLimitForType(composeType) ? (
+                  <label className="flex h-[188px] cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-[#d9d3c8] bg-paper text-[#857e74]">
+                    <Plus className="size-4" strokeWidth={1.8} />
+                    <span className="text-[10px] font-medium">Add</span>
                     <input
                       type="file"
-                      accept={acceptForType(type)}
-                      multiple={type === "post"}
+                      accept={acceptForType(composeType)}
+                      multiple={composeType === "post" || composeType === "carousel"}
                       className="sr-only"
                       onChange={(e) => {
                         void handleMediaChange(e.target.files);
@@ -849,82 +1011,203 @@ export function CreatePostModal({
                 ) : null}
                 {media.length === 0 ? (
                   <>
-                    <MediaPlaceholder />
-                    <MediaPlaceholder />
+                    <div className="hidden h-[188px] sm:block">
+                      <MediaPlaceholder />
+                    </div>
+                    <div className="hidden h-[188px] sm:block">
+                      <MediaPlaceholder />
+                    </div>
                   </>
                 ) : null}
               </div>
-            </div>
-          </section>
+            </section>
 
-          <div className="flex items-start gap-3">
-            <Switch
-              on={requiresApproval}
-              onToggle={() => setRequiresApproval((v) => !v)}
-            />
-            <div className="flex flex-col gap-0.5 whitespace-nowrap">
-              <p className="text-base leading-[26px] text-ink">
-                Wait for Approval
+            <section>
+              <h3 className="mb-2 text-[11px] font-semibold text-[#27231d]">Options</h3>
+              <div className="flex items-center gap-3 rounded-md border border-[#e7e1d6] bg-paper px-3 py-2.5">
+                <Switch
+                  on={requiresApproval}
+                  onToggle={() => setRequiresApproval((value) => !value)}
+                />
+                <span className="min-w-0">
+                  <span className="block text-[11px] font-medium text-[#302b23]">
+                    Wait for approval
+                  </span>
+                  <span className="block text-[10px] text-[#817a70]">
+                    Require approval before publishing.
+                  </span>
+                </span>
+              </div>
+            </section>
+
+            {error ? (
+              <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
+                {error}
               </p>
-              <p className="font-inter text-sm leading-5 text-muted">
-                Require approval before publishing
-              </p>
-            </div>
+            ) : null}
+            {accountResults.length ? (
+              <div className="flex flex-col gap-2 rounded-md border border-[#e7e1d6] bg-paper p-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-[#817a70]">
+                  Account results
+                </p>
+                {accountResults.map((result) => (
+                  <div
+                    key={result.accountId}
+                    className="flex items-start justify-between gap-3 text-xs"
+                  >
+                    <span className="font-medium text-[#302b23]">@{result.username}</span>
+                    <span className={result.ok ? "text-success" : "text-danger"}>
+                      {result.ok ? "Success" : result.message}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : null}
           </div>
 
-          {error ? (
-            <p className="text-sm font-medium text-red-600">{error}</p>
-          ) : null}
-          {accountResults.length ? (
-            <div className="flex flex-col gap-2 rounded-xl border border-line bg-card p-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-                Account results
-              </p>
-              {accountResults.map((result) => (
-                <div
-                  key={result.accountId}
-                  className="flex items-start justify-between gap-3 text-sm"
-                >
-                  <span className="font-medium text-ink">@{result.username}</span>
-                  <span
-                    className={`text-right text-xs font-semibold ${
-                      result.ok ? "text-success" : "text-danger"
-                    }`}
-                  >
-                    {result.ok ? "Success" : result.message}
-                  </span>
-                </div>
-              ))}
+          <aside className="hidden w-[360px] shrink-0 flex-col gap-3 bg-[#f7f5ef] px-4 py-4 lg:flex">
+            <div className="mx-auto flex h-7 items-center gap-4 rounded-full border border-[#e3ddd2] bg-paper px-3 text-[9px] text-[#756e64]">
+              <span className="rounded-full bg-[#607ffc] px-2 py-1 font-semibold text-white">IG</span>
+              <span>TT</span>
+              <span>X</span>
+              <span>LI</span>
+              <span className="italic text-[#8c857b]">Preview</span>
             </div>
-          ) : null}
+            <div className="overflow-hidden rounded-lg border border-[#e4ded4] bg-paper">
+              <div className="flex h-[44px] items-center gap-2 px-3">
+                <span className="flex size-7 items-center justify-center rounded-full bg-gradient-to-br from-[#9671cc] to-[#465ec1] text-white">
+                  <User className="size-3.5" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[11px] font-semibold text-[#302b23]">
+                    {previewAccountLabel}
+                  </span>
+                  <span className="block truncate text-[9px] text-[#817a70]">
+                    Instagram - Sponsored
+                  </span>
+                </span>
+                <MoreHorizontal className="size-3.5 text-[#716b61]" />
+              </div>
+              <div className="relative flex aspect-[4/5] items-center justify-center overflow-hidden bg-gradient-to-br from-[#8252a4] via-[#55517c] to-[#28314f]">
+                {isCarouselPreview ? (
+                  <span className="absolute right-2 top-2 rounded bg-[#17141d] px-1.5 py-1 text-[8px] font-semibold text-white">
+                    Carousel
+                  </span>
+                ) : null}
+                {previewMedia?.kind === "image" ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={previewMedia.previewUrl}
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
+                ) : previewMedia?.kind === "video" ? (
+                  <>
+                    <video
+                      src={previewMedia.previewUrl}
+                      className="h-full w-full object-cover"
+                      muted
+                      playsInline
+                    />
+                    <Play className="absolute size-12 fill-current text-white" />
+                  </>
+                ) : (
+                  <ImageIcon className="size-14 text-white/30" strokeWidth={1.2} />
+                )}
+                {isCarouselPreview ? (
+                  <span className="absolute bottom-2 left-0 right-0 flex justify-center gap-1">
+                    <span className="size-1.5 rounded-full bg-paper" />
+                    <span className="size-1.5 rounded-full bg-paper/50" />
+                    <span className="size-1.5 rounded-full bg-paper/50" />
+                  </span>
+                ) : null}
+              </div>
+              <div className="px-3 py-2.5">
+                <div className="flex items-center gap-3 text-[#302b23]">
+                  <Heart className="size-4" />
+                  <MessageCircle className="size-4" />
+                  <Send className="size-4" />
+                  <Bookmark className="ml-auto size-4" />
+                </div>
+                <p className="mt-1.5 text-[10px] font-semibold text-[#302b23]">
+                  1,284 likes - {previewAccountLabel}
+                </p>
+                <p className="mt-1 line-clamp-2 text-[10px] leading-4 text-[#302b23]">
+                  {caption || "Your caption preview will appear here as you write."}
+                </p>
+                <p className="mt-1.5 text-[9px] uppercase tracking-wide text-[#a29a8f]">
+                  2 minutes ago
+                </p>
+              </div>
+            </div>
+            <div className="rounded-lg border border-[#e4ded4] bg-paper p-3 text-[10px]">
+              <p className="flex items-center gap-2 text-[#568164]">
+                <Check className="size-3" />
+                {selectedAccounts.length ? "Account selected" : "Select an account"}
+              </p>
+              <p className={`mt-1 flex items-center gap-2 ${media.length ? "text-[#568164]" : "text-[#a57630]"}`}>
+                {media.length ? <Check className="size-3" /> : <CircleAlert className="size-3" />}
+                {media.length ? "Media ready for preview" : "Add media before publishing"}
+              </p>
+              <p className={`mt-1 flex items-center gap-2 ${captionCount <= 125 ? "text-[#568164]" : "text-[#a57630]"}`}>
+                {captionCount <= 125 ? <Check className="size-3" /> : <CircleAlert className="size-3" />}
+                Caption {captionCount <= 125 ? "fits above the fold" : "may truncate in feed"}
+              </p>
+            </div>
+          </aside>
+        </div>
 
-          <div className="flex-1" />
-
-          <div className="flex w-full items-center gap-4">
+        <footer className="flex h-[56px] shrink-0 items-center justify-between gap-4 border-t border-[#ece7de] bg-paper px-6">
+          <div className="flex items-center gap-4">
             <button
               type="button"
               onClick={onClose}
-              className="flex h-8 w-[78px] items-center justify-center rounded-lg bg-paper text-xs font-bold leading-4 text-muted"
+              className="text-[11px] font-medium text-[#615a50]"
             >
               Cancel
             </button>
-            <div className="flex-1" />
-            <label className="flex h-8 items-center gap-2 rounded-lg border border-muted bg-paper px-4 cursor-pointer">
-              <Calendar className="size-4 text-muted" strokeWidth={1.8} />
-              <input
-                type="datetime-local"
-                value={scheduledFor}
-                min={minScheduledFor}
-                onChange={(e) => setScheduledFor(e.target.value)}
-                className="bg-transparent text-xs font-medium leading-4 text-muted focus:outline-none"
-              />
-            </label>
-            <div className="relative flex h-8 items-center overflow-visible rounded-lg bg-[#78dbe8]">
+            <span className="rounded-full border border-[#e7e1d6] px-2 py-1 text-[9px] text-[#756e64]">
+              Preview live
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 overflow-hidden rounded-md border border-[#e7e1d6] bg-paper text-[10px]">
+              <button
+                type="button"
+                onClick={() => setPrimaryAction("post-now")}
+                className={`px-3 ${primaryAction === "post-now" ? "bg-[#f5f1e9] font-semibold text-[#302b23]" : "text-[#756e64]"}`}
+              >
+                Now
+              </button>
+              <button
+                type="button"
+                onClick={() => setPrimaryAction("schedule")}
+                className={`border-l border-[#e7e1d6] px-3 ${primaryAction === "schedule" ? "bg-[#f5f1e9] font-semibold text-[#302b23]" : "text-[#756e64]"}`}
+              >
+                Schedule
+              </button>
+              <span className="flex items-center border-l border-[#e7e1d6] px-3 text-[#968f84]">
+                Best time
+              </span>
+            </div>
+            {primaryAction === "schedule" ? (
+              <label className="flex h-8 items-center gap-2 rounded-md border border-[#e7e1d6] bg-paper px-3">
+                <Calendar className="size-3.5 text-[#756e64]" strokeWidth={1.8} />
+                <input
+                  type="datetime-local"
+                  value={scheduledFor}
+                  min={minScheduledFor}
+                  onChange={(e) => setScheduledFor(e.target.value)}
+                  className="bg-transparent text-[10px] font-medium text-[#4e4840] focus:outline-none"
+                />
+              </label>
+            ) : null}
+            <div className="relative flex h-8 items-center overflow-visible rounded-md bg-[#171510] text-white">
               <button
                 type="button"
                 disabled={scheduleDisabled}
-                onClick={() => handleSubmit("schedule")}
-                className="flex h-full items-center px-4 text-xs font-bold leading-4 text-[#f2f2f2] disabled:opacity-60"
+                onClick={() => void handleSubmit(primaryAction)}
+                className="flex h-full items-center px-4 text-[11px] font-semibold disabled:opacity-60"
               >
                 {submitButtonLabel}
               </button>
@@ -935,14 +1218,14 @@ export function CreatePostModal({
                 aria-expanded={submitMenuOpen}
                 disabled={scheduleDisabled}
                 onClick={() => setSubmitMenuOpen((open) => !open)}
-                className="flex h-full w-7 items-center justify-center rounded-r-lg bg-[#1d6b81] disabled:opacity-60"
+                className="flex h-full w-7 items-center justify-center rounded-r-md border-l border-white/20 disabled:opacity-60"
               >
-                <ChevronDown className="size-4 text-[#f2f2f2]" strokeWidth={2.2} />
+                <ChevronDown className="size-3.5" strokeWidth={2.2} />
               </button>
               {submitMenuOpen ? (
                 <div
                   role="menu"
-                  className="absolute bottom-10 right-0 z-10 w-44 overflow-hidden rounded-lg border border-line bg-paper py-1 shadow-[0_14px_30px_rgba(39,39,39,0.16)]"
+                  className="absolute bottom-10 right-0 z-10 w-44 overflow-hidden rounded-md border border-[#e7e1d6] bg-paper py-1 text-[#302b23] shadow-[0_14px_30px_rgba(39,39,39,0.16)]"
                 >
                   {SUBMIT_OPTIONS.map(({ action, label, Icon }) => (
                     <button
@@ -950,10 +1233,10 @@ export function CreatePostModal({
                       type="button"
                       role="menuitem"
                       disabled={scheduleDisabled}
-                      onClick={() => handleSubmit(action)}
-                      className="flex h-9 w-full items-center gap-2 px-3 text-left text-xs font-semibold text-ink hover:bg-card disabled:opacity-60"
+                      onClick={() => void handleSubmit(action)}
+                      className="flex h-9 w-full items-center gap-2 px-3 text-left text-[11px] font-medium hover:bg-[#f7f5f0] disabled:opacity-60"
                     >
-                      <Icon className="size-4 text-muted" strokeWidth={1.8} />
+                      <Icon className="size-3.5 text-[#756e64]" strokeWidth={1.8} />
                       <span>{label}</span>
                     </button>
                   ))}
@@ -961,57 +1244,7 @@ export function CreatePostModal({
               ) : null}
             </div>
           </div>
-        </div>
-
-        <div className="flex flex-1 items-center justify-center rounded-r-3xl border border-line bg-paper p-2.5">
-          <div className="flex h-[585px] w-[408px] flex-col rounded-3xl border border-line">
-            <div className="flex w-full items-center gap-3 rounded-t-3xl p-3">
-              <div className="flex size-[58px] shrink-0 items-center justify-center rounded-full bg-card">
-                <User className="size-8 text-muted" strokeWidth={1.6} />
-              </div>
-              <p className="min-w-0 truncate font-inter text-2xl text-ink">
-                {previewAccountLabel}
-              </p>
-            </div>
-            <div className="relative flex h-[428px] w-full items-center justify-center overflow-hidden bg-[#495057]">
-              {previewMedia?.kind === "image" ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={previewMedia.previewUrl}
-                  alt=""
-                  className="h-full w-full object-cover"
-                />
-              ) : previewMedia?.kind === "video" ? (
-                <>
-                  <video
-                    src={previewMedia.previewUrl}
-                    className="h-full w-full object-cover"
-                    muted
-                    playsInline
-                  />
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/20 text-paper">
-                    <Play className="size-16 fill-current" strokeWidth={1.4} />
-                  </div>
-                </>
-              ) : (
-                <ImageIcon
-                  className="size-32 text-[#d9d9d9]"
-                  strokeWidth={1.2}
-                />
-              )}
-            </div>
-            <div className="flex flex-1 items-center gap-4 px-6">
-              <Heart className="size-6 fill-ink text-ink" strokeWidth={0} />
-              <MessageCircle
-                className="size-6 fill-ink text-ink"
-                strokeWidth={0}
-              />
-              <Send className="size-6 text-ink" strokeWidth={2} />
-              <div className="flex-1" />
-              <Bookmark className="size-6 fill-ink text-ink" strokeWidth={0} />
-            </div>
-          </div>
-        </div>
+        </footer>
       </div>
     </div>
   );
