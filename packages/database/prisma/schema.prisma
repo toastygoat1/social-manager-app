@@ -223,17 +223,18 @@ model DmMessage {
 }
 
 model AnalyticsSnapshot {
-  id                 String           @id @default(uuid())
-  instagramAccountId String           @map("instagram_account_id")
-  snapshotDate       DateTime         @map("snapshot_date") @db.Date
-  followersCount     Int              @map("followers_count")
-  followingCount     Int              @map("following_count")
-  mediaCount         Int              @map("media_count")
-  reach              Int?
-  impressions        Int?
-  profileViews       Int?             @map("profile_views")
-  createdAt          DateTime         @default(now()) @map("created_at")
-  instagramAccount   InstagramAccount @relation(fields: [instagramAccountId], references: [id], onDelete: Cascade)
+  id                   String           @id @default(uuid())
+  instagramAccountId   String           @map("instagram_account_id")
+  snapshotDate         DateTime         @map("snapshot_date") @db.Date
+  followersCount       Int              @map("followers_count")
+  followingCount       Int              @map("following_count")
+  mediaCount           Int              @map("media_count")
+  reach                Int?
+  impressions          Int?
+  profileViews         Int?             @map("profile_views")
+  audienceDemographics Json?            @map("audience_demographics")
+  createdAt            DateTime         @default(now()) @map("created_at")
+  instagramAccount     InstagramAccount @relation(fields: [instagramAccountId], references: [id], onDelete: Cascade)
 
   @@unique([instagramAccountId, snapshotDate])
   @@index([snapshotDate])

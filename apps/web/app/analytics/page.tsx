@@ -9,6 +9,7 @@ import { StatGrid } from "./_components/StatGrid";
 import { PerformanceTrend } from "./_components/PerformanceTrend";
 import { BestTimeCard } from "./_components/BestTimeCard";
 import { AccountLeaderboard } from "./_components/AccountLeaderboard";
+import { AudienceCard } from "./_components/AudienceCard";
 import { RecentPosts } from "./_components/RecentPosts";
 import { ChannelDistribution } from "./_components/ChannelDistribution";
 import { ContentCalendar } from "./_components/ContentCalendar";
@@ -169,6 +170,7 @@ export default async function AnalyticsPage({
                 />
                 <BestTimeCard insight={data.bestTime} />
               </div>
+              <AudienceCard insight={data.audience} />
               {data.leaderboard.length > 1 ? (
                 <AccountLeaderboard
                   rows={data.leaderboard}

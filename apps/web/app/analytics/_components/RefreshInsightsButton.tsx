@@ -15,6 +15,7 @@ type RefreshInsightsButtonProps = {
 
 type RefreshInsightsResponse = {
   refreshed: number;
+  accountSnapshots: number;
   skipped: number;
   failed: number;
   fetchedAt: string | null;
@@ -51,7 +52,11 @@ function formatLastUpdated(value: string | null) {
 }
 
 function buildSuccessMessage(result: RefreshInsightsResponse) {
-  if (result.refreshed === 0 && result.failed === 0) {
+  if (
+    result.refreshed === 0 &&
+    result.accountSnapshots === 0 &&
+    result.failed === 0
+  ) {
     return "No published posts to refresh";
   }
 
@@ -59,7 +64,11 @@ function buildSuccessMessage(result: RefreshInsightsResponse) {
     return `Updated ${result.refreshed}, ${result.failed} failed`;
   }
 
-  return `Updated ${result.refreshed} posts`;
+  if (result.refreshed === 0) {
+    return `Updated ${result.accountSnapshots} account snapshot(s)`;
+  }
+
+  return `Updated ${result.refreshed} posts and ${result.accountSnapshots} account(s)`;
 }
 
 export function RefreshInsightsButton({
