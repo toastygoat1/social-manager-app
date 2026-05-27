@@ -132,7 +132,7 @@ export function CalendarShell({ initialReferenceIso, initialData }: Props) {
   };
 
   return (
-    <div className="flex h-screen min-w-0 flex-col overflow-hidden bg-[#fffdf9]">
+    <div className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden bg-[#fffdf9]">
       <CalendarHeader
         view={view}
         onViewChange={setView}
