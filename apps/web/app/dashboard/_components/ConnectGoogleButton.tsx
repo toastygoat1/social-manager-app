@@ -6,7 +6,13 @@ import { createClient } from "@/lib/supabase/client";
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 
-export function ConnectGoogleButton() {
+type ConnectGoogleButtonProps = {
+  compact?: boolean;
+};
+
+export function ConnectGoogleButton({
+  compact = false,
+}: ConnectGoogleButtonProps) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -38,14 +44,28 @@ export function ConnectGoogleButton() {
   }
 
   return (
-    <div className="flex flex-col items-center gap-2 px-4 py-3">
+    <div
+      className={
+        compact
+          ? "flex flex-col items-end gap-1"
+          : "flex flex-col items-center gap-2 px-4 py-3"
+      }
+    >
       <button
         type="button"
         onClick={handleClick}
         disabled={isPending}
-        className="rounded-lg bg-cta px-4 py-1.5 text-sm font-medium text-paper hover:opacity-90 disabled:opacity-50"
+        className={
+          compact
+            ? "inline-flex h-8 items-center rounded-lg border border-[#dfdbd3] bg-white px-3 text-xs font-medium text-[#615c54] transition hover:bg-[#f8f5f0] disabled:opacity-50"
+            : "rounded-lg bg-cta px-4 py-1.5 text-sm font-medium text-paper hover:opacity-90 disabled:opacity-50"
+        }
       >
-        {isPending ? "Loading…" : "Connect Google Calendar"}
+        {isPending
+          ? "Loading..."
+          : compact
+            ? "Connect calendar"
+            : "Connect Google Calendar"}
       </button>
       {error ? <p className="text-xs text-danger">{error}</p> : null}
     </div>
