@@ -511,6 +511,7 @@ export function CreatePostModal({
   const [accountsLoading, setAccountsLoading] = useState(false);
   const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([]);
   const [accountPickerOpen, setAccountPickerOpen] = useState(false);
+  const [title, setTitle] = useState("");
   const [caption, setCaption] = useState("");
   const [media, setMedia] = useState<SelectedMedia[]>([]);
   const [requiresApproval, setRequiresApproval] = useState(false);
@@ -789,6 +790,7 @@ export function CreatePostModal({
                     : TYPE_TO_POST_TYPE[composeType],
                 action: ACTION_TO_API[action],
                 scheduledFor: scheduledDate?.toISOString(),
+                title: title || undefined,
                 caption: caption || undefined,
                 requiresApproval,
                 mediaAssetIds,
@@ -817,6 +819,7 @@ export function CreatePostModal({
         );
         return;
       }
+      setTitle("");
       setCaption("");
       clearMedia();
       onClose();
@@ -837,8 +840,6 @@ export function CreatePostModal({
     }
   };
 
-  const scheduleDisabled =
-    submitting || accountsLoading || selectedAccountIds.length === 0;
   const minScheduledFor = toLocalDatetimeInputValue(new Date().toISOString());
   const previewMedia = media[0] ?? null;
   const submitButtonLabel = submittingAction
@@ -849,6 +850,9 @@ export function CreatePostModal({
   const selectedAccounts = accounts.filter((account) =>
     selectedAccountIds.includes(account.id),
   );
+  const hasBlockingPreviewError = selectedAccounts.length === 0;
+  const scheduleDisabled =
+    submitting || accountsLoading || hasBlockingPreviewError;
   const previewAccountLabel =
     selectedAccounts.length > 1
       ? `${selectedAccounts[0].username} +${selectedAccounts.length - 1}`
@@ -858,6 +862,12 @@ export function CreatePostModal({
   const captionCount = caption.length;
   const hashtagCount = countCaptionToken(caption, "#");
   const mentionCount = countCaptionToken(caption, "@");
+  const hasTitleAndCaption = Boolean(title.trim()) && Boolean(caption.trim());
+  const contentPrompt = !title.trim() && !caption.trim()
+    ? "Add a title and caption"
+    : !title.trim()
+      ? "Add a title"
+      : "Add a caption";
   const availableAccounts = accounts.filter(
     (account) => !selectedAccountIds.includes(account.id),
   );
@@ -989,13 +999,20 @@ export function CreatePostModal({
                 </div>
               </div>
               <div className="overflow-hidden rounded-md border border-[#e7e1d6] bg-paper">
+                <input
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Post title"
+                  maxLength={200}
+                  className="h-9 w-full border-b border-[#eee9df] bg-transparent px-3 text-[11px] font-medium text-[#302b23] placeholder:text-[#9a9388] focus:outline-none"
+                />
                 <textarea
                   ref={captionRef}
                   value={caption}
                   onChange={(e) => setCaption(e.target.value)}
                   maxLength={2200}
                   placeholder="Write a caption..."
-                  className="h-[112px] w-full resize-none bg-transparent px-3 py-2.5 text-[11px] leading-5 text-[#302b23] placeholder:text-[#9a9388] focus:outline-none"
+                  className="h-[82px] w-full resize-none bg-transparent px-3 py-2.5 text-[11px] leading-5 text-[#302b23] placeholder:text-[#9a9388] focus:outline-none"
                 />
                 <div className="flex h-7 items-center justify-between border-t border-[#eee9df] px-3 text-[9px] text-[#827a71]">
                   <span>
@@ -1169,13 +1186,17 @@ export function CreatePostModal({
               </div>
             </div>
             <div className="rounded-lg border border-[#e4ded4] bg-paper p-3 text-[10px]">
-              <p className="flex items-center gap-2 text-[#568164]">
-                <Check className="size-3" />
-                {selectedAccounts.length ? "Account selected" : "Select an account"}
+              <p className={`flex items-center gap-2 ${hasBlockingPreviewError ? "text-[#b73333]" : "text-[#568164]"}`}>
+                {hasBlockingPreviewError ? <CircleAlert className="size-3" /> : <Check className="size-3" />}
+                {hasBlockingPreviewError ? "No accounts selected" : "Account selected"}
               </p>
               <p className={`mt-1 flex items-center gap-2 ${media.length ? "text-[#568164]" : "text-[#a57630]"}`}>
                 {media.length ? <Check className="size-3" /> : <CircleAlert className="size-3" />}
                 {media.length ? "Media ready for preview" : "Add media before publishing"}
+              </p>
+              <p className={`mt-1 flex items-center gap-2 ${hasTitleAndCaption ? "text-[#568164]" : "text-[#a57630]"}`}>
+                {hasTitleAndCaption ? <Check className="size-3" /> : <CircleAlert className="size-3" />}
+                {hasTitleAndCaption ? "Title and caption added" : contentPrompt}
               </p>
               <p className={`mt-1 flex items-center gap-2 ${captionCount <= 125 ? "text-[#568164]" : "text-[#a57630]"}`}>
                 {captionCount <= 125 ? <Check className="size-3" /> : <CircleAlert className="size-3" />}
@@ -1237,7 +1258,7 @@ export function CreatePostModal({
                   value={scheduledFor}
                   min={minScheduledFor}
                   onChange={(e) => setScheduledFor(e.target.value)}
-                  className="min-w-[170px] cursor-pointer bg-transparent text-[10px] font-medium text-[#4e4840] focus:outline-none"
+                  className="schedule-datetime-input min-w-[170px] cursor-pointer bg-transparent text-[10px] font-medium text-[#4e4840] focus:outline-none"
                 />
             </label>
             <div className="flex h-9 items-center rounded-lg bg-[#171510] text-white">
