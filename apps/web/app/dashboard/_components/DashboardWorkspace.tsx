@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Check, Clock3 } from "lucide-react";
+import { Clock3 } from "lucide-react";
 import type { UserProfile } from "@/lib/supabase/user-profile";
 import { ContentTable } from "./ContentTable";
 import { EditorialCalendar } from "./EditorialCalendar";
@@ -120,7 +120,7 @@ function MetricCard({
   detail,
 }: MetricCardProps) {
   return (
-    <article className="min-w-0 border-b border-[#e8e3db] px-1 pb-4 pt-3 lg:border-b-0 lg:border-r lg:px-5 lg:py-0 lg:last:border-r-0">
+    <article className="min-w-0 border-b border-[#e8e3db] px-1 py-4 last:border-b-0 lg:border-b-0 lg:border-r lg:px-5 lg:last:border-r-0">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-[11px] font-medium text-[#827d75]">{title}</h2>
         {delta ? (
@@ -150,7 +150,7 @@ function Metrics({ data, today }: { data: DashboardData; today: Date }) {
   return (
     <section
       aria-label="Performance summary"
-      className="mt-5 grid gap-x-0 gap-y-3 border-y border-[#e8e3db] py-4 sm:grid-cols-2 lg:grid-cols-4"
+      className="mt-2 grid gap-x-0 border-y border-[#e8e3db] sm:grid-cols-2 lg:grid-cols-4"
     >
       <MetricCard
         title="Total views"
@@ -306,7 +306,7 @@ export function DashboardWorkspace({
   return (
     <div className="min-h-screen bg-[#faf9f6] font-sans text-[#292824]">
       <main className="mx-auto w-full max-w-[1440px] px-4 pb-8 pt-7 sm:px-6 lg:px-8">
-        <section className="flex flex-wrap items-end justify-between gap-4 pb-4">
+        <section className="pb-2">
           <div>
             <h1 className="text-xl font-semibold tracking-[-0.03em] text-[#272620]">
               Good morning, {displayName(profile)}.
@@ -319,10 +319,6 @@ export function DashboardWorkspace({
                 : " Your review queue is clear."}
             </p>
           </div>
-          <span className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[#ded9d1] bg-white px-3 text-[11px] text-[#6f6961]">
-            <Check className="size-3 text-[#3b8771]" />
-            {data.calendar ? "Google Calendar synced" : "Dashboard ready"}
-          </span>
         </section>
 
         <Metrics data={data} today={today} />
