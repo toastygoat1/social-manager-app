@@ -2,6 +2,7 @@ import type { Account } from "@/app/dashboard/_components/data";
 import { BannerHero } from "./BannerHero";
 import { ChannelDistribution } from "./ChannelDistribution";
 import { CompareAccountPicker } from "./CompareAccountPicker";
+import { PerformanceTrend } from "./PerformanceTrend";
 import { RecentPosts } from "./RecentPosts";
 import { StatGrid } from "./StatGrid";
 import type { AnalyticsData, AnalyticsRange } from "./data";
@@ -49,6 +50,11 @@ function CompareColumn({ marker, accountId, data }: CompareColumnProps) {
         />
       </div>
       <StatGrid stats={data.statGrid} compact />
+      <PerformanceTrend
+        points={data.performanceSeries}
+        rangeDays={data.rangeDays}
+        compact
+      />
       <ChannelDistribution items={data.distribution} compact />
       <RecentPosts posts={data.recentPosts} compact />
     </div>

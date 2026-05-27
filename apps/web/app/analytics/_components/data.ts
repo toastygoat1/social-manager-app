@@ -4,7 +4,14 @@ import type {
   StatTrend,
 } from "@/app/dashboard/_components/data";
 
-export type AnalyticsStatId = "comments" | "shares" | "saves" | "likes";
+export type AnalyticsStatId =
+  | "views"
+  | "reach"
+  | "interactions"
+  | "likes"
+  | "comments"
+  | "saves"
+  | "shares";
 export type AnalyticsRange = "7d" | "30d" | "90d";
 
 export type AnalyticsStat = {
@@ -35,6 +42,41 @@ export type DistributionItem = {
   value: number;
   percentage: number;
   color: string;
+};
+
+export type PerformanceMetric = "views" | "reach" | "interactions" | "likes";
+
+export type PerformancePoint = {
+  label: string;
+  date: string;
+  postCount: number;
+  views: number;
+  reach: number;
+  interactions: number;
+  likes: number;
+};
+
+export type BestTimeCell = {
+  day: number;
+  hour: number;
+  score: number | null;
+  postCount: number;
+};
+
+export type BestTimeInsight = {
+  timezone: "UTC";
+  cells: BestTimeCell[];
+  sampleSize: number;
+  topWindow: string | null;
+};
+
+export type AccountPerformance = {
+  account: Account;
+  postCount: number;
+  views: number | null;
+  reach: number | null;
+  interactions: number | null;
+  engagementRate: number | null;
 };
 
 export type CalendarEvent = { label: string; time: string; color: string };
@@ -80,6 +122,9 @@ export type AnalyticsData = {
   rangeDays: number;
   lastUpdatedAt: string | null;
   statGrid: AnalyticsStat[];
+  performanceSeries: PerformancePoint[];
+  bestTime: BestTimeInsight;
+  leaderboard: AccountPerformance[];
   recentPosts: RecentPost[];
   distribution: DistributionItem[];
   contentCalendar: ContentCalendarMonth | null;
@@ -91,15 +136,36 @@ export type AnalyticsData = {
 
 const EMPTY_STAT_GRID: AnalyticsStat[] = [
   {
-    id: "comments",
-    title: "Total Comments",
+    id: "views",
+    title: "Total Views",
     value: null,
     delta: null,
     trend: null,
   },
   {
-    id: "shares",
-    title: "Total Shared",
+    id: "reach",
+    title: "Total Reach",
+    value: null,
+    delta: null,
+    trend: null,
+  },
+  {
+    id: "interactions",
+    title: "Interactions",
+    value: null,
+    delta: null,
+    trend: null,
+  },
+  {
+    id: "likes",
+    title: "Total Likes",
+    value: null,
+    delta: null,
+    trend: null,
+  },
+  {
+    id: "comments",
+    title: "Total Comments",
     value: null,
     delta: null,
     trend: null,
@@ -112,8 +178,8 @@ const EMPTY_STAT_GRID: AnalyticsStat[] = [
     trend: null,
   },
   {
-    id: "likes",
-    title: "Total Likes",
+    id: "shares",
+    title: "Total Shares",
     value: null,
     delta: null,
     trend: null,
@@ -126,6 +192,14 @@ export const EMPTY_ANALYTICS: AnalyticsData = {
   rangeDays: 30,
   lastUpdatedAt: null,
   statGrid: EMPTY_STAT_GRID,
+  performanceSeries: [],
+  bestTime: {
+    timezone: "UTC",
+    cells: [],
+    sampleSize: 0,
+    topWindow: null,
+  },
+  leaderboard: [],
   recentPosts: [],
   distribution: [],
   contentCalendar: null,

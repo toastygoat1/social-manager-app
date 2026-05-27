@@ -96,15 +96,36 @@ describe('AnalyticsService', () => {
     expect(overview.accounts).toEqual([]);
     expect(overview.statGrid).toEqual([
       {
-        id: 'comments',
-        title: 'Total Comments',
+        id: 'views',
+        title: 'Total Views',
         value: null,
         delta: null,
         trend: null,
       },
       {
-        id: 'shares',
-        title: 'Total Shared',
+        id: 'reach',
+        title: 'Total Reach',
+        value: null,
+        delta: null,
+        trend: null,
+      },
+      {
+        id: 'interactions',
+        title: 'Interactions',
+        value: null,
+        delta: null,
+        trend: null,
+      },
+      {
+        id: 'likes',
+        title: 'Total Likes',
+        value: null,
+        delta: null,
+        trend: null,
+      },
+      {
+        id: 'comments',
+        title: 'Total Comments',
         value: null,
         delta: null,
         trend: null,
@@ -117,13 +138,16 @@ describe('AnalyticsService', () => {
         trend: null,
       },
       {
-        id: 'likes',
-        title: 'Total Likes',
+        id: 'shares',
+        title: 'Total Shares',
         value: null,
         delta: null,
         trend: null,
       },
     ]);
+    expect(overview.performanceSeries).toEqual([]);
+    expect(overview.bestTime.sampleSize).toBe(0);
+    expect(overview.leaderboard).toEqual([]);
     expect(overview.contentCalendar.label).toBe('May 2026');
     expect(overview.notes).toEqual([]);
   });
@@ -177,18 +201,39 @@ describe('AnalyticsService', () => {
     ]);
     expect(overview.statGrid).toEqual([
       {
+        id: 'views',
+        title: 'Total Views',
+        value: 120,
+        delta: 40,
+        trend: 'up',
+      },
+      {
+        id: 'reach',
+        title: 'Total Reach',
+        value: 100,
+        delta: 0,
+        trend: null,
+      },
+      {
+        id: 'interactions',
+        title: 'Interactions',
+        value: 35,
+        delta: 0,
+        trend: null,
+      },
+      {
+        id: 'likes',
+        title: 'Total Likes',
+        value: 20,
+        delta: 8,
+        trend: 'up',
+      },
+      {
         id: 'comments',
         title: 'Total Comments',
         value: 8,
         delta: 5,
         trend: 'up',
-      },
-      {
-        id: 'shares',
-        title: 'Total Shared',
-        value: 2,
-        delta: 2,
-        trend: 'down',
       },
       {
         id: 'saves',
@@ -198,13 +243,36 @@ describe('AnalyticsService', () => {
         trend: 'up',
       },
       {
-        id: 'likes',
-        title: 'Total Likes',
-        value: 20,
-        delta: 8,
-        trend: 'up',
+        id: 'shares',
+        title: 'Total Shares',
+        value: 2,
+        delta: 2,
+        trend: 'down',
       },
     ]);
+    expect(overview.performanceSeries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          postCount: 1,
+          views: 120,
+          reach: 100,
+          interactions: 35,
+          likes: 20,
+        }),
+      ]),
+    );
+    expect(overview.bestTime).toMatchObject({
+      timezone: 'UTC',
+      sampleSize: 1,
+      topWindow: 'WED 08:00 UTC',
+    });
+    expect(overview.leaderboard[0]).toMatchObject({
+      postCount: 1,
+      views: 120,
+      reach: 100,
+      interactions: 35,
+      engagementRate: 35,
+    });
     expect(overview.recentPosts[0]).toMatchObject({
       id: 'post-1',
       mediaUrl: 'https://example.test/preview',
