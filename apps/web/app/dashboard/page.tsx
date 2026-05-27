@@ -76,7 +76,7 @@ export default async function DashboardPage({
   const profile = getUserProfile(user);
 
   return (
-    <div className="flex min-h-screen items-start bg-[#faf9f6] font-sans">
+    <div className="flex min-h-screen items-start bg-paper font-sans">
       <Sidebar accounts={data.accounts} profile={profile} />
       <div className="min-w-0 flex-1">
         <DashboardWorkspace
