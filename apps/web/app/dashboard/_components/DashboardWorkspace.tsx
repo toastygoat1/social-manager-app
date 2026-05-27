@@ -1,19 +1,7 @@
-import Image from "next/image";
 import Link from "next/link";
-import {
-  Bell,
-  CalendarDays,
-  Check,
-  ChevronDown,
-  ChevronRight,
-  Clock3,
-  MoreHorizontal,
-  Plus,
-  Search,
-  SlidersHorizontal,
-} from "lucide-react";
+import { Check, Clock3 } from "lucide-react";
 import type { UserProfile } from "@/lib/supabase/user-profile";
-import { ConnectInstagramButton } from "./ConnectInstagramButton";
+import { ContentTable } from "./ContentTable";
 import { EditorialCalendar } from "./EditorialCalendar";
 import type { ContentRow, DashboardData, StatMetric } from "./data";
 
@@ -34,7 +22,7 @@ type MetricCardProps = {
   value: string;
   delta?: string | null;
   positive?: boolean;
-  points: string;
+  detail: string;
 };
 
 const STATUS_STYLES: Record<string, string> = {
@@ -79,15 +67,8 @@ function rowDate(row: ContentRow) {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
-function dateKey(date: Date) {
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${date.getFullYear()}-${month}-${day}`;
-}
-
 function displayName(profile: UserProfile) {
-  const name = profile.name?.trim() || profile.email?.split("@")[0] || "there";
-  return name.split(/\s+/)[0];
+  return profile.name?.trim() || profile.email?.split("@")[0] || "there";
 }
 
 function initials(label: string) {
@@ -131,98 +112,12 @@ function getEngagement(data: DashboardData) {
   return (data.likes.value / data.views.value) * 100;
 }
 
-function getAgendaRows(rows: ContentRow[], today: Date) {
-  const key = dateKey(today);
-  const todayRows = rows.filter((row) => row.datePost === key);
-  if (todayRows.length > 0) return { rows: todayRows.slice(0, 4), upcoming: false };
-
-  return {
-    rows: rows
-      .filter((row) => {
-        const date = rowDate(row);
-        return date && date >= today;
-      })
-      .sort((a, b) => a.datePost.localeCompare(b.datePost))
-      .slice(0, 4),
-    upcoming: true,
-  };
-}
-
-function Topbar({ profile, today }: { profile: UserProfile; today: Date }) {
-  const profileLabel = profile.name ?? profile.email ?? "Account";
-
-  return (
-    <header className="sticky top-0 z-20 border-b border-[#e8e3db] bg-[#fffefa]/95 backdrop-blur">
-      <div className="mx-auto flex h-14 max-w-[1440px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-        <nav
-          aria-label="Breadcrumb"
-          className="flex min-w-0 items-center gap-2 text-xs text-[#7c776f]"
-        >
-          <Link href="/dashboard" className="font-medium text-[#35332e]">
-            Workspace
-          </Link>
-          <ChevronRight className="size-3" />
-          <span className="font-medium text-[#35332e]">Overview</span>
-          <span className="hidden text-[#a39e96] sm:inline">
-            /{" "}
-            {today.toLocaleDateString("en-US", {
-              weekday: "short",
-              month: "short",
-              day: "numeric",
-            })}
-          </span>
-        </nav>
-
-        <div className="flex items-center gap-2.5">
-          <div className="hidden h-8 w-56 items-center gap-2 rounded-lg border border-[#ded9d1] bg-white px-3 text-xs text-[#9a948b] md:flex">
-            <Search className="size-3.5" strokeWidth={1.8} />
-            <span>Search or jump to...</span>
-            <kbd className="ml-auto rounded border border-[#e3ded7] bg-[#f8f6f2] px-1 text-[10px]">
-              K
-            </kbd>
-          </div>
-          <Link
-            href="/chat"
-            aria-label="Open inbox"
-            className="flex size-8 items-center justify-center rounded-lg text-[#665f57] hover:bg-[#f4f1eb]"
-          >
-            <Bell className="size-4" strokeWidth={1.8} />
-          </Link>
-          <Link
-            href="/calendar"
-            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[#272720] px-3 text-xs font-medium text-white transition hover:bg-[#3c3933]"
-          >
-            <Plus className="size-3.5" />
-            Compose
-          </Link>
-          <span
-            title={profileLabel}
-            className="ml-1 flex size-8 items-center justify-center overflow-hidden rounded-full bg-[#ede8e0] text-xs font-semibold text-[#57524b]"
-          >
-            {profile.avatarUrl ? (
-              <Image
-                src={profile.avatarUrl}
-                alt=""
-                width={32}
-                height={32}
-                className="size-full object-cover"
-              />
-            ) : (
-              initials(profileLabel)
-            )}
-          </span>
-        </div>
-      </div>
-    </header>
-  );
-}
-
 function MetricCard({
   title,
   value,
   delta,
   positive = true,
-  points,
+  detail,
 }: MetricCardProps) {
   return (
     <article className="min-w-0 border-b border-[#e8e3db] px-1 pb-4 pt-3 lg:border-b-0 lg:border-r lg:px-5 lg:py-0 lg:last:border-r-0">
@@ -243,21 +138,7 @@ function MetricCard({
       <p className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-[#292824]">
         {value}
       </p>
-      <svg viewBox="0 0 112 26" className="mt-3 h-7 w-28" aria-hidden="true">
-        <path
-          d={points}
-          fill="none"
-          stroke={positive ? "#6382ee" : "#968f84"}
-          strokeWidth="1.3"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <path
-          d={`${points} L112 26 L0 26 Z`}
-          fill={positive ? "#eaf0ff" : "#f3f0eb"}
-          opacity="0.7"
-        />
-      </svg>
+      <p className="mt-3 text-[10px] text-[#99938a]">{detail}</p>
     </article>
   );
 }
@@ -272,111 +153,29 @@ function Metrics({ data, today }: { data: DashboardData; today: Date }) {
       className="mt-5 grid gap-x-0 gap-y-3 border-y border-[#e8e3db] py-4 sm:grid-cols-2 lg:grid-cols-4"
     >
       <MetricCard
-        title="Total reach"
+        title="Total views"
         value={formatCompact(data.views.value)}
         delta={formatDelta(data.views)}
         positive={data.views.trend !== "down"}
-        points="M0 22 L13 20 L25 21 L38 16 L51 14 L64 10 L76 11 L89 7 L101 5 L112 2"
+        detail="Instagram analytics"
       />
       <MetricCard
-        title="Posts this week"
+        title="Listed posts this week"
         value={formatCount(getPostsThisWeek(data.contentRows, today))}
-        points="M0 22 L12 22 L24 19 L37 17 L49 14 L62 15 L75 10 L88 8 L99 10 L112 3"
+        detail="From scheduled content"
       />
       <MetricCard
-        title="Engagement"
+        title="Engagement rate"
         value={formatPercent(engagement)}
-        delta={formatDelta(data.likes)}
-        positive={data.likes.trend !== "down"}
-        points="M0 22 L14 19 L27 18 L40 15 L53 13 L66 8 L78 10 L91 6 L101 8 L112 3"
+        detail="Likes divided by views"
       />
       <MetricCard
         title="Awaiting review"
         value={formatCount(reviewRows.length)}
         delta={reviewRows.length > 0 ? "Needs eyes" : null}
         positive={reviewRows.length === 0}
-        points="M0 21 L13 20 L26 18 L39 18 L52 14 L65 12 L78 14 L90 10 L101 9 L112 4"
+        detail="From scheduled content"
       />
-    </section>
-  );
-}
-
-function AgendaPanel({ rows, today }: { rows: ContentRow[]; today: Date }) {
-  const agenda = getAgendaRows(rows, today);
-
-  return (
-    <section className="overflow-hidden rounded-xl border border-[#e3dfd8] bg-[#fffefa]">
-      <header className="flex items-start justify-between border-b border-[#ece7df] px-4 py-4">
-        <div>
-          <h2 className="text-sm font-semibold text-[#292824]">
-            Today /{" "}
-            {today.toLocaleDateString("en-US", {
-              month: "short",
-              day: "numeric",
-            })}
-          </h2>
-          {agenda.upcoming && agenda.rows.length > 0 ? (
-            <p className="mt-1 text-[11px] text-[#827d75]">Showing upcoming</p>
-          ) : null}
-        </div>
-        <span className="inline-flex h-7 items-center gap-1 rounded-full border border-[#e6e1d9] px-2.5 text-[10px] text-[#77726b]">
-          All clients
-          <ChevronDown className="size-3" />
-        </span>
-      </header>
-      <div className="px-4 py-3">
-        {agenda.rows.length === 0 ? (
-          <div className="flex min-h-48 flex-col items-center justify-center gap-3 text-center">
-            <CalendarDays className="size-5 text-[#b2aca2]" strokeWidth={1.6} />
-            <p className="text-xs text-[#817c74]">No scheduled content today.</p>
-            <Link
-              href="/calendar"
-              className="text-xs font-medium text-[#556fcf] hover:underline"
-            >
-              Plan content
-            </Link>
-          </div>
-        ) : (
-          <ul className="space-y-1">
-            {agenda.rows.map((row, index) => (
-              <li
-                key={row.id}
-                className="grid grid-cols-[46px_1fr] gap-2 border-b border-[#eee9e1] py-3 last:border-b-0"
-              >
-                <span className="pt-0.5 text-[10px] text-[#a19a91]">
-                  {agenda.upcoming
-                    ? new Date(`${row.datePost}T00:00:00`).toLocaleDateString(
-                        "en-US",
-                        { month: "short", day: "numeric" },
-                      )
-                    : `${9 + index}:00am`}
-                </span>
-                <div className="min-w-0">
-                  <div className="mb-1 flex items-center gap-1.5">
-                    <span className="flex size-4 items-center justify-center rounded bg-[#eff1ed] text-[8px] font-bold text-[#5b6157]">
-                      {initials(row.account.name).slice(0, 2)}
-                    </span>
-                    <span className="truncate text-[10px] font-medium text-[#625d55]">
-                      {row.account.name}
-                    </span>
-                    <span
-                      className={`rounded-full px-1.5 py-0.5 text-[9px] font-medium ${statusClass(row.status)}`}
-                    >
-                      {statusLabel(row.status)}
-                    </span>
-                  </div>
-                  <p className="truncate text-xs font-medium text-[#302e2a]">
-                    {row.contents}
-                  </p>
-                  <p className="mt-1 truncate text-[10px] text-[#928c83]">
-                    {row.type} / {row.caption}
-                  </p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
     </section>
   );
 }
@@ -432,7 +231,9 @@ function QueuePanel({ rows }: { rows: ContentRow[] }) {
               <span className="min-w-0 flex-1 truncate text-[#45413b]">
                 {row.contents} / {row.account.name}
               </span>
-              <span className={`rounded-full px-2 py-0.5 text-[9px] ${statusClass(row.status)}`}>
+              <span
+                className={`rounded-full px-2 py-0.5 text-[9px] ${statusClass(row.status)}`}
+              >
                 {statusLabel(row.status)}
               </span>
             </li>
@@ -493,77 +294,6 @@ function InboxPanel({
   );
 }
 
-function ScheduledContent({ rows }: { rows: ContentRow[] }) {
-  return (
-    <section className="mt-4 overflow-hidden rounded-xl border border-[#e3dfd8] bg-[#fffefa]">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-[#e8e3db] px-4 py-3">
-        <div>
-          <h2 className="text-sm font-semibold text-[#2e2c29]">
-            Scheduled content
-          </h2>
-          <p className="mt-0.5 text-[10px] text-[#8d877f]">
-            Next {Math.min(rows.length, 6)} items / {rows.length} total
-          </p>
-        </div>
-        <div className="flex gap-2 text-[10px] text-[#736d65]">
-          <span className="inline-flex h-7 items-center gap-1 rounded-lg border border-[#e4dfd7] px-2">
-            <SlidersHorizontal className="size-3" />
-            All statuses
-          </span>
-          <Link
-            href="/calendar"
-            className="inline-flex h-7 items-center gap-1 rounded-lg border border-[#e4dfd7] px-2 hover:bg-[#f8f5f0]"
-          >
-            <CalendarDays className="size-3" />
-            Calendar
-          </Link>
-        </div>
-      </header>
-
-      <div className="overflow-x-auto">
-        <div className="min-w-[740px]">
-          <div className="grid grid-cols-[1.1fr_1.65fr_.7fr_.8fr_.95fr_.4fr] gap-3 border-b border-[#ede8e1] bg-[#faf8f4] px-4 py-2 text-[9px] font-semibold uppercase tracking-[0.13em] text-[#928c84]">
-            <span>Client</span>
-            <span>Content</span>
-            <span>Type</span>
-            <span>Status</span>
-            <span>When</span>
-            <span />
-          </div>
-          {rows.length === 0 ? (
-            <p className="px-4 py-9 text-center text-xs text-[#817c74]">
-              No content scheduled yet.
-            </p>
-          ) : (
-            rows.slice(0, 6).map((row) => (
-              <div
-                key={row.id}
-                className="grid grid-cols-[1.1fr_1.65fr_.7fr_.8fr_.95fr_.4fr] items-center gap-3 border-b border-[#f0ece4] px-4 py-2.5 text-[11px] last:border-b-0"
-              >
-                <div className="flex min-w-0 items-center gap-2">
-                  <span className="flex size-5 shrink-0 items-center justify-center rounded bg-[#ede9e2] text-[9px] font-semibold text-[#625c54]">
-                    {initials(row.account.name).slice(0, 2)}
-                  </span>
-                  <span className="truncate text-[#48443e]">{row.account.name}</span>
-                </div>
-                <span className="truncate text-[#48443e]">{row.contents}</span>
-                <span className="text-[#736d65]">{row.type}</span>
-                <span
-                  className={`w-fit rounded-full px-2 py-0.5 text-[9px] font-medium ${statusClass(row.status)}`}
-                >
-                  {statusLabel(row.status)}
-                </span>
-                <span className="text-[#736d65]">{row.datePost}</span>
-                <MoreHorizontal className="size-4 text-[#a29c93]" />
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-    </section>
-  );
-}
-
 export function DashboardWorkspace({
   data,
   profile,
@@ -574,9 +304,8 @@ export function DashboardWorkspace({
   const reviewCount = getReviewRows(data.contentRows).length;
 
   return (
-    <div className="min-h-screen bg-[#fbfaf7] font-sans text-[#292824]">
-      <Topbar profile={profile} today={today} />
-      <main className="mx-auto w-full max-w-[1440px] px-4 pb-8 pt-5 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[#faf9f6] font-sans text-[#292824]">
+      <main className="mx-auto w-full max-w-[1440px] px-4 pb-8 pt-7 sm:px-6 lg:px-8">
         <section className="flex flex-wrap items-end justify-between gap-4 border-b border-[#e8e3db] pb-4">
           <div>
             <h1 className="text-xl font-semibold tracking-[-0.03em] text-[#272620]">
@@ -590,24 +319,16 @@ export function DashboardWorkspace({
                 : " Your review queue is clear."}
             </p>
           </div>
-          <div className="flex items-center gap-2.5">
-            <span className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[#ded9d1] bg-white px-3 text-[11px] text-[#6f6961]">
-              <Check className="size-3 text-[#3b8771]" />
-              Synced {today.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-            </span>
-            <ConnectInstagramButton />
-          </div>
+          <span className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[#ded9d1] bg-white px-3 text-[11px] text-[#6f6961]">
+            <Check className="size-3 text-[#3b8771]" />
+            {data.calendar ? "Google Calendar synced" : "Dashboard ready"}
+          </span>
         </section>
 
         <Metrics data={data} today={today} />
 
-        <div className="mt-4 grid items-start gap-4 xl:grid-cols-[minmax(620px,1fr)_318px]">
-          <EditorialCalendar
-            calendar={data.calendar}
-            rows={data.contentRows}
-            todayIso={todayIso}
-          />
-          <AgendaPanel rows={data.contentRows} today={today} />
+        <div className="mt-4">
+          <EditorialCalendar calendar={data.calendar} todayIso={todayIso} />
         </div>
 
         <div className="mt-4 grid gap-4 xl:grid-cols-[250px_minmax(360px,1fr)_318px]">
@@ -619,7 +340,7 @@ export function DashboardWorkspace({
           />
         </div>
 
-        <ScheduledContent rows={data.contentRows} />
+        <ContentTable rows={data.contentRows} />
       </main>
     </div>
   );
