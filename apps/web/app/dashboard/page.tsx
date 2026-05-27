@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getDashboardData } from "@/lib/dashboard-data";
 import { getUserProfile } from "@/lib/supabase/user-profile";
 import { DashboardWorkspace } from "./_components/DashboardWorkspace";
+import { Sidebar } from "./_components/Sidebar";
 
 type DashboardPageProps = {
   searchParams: Promise<{
@@ -75,11 +76,16 @@ export default async function DashboardPage({
   const profile = getUserProfile(user);
 
   return (
-    <DashboardWorkspace
-      data={data}
-      profile={profile}
-      connectionStatus={instagramStatus}
-      todayIso={new Date().toISOString()}
-    />
+    <div className="flex min-h-screen items-start bg-[#fbfaf7] font-sans">
+      <Sidebar accounts={data.accounts} profile={profile} />
+      <div className="min-w-0 flex-1">
+        <DashboardWorkspace
+          data={data}
+          profile={profile}
+          connectionStatus={instagramStatus}
+          todayIso={new Date().toISOString()}
+        />
+      </div>
+    </div>
   );
 }
