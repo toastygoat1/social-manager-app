@@ -306,7 +306,7 @@ export function DashboardWorkspace({
   return (
     <div className="min-h-screen bg-[#faf9f6] font-sans text-[#292824]">
       <main className="mx-auto w-full max-w-[1440px] px-4 pb-8 pt-7 sm:px-6 lg:px-8">
-        <section className="flex flex-wrap items-end justify-between gap-4 border-b border-[#e8e3db] pb-4">
+        <section className="flex flex-wrap items-end justify-between gap-4 pb-4">
           <div>
             <h1 className="text-xl font-semibold tracking-[-0.03em] text-[#272620]">
               Good morning, {displayName(profile)}.
