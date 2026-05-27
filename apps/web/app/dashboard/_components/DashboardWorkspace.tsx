@@ -304,7 +304,7 @@ export function DashboardWorkspace({
   const reviewCount = getReviewRows(data.contentRows).length;
 
   return (
-    <div className="min-h-screen bg-page font-sans text-[#292824]">
+    <div className="min-h-screen bg-[#fafaf8] font-sans text-[#292824]">
       <main className="mx-auto w-full max-w-[1440px] px-4 pb-8 pt-7 sm:px-6 lg:px-8">
         <section className="pb-2">
           <div>
