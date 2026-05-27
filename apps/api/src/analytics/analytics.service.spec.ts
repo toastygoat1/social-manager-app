@@ -25,6 +25,10 @@ describe('AnalyticsService', () => {
     };
     contentPost: { findMany: jest.Mock<AsyncFn> };
     postAnalytics: { create: jest.Mock<AsyncFn> };
+    analyticsSnapshot: {
+      findMany: jest.Mock<AsyncFn>;
+      upsert: jest.Mock<AsyncFn>;
+    };
     analyticsNote: {
       create: jest.Mock<AsyncFn>;
       update: jest.Mock<AsyncFn>;
@@ -48,6 +52,10 @@ describe('AnalyticsService', () => {
       },
       contentPost: { findMany: jest.fn<AsyncFn>() },
       postAnalytics: { create: jest.fn<AsyncFn>() },
+      analyticsSnapshot: {
+        findMany: jest.fn<AsyncFn>().mockResolvedValue([]),
+        upsert: jest.fn<AsyncFn>(),
+      },
       analyticsNote: {
         create: jest.fn<AsyncFn>(),
         update: jest.fn<AsyncFn>(),
@@ -148,6 +156,7 @@ describe('AnalyticsService', () => {
     expect(overview.performanceSeries).toEqual([]);
     expect(overview.bestTime.sampleSize).toBe(0);
     expect(overview.leaderboard).toEqual([]);
+    expect(overview.audience.followers).toBeNull();
     expect(overview.contentCalendar.label).toBe('May 2026');
     expect(overview.notes).toEqual([]);
   });
@@ -183,6 +192,16 @@ describe('AnalyticsService', () => {
       .mockResolvedValueOnce([previousPost])
       .mockResolvedValueOnce([currentPost])
       .mockResolvedValueOnce([currentPost]);
+    prisma.analyticsSnapshot.findMany.mockResolvedValue([
+      makeSnapshot({
+        snapshotDate: '2026-04-23T00:00:00Z',
+        followersCount: 980,
+      }),
+      makeSnapshot({
+        snapshotDate: '2026-05-23T00:00:00Z',
+        followersCount: 1000,
+      }),
+    ]);
     media.createSignedPreviewUrl.mockResolvedValue(
       'https://example.test/preview',
     );
@@ -268,10 +287,24 @@ describe('AnalyticsService', () => {
     });
     expect(overview.leaderboard[0]).toMatchObject({
       postCount: 1,
+      followers: 1000,
+      followerGrowth: 20,
       views: 120,
       reach: 100,
       interactions: 35,
       engagementRate: 35,
+    });
+    expect(overview.audience).toMatchObject({
+      followers: 1000,
+      followerGrowth: 20,
+      following: 90,
+      mediaCount: 24,
+      reach: 400,
+      profileViews: 30,
+      gender: [
+        { label: 'Women', value: 60, percentage: 60 },
+        { label: 'Men', value: 40, percentage: 40 },
+      ],
     });
     expect(overview.recentPosts[0]).toMatchObject({
       id: 'post-1',
@@ -355,6 +388,7 @@ describe('AnalyticsService', () => {
     prisma.instagramAccount.findMany.mockResolvedValue([
       {
         id: 'account-1',
+        igUserId: 'ig-account-1',
         username: 'ambacafe',
         accessTokenEncrypted: encryptSecret('ig-token'),
       },
@@ -369,6 +403,7 @@ describe('AnalyticsService', () => {
       },
     ]);
     prisma.postAnalytics.create.mockResolvedValue({});
+    prisma.analyticsSnapshot.upsert.mockResolvedValue({});
 
     const fetchMock = jest
       .spyOn(globalThis, 'fetch')
@@ -377,6 +412,73 @@ describe('AnalyticsService', () => {
           input instanceof URL
             ? input
             : new URL(typeof input === 'string' ? input : input.url);
+
+        if (url.pathname === '/v21.0/ig-account-1') {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                followers_count: 1000,
+                follows_count: 90,
+                media_count: 24,
+              }),
+              { status: 200, headers: { 'Content-Type': 'application/json' } },
+            ),
+          );
+        }
+
+        if (url.pathname === '/v21.0/ig-account-1/insights') {
+          const metric = url.searchParams.get('metric');
+
+          if (metric === 'follower_demographics') {
+            const breakdown = url.searchParams.get('breakdown');
+            const result =
+              breakdown === 'gender'
+                ? [
+                    { dimension_values: ['Women'], value: 60 },
+                    { dimension_values: ['Men'], value: 40 },
+                  ]
+                : breakdown === 'age'
+                  ? [{ dimension_values: ['25-34'], value: 70 }]
+                  : [{ dimension_values: ['Bangkok'], value: 55 }];
+
+            return Promise.resolve(
+              new Response(
+                JSON.stringify({
+                  data: [
+                    {
+                      name: 'follower_demographics',
+                      total_value: { breakdowns: [{ results: result }] },
+                    },
+                  ],
+                }),
+                {
+                  status: 200,
+                  headers: { 'Content-Type': 'application/json' },
+                },
+              ),
+            );
+          }
+
+          const values: Record<string, number> = {
+            reach: 400,
+            views: 620,
+            profile_views: 30,
+          };
+
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                data: [
+                  {
+                    name: metric,
+                    total_value: { value: values[metric ?? ''] },
+                  },
+                ],
+              }),
+              { status: 200, headers: { 'Content-Type': 'application/json' } },
+            ),
+          );
+        }
 
         if (url.pathname === '/v21.0/ig-media-1') {
           return Promise.resolve(
@@ -426,6 +528,7 @@ describe('AnalyticsService', () => {
       },
       select: {
         id: true,
+        igUserId: true,
         username: true,
         accessTokenEncrypted: true,
       },
@@ -454,8 +557,30 @@ describe('AnalyticsService', () => {
         engagement: 41,
       },
     });
+    expect(prisma.analyticsSnapshot.upsert).toHaveBeenCalledWith({
+      where: {
+        instagramAccountId_snapshotDate: {
+          instagramAccountId: 'account-1',
+          snapshotDate: new Date('2026-05-23T00:00:00Z'),
+        },
+      },
+      update: expect.objectContaining({
+        followersCount: 1000,
+        followingCount: 90,
+        mediaCount: 24,
+        reach: 400,
+        impressions: 620,
+        profileViews: 30,
+      }),
+      create: expect.objectContaining({
+        instagramAccountId: 'account-1',
+        snapshotDate: new Date('2026-05-23T00:00:00Z'),
+        followersCount: 1000,
+      }),
+    });
     expect(result).toEqual({
       refreshed: 1,
+      accountSnapshots: 1,
       skipped: 0,
       failed: 0,
       fetchedAt: '2026-05-23T10:00:00.000Z',
@@ -529,5 +654,27 @@ function makePost(input: {
       },
     ],
     _count: { postMedia: 1 },
+  };
+}
+
+function makeSnapshot(input: { snapshotDate: string; followersCount: number }) {
+  return {
+    instagramAccountId: 'account-1',
+    snapshotDate: new Date(input.snapshotDate),
+    followersCount: input.followersCount,
+    followingCount: 90,
+    mediaCount: 24,
+    reach: 400,
+    impressions: 620,
+    profileViews: 30,
+    audienceDemographics: {
+      gender: [
+        { label: 'Women', value: 60, percentage: 60 },
+        { label: 'Men', value: 40, percentage: 40 },
+      ],
+      age: [{ label: '25-34', value: 70, percentage: 100 }],
+      city: [{ label: 'Bangkok', value: 55, percentage: 100 }],
+    },
+    createdAt: new Date(input.snapshotDate),
   };
 }

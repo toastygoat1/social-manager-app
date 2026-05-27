@@ -98,10 +98,32 @@ type BestTimeInsight = {
 type AccountPerformance = {
   account: AnalyticsAccount;
   postCount: number;
+  followers: number | null;
+  followerGrowth: number | null;
   views: number | null;
   reach: number | null;
   interactions: number | null;
   engagementRate: number | null;
+};
+
+type AudienceSegment = {
+  label: string;
+  value: number;
+  percentage: number;
+};
+
+type AudienceInsight = {
+  followers: number | null;
+  followerGrowth: number | null;
+  following: number | null;
+  mediaCount: number | null;
+  reach: number | null;
+  views: number | null;
+  profileViews: number | null;
+  updatedAt: string | null;
+  gender: AudienceSegment[];
+  age: AudienceSegment[];
+  cities: AudienceSegment[];
 };
 
 type CalendarEvent = { label: string; time: string; color: string };
@@ -157,6 +179,7 @@ type AnalyticsOverview = {
   performanceSeries: PerformancePoint[];
   bestTime: BestTimeInsight;
   leaderboard: AccountPerformance[];
+  audience: AudienceInsight;
   recentPosts: RecentPost[];
   distribution: DistributionItem[];
   contentCalendar: ContentCalendar;
@@ -168,6 +191,7 @@ type AnalyticsOverview = {
 
 type RefreshInsightsResult = {
   refreshed: number;
+  accountSnapshots: number;
   skipped: number;
   failed: number;
   fetchedAt: string | null;
@@ -187,7 +211,13 @@ type InstagramInsightMetric = (typeof REFRESH_INSIGHT_METRICS)[number];
 type InstagramInsightsResponse = GraphApiError & {
   data?: {
     name?: string;
-    total_value?: { value?: unknown };
+    total_value?: {
+      value?: unknown;
+      breakdowns?: {
+        dimension_keys?: unknown;
+        results?: { dimension_values?: unknown; value?: unknown }[];
+      }[];
+    };
     values?: { value?: unknown }[];
   }[];
 };
@@ -198,6 +228,15 @@ type InstagramMediaFieldsResponse = GraphApiError & {
   comments_count?: unknown;
 };
 
+type InstagramAccountFieldsResponse = GraphApiError & {
+  followers_count?: unknown;
+  follows_count?: unknown;
+  media_count?: unknown;
+};
+
+type AudienceBreakdownKey = 'gender' | 'age' | 'city';
+type StoredAudienceBreakdowns = Record<AudienceBreakdownKey, AudienceSegment[]>;
+
 type PostInsightMetrics = {
   likeCount: number | null;
   commentsCount: number | null;
@@ -206,6 +245,16 @@ type PostInsightMetrics = {
   reach: number | null;
   impressions: number | null;
   engagement: number | null;
+};
+
+type AccountInsightMetrics = {
+  followersCount: number;
+  followingCount: number;
+  mediaCount: number;
+  reach: number | null;
+  impressions: number | null;
+  profileViews: number | null;
+  audienceDemographics: StoredAudienceBreakdowns;
 };
 
 const ACCOUNT_TONES: AccountTone[] = ['blue', 'cyan', 'pink', 'yellow'];
@@ -226,6 +275,13 @@ const REFRESH_INSIGHT_METRICS = [
   'saved',
   'total_interactions',
 ] as const;
+const ACCOUNT_INSIGHT_METRICS = ['reach', 'views', 'profile_views'] as const;
+type AccountInsightMetric = (typeof ACCOUNT_INSIGHT_METRICS)[number];
+const AUDIENCE_BREAKDOWN_KEYS: AudienceBreakdownKey[] = [
+  'gender',
+  'age',
+  'city',
+];
 const WEEKDAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 const MONTH_LABELS = [
   'January',
@@ -304,12 +360,29 @@ const ANALYTICS_NOTE_SELECT = {
   updatedAt: true,
 } satisfies Prisma.AnalyticsNoteSelect;
 
+const ANALYTICS_SNAPSHOT_SELECT = {
+  instagramAccountId: true,
+  snapshotDate: true,
+  followersCount: true,
+  followingCount: true,
+  mediaCount: true,
+  reach: true,
+  impressions: true,
+  profileViews: true,
+  audienceDemographics: true,
+  createdAt: true,
+} satisfies Prisma.AnalyticsSnapshotSelect;
+
 type AnalyticsPost = Prisma.ContentPostGetPayload<{
   include: typeof ANALYTICS_POST_INCLUDE;
 }>;
 
 type AnalyticsNoteRecord = Prisma.AnalyticsNoteGetPayload<{
   select: typeof ANALYTICS_NOTE_SELECT;
+}>;
+
+type AnalyticsSnapshotRecord = Prisma.AnalyticsSnapshotGetPayload<{
+  select: typeof ANALYTICS_SNAPSHOT_SELECT;
 }>;
 
 @Injectable()
@@ -365,6 +438,7 @@ export class AnalyticsService {
         performanceSeries: [],
         bestTime: buildBestTime([]),
         leaderboard: [],
+        audience: buildAudienceInsight([], currentStart),
         recentPosts: [],
         distribution: [],
         contentCalendar: buildContentCalendar([], now),
@@ -378,21 +452,30 @@ export class AnalyticsService {
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
-    const [currentPosts, previousPosts, calendarPosts] = await Promise.all([
-      this.findPublishedPosts(accountIds, currentStart, now, MAX_RANGE_POSTS),
-      this.findPublishedPosts(
-        accountIds,
-        previousStart,
-        currentStart,
-        MAX_RANGE_POSTS,
-      ),
-      this.findPublishedPosts(
-        accountIds,
-        monthStart,
-        nextMonthStart,
-        MAX_RANGE_POSTS,
-      ),
-    ]);
+    const [currentPosts, previousPosts, calendarPosts, snapshots] =
+      await Promise.all([
+        this.findPublishedPosts(accountIds, currentStart, now, MAX_RANGE_POSTS),
+        this.findPublishedPosts(
+          accountIds,
+          previousStart,
+          currentStart,
+          MAX_RANGE_POSTS,
+        ),
+        this.findPublishedPosts(
+          accountIds,
+          monthStart,
+          nextMonthStart,
+          MAX_RANGE_POSTS,
+        ),
+        this.prisma.analyticsSnapshot.findMany({
+          where: {
+            instagramAccountId: { in: accountIds },
+            snapshotDate: { gte: previousStart, lte: now },
+          },
+          orderBy: { snapshotDate: 'asc' },
+          select: ANALYTICS_SNAPSHOT_SELECT,
+        }),
+      ]);
 
     const accountById = new Map(
       accounts.map((account) => [account.id, account]),
@@ -415,7 +498,10 @@ export class AnalyticsService {
       leaderboard: buildLeaderboard(
         currentPosts,
         selectedAccountRecords.map((record) => accountById.get(record.id)!),
+        snapshots,
+        currentStart,
       ),
+      audience: buildAudienceInsight(snapshots, currentStart),
       recentPosts: await this.mapRecentPosts(findTopPosts(currentPosts)),
       distribution,
       contentCalendar: buildContentCalendar(calendarPosts, now),
@@ -534,6 +620,7 @@ export class AnalyticsService {
       },
       select: {
         id: true,
+        igUserId: true,
         username: true,
         accessTokenEncrypted: true,
       },
@@ -546,6 +633,7 @@ export class AnalyticsService {
     if (accountRecords.length === 0) {
       return {
         refreshed: 0,
+        accountSnapshots: 0,
         skipped: 0,
         failed: 0,
         fetchedAt: null,
@@ -577,11 +665,27 @@ export class AnalyticsService {
     const fetchedAt = new Date();
     const result: RefreshInsightsResult = {
       refreshed: 0,
+      accountSnapshots: 0,
       skipped: 0,
       failed: 0,
-      fetchedAt: posts.length > 0 ? fetchedAt.toISOString() : null,
+      fetchedAt: null,
       errors: [],
     };
+
+    for (const account of accountRecords) {
+      try {
+        await this.storeAccountSnapshot(
+          account,
+          decryptSecret(account.accessTokenEncrypted),
+          fetchedAt,
+        );
+        result.accountSnapshots += 1;
+      } catch (error) {
+        this.logger.warn(
+          `Instagram account insight refresh skipped for ${account.id}: ${this.getErrorMessage(error)}`,
+        );
+      }
+    }
 
     for (const post of posts) {
       const account = accountById.get(post.instagramAccountId);
@@ -623,6 +727,10 @@ export class AnalyticsService {
           message,
         });
       }
+    }
+
+    if (result.refreshed > 0 || result.accountSnapshots > 0) {
+      result.fetchedAt = fetchedAt.toISOString();
     }
 
     if (result.refreshed === 0 && result.failed > 0) {
@@ -737,6 +845,143 @@ export class AnalyticsService {
     );
   }
 
+  private async storeAccountSnapshot(
+    account: { id: string; igUserId: string },
+    accessToken: string,
+    fetchedAt: Date,
+  ) {
+    const metrics = await this.fetchAccountInsightMetrics(
+      account.igUserId,
+      accessToken,
+    );
+    const snapshotDate = startOfUtcDay(fetchedAt);
+    const data = {
+      followersCount: metrics.followersCount,
+      followingCount: metrics.followingCount,
+      mediaCount: metrics.mediaCount,
+      reach: metrics.reach,
+      impressions: metrics.impressions,
+      profileViews: metrics.profileViews,
+      audienceDemographics:
+        metrics.audienceDemographics as unknown as Prisma.InputJsonValue,
+    };
+
+    await this.prisma.analyticsSnapshot.upsert({
+      where: {
+        instagramAccountId_snapshotDate: {
+          instagramAccountId: account.id,
+          snapshotDate,
+        },
+      },
+      update: data,
+      create: {
+        instagramAccountId: account.id,
+        snapshotDate,
+        ...data,
+      },
+    });
+  }
+
+  private async fetchAccountInsightMetrics(
+    igUserId: string,
+    accessToken: string,
+  ): Promise<AccountInsightMetrics> {
+    const fields = await this.fetchAccountFields(igUserId, accessToken);
+    const followersCount = readNumber(fields.followers_count);
+    const followingCount = readNumber(fields.follows_count);
+    const mediaCount = readNumber(fields.media_count);
+
+    if (
+      followersCount === null ||
+      followingCount === null ||
+      mediaCount === null
+    ) {
+      throw new Error('Instagram account counts were not returned.');
+    }
+
+    const [insights, audienceDemographics] = await Promise.all([
+      this.fetchAccountInsightsIndividually(igUserId, accessToken),
+      this.fetchAudienceBreakdowns(igUserId, accessToken),
+    ]);
+
+    return {
+      followersCount,
+      followingCount,
+      mediaCount,
+      reach: insights.get('reach') ?? null,
+      impressions: insights.get('views') ?? null,
+      profileViews: insights.get('profile_views') ?? null,
+      audienceDemographics,
+    };
+  }
+
+  private async fetchAccountFields(igUserId: string, accessToken: string) {
+    const url = this.createGraphUrl(igUserId);
+    url.searchParams.set('fields', 'followers_count,follows_count,media_count');
+    url.searchParams.set('access_token', accessToken);
+
+    return this.requestGraph<InstagramAccountFieldsResponse>(url);
+  }
+
+  private async fetchAccountInsightsIndividually(
+    igUserId: string,
+    accessToken: string,
+  ) {
+    const entries = await Promise.all(
+      ACCOUNT_INSIGHT_METRICS.map(async (metric) => {
+        try {
+          const url = this.createGraphUrl(`${igUserId}/insights`);
+          url.searchParams.set('metric', metric);
+          url.searchParams.set('period', 'day');
+          url.searchParams.set('access_token', accessToken);
+          const value = this.readNamedInsightMetricValue(
+            await this.requestGraph<InstagramInsightsResponse>(url),
+            metric,
+          );
+
+          return value === null ? null : ([metric, value] as const);
+        } catch {
+          return null;
+        }
+      }),
+    );
+
+    return new Map(
+      entries.filter(
+        (entry): entry is [AccountInsightMetric, number] => entry !== null,
+      ),
+    );
+  }
+
+  private async fetchAudienceBreakdowns(
+    igUserId: string,
+    accessToken: string,
+  ): Promise<StoredAudienceBreakdowns> {
+    const entries = await Promise.all(
+      AUDIENCE_BREAKDOWN_KEYS.map(async (breakdown) => {
+        try {
+          const url = this.createGraphUrl(`${igUserId}/insights`);
+          url.searchParams.set('metric', 'follower_demographics');
+          url.searchParams.set('period', 'lifetime');
+          url.searchParams.set('metric_type', 'total_value');
+          url.searchParams.set('breakdown', breakdown);
+          url.searchParams.set('access_token', accessToken);
+
+          return [
+            breakdown,
+            readAudienceBreakdown(
+              await this.requestGraph<InstagramInsightsResponse>(url),
+            ),
+          ] as const;
+        } catch {
+          return [breakdown, []] as const;
+        }
+      }),
+    );
+
+    return Object.fromEntries(entries) as StoredAudienceBreakdowns;
+  }
+
   private async fetchPostInsightMetrics(
     igMediaId: string,
     accessToken: string,
@@ -848,6 +1093,13 @@ export class AnalyticsService {
   private readInsightMetricValue(
     response: InstagramInsightsResponse,
     metric: InstagramInsightMetric,
+  ) {
+    return this.readNamedInsightMetricValue(response, metric);
+  }
+
+  private readNamedInsightMetricValue(
+    response: InstagramInsightsResponse,
+    metric: string,
   ) {
     const item = response.data?.find((insight) => insight.name === metric);
     return (
@@ -1111,18 +1363,26 @@ function buildBestTime(posts: AnalyticsPost[]): BestTimeInsight {
 function buildLeaderboard(
   posts: AnalyticsPost[],
   accounts: AnalyticsAccount[],
+  snapshots: AnalyticsSnapshotRecord[],
+  periodStart: Date,
 ): AccountPerformance[] {
   return accounts
     .map((account) => {
       const accountPosts = posts.filter(
         (post) => post.instagramAccountId === account.id,
       );
+      const accountSnapshots = snapshots.filter(
+        (snapshot) => snapshot.instagramAccountId === account.id,
+      );
+      const latestSnapshot = accountSnapshots.at(-1) ?? null;
       const reach = sumLatestAnalytics(accountPosts, 'reach');
       const interactions = sumLatestAnalytics(accountPosts, 'engagement');
 
       return {
         account,
         postCount: accountPosts.length,
+        followers: latestSnapshot?.followersCount ?? null,
+        followerGrowth: buildFollowerGrowth(accountSnapshots, periodStart),
         views: sumLatestAnalytics(accountPosts, 'impressions'),
         reach,
         interactions,
@@ -1136,7 +1396,117 @@ function buildLeaderboard(
 }
 
 function leaderboardScore(row: AccountPerformance) {
-  return row.reach ?? row.views ?? row.interactions ?? -1;
+  return row.followers ?? row.reach ?? row.views ?? row.interactions ?? -1;
+}
+
+function buildAudienceInsight(
+  snapshots: AnalyticsSnapshotRecord[],
+  periodStart: Date,
+): AudienceInsight {
+  const byAccount = new Map<string, AnalyticsSnapshotRecord[]>();
+
+  for (const snapshot of snapshots) {
+    const accountSnapshots = byAccount.get(snapshot.instagramAccountId) ?? [];
+    accountSnapshots.push(snapshot);
+    byAccount.set(snapshot.instagramAccountId, accountSnapshots);
+  }
+
+  const latestSnapshots = [...byAccount.values()]
+    .map((accountSnapshots) => accountSnapshots.at(-1))
+    .filter((snapshot): snapshot is AnalyticsSnapshotRecord =>
+      Boolean(snapshot),
+    );
+  const followerGrowthValues = [...byAccount.values()]
+    .map((accountSnapshots) =>
+      buildFollowerGrowth(accountSnapshots, periodStart),
+    )
+    .filter((value): value is number => value !== null);
+
+  return {
+    followers: sumSnapshotValues(latestSnapshots, 'followersCount'),
+    followerGrowth:
+      followerGrowthValues.length > 0
+        ? followerGrowthValues.reduce((sum, value) => sum + value, 0)
+        : null,
+    following: sumSnapshotValues(latestSnapshots, 'followingCount'),
+    mediaCount: sumSnapshotValues(latestSnapshots, 'mediaCount'),
+    reach: sumSnapshotValues(latestSnapshots, 'reach'),
+    views: sumSnapshotValues(latestSnapshots, 'impressions'),
+    profileViews: sumSnapshotValues(latestSnapshots, 'profileViews'),
+    updatedAt:
+      latestSnapshots
+        .map((snapshot) => snapshot.snapshotDate)
+        .sort((left, right) => right.getTime() - left.getTime())[0]
+        ?.toISOString() ?? null,
+    gender: aggregateAudienceBreakdown(latestSnapshots, 'gender'),
+    age: aggregateAudienceBreakdown(latestSnapshots, 'age'),
+    cities: aggregateAudienceBreakdown(latestSnapshots, 'city').slice(0, 6),
+  };
+}
+
+function buildFollowerGrowth(
+  snapshots: AnalyticsSnapshotRecord[],
+  periodStart: Date,
+) {
+  const latest = snapshots.at(-1);
+  if (!latest) return null;
+
+  const baseline =
+    [...snapshots]
+      .filter((snapshot) => snapshot.snapshotDate <= periodStart)
+      .at(-1) ??
+    snapshots.find(
+      (snapshot) =>
+        snapshot.snapshotDate.getTime() !== latest.snapshotDate.getTime(),
+    );
+
+  if (
+    !baseline ||
+    baseline.snapshotDate.getTime() === latest.snapshotDate.getTime()
+  ) {
+    return null;
+  }
+
+  return latest.followersCount - baseline.followersCount;
+}
+
+function sumSnapshotValues(
+  snapshots: AnalyticsSnapshotRecord[],
+  field:
+    | 'followersCount'
+    | 'followingCount'
+    | 'mediaCount'
+    | 'reach'
+    | 'impressions'
+    | 'profileViews',
+) {
+  const values = snapshots
+    .map((snapshot) => snapshot[field])
+    .filter((value): value is number => typeof value === 'number');
+
+  return values.length > 0
+    ? values.reduce((sum, value) => sum + value, 0)
+    : null;
+}
+
+function aggregateAudienceBreakdown(
+  snapshots: AnalyticsSnapshotRecord[],
+  key: AudienceBreakdownKey,
+) {
+  const totals = new Map<string, number>();
+
+  for (const snapshot of snapshots) {
+    for (const item of readStoredAudienceBreakdown(
+      snapshot.audienceDemographics,
+      key,
+    )) {
+      totals.set(item.label, (totals.get(item.label) ?? 0) + item.value);
+    }
+  }
+
+  return toAudienceSegments(
+    [...totals.entries()].map(([label, value]) => ({ label, value })),
+  );
 }
 
 function findTopPosts(posts: AnalyticsPost[]) {
@@ -1320,6 +1690,83 @@ function readNumber(value: unknown) {
   }
 
   return null;
+}
+
+function readAudienceBreakdown(
+  response: InstagramInsightsResponse,
+): AudienceSegment[] {
+  const item = response.data?.find(
+    (insight) => insight.name === 'follower_demographics',
+  );
+  const resultItems = item?.total_value?.breakdowns?.flatMap(
+    (breakdown) => breakdown.results ?? [],
+  );
+  const modernItems = (resultItems ?? []).flatMap((result) => {
+    const dimensionValues: unknown[] = Array.isArray(result.dimension_values)
+      ? (result.dimension_values as unknown[])
+      : [];
+    const label = dimensionValues.at(-1);
+    const value = readNumber(result.value);
+
+    return typeof label === 'string' && value !== null
+      ? [{ label, value }]
+      : [];
+  });
+
+  if (modernItems.length > 0) return toAudienceSegments(modernItems);
+
+  const legacyValue = item?.values?.at(-1)?.value;
+  if (
+    !legacyValue ||
+    typeof legacyValue !== 'object' ||
+    Array.isArray(legacyValue)
+  ) {
+    return [];
+  }
+
+  const legacyItems = Object.entries(legacyValue).flatMap(([label, value]) => {
+    const count = readNumber(value);
+    return count === null ? [] : [{ label, value: count }];
+  });
+
+  return toAudienceSegments(legacyItems);
+}
+
+function readStoredAudienceBreakdown(
+  value: Prisma.JsonValue | null,
+  key: AudienceBreakdownKey,
+) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return [];
+
+  const items = value[key];
+  if (!Array.isArray(items)) return [];
+
+  return items.flatMap((item) => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) return [];
+
+    const label = item.label;
+    const count = readNumber(item.value);
+    return typeof label === 'string' && count !== null
+      ? [{ label, value: count }]
+      : [];
+  });
+}
+
+function toAudienceSegments(items: { label: string; value: number }[]) {
+  const sorted = [...items].sort((left, right) => right.value - left.value);
+  const total = sorted.reduce((sum, item) => sum + item.value, 0);
+  if (total === 0) return [];
+
+  return sorted.map((item) => ({
+    ...item,
+    percentage: Math.round((item.value / total) * 100),
+  }));
+}
+
+function startOfUtcDay(date: Date) {
+  return new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+  );
 }
 
 function summarizeMedia(mediaItems: { kind: MediaType }[]) {

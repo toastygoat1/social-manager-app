@@ -73,10 +73,32 @@ export type BestTimeInsight = {
 export type AccountPerformance = {
   account: Account;
   postCount: number;
+  followers: number | null;
+  followerGrowth: number | null;
   views: number | null;
   reach: number | null;
   interactions: number | null;
   engagementRate: number | null;
+};
+
+export type AudienceSegment = {
+  label: string;
+  value: number;
+  percentage: number;
+};
+
+export type AudienceInsight = {
+  followers: number | null;
+  followerGrowth: number | null;
+  following: number | null;
+  mediaCount: number | null;
+  reach: number | null;
+  views: number | null;
+  profileViews: number | null;
+  updatedAt: string | null;
+  gender: AudienceSegment[];
+  age: AudienceSegment[];
+  cities: AudienceSegment[];
 };
 
 export type CalendarEvent = { label: string; time: string; color: string };
@@ -125,6 +147,7 @@ export type AnalyticsData = {
   performanceSeries: PerformancePoint[];
   bestTime: BestTimeInsight;
   leaderboard: AccountPerformance[];
+  audience: AudienceInsight;
   recentPosts: RecentPost[];
   distribution: DistributionItem[];
   contentCalendar: ContentCalendarMonth | null;
@@ -200,6 +223,19 @@ export const EMPTY_ANALYTICS: AnalyticsData = {
     topWindow: null,
   },
   leaderboard: [],
+  audience: {
+    followers: null,
+    followerGrowth: null,
+    following: null,
+    mediaCount: null,
+    reach: null,
+    views: null,
+    profileViews: null,
+    updatedAt: null,
+    gender: [],
+    age: [],
+    cities: [],
+  },
   recentPosts: [],
   distribution: [],
   contentCalendar: null,

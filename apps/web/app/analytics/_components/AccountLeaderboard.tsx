@@ -33,7 +33,7 @@ export function AccountLeaderboard({
       <header>
         <h2 className="text-sm font-semibold text-ink">Account leaderboard</h2>
         <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
-          Ranked by reach, then views / current period
+          Ranked by followers when synced, then reach / current period
         </p>
       </header>
       <div className="overflow-x-auto">
@@ -42,8 +42,8 @@ export function AccountLeaderboard({
             <tr className="border-b border-line font-mono text-[10px] uppercase tracking-[0.06em] text-muted">
               <th className="px-3 py-2 text-left font-normal">Rank</th>
               <th className="px-3 py-2 text-left font-normal">Account</th>
-              <th className="px-3 py-2 text-right font-normal">Posts</th>
-              <th className="px-3 py-2 text-right font-normal">Views</th>
+              <th className="px-3 py-2 text-right font-normal">Followers</th>
+              <th className="px-3 py-2 text-right font-normal">Growth</th>
               <th className="px-3 py-2 text-right font-normal">Reach</th>
               <th className="px-3 py-2 text-right font-normal">Interactions</th>
               <th className="px-3 py-2 text-right font-normal">Eng. rate</th>
@@ -69,8 +69,12 @@ export function AccountLeaderboard({
                     </span>
                   </Link>
                 </td>
-                <td className="px-3 py-3 text-right font-mono text-muted">{row.postCount}</td>
-                <td className="px-3 py-3 text-right font-mono text-ink">{formatNumber(row.views)}</td>
+                <td className="px-3 py-3 text-right font-mono text-ink">{formatNumber(row.followers)}</td>
+                <td className="px-3 py-3 text-right font-mono text-ink">
+                  {row.followerGrowth === null
+                    ? "-"
+                    : `${row.followerGrowth > 0 ? "+" : ""}${formatNumber(row.followerGrowth)}`}
+                </td>
                 <td className="px-3 py-3 text-right font-mono text-ink">{formatNumber(row.reach)}</td>
                 <td className="px-3 py-3 text-right font-mono text-ink">{formatNumber(row.interactions)}</td>
                 <td className="px-3 py-3 text-right font-mono text-ink">
