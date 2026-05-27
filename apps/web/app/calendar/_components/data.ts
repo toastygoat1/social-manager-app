@@ -91,13 +91,13 @@ export const EMPTY_WORK_ITEMS: CalendarWorkItems = {
 };
 
 export const MONTH_DAYS = [
+  "SUN",
   "MON",
   "TUE",
   "WED",
   "THU",
   "FRI",
   "SAT",
-  "SUN",
 ] as const;
 
 export const WEEK_HOUR_START = 0;
@@ -111,20 +111,18 @@ export type WeekDay = {
   iso: string;
 };
 
-export function startOfWeekMonday(reference: Date): Date {
+export function startOfWeekSunday(reference: Date): Date {
   const d = new Date(
     reference.getFullYear(),
     reference.getMonth(),
     reference.getDate(),
   );
-  const day = d.getDay();
-  const offset = day === 0 ? -6 : 1 - day;
-  d.setDate(d.getDate() + offset);
+  d.setDate(d.getDate() - d.getDay());
   return d;
 }
 
 export function buildWeekDays(reference: Date): WeekDay[] {
-  const start = startOfWeekMonday(reference);
+  const start = startOfWeekSunday(reference);
   return Array.from({ length: 7 }, (_, idx) => {
     const d = new Date(start);
     d.setDate(start.getDate() + idx);
@@ -146,9 +144,7 @@ export function buildMonthGrid(reference: Date): MonthCell[][] {
   const year = reference.getFullYear();
   const month = reference.getMonth();
   const firstOfMonth = new Date(year, month, 1);
-  const startWeekDay = firstOfMonth.getDay();
-  const offset = startWeekDay === 0 ? -6 : 1 - startWeekDay;
-  const gridStart = new Date(year, month, 1 + offset);
+  const gridStart = new Date(year, month, 1 - firstOfMonth.getDay());
 
   const grid: MonthCell[][] = [];
   for (let row = 0; row < 6; row++) {
@@ -183,7 +179,7 @@ export function rangeForMonth(reference: Date): { from: Date; to: Date } {
 }
 
 export function rangeForWeek(reference: Date): { from: Date; to: Date } {
-  const from = startOfWeekMonday(reference);
+  const from = startOfWeekSunday(reference);
   const to = new Date(from);
   to.setDate(from.getDate() + 6);
   to.setHours(23, 59, 59, 999);

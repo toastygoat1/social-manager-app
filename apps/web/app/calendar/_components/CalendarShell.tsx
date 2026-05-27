@@ -17,6 +17,7 @@ import {
   formatPeriodLabel,
   rangeForMonth,
   rangeForWeek,
+  toIsoDate,
 } from "./data";
 
 type Props = {
@@ -25,7 +26,7 @@ type Props = {
 };
 
 export function CalendarShell({ initialReferenceIso, initialData }: Props) {
-  const [view, setView] = useState<CalendarView>("week");
+  const [view, setView] = useState<CalendarView>("month");
   const [reference, setReference] = useState<Date>(
     () => new Date(initialReferenceIso),
   );
@@ -103,6 +104,13 @@ export function CalendarShell({ initialReferenceIso, initialData }: Props) {
   }, [fetchEvents, fetchOperations]);
 
   const periodLabel = formatPeriodLabel(view, reference);
+  const todayIso = useMemo(
+    () => toIsoDate(new Date(initialReferenceIso)),
+    [initialReferenceIso],
+  );
+  const scheduledCount = data.events.filter(
+    (event) => event.source === "scheduled_post",
+  ).length;
 
   const shiftReference = (delta: number) => {
     const next = new Date(reference);
@@ -124,54 +132,78 @@ export function CalendarShell({ initialReferenceIso, initialData }: Props) {
   };
 
   return (
-    <div className="flex h-screen min-w-0 flex-1 flex-col gap-5 overflow-hidden bg-page px-9 pb-9">
+    <div className="flex h-screen min-w-0 flex-col overflow-hidden bg-[#fffdf9]">
       <CalendarHeader
         view={view}
         onViewChange={setView}
         periodLabel={periodLabel}
+        scheduledCount={scheduledCount}
         onPrev={() => shiftReference(-1)}
         onNext={() => shiftReference(1)}
         onToday={goToday}
         onCreated={refresh}
         referenceIso={reference.toISOString()}
+        workflowPanel={
+          <CalendarWorkPanel
+            workItems={workItems}
+            failedPosts={failedPosts}
+            loading={operationsLoading}
+            onOpenPost={setSelectedPostId}
+            onChanged={refresh}
+          />
+        }
       />
-      {errorMessage || !data.googleConnected ? (
-        <div className="flex min-h-10 shrink-0 flex-wrap items-center gap-3 rounded-lg border border-line bg-paper px-4 py-2 text-xs font-medium text-muted">
-          {errorMessage ? (
-            <span className="text-danger">{errorMessage}</span>
-          ) : null}
-          {!data.googleConnected ? (
-            <span>Google Calendar not connected.</span>
-          ) : null}
+      {errorMessage ? (
+        <div className="mx-4 mt-2 flex min-h-9 shrink-0 items-center rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-danger">
+          {errorMessage}
         </div>
       ) : null}
-      <CalendarWorkPanel
-        workItems={workItems}
-        failedPosts={failedPosts}
-        loading={operationsLoading}
-        onOpenPost={setSelectedPostId}
-        onChanged={refresh}
-      />
-      {view === "week" ? (
-        <WeeklyCalendar
-          reference={reference}
-          events={data.events}
-          loading={loading}
-          onOpenPost={openPost}
-        />
-      ) : (
-        <MonthlyCalendar
-          reference={reference}
-          events={data.events}
-          loading={loading}
-          onOpenPost={openPost}
-        />
-      )}
+      <main className="flex min-h-0 flex-1 flex-col px-4 pt-2">
+        {view === "week" ? (
+          <WeeklyCalendar
+            reference={reference}
+            events={data.events}
+            loading={loading}
+            onOpenPost={openPost}
+          />
+        ) : (
+          <MonthlyCalendar
+            reference={reference}
+            todayIso={todayIso}
+            events={data.events}
+            loading={loading}
+            onOpenPost={openPost}
+          />
+        )}
+      </main>
+      <footer className="flex h-8 shrink-0 items-center justify-between px-5 text-[10px] text-[#7c766c]">
+        <div className="flex items-center gap-3">
+          <span className="font-semibold uppercase tracking-[0.12em]">Status</span>
+          <LegendDot color="bg-[#607ffc]" label="Scheduled" />
+          <LegendDot color="bg-[#c79545]" label="In review" />
+          <LegendDot color="bg-[#8c8982]" label="Draft" />
+          <LegendDot color="bg-[#d05c48]" label="Failed" />
+        </div>
+        <p>
+          {data.googleConnected ? "Calendar synced" : "Google Calendar not connected"}{" "}
+          <span className="px-2 text-[#d5d0c7]">|</span>
+          Auto-publish on - timezone local
+        </p>
+      </footer>
       <PostDetailsModal
         postId={selectedPostId}
         onClose={() => setSelectedPostId(null)}
         onChanged={refresh}
       />
     </div>
+  );
+}
+
+function LegendDot({ color, label }: { color: string; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span className={`size-1.5 rounded-sm ${color}`} />
+      {label}
+    </span>
   );
 }
