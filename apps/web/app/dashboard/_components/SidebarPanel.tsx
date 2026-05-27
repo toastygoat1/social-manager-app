@@ -174,13 +174,13 @@ export function SidebarPanel({
   profile,
 }: SidebarPanelProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [logoSpinCycle, setLogoSpinCycle] = useState(0);
+  const [logoRotation, setLogoRotation] = useState(0);
   const visibleAccounts = accounts.slice(0, VISIBLE_ACCOUNT_COUNT);
   const additionalAccounts = accounts.slice(VISIBLE_ACCOUNT_COUNT);
 
   function toggleSidebar() {
     setIsCollapsed((collapsed) => !collapsed);
-    setLogoSpinCycle((cycle) => cycle + 1);
+    setLogoRotation((rotation) => rotation + 60);
   }
 
   return (
@@ -197,12 +197,8 @@ export function SidebarPanel({
         }`}
       >
         <span
-          key={logoSpinCycle}
-          className={`flex shrink-0 items-center justify-center ${
-            logoSpinCycle > 0
-              ? "animate-[spin_700ms_cubic-bezier(0.22,1,0.36,1)] motion-reduce:animate-none"
-              : ""
-          }`}
+          style={{ transform: `rotate(${logoRotation}deg)` }}
+          className="flex shrink-0 items-center justify-center transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none"
         >
           <SnowflakeLogo />
         </span>
