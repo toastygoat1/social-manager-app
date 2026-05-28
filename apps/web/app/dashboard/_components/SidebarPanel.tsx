@@ -1,6 +1,7 @@
 "use client";
 
 import type { ComponentType, SVGProps } from "react";
+import { useState } from "react";
 import {
   BarChart3,
   CalendarDays,
@@ -8,6 +9,8 @@ import {
   Home,
   Inbox,
   LayoutGrid,
+  PanelLeftClose,
+  PanelLeftOpen,
   Settings,
   Sparkles,
 } from "lucide-react";
@@ -172,39 +175,60 @@ function AccountAvatar({
 function AccountRow({
   account,
   index,
+  isCollapsed = false,
 }: {
   account: Account;
   index: number;
+  isCollapsed?: boolean;
 }) {
   return (
-    <li className="flex min-h-8 items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-[#f4f2ed]">
+    <li
+      title={isCollapsed ? account.name : undefined}
+      className={`flex min-h-8 items-center rounded-md py-1.5 transition-colors hover:bg-[#f4f2ed] ${
+        isCollapsed ? "justify-center px-0" : "gap-2 px-2"
+      }`}
+    >
       <AccountAvatar account={account} index={index} />
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-[12.5px] font-medium leading-4 text-[#1a1814]">
-          {account.name}
-        </span>
-        <span className="block truncate text-[10.5px] leading-4 text-[#8a847a]">
-          {account.platform}
-        </span>
-      </span>
-      <span className="shrink-0 font-mono text-[9.5px] font-semibold text-[#8a847a]">
-        {getPlatformCode(account.platform)}
-      </span>
+      {isCollapsed ? null : (
+        <>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[12.5px] font-medium leading-4 text-[#1a1814]">
+              {account.name}
+            </span>
+            <span className="block truncate text-[10.5px] leading-4 text-[#8a847a]">
+              {account.platform}
+            </span>
+          </span>
+          <span className="shrink-0 font-mono text-[9.5px] font-semibold text-[#8a847a]">
+            {getPlatformCode(account.platform)}
+          </span>
+        </>
+      )}
     </li>
   );
 }
 
-function ProfileAvatar({ profile }: { profile?: UserProfile | null }) {
+function ProfileAvatar({
+  profile,
+  isCollapsed = false,
+}: {
+  profile?: UserProfile | null;
+  isCollapsed?: boolean;
+}) {
   const name = getProfileName(profile);
 
   return (
-    <span className="flex size-[26px] shrink-0 items-center justify-center overflow-hidden rounded-[7px] bg-[#5e6ad2] text-[10.5px] font-semibold text-white">
+    <span
+      className={`flex shrink-0 items-center justify-center overflow-hidden rounded-[7px] bg-[#5e6ad2] font-semibold text-white ${
+        isCollapsed ? "size-8 text-xs" : "size-[26px] text-[10.5px]"
+      }`}
+    >
       {profile?.avatarUrl ? (
         <Image
           src={profile.avatarUrl}
           alt={`${name} profile picture`}
-          width={26}
-          height={26}
+          width={isCollapsed ? 32 : 26}
+          height={isCollapsed ? 32 : 26}
           className="size-full object-cover"
         />
       ) : (
@@ -219,23 +243,33 @@ export function SidebarPanel({
   accounts,
   profile,
 }: SidebarPanelProps) {
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const visibleAccounts = accounts.slice(0, VISIBLE_ACCOUNT_COUNT);
   const additionalAccounts = accounts.slice(VISIBLE_ACCOUNT_COUNT);
   const profileName = getProfileName(profile);
   const profileDetail = getProfileDetail(profile);
 
   return (
-    <aside className="sticky top-0 flex h-screen w-[232px] shrink-0 flex-col gap-[18px] overflow-y-auto border-r border-[#e7e3db] bg-[#fafaf8] px-3 pb-3 pt-3.5 font-inter text-[#1a1814]">
-      <header className="flex items-center gap-2.5 px-1.5 pb-1">
-        <span className="grid size-6 shrink-0 place-items-center rounded-md bg-[#5e6ad2] text-[#fafaf8]">
-          <SnowflakeLogo className="size-4" />
+    <aside
+      className={`sticky top-0 flex h-screen shrink-0 flex-col gap-[18px] overflow-y-auto border-r border-[#e7e3db] bg-[#fafaf8] pb-3 pt-3.5 font-inter text-[#1a1814] transition-[width,padding] duration-300 ease-in-out motion-reduce:transition-none ${
+        isCollapsed ? "w-20 px-2" : "w-[232px] px-3"
+      }`}
+    >
+      <header
+        className={`flex h-[33px] items-center pb-1 transition-[gap,padding] duration-300 ${
+          isCollapsed ? "justify-center gap-0 px-0" : "gap-3 px-1.5"
+        }`}
+      >
+        <span className="flex shrink-0 items-center justify-center text-[#3ac1d6]">
+          <SnowflakeLogo className="h-[33px] w-[31px]" />
         </span>
-        <span className="min-w-0">
+        <span
+          className={`min-w-0 overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-200 ${
+            isCollapsed ? "max-w-0 opacity-0" : "max-w-[120px] opacity-100"
+          }`}
+        >
           <span className="block truncate text-sm font-semibold leading-4 text-[#1a1814]">
             Snowflake
-          </span>
-          <span className="block truncate text-[11px] leading-3 text-[#8a847a]">
-            Social manager
           </span>
         </span>
       </header>
@@ -249,15 +283,32 @@ export function SidebarPanel({
               key={key}
               href={href}
               aria-current={isActive ? "page" : undefined}
-              className={`relative flex min-h-7 items-center gap-[9px] rounded-md px-2 py-1.5 text-[12.5px] leading-4 transition-colors ${
+              title={isCollapsed ? label : undefined}
+              className={`relative flex min-h-7 items-center rounded-md py-1.5 text-[12.5px] leading-4 transition-[gap,padding,background-color,color] duration-300 ${
+                isCollapsed ? "justify-center gap-0 px-0" : "gap-[9px] px-2"
+              } ${
                 isActive
-                  ? "bg-[#f4f2ed] font-medium text-[#1a1814] before:absolute before:-left-3 before:top-1.5 before:bottom-1.5 before:w-0.5 before:rounded-full before:bg-[#5e6ad2]"
+                  ? "bg-[#f4f2ed] font-medium text-[#1a1814] before:absolute before:top-1.5 before:bottom-1.5 before:w-0.5 before:rounded-full before:bg-[#5e6ad2] before:-left-3"
                   : "text-[#59544c] hover:bg-[#f4f2ed] hover:text-[#1a1814]"
               }`}
             >
-              <Icon className="size-[15px] shrink-0" strokeWidth={1.7} />
-              <span className="truncate">{label}</span>
-              {badge ? (
+              <span className="relative flex shrink-0 items-center justify-center">
+                <Icon className="size-[15px]" strokeWidth={1.7} />
+                {badge && isCollapsed ? (
+                  <span
+                    aria-hidden="true"
+                    className="absolute -right-1 -top-1 size-1.5 rounded-full bg-[#8a847a]"
+                  />
+                ) : null}
+              </span>
+              <span
+                className={`truncate transition-[max-width,opacity] duration-200 ${
+                  isCollapsed ? "max-w-0 opacity-0" : "max-w-[110px] opacity-100"
+                }`}
+              >
+                {label}
+              </span>
+              {badge && !isCollapsed ? (
                 <span className="ml-auto rounded-full bg-[#e8e5dd] px-1.5 py-px text-[10.5px] leading-4 text-[#59544c]">
                   {badge}
                 </span>
@@ -268,38 +319,65 @@ export function SidebarPanel({
       </nav>
 
       <section aria-label="Clients" className="flex flex-col gap-1">
-        <div className="mb-1 flex items-center justify-between px-2 text-[10.5px] font-medium uppercase text-[#8a847a]">
+        <div
+          className={`mb-1 flex items-center justify-between px-2 text-[10.5px] font-medium uppercase text-[#8a847a] ${
+            isCollapsed ? "sr-only" : ""
+          }`}
+        >
           <h2>Clients</h2>
           <span>{accounts.length}</span>
         </div>
 
-        <div className="flex min-h-8 items-center gap-2 rounded-md bg-[#f4f2ed] px-2 py-1.5 shadow-[inset_0_0_0_1px_#e7e3db]">
+        <div
+          title={isCollapsed ? "All clients" : undefined}
+          className={`flex min-h-8 items-center rounded-md py-1.5 transition-[gap,padding,background-color,box-shadow] duration-300 ${
+            isCollapsed
+              ? "justify-center px-0"
+              : "gap-2 bg-[#f4f2ed] px-2 shadow-[inset_0_0_0_1px_#e7e3db]"
+          }`}
+        >
           <span className="grid size-[22px] shrink-0 place-items-center rounded-md border border-dashed border-[#d3cec3] text-[#59544c]">
             <LayoutGrid className="size-[13px]" strokeWidth={1.7} />
           </span>
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-[12.5px] font-medium leading-4 text-[#1a1814]">
-              All clients
+          {isCollapsed ? null : (
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[12.5px] font-medium leading-4 text-[#1a1814]">
+                All clients
+              </span>
+              <span className="block text-[10.5px] leading-4 text-[#8a847a]">
+                {accounts.length} connected
+              </span>
             </span>
-            <span className="block text-[10.5px] leading-4 text-[#8a847a]">
-              {accounts.length} connected
-            </span>
-          </span>
+          )}
         </div>
 
-        {accounts.length === 0 ? (
+        {accounts.length === 0 && !isCollapsed ? (
           <p className="px-2 py-3 text-[12.5px] leading-5 text-[#8a847a]">
             No accounts connected yet
           </p>
         ) : (
           <ul className="flex flex-col gap-px">
             {visibleAccounts.map((account, index) => (
-              <AccountRow key={account.id} account={account} index={index} />
+              <AccountRow
+                key={account.id}
+                account={account}
+                index={index}
+                isCollapsed={isCollapsed}
+              />
             ))}
           </ul>
         )}
 
-        {additionalAccounts.length > 0 ? (
+        {additionalAccounts.length > 0 && isCollapsed ? (
+          <div
+            title={`${additionalAccounts.length} more connected accounts`}
+            className="flex min-h-8 items-center justify-center rounded-md py-1.5 text-[11px] font-medium text-[#8a847a]"
+          >
+            +{additionalAccounts.length}
+          </div>
+        ) : null}
+
+        {additionalAccounts.length > 0 && !isCollapsed ? (
           <details className="group">
             <summary className="flex min-h-8 cursor-pointer list-none items-center gap-2 rounded-md px-2 py-1.5 text-[12.5px] text-[#59544c] transition-colors hover:bg-[#f4f2ed] hover:text-[#1a1814] [&::-webkit-details-marker]:hidden">
               <span className="grid size-[22px] shrink-0 place-items-center rounded-md border border-dashed border-[#d3cec3] text-[#59544c]">
@@ -326,9 +404,41 @@ export function SidebarPanel({
         ) : null}
       </section>
 
-      <footer className="mt-auto flex items-center gap-2 border-t border-[#e7e3db] px-1.5 pb-1 pt-3">
-        <ProfileAvatar profile={profile} />
-        <span className="min-w-0 flex-1">
+      <button
+        type="button"
+        aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+        aria-expanded={!isCollapsed}
+        onClick={() => setIsCollapsed((collapsed) => !collapsed)}
+        title={isCollapsed ? "Expand sidebar" : undefined}
+        className={`mt-auto flex min-h-8 items-center rounded-md py-1.5 text-[12.5px] text-[#59544c] transition-[gap,padding,background-color,color] duration-300 hover:bg-[#f4f2ed] hover:text-[#1a1814] ${
+          isCollapsed ? "justify-center gap-0 px-0" : "gap-2 px-2"
+        }`}
+      >
+        {isCollapsed ? (
+          <PanelLeftOpen className="size-[15px] shrink-0" strokeWidth={1.7} />
+        ) : (
+          <PanelLeftClose className="size-[15px] shrink-0" strokeWidth={1.7} />
+        )}
+        <span
+          className={`overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-200 ${
+            isCollapsed ? "max-w-0 opacity-0" : "max-w-[132px] opacity-100"
+          }`}
+        >
+          Collapse sidebar
+        </span>
+      </button>
+
+      <footer
+        className={`flex items-center border-t border-[#e7e3db] pb-1 pt-3 transition-[gap,padding] duration-300 ${
+          isCollapsed ? "justify-center gap-0 px-0" : "gap-2 px-1.5"
+        }`}
+      >
+        <ProfileAvatar profile={profile} isCollapsed={isCollapsed} />
+        <span
+          className={`min-w-0 flex-1 overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-200 ${
+            isCollapsed ? "max-w-0 opacity-0" : "max-w-[140px] opacity-100"
+          }`}
+        >
           <span className="block truncate text-xs font-medium leading-4 text-[#1a1814]">
             {profileName}
           </span>
@@ -336,13 +446,15 @@ export function SidebarPanel({
             {profileDetail}
           </span>
         </span>
-        <button
-          type="button"
-          aria-label="Settings"
-          className="grid size-7 shrink-0 place-items-center rounded-md text-[#59544c] transition-colors hover:bg-[#f4f2ed] hover:text-[#1a1814]"
-        >
-          <Settings className="size-3.5" strokeWidth={1.7} />
-        </button>
+        {isCollapsed ? null : (
+          <button
+            type="button"
+            aria-label="Settings"
+            className="grid size-7 shrink-0 place-items-center rounded-md text-[#59544c] transition-colors hover:bg-[#f4f2ed] hover:text-[#1a1814]"
+          >
+            <Settings className="size-3.5" strokeWidth={1.7} />
+          </button>
+        )}
       </footer>
     </aside>
   );
