@@ -1083,6 +1083,41 @@ export function CreatePostModal({
 
             <section>
               <div className="mb-2 flex items-center justify-between">
+                <h3 className="text-[11px] font-semibold text-[#27231d]">Media</h3>
+                <span className="text-[10px] text-[#817a70]">
+                  {media.length} of {mediaLimitForType(composeType)} attached - 1080 x 1350 recommended
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {media.map((item, index) => (
+                  <MediaTile
+                    key={item.id}
+                    media={item}
+                    isCover={index === 0}
+                    onRemove={() => removeMedia(item.id)}
+                  />
+                ))}
+                {media.length < mediaLimitForType(composeType) ? (
+                  <label className="flex h-[188px] cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-[#d9d3c8] bg-paper text-[#857e74]">
+                    <Plus className="size-4" strokeWidth={1.8} />
+                    <span className="text-[10px] font-medium">Add</span>
+                    <input
+                      type="file"
+                      accept={acceptForType(composeType)}
+                      multiple={composeType === "post" || composeType === "carousel"}
+                      className="sr-only"
+                      onChange={(e) => {
+                        void handleMediaChange(e.target.files);
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
+                ) : null}
+              </div>
+            </section>
+
+            <section>
+              <div className="mb-2 flex items-center justify-between">
                 <h3 className="text-[11px] font-semibold text-[#27231d]">Metadata</h3>
                 <button
                   type="button"
@@ -1136,41 +1171,6 @@ export function CreatePostModal({
                     </button>
                   </div>
                 ))}
-              </div>
-            </section>
-
-            <section>
-              <div className="mb-2 flex items-center justify-between">
-                <h3 className="text-[11px] font-semibold text-[#27231d]">Media</h3>
-                <span className="text-[10px] text-[#817a70]">
-                  {media.length} of {mediaLimitForType(composeType)} attached - 1080 x 1350 recommended
-                </span>
-              </div>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                {media.map((item, index) => (
-                  <MediaTile
-                    key={item.id}
-                    media={item}
-                    isCover={index === 0}
-                    onRemove={() => removeMedia(item.id)}
-                  />
-                ))}
-                {media.length < mediaLimitForType(composeType) ? (
-                  <label className="flex h-[188px] cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-[#d9d3c8] bg-paper text-[#857e74]">
-                    <Plus className="size-4" strokeWidth={1.8} />
-                    <span className="text-[10px] font-medium">Add</span>
-                    <input
-                      type="file"
-                      accept={acceptForType(composeType)}
-                      multiple={composeType === "post" || composeType === "carousel"}
-                      className="sr-only"
-                      onChange={(e) => {
-                        void handleMediaChange(e.target.files);
-                        e.target.value = "";
-                      }}
-                    />
-                  </label>
-                ) : null}
               </div>
             </section>
 
