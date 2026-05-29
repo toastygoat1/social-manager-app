@@ -1,4 +1,9 @@
+import { GripVertical } from "lucide-react";
 import type { CalendarEvent, EventStatus } from "./data";
+import {
+  canDragCalendarEvent,
+  type CalendarDragController,
+} from "./drag";
 
 const STATUS_STYLE: Record<
   EventStatus,
@@ -54,15 +59,20 @@ export function AgendaEventCard({
   event,
   compact = false,
   onOpenPost,
+  dragController,
 }: {
   event: CalendarEvent;
   compact?: boolean;
   onOpenPost: (event: CalendarEvent) => void;
+  dragController?: CalendarDragController;
 }) {
   const style =
     event.source === "google"
       ? GOOGLE_STYLE
       : STATUS_STYLE[event.status ?? "draft"];
+  const canDrag = canDragCalendarEvent(event);
+  const isDragging = dragController?.draggingEventId === event.id;
+  const isMoving = dragController?.movingEventId === event.id;
   const subtitle =
     event.source === "google"
       ? "Synced event"
@@ -78,6 +88,12 @@ export function AgendaEventCard({
         {event.title}
       </span>
       <span className={`size-1.5 shrink-0 rounded-full ${style.dot}`} />
+      {canDrag ? (
+        <GripVertical
+          className="size-3 shrink-0 opacity-0 transition group-hover:opacity-60 group-focus-visible:opacity-70"
+          strokeWidth={2.2}
+        />
+      ) : null}
     </>
   ) : (
     <>
@@ -94,11 +110,17 @@ export function AgendaEventCard({
       <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-medium ${style.badge}`}>
         {style.label}
       </span>
+      {canDrag ? (
+        <GripVertical
+          className="size-4 shrink-0 opacity-0 transition group-hover:opacity-60 group-focus-visible:opacity-70"
+          strokeWidth={2.2}
+        />
+      ) : null}
     </>
   );
   const classes = compact
-    ? `flex min-h-7 w-full items-center gap-1.5 rounded-[4px] px-1.5 ${style.card}`
-    : `flex min-h-[54px] w-full items-center gap-3 rounded-lg px-3 py-2 ${style.card}`;
+    ? `group flex min-h-7 w-full items-center gap-1.5 rounded-[4px] px-1.5 ${style.card}`
+    : `group flex min-h-[54px] w-full items-center gap-3 rounded-lg px-3 py-2 ${style.card}`;
 
   if (event.source === "google") {
     return <div className={classes}>{content}</div>;
@@ -108,8 +130,21 @@ export function AgendaEventCard({
     <button
       type="button"
       onClick={() => onOpenPost(event)}
+      draggable={canDrag}
+      onDragStart={(dragEvent) =>
+        dragController?.onEventDragStart(event, dragEvent)
+      }
+      onDragEnd={dragController?.onEventDragEnd}
       aria-label={`View ${event.title}`}
-      className={`${classes} text-left transition hover:brightness-95`}
+      title={canDrag ? "Move scheduled post" : undefined}
+      disabled={isMoving}
+      className={`${classes} text-left transition hover:brightness-95 ${
+        canDrag
+          ? "cursor-grab touch-none hover:-translate-y-px hover:shadow-sm active:cursor-grabbing"
+          : ""
+      } ${isDragging ? "opacity-40 ring-2 ring-[#607ffc]" : ""} ${
+        isMoving ? "opacity-60" : ""
+      }`}
     >
       {content}
     </button>
