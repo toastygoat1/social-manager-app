@@ -1,4 +1,14 @@
-import { IsDateString, IsOptional, IsString, MaxLength } from 'class-validator';
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsDateString,
+  IsOptional,
+  IsString,
+  MaxLength,
+  ValidateNested,
+} from 'class-validator';
+import { Type } from 'class-transformer';
+import { PostMetadataDto } from './post-metadata.dto.js';
 
 export class UpdateScheduledPostDto {
   @IsOptional()
@@ -10,6 +20,13 @@ export class UpdateScheduledPostDto {
   @IsString()
   @MaxLength(2200)
   caption?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(12)
+  @ValidateNested({ each: true })
+  @Type(() => PostMetadataDto)
+  metadata?: PostMetadataDto[];
 
   @IsOptional()
   @IsDateString()

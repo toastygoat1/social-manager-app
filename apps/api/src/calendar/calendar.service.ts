@@ -22,11 +22,17 @@ import { InstagramPublisherService } from '../publishing/instagram-publisher.ser
 import { PublishQueueService } from '../queue/publish-queue.service.js';
 import { MediaService } from '../media/media.service.js';
 import type { UpdateDraftAction } from './dto/update-draft.dto.js';
+import type { PostMetadataDto } from './dto/post-metadata.dto.js';
 
 export type CalendarEventSource = 'scheduled_post' | 'google';
 type CreateEventAction = 'SCHEDULE' | 'POST_NOW' | 'DRAFT';
+export type PostMetadata = Record<string, string>;
+type PostMetadataInput = PostMetadataDto;
 const FEED_IMAGE_MIN_ASPECT = 4 / 5;
 const FEED_IMAGE_MAX_ASPECT = 1.91;
+const MAX_METADATA_FIELDS = 12;
+const MAX_METADATA_KEY_LENGTH = 40;
+const MAX_METADATA_VALUE_LENGTH = 160;
 
 export type CalendarEvent = {
   id: string;
@@ -47,6 +53,12 @@ export type CalendarPayload = {
   events: CalendarEvent[];
 };
 
+export type CalendarMetadataField = {
+  id: string;
+  label: string;
+  sortOrder: number;
+};
+
 const POST_DETAIL_INCLUDE = {
   instagramAccount: {
     select: {
@@ -64,6 +76,11 @@ const POST_DETAIL_INCLUDE = {
     orderBy: { startedAt: 'desc' },
     take: 1,
   },
+  metadataValues: {
+    include: {
+      field: true,
+    },
+  },
 } satisfies Prisma.ContentPostInclude;
 
 type PostDetailRecord = Prisma.ContentPostGetPayload<{
@@ -74,6 +91,8 @@ export type CalendarPostDetail = {
   id: string;
   title: string | null;
   caption: string | null;
+  metadataFields: CalendarMetadataField[];
+  metadata: PostMetadata;
   postType: PostType;
   status: 'published' | 'scheduled' | 'pending' | 'draft';
   accountId: string;
@@ -143,6 +162,15 @@ export class CalendarService {
     private readonly publishQueue: PublishQueueService,
     private readonly media: MediaService,
   ) {}
+
+  async listMetadataFields(userId: string): Promise<CalendarMetadataField[]> {
+    const fields = await this.prisma.contentMetadataField.findMany({
+      where: { userId },
+      orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+      select: { id: true, label: true, sortOrder: true },
+    });
+    return fields.map(mapMetadataField);
+  }
 
   async listEvents(
     userId: string,
@@ -225,6 +253,7 @@ export class CalendarService {
       scheduledFor?: string;
       title?: string;
       caption?: string;
+      metadata?: PostMetadataInput[];
       requiresApproval?: boolean;
       mediaAssetIds?: string[];
     },
@@ -286,6 +315,15 @@ export class CalendarService {
             sortOrder,
           })),
         });
+      }
+
+      if (input.metadata !== undefined) {
+        await this.syncPostMetadataValues(
+          tx,
+          userId,
+          created.id,
+          input.metadata,
+        );
       }
 
       return created;
@@ -464,6 +502,7 @@ export class CalendarService {
       scheduledFor?: string;
       title?: string;
       caption?: string;
+      metadata?: PostMetadataInput[];
       requiresApproval?: boolean;
       mediaAssetIds?: string[];
     },
@@ -528,6 +567,10 @@ export class CalendarService {
           });
         }
       }
+
+      if (input.metadata !== undefined) {
+        await this.syncPostMetadataValues(tx, userId, post.id, input.metadata);
+      }
     });
 
     if (publishWhenScheduled && next.scheduledFor) {
@@ -554,6 +597,7 @@ export class CalendarService {
     input: {
       title?: string;
       caption?: string;
+      metadata?: PostMetadataInput[];
       scheduledFor?: string;
     },
   ): Promise<CalendarPostDetail> {
@@ -603,15 +647,25 @@ export class CalendarService {
     if (scheduleChanged) data.scheduledFor = nextScheduledFor;
 
     try {
-      const result = await this.prisma.contentPost.updateMany({
-        where: { id: post.id, status: PostStatus.READY },
-        data,
+      await this.prisma.$transaction(async (tx) => {
+        const result = await tx.contentPost.updateMany({
+          where: { id: post.id, status: PostStatus.READY },
+          data,
+        });
+        if (result.count !== 1) {
+          throw new BadRequestException(
+            'This scheduled post was already updated',
+          );
+        }
+        if (input.metadata !== undefined) {
+          await this.syncPostMetadataValues(
+            tx,
+            userId,
+            post.id,
+            input.metadata,
+          );
+        }
       });
-      if (result.count !== 1) {
-        throw new BadRequestException(
-          'This scheduled post was already updated',
-        );
-      }
     } catch (error) {
       if (scheduleChanged) {
         await this.restoreScheduledPostJob(
@@ -697,6 +751,89 @@ export class CalendarService {
     }
   }
 
+  private async syncPostMetadataValues(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    contentPostId: string,
+    input: PostMetadataInput[],
+  ) {
+    const entries = normalizePostMetadataInput(input);
+    const values = await this.resolveMetadataValues(tx, userId, entries);
+
+    await tx.contentPostMetadataValue.deleteMany({
+      where: { contentPostId },
+    });
+    if (!values.length) return;
+
+    await tx.contentPostMetadataValue.createMany({
+      data: values.map((item) => ({
+        contentPostId,
+        fieldId: item.fieldId,
+        value: item.value,
+      })),
+    });
+  }
+
+  private async resolveMetadataValues(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    entries: NormalizedMetadataInput[],
+  ): Promise<ResolvedMetadataValue[]> {
+    if (!entries.length) return [];
+
+    const existingFields = await tx.contentMetadataField.findMany({
+      where: { userId },
+      orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+      select: { id: true, label: true, sortOrder: true },
+    });
+    const fieldById = new Map(existingFields.map((field) => [field.id, field]));
+    const fieldByLabel = new Map(
+      existingFields.map((field) => [field.label.toLowerCase(), field]),
+    );
+    let nextSortOrder = existingFields.reduce(
+      (highest, field) => Math.max(highest, field.sortOrder),
+      -1,
+    );
+
+    const valueByFieldId = new Map<string, string>();
+    for (const entry of entries) {
+      let field = entry.fieldId ? fieldById.get(entry.fieldId) : undefined;
+      if (entry.fieldId && !field) {
+        throw new ForbiddenException('Metadata field is not available');
+      }
+
+      if (!field && entry.label) {
+        field = fieldByLabel.get(entry.label.toLowerCase());
+      }
+
+      if (!field && entry.label) {
+        if (fieldById.size >= MAX_METADATA_FIELDS) {
+          throw new BadRequestException(
+            `Metadata supports up to ${MAX_METADATA_FIELDS} fields per user`,
+          );
+        }
+
+        field = await tx.contentMetadataField.create({
+          data: {
+            userId,
+            label: entry.label,
+            sortOrder: ++nextSortOrder,
+          },
+          select: { id: true, label: true, sortOrder: true },
+        });
+        fieldById.set(field.id, field);
+        fieldByLabel.set(field.label.toLowerCase(), field);
+      }
+
+      if (!field) continue;
+      valueByFieldId.set(field.id, entry.value);
+    }
+
+    return [...valueByFieldId.entries()]
+      .filter(([, value]) => value.length > 0)
+      .map(([fieldId, value]) => ({ fieldId, value }));
+  }
+
   private async restoreScheduledPostJob(
     contentPostId: string,
     scheduledFor: Date,
@@ -760,11 +897,16 @@ export class CalendarService {
             retryable: !requiresReview,
           }
         : null;
+    const metadataFields = await this.listMetadataFields(
+      post.instagramAccount.userId,
+    );
 
     return {
       id: post.id,
       title: post.title,
       caption: post.caption,
+      metadataFields,
+      metadata: readPostMetadataValues(post.metadataValues),
       postType: post.postType,
       status: POST_STATUS_TO_UI[post.status],
       accountId: post.instagramAccount.id,
@@ -839,6 +981,73 @@ function readMessage(error: unknown) {
 function normalizeOptionalText(value: string | undefined): string | null {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
+}
+
+type NormalizedMetadataInput = {
+  fieldId: string | null;
+  label: string | null;
+  value: string;
+};
+
+type ResolvedMetadataValue = {
+  fieldId: string;
+  value: string;
+};
+
+function mapMetadataField(field: {
+  id: string;
+  label: string;
+  sortOrder: number;
+}): CalendarMetadataField {
+  return {
+    id: field.id,
+    label: field.label,
+    sortOrder: field.sortOrder,
+  };
+}
+
+function normalizePostMetadataInput(
+  input: PostMetadataInput[] | undefined,
+): NormalizedMetadataInput[] {
+  if (!input?.length) return [];
+  if (input.length > MAX_METADATA_FIELDS) {
+    throw new BadRequestException(
+      `Metadata supports up to ${MAX_METADATA_FIELDS} fields per user`,
+    );
+  }
+
+  return input.flatMap((item) => {
+    const fieldId = item.fieldId?.trim() || null;
+    const label = item.label?.trim() || null;
+    const value = item.value?.trim() ?? '';
+
+    if (!fieldId && !label && !value) return [];
+    if (!fieldId && !label) {
+      throw new BadRequestException('Metadata fields need a label');
+    }
+    if (label && label.length > MAX_METADATA_KEY_LENGTH) {
+      throw new BadRequestException(
+        `Metadata labels must be ${MAX_METADATA_KEY_LENGTH} characters or fewer`,
+      );
+    }
+    if (value.length > MAX_METADATA_VALUE_LENGTH) {
+      throw new BadRequestException(
+        `Metadata values must be ${MAX_METADATA_VALUE_LENGTH} characters or fewer`,
+      );
+    }
+
+    return [{ fieldId, label, value }];
+  });
+}
+
+function readPostMetadataValues(
+  values: { fieldId: string; value: string }[],
+): PostMetadata {
+  const metadata: PostMetadata = {};
+  for (const item of values) {
+    metadata[item.fieldId] = item.value;
+  }
+  return metadata;
 }
 
 function parseFutureSchedule(value: string): Date {

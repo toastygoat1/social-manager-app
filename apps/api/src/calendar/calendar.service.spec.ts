@@ -12,6 +12,7 @@ type AsyncFn = (...args: unknown[]) => Promise<unknown>;
 describe('CalendarService queue compensation', () => {
   let service: CalendarService;
   let prisma: {
+    $transaction: jest.Mock<AsyncFn>;
     contentPost: {
       findFirst: jest.Mock<AsyncFn>;
       updateMany: jest.Mock<AsyncFn>;
@@ -26,6 +27,9 @@ describe('CalendarService queue compensation', () => {
 
   beforeEach(() => {
     prisma = {
+      $transaction: jest.fn<AsyncFn>(async (callback) =>
+        (callback as (tx: typeof prisma) => Promise<unknown>)(prisma),
+      ),
       contentPost: {
         findFirst: jest.fn<AsyncFn>(),
         updateMany: jest.fn<AsyncFn>(),

@@ -14,6 +14,7 @@ const DASHBOARD_OVERVIEW_ENDPOINT = "/dashboard/overview";
 
 type DashboardOverviewResponse = {
   calendar: CalendarMonth | null;
+  metadataFields: DashboardData["metadataFields"];
   contentRows: ContentRow[];
 };
 const MEDIA_UPLOAD_COLOR = "var(--chart-1)";
@@ -98,6 +99,7 @@ export async function getDashboardData(): Promise<DashboardData> {
     likes: analytics?.likes ?? EMPTY_DASHBOARD.likes,
     uploadChart: getUploadChartBars(analytics),
     calendar: overview?.calendar ?? EMPTY_DASHBOARD.calendar,
+    metadataFields: overview?.metadataFields ?? EMPTY_DASHBOARD.metadataFields,
     contentRows: overview?.contentRows ?? EMPTY_DASHBOARD.contentRows,
     accounts: activeAccounts.map((account) => ({
       id: account.id,

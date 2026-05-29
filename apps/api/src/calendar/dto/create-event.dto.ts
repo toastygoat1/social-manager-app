@@ -9,8 +9,11 @@ import {
   ArrayMaxSize,
   MaxLength,
   IsIn,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import { PostType } from '@social-manager/database';
+import { PostMetadataDto } from './post-metadata.dto.js';
 
 export const CREATE_EVENT_ACTIONS = ['SCHEDULE', 'POST_NOW', 'DRAFT'] as const;
 export type CreateEventAction = (typeof CREATE_EVENT_ACTIONS)[number];
@@ -39,6 +42,13 @@ export class CreateEventDto {
   @IsString()
   @MaxLength(2200)
   caption?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(12)
+  @ValidateNested({ each: true })
+  @Type(() => PostMetadataDto)
+  metadata?: PostMetadataDto[];
 
   @IsOptional()
   @IsBoolean()

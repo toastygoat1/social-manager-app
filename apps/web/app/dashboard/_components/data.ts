@@ -50,6 +50,7 @@ export type ContentRow = {
   id: string;
   account: Account;
   contents: string;
+  metadata: Record<string, string>;
   type: string;
   status: string;
   audio: string;
@@ -62,6 +63,12 @@ export type ContentRow = {
   media: string;
 };
 
+export type MetadataFieldDefinition = {
+  id: string;
+  label: string;
+  sortOrder: number;
+};
+
 export type DashboardData = {
   totalAccounts: number | null;
   views: StatMetric;
@@ -70,6 +77,7 @@ export type DashboardData = {
   calendar: CalendarMonth | null;
   uploadChart: ChartBar[];
   accounts: Account[];
+  metadataFields: MetadataFieldDefinition[];
   contentRows: ContentRow[];
 };
 
@@ -81,5 +89,6 @@ export const EMPTY_DASHBOARD: DashboardData = {
   calendar: null,
   uploadChart: [],
   accounts: [],
+  metadataFields: [],
   contentRows: [],
 };

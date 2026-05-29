@@ -8,6 +8,7 @@ import {
   Loader2,
   Pencil,
   Play,
+  Plus,
   Trash2,
   TriangleAlert,
   Upload,
@@ -15,6 +16,12 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ApiError, apiFetchBrowser } from "@/lib/api/browser-client";
+import {
+  createMetadataField,
+  metadataDefinitionsToFields,
+  metadataFieldsToPayload,
+  type MetadataField,
+} from "@/lib/post-metadata";
 import { createClient } from "@/lib/supabase/client";
 import type { CalendarPostDetail, EventStatus } from "./data";
 
@@ -250,6 +257,9 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
   const [notice, setNotice] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [caption, setCaption] = useState("");
+  const [metadataFields, setMetadataFields] = useState<MetadataField[]>(() => [
+    createMetadataField(),
+  ]);
   const [scheduledFor, setScheduledFor] = useState(defaultScheduleValue);
   const [requiresApproval, setRequiresApproval] = useState(false);
   const [attachedMedia, setAttachedMedia] = useState<
@@ -271,6 +281,9 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
         setPost(result);
         setTitle(result.title ?? "");
         setCaption(result.caption ?? "");
+        setMetadataFields(
+          metadataDefinitionsToFields(result.metadataFields, result.metadata),
+        );
         setAttachedMedia(result.media);
         setDraftUploads((current) => {
           current.forEach((item) => URL.revokeObjectURL(item.previewUrl));
@@ -340,6 +353,12 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
 
   async function updateDraft(action: "DRAFT" | "SCHEDULE") {
     if (!post) return;
+    const { metadata, error: metadataError } =
+      metadataFieldsToPayload(metadataFields);
+    if (metadataError) {
+      setError(metadataError);
+      return;
+    }
     let scheduleIso: string | undefined;
     if (action === "SCHEDULE") {
       const date = new Date(scheduledFor);
@@ -363,6 +382,7 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
             action,
             title,
             caption,
+            metadata,
             scheduledFor: scheduleIso,
             requiresApproval,
             mediaAssetIds: [
@@ -373,6 +393,9 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
         },
       );
       setPost(updated);
+      setMetadataFields(
+        metadataDefinitionsToFields(updated.metadataFields, updated.metadata),
+      );
       setAttachedMedia(updated.media);
       setDraftUploads([]);
       setNotice(
@@ -396,6 +419,33 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
   const shownMedia = isDraft
     ? [...attachedMedia, ...draftUploads]
     : (post?.media ?? []);
+  const metadataEntries =
+    post?.metadataFields
+      .map((field) => [field.label, post.metadata[field.id]] as const)
+      .filter(([, value]) => Boolean(value)) ?? [];
+
+  function updateMetadataField(
+    id: string,
+    field: "label" | "value",
+    value: string,
+  ) {
+    setMetadataFields((current) =>
+      current.map((item) =>
+        item.id === id ? { ...item, [field]: value } : item,
+      ),
+    );
+  }
+
+  function addMetadataField() {
+    setMetadataFields((current) => [...current, createMetadataField()]);
+  }
+
+  function removeMetadataField(id: string) {
+    setMetadataFields((current) => {
+      const next = current.filter((item) => item.id !== id);
+      return next.length ? next : [createMetadataField()];
+    });
+  }
 
   async function addDraftMedia(files: FileList | null) {
     if (!files || !post) return;
@@ -499,6 +549,12 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
 
   async function updateScheduledPost() {
     if (!post) return;
+    const { metadata, error: metadataError } =
+      metadataFieldsToPayload(metadataFields);
+    if (metadataError) {
+      setError(metadataError);
+      return;
+    }
     const date = new Date(scheduledFor);
     if (Number.isNaN(date.getTime()) || date <= new Date()) {
       setError("Pick a future schedule time.");
@@ -515,11 +571,15 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
           body: {
             title,
             caption,
+            metadata,
             scheduledFor: date.toISOString(),
           },
         },
       );
       setPost(updated);
+      setMetadataFields(
+        metadataDefinitionsToFields(updated.metadataFields, updated.metadata),
+      );
       setNotice("Scheduled post updated.");
       onChanged();
     } catch (submitError) {
@@ -621,6 +681,65 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
                     maxLength={2200}
                     className="min-h-28 resize-none rounded-xl border border-line bg-card p-3 text-sm text-ink placeholder:text-muted focus:border-cta-edge focus:outline-none"
                   />
+                  <div className="rounded-xl border border-line bg-card p-3">
+                    <div className="mb-2 flex items-center justify-between">
+                      <h3 className="text-xs font-semibold text-ink">
+                        Metadata
+                      </h3>
+                      <button
+                        type="button"
+                        onClick={addMetadataField}
+                        className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-xs font-semibold text-muted hover:bg-paper"
+                      >
+                        <Plus className="size-3" />
+                        Add field
+                      </button>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      {metadataFields.map((field) => (
+                        <div
+                          key={field.id}
+                          className="grid grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)_34px] gap-2"
+                        >
+                          <input
+                            value={field.label}
+                            onChange={(event) =>
+                              updateMetadataField(
+                                field.id,
+                                "label",
+                                event.target.value,
+                              )
+                            }
+                            placeholder="Label"
+                            maxLength={40}
+                            readOnly={field.fieldId !== null}
+                            className="h-9 rounded-lg border border-line bg-paper px-3 text-xs text-ink placeholder:text-muted focus:outline-none read-only:bg-card read-only:text-muted"
+                          />
+                          <input
+                            value={field.value}
+                            onChange={(event) =>
+                              updateMetadataField(
+                                field.id,
+                                "value",
+                                event.target.value,
+                              )
+                            }
+                            placeholder="Value"
+                            maxLength={160}
+                            className="h-9 rounded-lg border border-line bg-paper px-3 text-xs text-ink placeholder:text-muted focus:outline-none"
+                          />
+                          <button
+                            type="button"
+                            aria-label="Remove metadata field"
+                            onClick={() => removeMetadataField(field.id)}
+                            className="flex size-[34px] items-center justify-center rounded-lg border border-line bg-paper text-muted hover:bg-card"
+                          >
+                            <Trash2 className="size-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </>
               ) : (
                 <>
@@ -630,6 +749,26 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
                   <p className="whitespace-pre-wrap rounded-xl bg-card p-4 text-sm leading-6 text-ink">
                     {post.caption || "No caption"}
                   </p>
+                  <div className="rounded-xl bg-card p-4">
+                    <h3 className="text-sm font-semibold text-ink">
+                      Metadata
+                    </h3>
+                    {metadataEntries.length ? (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {metadataEntries.map(([key, value]) => (
+                          <span
+                            key={key}
+                            className="max-w-full rounded-lg border border-line bg-paper px-2.5 py-1 text-xs text-ink"
+                          >
+                            <span className="font-semibold">{key}</span>:{" "}
+                            {value}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="mt-2 text-sm text-muted">No metadata</p>
+                    )}
+                  </div>
                 </>
               )}
 
