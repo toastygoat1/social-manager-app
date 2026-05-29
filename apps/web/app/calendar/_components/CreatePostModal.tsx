@@ -11,6 +11,7 @@ import {
   ImageIcon,
   MessageCircle,
   MoreHorizontal,
+  Pencil,
   Play,
   Plus,
   Send,
@@ -526,6 +527,7 @@ export function CreatePostModal({
   const [metadataFields, setMetadataFields] = useState<MetadataField[]>(() => [
     createMetadataField(),
   ]);
+  const [metadataEditing, setMetadataEditing] = useState(false);
   const [media, setMedia] = useState<SelectedMedia[]>([]);
   const [requiresApproval, setRequiresApproval] = useState(false);
   const [scheduledFor, setScheduledFor] = useState(() =>
@@ -571,6 +573,7 @@ export function CreatePostModal({
         setAccounts(list);
         setUserMetadataFields(fields);
         setMetadataFields(metadataDefinitionsToFields(fields));
+        setMetadataEditing(false);
       })
       .catch(() => {
         if (process.env.NODE_ENV !== "production") {
@@ -590,6 +593,7 @@ export function CreatePostModal({
       setSelectedAccountIds([]);
       setAccountPickerOpen(false);
       setMetadataFields([createMetadataField()]);
+      setMetadataEditing(false);
       setScheduledFor(defaultScheduledInputValue(defaultScheduledIso));
     }
   }, [open, type, defaultScheduledIso]);
@@ -871,6 +875,7 @@ export function CreatePostModal({
       setTitle("");
       setCaption("");
       setMetadataFields(metadataDefinitionsToFields(userMetadataFields));
+      setMetadataEditing(false);
       clearMedia();
       onClose();
       onCreated();
@@ -912,6 +917,9 @@ export function CreatePostModal({
   const captionCount = caption.length;
   const hashtagCount = countCaptionToken(caption, "#");
   const mentionCount = countCaptionToken(caption, "@");
+  const visibleMetadataFields = metadataFields.filter(
+    (field) => field.fieldId || field.label.trim() || field.value.trim(),
+  );
   const hasTitleAndCaption = Boolean(title.trim()) && Boolean(caption.trim());
   const contentPrompt = !title.trim() && !caption.trim()
     ? "Add a title and caption"
@@ -1121,57 +1129,100 @@ export function CreatePostModal({
                 <h3 className="text-[11px] font-semibold text-[#27231d]">Metadata</h3>
                 <button
                   type="button"
-                  onClick={addMetadataField}
+                  onClick={() =>
+                    metadataEditing
+                      ? setMetadataEditing(false)
+                      : setMetadataEditing(true)
+                  }
                   className="inline-flex h-7 items-center gap-1 rounded px-1.5 text-[10px] text-[#686158] transition-colors hover:bg-[#f3f0ea]"
                 >
-                  <Plus className="size-3" />
-                  Add field
+                  {metadataEditing ? (
+                    <Check className="size-3" />
+                  ) : (
+                    <Pencil className="size-3" />
+                  )}
+                  {metadataEditing ? "Done" : "Edit"}
                 </button>
               </div>
-              <div className="flex flex-col gap-2">
-                {metadataFields.map((field) => (
-                  <div
-                    key={field.id}
-                    className="grid grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)_32px] gap-2"
-                  >
-                    <input
-                      value={field.label}
-                      onChange={(event) =>
-                        updateMetadataField(
-                          field.id,
-                          "label",
-                          event.target.value,
-                        )
-                      }
-                      placeholder="Label"
-                      maxLength={40}
-                      readOnly={field.fieldId !== null}
-                      className="h-9 rounded-md border border-[#e7e1d6] bg-paper px-3 text-[11px] text-[#302b23] placeholder:text-[#9a9388] focus:outline-none read-only:bg-[#f7f5ef] read-only:text-[#716b61]"
-                    />
-                    <input
-                      value={field.value}
-                      onChange={(event) =>
-                        updateMetadataField(
-                          field.id,
-                          "value",
-                          event.target.value,
-                        )
-                      }
-                      placeholder="Value"
-                      maxLength={160}
-                      className="h-9 rounded-md border border-[#e7e1d6] bg-paper px-3 text-[11px] text-[#302b23] placeholder:text-[#9a9388] focus:outline-none"
-                    />
-                    <button
-                      type="button"
-                      aria-label="Remove metadata field"
-                      onClick={() => removeMetadataField(field.id)}
-                      className="flex size-9 items-center justify-center rounded-md border border-[#e7e1d6] bg-paper text-[#857e74] transition-colors hover:bg-[#f7f5ef]"
+              {metadataEditing ? (
+                <div className="flex flex-col gap-2">
+                  {metadataFields.map((field) => (
+                    <div
+                      key={field.id}
+                      className="grid grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)_32px] gap-2"
                     >
-                      <Trash2 className="size-3.5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
+                      <input
+                        value={field.label}
+                        onChange={(event) =>
+                          updateMetadataField(
+                            field.id,
+                            "label",
+                            event.target.value,
+                          )
+                        }
+                        placeholder="Label"
+                        maxLength={40}
+                        readOnly={field.fieldId !== null}
+                        className="h-9 rounded-md border border-[#e7e1d6] bg-paper px-3 text-[11px] text-[#302b23] placeholder:text-[#9a9388] focus:outline-none read-only:bg-[#f7f5ef] read-only:text-[#716b61]"
+                      />
+                      <input
+                        value={field.value}
+                        onChange={(event) =>
+                          updateMetadataField(
+                            field.id,
+                            "value",
+                            event.target.value,
+                          )
+                        }
+                        placeholder="Value"
+                        maxLength={160}
+                        className="h-9 rounded-md border border-[#e7e1d6] bg-paper px-3 text-[11px] text-[#302b23] placeholder:text-[#9a9388] focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        aria-label="Remove metadata field"
+                        onClick={() => removeMetadataField(field.id)}
+                        className="flex size-9 items-center justify-center rounded-md border border-[#e7e1d6] bg-paper text-[#857e74] transition-colors hover:bg-[#f7f5ef]"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={addMetadataField}
+                    className="inline-flex h-8 w-fit items-center gap-1 rounded-md border border-[#e7e1d6] bg-paper px-2.5 text-[10px] font-medium text-[#686158] transition-colors hover:bg-[#f7f5ef]"
+                  >
+                    <Plus className="size-3" />
+                    Add field
+                  </button>
+                </div>
+              ) : visibleMetadataFields.length ? (
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {visibleMetadataFields.map((field) => (
+                    <div
+                      key={field.id}
+                      className="min-w-0 rounded-md border border-[#e7e1d6] bg-paper px-3 py-2"
+                    >
+                      <p className="truncate text-[9px] font-semibold uppercase tracking-[0.1em] text-[#928c84]">
+                        {field.label || "Metadata"}
+                      </p>
+                      <p className="mt-1 truncate text-[11px] text-[#302b23]">
+                        {field.value || "-"}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setMetadataEditing(true)}
+                  className="flex h-10 w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-[#d9d3c8] bg-paper text-[10px] font-medium text-[#857e74] transition-colors hover:bg-[#f7f5ef]"
+                >
+                  <Pencil className="size-3" />
+                  Add metadata
+                </button>
+              )}
             </section>
 
             <section>
