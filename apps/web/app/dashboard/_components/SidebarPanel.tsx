@@ -1,7 +1,7 @@
 "use client";
 
 import type { ComponentType, SVGProps } from "react";
-import { useState } from "react";
+import { useSyncExternalStore } from "react";
 import {
   BarChart3,
   CalendarDays,
@@ -18,6 +18,11 @@ import Image from "next/image";
 import Link from "next/link";
 import type { UserProfile } from "@/lib/supabase/user-profile";
 import type { Account } from "./data";
+import {
+  SIDEBAR_COLLAPSED_COOKIE,
+  SIDEBAR_COLLAPSED_EVENT,
+  SIDEBAR_COLLAPSED_MAX_AGE,
+} from "./sidebar-preferences";
 
 type LucideIcon = ComponentType<SVGProps<SVGSVGElement> & { strokeWidth?: number }>;
 
@@ -39,6 +44,7 @@ type NavItem = {
 type SidebarPanelProps = {
   active: SidebarKey;
   accounts: Account[];
+  initialCollapsed?: boolean;
   profile?: UserProfile | null;
 };
 
@@ -238,16 +244,58 @@ function ProfileAvatar({
   );
 }
 
+function readSidebarCollapsedCookie() {
+  const cookiePrefix = `${SIDEBAR_COLLAPSED_COOKIE}=`;
+  const cookie = document.cookie
+    .split("; ")
+    .find((row) => row.startsWith(cookiePrefix));
+
+  if (!cookie) {
+    return null;
+  }
+
+  return cookie.slice(cookiePrefix.length) === "true";
+}
+
+function writeSidebarCollapsedCookie(isCollapsed: boolean) {
+  document.cookie = [
+    `${SIDEBAR_COLLAPSED_COOKIE}=${isCollapsed ? "true" : "false"}`,
+    `Max-Age=${SIDEBAR_COLLAPSED_MAX_AGE}`,
+    "Path=/",
+    "SameSite=Lax",
+  ].join("; ");
+}
+
+function subscribeToSidebarCollapsedPreference(onStoreChange: () => void) {
+  window.addEventListener(SIDEBAR_COLLAPSED_EVENT, onStoreChange);
+
+  return () => {
+    window.removeEventListener(SIDEBAR_COLLAPSED_EVENT, onStoreChange);
+  };
+}
+
 export function SidebarPanel({
   active,
   accounts,
+  initialCollapsed = false,
   profile,
 }: SidebarPanelProps) {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const isCollapsed = useSyncExternalStore(
+    subscribeToSidebarCollapsedPreference,
+    () => readSidebarCollapsedCookie() ?? initialCollapsed,
+    () => initialCollapsed,
+  );
   const visibleAccounts = accounts.slice(0, VISIBLE_ACCOUNT_COUNT);
   const additionalAccounts = accounts.slice(VISIBLE_ACCOUNT_COUNT);
   const profileName = getProfileName(profile);
   const profileDetail = getProfileDetail(profile);
+
+  function toggleSidebar() {
+    const nextCollapsed = !isCollapsed;
+
+    writeSidebarCollapsedCookie(nextCollapsed);
+    window.dispatchEvent(new Event(SIDEBAR_COLLAPSED_EVENT));
+  }
 
   return (
     <aside
@@ -288,7 +336,9 @@ export function SidebarPanel({
                 isCollapsed ? "justify-center gap-0 px-0" : "gap-[9px] px-2"
               } ${
                 isActive
-                  ? "bg-[#f4f2ed] font-medium text-[#1a1814] before:absolute before:top-1.5 before:bottom-1.5 before:w-0.5 before:rounded-full before:bg-[#5e6ad2] before:-left-3"
+                  ? `bg-[#f4f2ed] font-medium text-[#1a1814] before:absolute before:top-1.5 before:bottom-1.5 before:w-0.5 before:rounded-full before:bg-[#5e6ad2] ${
+                      isCollapsed ? "before:left-0" : "before:-left-3"
+                    }`
                   : "text-[#59544c] hover:bg-[#f4f2ed] hover:text-[#1a1814]"
               }`}
             >
@@ -408,7 +458,7 @@ export function SidebarPanel({
         type="button"
         aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         aria-expanded={!isCollapsed}
-        onClick={() => setIsCollapsed((collapsed) => !collapsed)}
+        onClick={toggleSidebar}
         title={isCollapsed ? "Expand sidebar" : undefined}
         className={`mt-auto flex min-h-8 items-center rounded-md py-1.5 text-[12.5px] text-[#59544c] transition-[gap,padding,background-color,color] duration-300 hover:bg-[#f4f2ed] hover:text-[#1a1814] ${
           isCollapsed ? "justify-center gap-0 px-0" : "gap-2 px-2"

@@ -1,7 +1,9 @@
+import { cookies } from "next/headers";
 import { apiFetch } from "@/lib/api/client";
 import type { UserProfile } from "@/lib/supabase/user-profile";
 import type { Account } from "./data";
 import { SidebarPanel, type SidebarKey } from "./SidebarPanel";
+import { SIDEBAR_COLLAPSED_COOKIE } from "./sidebar-preferences";
 
 export type { SidebarKey } from "./SidebarPanel";
 
@@ -42,7 +44,19 @@ export async function Sidebar({
   accounts: providedAccounts,
   profile,
 }: SidebarProps) {
-  const accounts = providedAccounts ?? (await getConnectedAccounts());
+  const [accounts, cookieStore] = await Promise.all([
+    providedAccounts ? Promise.resolve(providedAccounts) : getConnectedAccounts(),
+    cookies(),
+  ]);
+  const initialCollapsed =
+    cookieStore.get(SIDEBAR_COLLAPSED_COOKIE)?.value === "true";
 
-  return <SidebarPanel active={active} accounts={accounts} profile={profile} />;
+  return (
+    <SidebarPanel
+      active={active}
+      accounts={accounts}
+      initialCollapsed={initialCollapsed}
+      profile={profile}
+    />
+  );
 }
