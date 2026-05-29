@@ -21,6 +21,13 @@ import {
 import NextImage from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { ApiError, apiFetchBrowser } from "@/lib/api/browser-client";
+import {
+  createMetadataField,
+  metadataDefinitionsToFields,
+  metadataFieldsToPayload,
+  type MetadataField,
+  type UserMetadataField,
+} from "@/lib/post-metadata";
 import { createClient } from "@/lib/supabase/client";
 import type { CalendarPostType } from "./data";
 
@@ -509,10 +516,16 @@ export function CreatePostModal({
   const [composeType, setComposeType] = useState<ComposePostType>(type);
   const [accounts, setAccounts] = useState<InstagramAccountResponse[]>([]);
   const [accountsLoading, setAccountsLoading] = useState(false);
+  const [userMetadataFields, setUserMetadataFields] = useState<
+    UserMetadataField[]
+  >([]);
   const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([]);
   const [accountPickerOpen, setAccountPickerOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [caption, setCaption] = useState("");
+  const [metadataFields, setMetadataFields] = useState<MetadataField[]>(() => [
+    createMetadataField(),
+  ]);
   const [media, setMedia] = useState<SelectedMedia[]>([]);
   const [requiresApproval, setRequiresApproval] = useState(false);
   const [scheduledFor, setScheduledFor] = useState(() =>
@@ -550,9 +563,14 @@ export function CreatePostModal({
     setError(null);
     setAccountResults([]);
     setAccountsLoading(true);
-    apiFetchBrowser<InstagramAccountResponse[]>("/instagram/accounts")
-      .then((list) => {
+    Promise.all([
+      apiFetchBrowser<InstagramAccountResponse[]>("/instagram/accounts"),
+      apiFetchBrowser<UserMetadataField[]>("/calendar/metadata-fields"),
+    ])
+      .then(([list, fields]) => {
         setAccounts(list);
+        setUserMetadataFields(fields);
+        setMetadataFields(metadataDefinitionsToFields(fields));
       })
       .catch(() => {
         if (process.env.NODE_ENV !== "production") {
@@ -571,6 +589,7 @@ export function CreatePostModal({
       setPrimaryAction("schedule");
       setSelectedAccountIds([]);
       setAccountPickerOpen(false);
+      setMetadataFields([createMetadataField()]);
       setScheduledFor(defaultScheduledInputValue(defaultScheduledIso));
     }
   }, [open, type, defaultScheduledIso]);
@@ -664,6 +683,29 @@ export function CreatePostModal({
     input?.showPicker?.();
   };
 
+  const updateMetadataField = (
+    id: string,
+    field: "label" | "value",
+    value: string,
+  ) => {
+    setMetadataFields((current) =>
+      current.map((item) =>
+        item.id === id ? { ...item, [field]: value } : item,
+      ),
+    );
+  };
+
+  const addMetadataField = () => {
+    setMetadataFields((current) => [...current, createMetadataField()]);
+  };
+
+  const removeMetadataField = (id: string) => {
+    setMetadataFields((current) => {
+      const next = current.filter((item) => item.id !== id);
+      return next.length ? next : [createMetadataField()];
+    });
+  };
+
   const uploadSelectedMedia = async (
     items: SelectedMedia[],
   ): Promise<string[]> => {
@@ -754,6 +796,12 @@ export function CreatePostModal({
       setError("Carousels require at least 2 images before publishing");
       return;
     }
+    const { metadata, error: metadataError } =
+      metadataFieldsToPayload(metadataFields);
+    if (metadataError) {
+      setError(metadataError);
+      return;
+    }
     let scheduledDate: Date | null = null;
     if (action === "schedule") {
       if (!scheduledFor) {
@@ -792,6 +840,7 @@ export function CreatePostModal({
                 scheduledFor: scheduledDate?.toISOString(),
                 title: title || undefined,
                 caption: caption || undefined,
+                metadata,
                 requiresApproval,
                 mediaAssetIds,
               },
@@ -821,6 +870,7 @@ export function CreatePostModal({
       }
       setTitle("");
       setCaption("");
+      setMetadataFields(metadataDefinitionsToFields(userMetadataFields));
       clearMedia();
       onClose();
       onCreated();
@@ -1028,6 +1078,64 @@ export function CreatePostModal({
                     Readability: good
                   </span>
                 </div>
+              </div>
+            </section>
+
+            <section>
+              <div className="mb-2 flex items-center justify-between">
+                <h3 className="text-[11px] font-semibold text-[#27231d]">Metadata</h3>
+                <button
+                  type="button"
+                  onClick={addMetadataField}
+                  className="inline-flex h-7 items-center gap-1 rounded px-1.5 text-[10px] text-[#686158] transition-colors hover:bg-[#f3f0ea]"
+                >
+                  <Plus className="size-3" />
+                  Add field
+                </button>
+              </div>
+              <div className="flex flex-col gap-2">
+                {metadataFields.map((field) => (
+                  <div
+                    key={field.id}
+                    className="grid grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)_32px] gap-2"
+                  >
+                    <input
+                      value={field.label}
+                      onChange={(event) =>
+                        updateMetadataField(
+                          field.id,
+                          "label",
+                          event.target.value,
+                        )
+                      }
+                      placeholder="Label"
+                      maxLength={40}
+                      readOnly={field.fieldId !== null}
+                      className="h-9 rounded-md border border-[#e7e1d6] bg-paper px-3 text-[11px] text-[#302b23] placeholder:text-[#9a9388] focus:outline-none read-only:bg-[#f7f5ef] read-only:text-[#716b61]"
+                    />
+                    <input
+                      value={field.value}
+                      onChange={(event) =>
+                        updateMetadataField(
+                          field.id,
+                          "value",
+                          event.target.value,
+                        )
+                      }
+                      placeholder="Value"
+                      maxLength={160}
+                      className="h-9 rounded-md border border-[#e7e1d6] bg-paper px-3 text-[11px] text-[#302b23] placeholder:text-[#9a9388] focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      aria-label="Remove metadata field"
+                      onClick={() => removeMetadataField(field.id)}
+                      className="flex size-9 items-center justify-center rounded-md border border-[#e7e1d6] bg-paper text-[#857e74] transition-colors hover:bg-[#f7f5ef]"
+                    >
+                      <Trash2 className="size-3.5" />
+                    </button>
+                  </div>
+                ))}
               </div>
             </section>
 

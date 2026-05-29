@@ -336,7 +336,10 @@ export function DashboardWorkspace({
           />
         </div>
 
-        <ContentTable rows={data.contentRows} />
+        <ContentTable
+          rows={data.contentRows}
+          metadataFields={data.metadataFields}
+        />
       </main>
     </div>
   );

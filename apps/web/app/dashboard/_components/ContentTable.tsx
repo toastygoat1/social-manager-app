@@ -3,12 +3,14 @@
 import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import { AccountChip } from "./AccountChip";
-import type { ContentRow } from "./data";
+import type { ContentRow, MetadataFieldDefinition } from "./data";
 import { formatNumber } from "@/lib/format";
 
-const COLUMNS: { label: string; width: number }[] = [
-  { label: "Accounts", width: 250 },
-  { label: "Contents", width: 260 },
+const ACCOUNT_WIDTH = 250;
+const CONTENT_WIDTH = 260;
+const METADATA_WIDTH = 170;
+
+const TRAILING_COLUMNS: { label: string; width: number }[] = [
   { label: "Type", width: 110 },
   { label: "Status", width: 120 },
   { label: "Audio", width: 120 },
@@ -21,17 +23,33 @@ const COLUMNS: { label: string; width: number }[] = [
   { label: "Media", width: 100 },
 ];
 
-const TOTAL_WIDTH = COLUMNS.reduce((sum, column) => sum + column.width, 0);
-
 type ContentTableProps = {
   rows: ContentRow[];
+  metadataFields: MetadataFieldDefinition[];
 };
 
-function matchesSearch(row: ContentRow, query: string) {
+function getTotalWidth(metadataFields: MetadataFieldDefinition[]) {
+  return (
+    ACCOUNT_WIDTH +
+    CONTENT_WIDTH +
+    metadataFields.length * METADATA_WIDTH +
+    TRAILING_COLUMNS.reduce((sum, column) => sum + column.width, 0)
+  );
+}
+
+function matchesSearch(
+  row: ContentRow,
+  query: string,
+  metadataFields: MetadataFieldDefinition[],
+) {
   return [
     row.account.name,
     row.account.platform,
     row.contents,
+    ...metadataFields.flatMap((field) => [
+      field.label,
+      row.metadata[field.id] ?? "",
+    ]),
     row.type,
     row.status,
     row.audio,
@@ -65,13 +83,17 @@ function Cell({
   );
 }
 
-export function ContentTable({ rows }: ContentTableProps) {
+export function ContentTable({ rows, metadataFields }: ContentTableProps) {
   const [search, setSearch] = useState("");
   const query = search.trim().toLowerCase();
   const filteredRows = useMemo(
-    () => (query ? rows.filter((row) => matchesSearch(row, query)) : rows),
-    [query, rows],
+    () =>
+      query
+        ? rows.filter((row) => matchesSearch(row, query, metadataFields))
+        : rows,
+    [metadataFields, query, rows],
   );
+  const totalWidth = getTotalWidth(metadataFields);
 
   return (
     <section className="mt-4 overflow-hidden rounded-xl border border-[#e3dfd8] bg-[#fffefa]">
@@ -100,9 +122,16 @@ export function ContentTable({ rows }: ContentTableProps) {
       </header>
 
       <div className="overflow-x-auto">
-        <div style={{ minWidth: `${TOTAL_WIDTH}px` }}>
+        <div style={{ minWidth: `${totalWidth}px` }}>
           <div className="flex h-9 items-center border-b border-[#ede8e1] bg-[#faf8f4] text-[9px] font-semibold uppercase tracking-[0.13em] text-[#928c84]">
-            {COLUMNS.map((column) => (
+            <Cell width={ACCOUNT_WIDTH}>Accounts</Cell>
+            <Cell width={CONTENT_WIDTH}>Contents</Cell>
+            {metadataFields.map((field) => (
+              <Cell key={field.id} width={METADATA_WIDTH}>
+                {field.label}
+              </Cell>
+            ))}
+            {TRAILING_COLUMNS.map((column) => (
               <Cell key={column.label} width={column.width}>
                 {column.label}
               </Cell>
@@ -111,10 +140,18 @@ export function ContentTable({ rows }: ContentTableProps) {
 
           {filteredRows.length === 0 ? (
             <div className="flex h-20 items-center justify-center text-xs text-[#817c74]">
-              {query ? "No content matches your search." : "No content scheduled yet."}
+              {query
+                ? "No content matches your search."
+                : "No content scheduled yet."}
             </div>
           ) : (
-            filteredRows.map((row) => <Row key={row.id} row={row} />)
+            filteredRows.map((row) => (
+              <Row
+                key={row.id}
+                row={row}
+                metadataFields={metadataFields}
+              />
+            ))
           )}
         </div>
       </div>
@@ -122,12 +159,18 @@ export function ContentTable({ rows }: ContentTableProps) {
   );
 }
 
-function Row({ row }: { row: ContentRow }) {
+function Row({
+  row,
+  metadataFields,
+}: {
+  row: ContentRow;
+  metadataFields: MetadataFieldDefinition[];
+}) {
   return (
     <div className="flex h-14 items-center border-b border-[#f0ece4] text-xs last:border-b-0">
       <div
         className="flex h-full shrink-0 items-center px-2 py-1"
-        style={{ width: `${COLUMNS[0].width}px` }}
+        style={{ width: `${ACCOUNT_WIDTH}px` }}
       >
         <AccountChip
           name={row.account.name}
@@ -136,37 +179,44 @@ function Row({ row }: { row: ContentRow }) {
           className="w-full"
         />
       </div>
-      <Cell width={COLUMNS[1].width}>
+      <Cell width={CONTENT_WIDTH}>
         <span className="truncate text-[#4e4942]">{row.contents}</span>
       </Cell>
-      <Cell width={COLUMNS[2].width}>
+      {metadataFields.map((field) => (
+        <Cell key={field.id} width={METADATA_WIDTH}>
+          <span className="truncate text-[#6e685f]">
+            {row.metadata[field.id] || "-"}
+          </span>
+        </Cell>
+      ))}
+      <Cell width={TRAILING_COLUMNS[0].width}>
         <span className="text-[#6e685f]">{row.type}</span>
       </Cell>
-      <Cell width={COLUMNS[3].width}>
+      <Cell width={TRAILING_COLUMNS[1].width}>
         <span className="text-[#6e685f]">{row.status}</span>
       </Cell>
-      <Cell width={COLUMNS[4].width}>
+      <Cell width={TRAILING_COLUMNS[2].width}>
         <span className="truncate text-[#6e685f]">{row.audio}</span>
       </Cell>
-      <Cell width={COLUMNS[5].width}>
+      <Cell width={TRAILING_COLUMNS[3].width}>
         <span className="text-[#6e685f]">{row.datePost}</span>
       </Cell>
-      <Cell width={COLUMNS[6].width}>
+      <Cell width={TRAILING_COLUMNS[4].width}>
         <span className="truncate text-[#6e685f]">{row.caption}</span>
       </Cell>
-      <Cell width={COLUMNS[7].width}>
+      <Cell width={TRAILING_COLUMNS[5].width}>
         <span className="text-[#6e685f]">{formatNumber(row.views)}</span>
       </Cell>
-      <Cell width={COLUMNS[8].width}>
+      <Cell width={TRAILING_COLUMNS[6].width}>
         <span className="text-[#6e685f]">{formatNumber(row.likes)}</span>
       </Cell>
-      <Cell width={COLUMNS[9].width}>
+      <Cell width={TRAILING_COLUMNS[7].width}>
         <span className="text-[#6e685f]">{formatNumber(row.comments)}</span>
       </Cell>
-      <Cell width={COLUMNS[10].width}>
+      <Cell width={TRAILING_COLUMNS[8].width}>
         <span className="text-[#6e685f]">{formatNumber(row.shares)}</span>
       </Cell>
-      <Cell width={COLUMNS[11].width}>
+      <Cell width={TRAILING_COLUMNS[9].width}>
         <span className="text-[#6e685f]">{row.media}</span>
       </Cell>
     </div>

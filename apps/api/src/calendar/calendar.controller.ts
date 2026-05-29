@@ -56,6 +56,11 @@ export class CalendarController {
     return this.calendarService.listFailedPosts(req.user.userId);
   }
 
+  @Get('metadata-fields')
+  listMetadataFields(@Request() req: AuthedRequest) {
+    return this.calendarService.listMetadataFields(req.user.userId);
+  }
+
   @Get('posts/:contentPostId')
   getPost(
     @Request() req: AuthedRequest,

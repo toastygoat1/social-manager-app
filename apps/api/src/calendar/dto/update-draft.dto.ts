@@ -8,7 +8,10 @@ import {
   IsString,
   IsUUID,
   MaxLength,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
+import { PostMetadataDto } from './post-metadata.dto.js';
 
 export const UPDATE_DRAFT_ACTIONS = ['DRAFT', 'SCHEDULE'] as const;
 export type UpdateDraftAction = (typeof UPDATE_DRAFT_ACTIONS)[number];
@@ -27,6 +30,13 @@ export class UpdateDraftDto {
   @IsString()
   @MaxLength(2200)
   caption?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(12)
+  @ValidateNested({ each: true })
+  @Type(() => PostMetadataDto)
+  metadata?: PostMetadataDto[];
 
   @IsOptional()
   @IsDateString()

@@ -4,6 +4,12 @@ export type CalendarEventSource = "scheduled_post" | "google";
 
 export type CalendarPostType = "FEED" | "REEL" | "STORY" | "CAROUSEL";
 
+export type CalendarMetadataField = {
+  id: string;
+  label: string;
+  sortOrder: number;
+};
+
 export type CalendarEvent = {
   id: string;
   source: CalendarEventSource;
@@ -27,6 +33,8 @@ export type CalendarPostDetail = {
   id: string;
   title: string | null;
   caption: string | null;
+  metadataFields: CalendarMetadataField[];
+  metadata: Record<string, string>;
   postType: CalendarPostType;
   status: EventStatus;
   accountId: string;

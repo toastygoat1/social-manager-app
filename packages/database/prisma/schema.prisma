@@ -10,17 +10,18 @@ datasource db {
 }
 
 model User {
-  id                String             @id
-  email             String             @unique
-  fullName          String?            @map("full_name")
-  createdAt         DateTime           @default(now()) @map("created_at")
-  updatedAt         DateTime           @updatedAt @map("updated_at")
-  aiSettings        AiSettings?
-  analyticsNotes    AnalyticsNote[]
-  chatbotSessions   ChatbotSession[]
-  instagramAccounts InstagramAccount[]
-  mediaAssets       MediaAsset[]
-  googleIntegration GoogleIntegration?
+  id                    String                 @id
+  email                 String                 @unique
+  fullName              String?                @map("full_name")
+  createdAt             DateTime               @default(now()) @map("created_at")
+  updatedAt             DateTime               @updatedAt @map("updated_at")
+  aiSettings            AiSettings?
+  analyticsNotes        AnalyticsNote[]
+  chatbotSessions       ChatbotSession[]
+  instagramAccounts     InstagramAccount[]
+  mediaAssets           MediaAsset[]
+  googleIntegration     GoogleIntegration?
+  contentMetadataFields ContentMetadataField[]
 
   @@map("users")
 }
@@ -108,21 +109,22 @@ model MediaAsset {
 }
 
 model ContentPost {
-  id                 String           @id @default(uuid())
-  instagramAccountId String           @map("instagram_account_id")
+  id                 String                     @id @default(uuid())
+  instagramAccountId String                     @map("instagram_account_id")
   title              String?
   caption            String?
-  postType           PostType         @map("post_type")
-  status             PostStatus       @default(DRAFT)
-  scheduledFor       DateTime?        @map("scheduled_for")
-  publishedAt        DateTime?        @map("published_at")
-  igMediaId          String?          @map("ig_media_id")
-  igMediaContainerId String?          @map("ig_media_container_id")
-  igPermalink        String?          @map("ig_permalink")
-  isAiGenerated      Boolean          @default(false) @map("is_ai_generated")
-  createdAt          DateTime         @default(now()) @map("created_at")
-  updatedAt          DateTime         @updatedAt @map("updated_at")
-  instagramAccount   InstagramAccount @relation(fields: [instagramAccountId], references: [id], onDelete: Cascade)
+  postType           PostType                   @map("post_type")
+  status             PostStatus                 @default(DRAFT)
+  scheduledFor       DateTime?                  @map("scheduled_for")
+  publishedAt        DateTime?                  @map("published_at")
+  igMediaId          String?                    @map("ig_media_id")
+  igMediaContainerId String?                    @map("ig_media_container_id")
+  igPermalink        String?                    @map("ig_permalink")
+  isAiGenerated      Boolean                    @default(false) @map("is_ai_generated")
+  createdAt          DateTime                   @default(now()) @map("created_at")
+  updatedAt          DateTime                   @updatedAt @map("updated_at")
+  instagramAccount   InstagramAccount           @relation(fields: [instagramAccountId], references: [id], onDelete: Cascade)
+  metadataValues     ContentPostMetadataValue[]
   postAnalytics      PostAnalytics[]
   postMedia          PostMedia[]
   publishAttempts    PublishAttempt[]
@@ -132,6 +134,36 @@ model ContentPost {
   @@index([scheduledFor])
   @@index([instagramAccountId, status, scheduledFor])
   @@map("content_posts")
+}
+
+model ContentMetadataField {
+  id             String                     @id @default(uuid())
+  userId         String                     @map("user_id")
+  label          String
+  sortOrder      Int                        @default(0) @map("sort_order")
+  createdAt      DateTime                   @default(now()) @map("created_at")
+  updatedAt      DateTime                   @updatedAt @map("updated_at")
+  user           User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  metadataValues ContentPostMetadataValue[]
+
+  @@unique([userId, label])
+  @@index([userId, sortOrder])
+  @@map("content_metadata_fields")
+}
+
+model ContentPostMetadataValue {
+  id            String               @id @default(uuid())
+  contentPostId String               @map("content_post_id")
+  fieldId       String               @map("field_id")
+  value         String
+  createdAt     DateTime             @default(now()) @map("created_at")
+  updatedAt     DateTime             @updatedAt @map("updated_at")
+  contentPost   ContentPost          @relation(fields: [contentPostId], references: [id], onDelete: Cascade)
+  field         ContentMetadataField @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+
+  @@unique([contentPostId, fieldId])
+  @@index([fieldId])
+  @@map("content_post_metadata_values")
 }
 
 model PostMedia {

@@ -36,6 +36,7 @@ type AccountDto = {
 };
 
 type ChartBar = { label: string; value: number; color: string };
+type MetadataFieldDto = { id: string; label: string; sortOrder: number };
 const CHART_COLORS = [
   'var(--chart-1)',
   'var(--chart-2)',
@@ -52,6 +53,7 @@ type ContentRow = {
   id: string;
   account: AccountDto;
   contents: string;
+  metadata: Record<string, string>;
   type: string;
   status: string;
   audio: string;
@@ -72,6 +74,7 @@ type DashboardOverview = {
   calendar: CalendarMonth | null;
   uploadChart: ChartBar[];
   accounts: AccountDto[];
+  metadataFields: MetadataFieldDto[];
   contentRows: ContentRow[];
 };
 
@@ -105,6 +108,11 @@ export class DashboardService {
     }));
 
     const accountIds = accountsRaw.map((a) => a.id);
+    const metadataFields = await this.prisma.contentMetadataField.findMany({
+      where: { userId },
+      orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+      select: { id: true, label: true, sortOrder: true },
+    });
 
     if (accountIds.length === 0) {
       return {
@@ -115,6 +123,7 @@ export class DashboardService {
         calendar,
         uploadChart: [],
         accounts: [],
+        metadataFields,
         contentRows: [],
       };
     }
@@ -150,6 +159,9 @@ export class DashboardService {
               take: 1,
             },
             postMedia: { take: 1 },
+            metadataValues: {
+              select: { fieldId: true, value: true },
+            },
           },
         }),
         this.prisma.contentPost.findMany({
@@ -185,6 +197,7 @@ export class DashboardService {
         id: post.id,
         account,
         contents: post.title ?? post.caption?.slice(0, 60) ?? '—',
+        metadata: readPostMetadataValues(post.metadataValues),
         type: post.postType,
         status: post.status,
         audio: '—',
@@ -212,6 +225,7 @@ export class DashboardService {
       calendar,
       uploadChart,
       accounts,
+      metadataFields,
       contentRows,
     };
   }
@@ -316,6 +330,16 @@ function buildStatMetric(
     delta: Math.abs(deltaPct),
     trend: deltaPct >= 0 ? 'up' : 'down',
   };
+}
+
+function readPostMetadataValues(
+  values: { fieldId: string; value: string }[],
+): Record<string, string> {
+  const metadata: Record<string, string> = {};
+  for (const item of values) {
+    metadata[item.fieldId] = item.value;
+  }
+  return metadata;
 }
 
 function buildUploadChart(publishedAtList: (Date | null)[]): ChartBar[] {
