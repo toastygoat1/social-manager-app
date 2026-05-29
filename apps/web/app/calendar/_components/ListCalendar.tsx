@@ -1,12 +1,17 @@
 import { Loader2 } from "lucide-react";
 import { AgendaEventCard } from "./AgendaEventCard";
 import { type CalendarEvent, toIsoDate } from "./data";
+import {
+  getDateDropProps,
+  type CalendarDragController,
+} from "./drag";
 
 type Props = {
   reference: Date;
   events: CalendarEvent[];
   loading: boolean;
   onOpenPost: (event: CalendarEvent) => void;
+  dragController?: CalendarDragController;
 };
 
 export function ListCalendar({
@@ -14,6 +19,7 @@ export function ListCalendar({
   events,
   loading,
   onOpenPost,
+  dragController,
 }: Props) {
   const sortedEvents = [...events].sort((first, second) =>
     first.start.localeCompare(second.start),
@@ -61,10 +67,16 @@ export function ListCalendar({
         ) : null}
         {Array.from(groupedEvents.entries()).map(([dateKey, dayEvents]) => {
           const date = new Date(`${dateKey}T00:00:00`);
+          const isDropTarget = dragController?.dropTargetIso === dateKey;
           return (
             <div
               key={dateKey}
-              className="grid grid-cols-[118px_minmax(0,1fr)] border-b border-[#eee9df] py-4 last:border-b-0"
+              {...getDateDropProps(dragController, dateKey)}
+              className={`grid grid-cols-[118px_minmax(0,1fr)] border-b border-[#eee9df] py-4 transition-colors last:border-b-0 ${
+                isDropTarget
+                  ? "bg-[#eef2ff] ring-2 ring-inset ring-[#607ffc]"
+                  : ""
+              }`}
             >
               <div className="pr-5">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#898278]">
@@ -86,6 +98,7 @@ export function ListCalendar({
                     key={event.id}
                     event={event}
                     onOpenPost={onOpenPost}
+                    dragController={dragController}
                   />
                 ))}
               </div>

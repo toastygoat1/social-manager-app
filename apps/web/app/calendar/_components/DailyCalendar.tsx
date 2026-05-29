@@ -1,6 +1,10 @@
 import { Loader2 } from "lucide-react";
 import { AgendaEventCard } from "./AgendaEventCard";
 import {
+  getDateDropProps,
+  type CalendarDragController,
+} from "./drag";
+import {
   type CalendarEvent,
   toIsoDate,
   WEEK_HOUR_END,
@@ -18,6 +22,7 @@ type Props = {
   events: CalendarEvent[];
   loading: boolean;
   onOpenPost: (event: CalendarEvent) => void;
+  dragController?: CalendarDragController;
 };
 
 export function DailyCalendar({
@@ -25,8 +30,10 @@ export function DailyCalendar({
   events,
   loading,
   onOpenPost,
+  dragController,
 }: Props) {
   const dateIso = toIsoDate(reference);
+  const isDropTarget = dragController?.dropTargetIso === dateIso;
   const dayEvents = events
     .filter((event) => toIsoDate(new Date(event.start)) === dateIso)
     .sort((first, second) => first.start.localeCompare(second.start));
@@ -42,7 +49,12 @@ export function DailyCalendar({
       {loading ? (
         <LoadingBadge />
       ) : null}
-      <header className="flex shrink-0 items-center justify-between border-b border-[#e7e1d6] bg-[#f8f6f1] px-5 py-3">
+      <header
+        {...getDateDropProps(dragController, dateIso)}
+        className={`flex shrink-0 items-center justify-between border-b border-[#e7e1d6] bg-[#f8f6f1] px-5 py-3 transition-colors ${
+          isDropTarget ? "bg-[#eef2ff] ring-2 ring-inset ring-[#607ffc]" : ""
+        }`}
+      >
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#898278]">
             {reference.toLocaleDateString("en-US", { weekday: "long" })}
@@ -71,6 +83,7 @@ export function DailyCalendar({
                 key={event.id}
                 event={event}
                 onOpenPost={onOpenPost}
+                dragController={dragController}
               />
             ))}
           </div>
@@ -99,6 +112,7 @@ export function DailyCalendar({
                     key={event.id}
                     event={event}
                     onOpenPost={onOpenPost}
+                    dragController={dragController}
                   />
                 ))}
               </div>

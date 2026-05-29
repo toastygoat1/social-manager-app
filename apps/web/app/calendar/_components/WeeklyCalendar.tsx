@@ -1,6 +1,10 @@
 import { Loader2 } from "lucide-react";
 import { AgendaEventCard } from "./AgendaEventCard";
 import {
+  getDateDropProps,
+  type CalendarDragController,
+} from "./drag";
+import {
   buildWeekDays,
   type CalendarEvent,
   toIsoDate,
@@ -21,6 +25,7 @@ type Props = {
   events: CalendarEvent[];
   loading: boolean;
   onOpenPost: (event: CalendarEvent) => void;
+  dragController?: CalendarDragController;
 };
 
 export function WeeklyCalendar({
@@ -28,6 +33,7 @@ export function WeeklyCalendar({
   events,
   loading,
   onOpenPost,
+  dragController,
 }: Props) {
   const weekDays = buildWeekDays(reference);
   const hours = Array.from(
@@ -58,19 +64,27 @@ export function WeeklyCalendar({
       ) : null}
       <div className={`grid ${GRID_COLS} shrink-0 border-b border-[#e7e1d6] bg-[#f8f6f1]`}>
         <div className="border-r border-[#eee9df]" />
-        {weekDays.map((day) => (
-          <div
-            key={day.iso}
-            className="flex flex-col items-center justify-center gap-0.5 border-r border-[#eee9df] py-2.5 last:border-r-0"
-          >
-            <span className="text-[9px] font-semibold tracking-[0.12em] text-[#898278]">
-              {day.label}
-            </span>
-            <span className="text-sm font-medium text-[#302b23]">
-              {day.date}
-            </span>
-          </div>
-        ))}
+        {weekDays.map((day) => {
+          const isDropTarget = dragController?.dropTargetIso === day.iso;
+          return (
+            <div
+              key={day.iso}
+              {...getDateDropProps(dragController, day.iso)}
+              className={`flex flex-col items-center justify-center gap-0.5 border-r border-[#eee9df] py-2.5 transition-colors last:border-r-0 ${
+                isDropTarget
+                  ? "bg-[#eef2ff] ring-2 ring-inset ring-[#607ffc]"
+                  : ""
+              }`}
+            >
+              <span className="text-[9px] font-semibold tracking-[0.12em] text-[#898278]">
+                {day.label}
+              </span>
+              <span className="text-sm font-medium text-[#302b23]">
+                {day.date}
+              </span>
+            </div>
+          );
+        })}
       </div>
 
       {allDayEvents.length ? (
@@ -78,23 +92,34 @@ export function WeeklyCalendar({
           <span className="px-2 pt-3 text-right text-[9px] font-semibold text-[#8a8379]">
             ALL DAY
           </span>
-          {weekDays.map((day) => (
-            <div
-              key={day.iso}
-              className="flex flex-col gap-1 border-l border-[#eee9df] p-1.5"
-            >
-              {allDayEvents
-                .filter((event) => toIsoDate(new Date(event.start)) === day.iso)
-                .map((event) => (
-                  <AgendaEventCard
-                    key={event.id}
-                    event={event}
-                    compact
-                    onOpenPost={onOpenPost}
-                  />
-                ))}
-            </div>
-          ))}
+          {weekDays.map((day) => {
+            const isDropTarget = dragController?.dropTargetIso === day.iso;
+            return (
+              <div
+                key={day.iso}
+                {...getDateDropProps(dragController, day.iso)}
+                className={`flex flex-col gap-1 border-l border-[#eee9df] p-1.5 transition-colors ${
+                  isDropTarget
+                    ? "bg-[#eef2ff] ring-2 ring-inset ring-[#607ffc]"
+                    : ""
+                }`}
+              >
+                {allDayEvents
+                  .filter(
+                    (event) => toIsoDate(new Date(event.start)) === day.iso,
+                  )
+                  .map((event) => (
+                    <AgendaEventCard
+                      key={event.id}
+                      event={event}
+                      compact
+                      onOpenPost={onOpenPost}
+                      dragController={dragController}
+                    />
+                  ))}
+              </div>
+            );
+          })}
         </div>
       ) : null}
 
@@ -114,12 +139,18 @@ export function WeeklyCalendar({
             <span className="px-2 pt-2.5 text-right text-[10px] text-[#817a70]">
               {formatHour(hour)}
             </span>
-            {weekDays.map((_, dayIndex) => {
+            {weekDays.map((day, dayIndex) => {
               const cellEvents = eventsByCell.get(`${dayIndex}:${hour}`) ?? [];
+              const isDropTarget = dragController?.dropTargetIso === day.iso;
               return (
                 <div
                   key={dayIndex}
-                  className="flex min-w-0 flex-col gap-1 border-l border-[#eee9df] p-1.5 transition-colors hover:bg-[#fcfbf8]"
+                  {...getDateDropProps(dragController, day.iso)}
+                  className={`flex min-w-0 flex-col gap-1 border-l border-[#eee9df] p-1.5 transition-colors hover:bg-[#fcfbf8] ${
+                    isDropTarget
+                      ? "bg-[#eef2ff] ring-2 ring-inset ring-[#607ffc]"
+                      : ""
+                  }`}
                 >
                   {cellEvents.map((event) => (
                     <AgendaEventCard
@@ -127,6 +158,7 @@ export function WeeklyCalendar({
                       event={event}
                       compact
                       onOpenPost={onOpenPost}
+                      dragController={dragController}
                     />
                   ))}
                 </div>
