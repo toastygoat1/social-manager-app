@@ -182,7 +182,10 @@ export default async function AnalyticsPage({
                 <ChannelDistribution items={data.distribution} />
               </div>
               <ContentCalendar calendar={data.contentCalendar} />
-              <AnalyticsContentTable rows={data.contentRows} />
+              <AnalyticsContentTable
+                rows={data.contentRows}
+                metadataFields={data.metadataFields}
+              />
               <Recommendations
                 recommendations={data.recommendations}
                 notes={data.notes}

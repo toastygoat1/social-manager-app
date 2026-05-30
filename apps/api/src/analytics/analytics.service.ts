@@ -142,6 +142,7 @@ type ContentRow = {
   id: string;
   account: AnalyticsAccount;
   contents: string;
+  metadata: Record<string, string>;
   type: string;
   status: string;
   audio: string;
@@ -161,6 +162,7 @@ type ContentRow = {
   }[];
 };
 
+type MetadataField = { id: string; label: string; sortOrder: number };
 type Recommendation = { title: string; body: string };
 type AnalyticsNote = {
   id: string;
@@ -183,6 +185,7 @@ type AnalyticsOverview = {
   recentPosts: RecentPost[];
   distribution: DistributionItem[];
   contentCalendar: ContentCalendar;
+  metadataFields: MetadataField[];
   contentRows: ContentRow[];
   recommendations: Recommendation[];
   notes: AnalyticsNote[];
@@ -347,6 +350,9 @@ const ANALYTICS_POST_INCLUDE = {
     orderBy: { sortOrder: 'asc' },
     include: { mediaAsset: true },
   },
+  metadataValues: {
+    select: { fieldId: true, value: true },
+  },
   _count: {
     select: { postMedia: true },
   },
@@ -421,6 +427,11 @@ export class AnalyticsService {
     const selectedAccountRecords = options.accountId
       ? accountRecords.filter((account) => account.id === options.accountId)
       : accountRecords;
+    const metadataFields = await this.prisma.contentMetadataField.findMany({
+      where: { userId },
+      orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+      select: { id: true, label: true, sortOrder: true },
+    });
 
     if (options.accountId && selectedAccountRecords.length === 0) {
       throw new NotFoundException('Instagram account was not found.');
@@ -442,6 +453,7 @@ export class AnalyticsService {
         recentPosts: [],
         distribution: [],
         contentCalendar: buildContentCalendar([], now),
+        metadataFields,
         contentRows: [],
         recommendations: [],
         notes: await this.findNotes(userId, options.accountId),
@@ -505,6 +517,7 @@ export class AnalyticsService {
       recentPosts: await this.mapRecentPosts(findTopPosts(currentPosts)),
       distribution,
       contentCalendar: buildContentCalendar(calendarPosts, now),
+      metadataFields,
       contentRows: await this.mapContentRows(
         currentPosts.slice(0, MAX_CONTENT_ROWS),
         accountById,
@@ -827,6 +840,7 @@ export class AnalyticsService {
           id: post.id,
           account,
           contents: post.title ?? truncate(post.caption, 60) ?? 'Untitled post',
+          metadata: readPostMetadataValues(post.metadataValues),
           type: POST_TYPE_LABELS[post.postType],
           status: formatPostStatus(post.status),
           audio: '-',
@@ -1670,6 +1684,14 @@ function buildContentCalendar(
 
 function latestAnalytics(post: AnalyticsPost) {
   return post.postAnalytics[0] ?? null;
+}
+
+function readPostMetadataValues(values: { fieldId: string; value: string }[]) {
+  const metadata: Record<string, string> = {};
+  for (const item of values) {
+    metadata[item.fieldId] = item.value;
+  }
+  return metadata;
 }
 
 function latestAnalyticsFetchedAt(posts: AnalyticsPost[]) {

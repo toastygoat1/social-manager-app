@@ -5,10 +5,16 @@ import { formatNumber } from "@/lib/format";
 import { ImageIcon, Play, X } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import type { AnalyticsContentRow, AnalyticsMediaItem } from "./data";
+import type { MetadataFieldDefinition } from "@/app/dashboard/_components/data";
 
-const COLUMNS: { label: string; width: number }[] = [
+const METADATA_WIDTH = 170;
+
+const LEADING_COLUMNS: { label: string; width: number }[] = [
   { label: "Content", width: 265 },
   { label: "Account", width: 210 },
+];
+
+const TRAILING_COLUMNS: { label: string; width: number }[] = [
   { label: "Type", width: 90 },
   { label: "Status", width: 115 },
   { label: "Date", width: 110 },
@@ -19,7 +25,13 @@ const COLUMNS: { label: string; width: number }[] = [
   { label: "Media", width: 120 },
 ];
 
-const TOTAL_WIDTH = COLUMNS.reduce((sum, c) => sum + c.width, 0);
+function getTotalWidth(metadataFields: MetadataFieldDefinition[]) {
+  return (
+    LEADING_COLUMNS.reduce((sum, c) => sum + c.width, 0) +
+    metadataFields.length * METADATA_WIDTH +
+    TRAILING_COLUMNS.reduce((sum, c) => sum + c.width, 0)
+  );
+}
 
 function Cell({
   width,
@@ -40,12 +52,15 @@ function Cell({
 
 export function AnalyticsContentTable({
   rows,
+  metadataFields,
 }: {
   rows: AnalyticsContentRow[];
+  metadataFields: MetadataFieldDefinition[];
 }) {
   const [previewRow, setPreviewRow] = useState<AnalyticsContentRow | null>(
     null,
   );
+  const totalWidth = getTotalWidth(metadataFields);
 
   return (
     <section className="flex min-w-0 flex-col gap-5 overflow-hidden rounded-[10px] border border-line bg-paper p-[18px]">
@@ -62,7 +77,21 @@ export function AnalyticsContentTable({
       </header>
       <div className="flex w-full flex-col overflow-x-auto">
         <div className="flex h-9 items-center border-b border-line">
-          {COLUMNS.map((c) => (
+          {LEADING_COLUMNS.map((c) => (
+            <Cell key={c.label} width={c.width}>
+              <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-muted">
+                {c.label}
+              </span>
+            </Cell>
+          ))}
+          {metadataFields.map((field) => (
+            <Cell key={field.id} width={METADATA_WIDTH}>
+              <span className="truncate font-mono text-[10px] uppercase tracking-[0.06em] text-muted">
+                {field.label}
+              </span>
+            </Cell>
+          ))}
+          {TRAILING_COLUMNS.map((c) => (
             <Cell key={c.label} width={c.width}>
               <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-muted">
                 {c.label}
@@ -73,13 +102,18 @@ export function AnalyticsContentTable({
         {rows.length === 0 ? (
           <div
             className="flex h-20 items-center justify-center text-sm text-muted"
-            style={{ width: `${TOTAL_WIDTH}px` }}
+            style={{ width: `${totalWidth}px` }}
           >
             No content posted yet
           </div>
         ) : (
           rows.map((row) => (
-            <Row key={row.id} row={row} onPreview={setPreviewRow} />
+            <Row
+              key={row.id}
+              row={row}
+              metadataFields={metadataFields}
+              onPreview={setPreviewRow}
+            />
           ))
         )}
       </div>
@@ -113,9 +147,11 @@ function StatusPill({ status }: { status: string }) {
 
 function Row({
   row,
+  metadataFields,
   onPreview,
 }: {
   row: AnalyticsContentRow;
+  metadataFields: MetadataFieldDefinition[];
   onPreview: (row: AnalyticsContentRow) => void;
 }) {
   const hasMedia = row.mediaItems.length > 0;
@@ -138,6 +174,13 @@ function Row({
           className="w-full"
         />
       </div>
+      {metadataFields.map((field) => (
+        <Cell key={field.id} width={METADATA_WIDTH}>
+          <span className="truncate text-xs text-muted">
+            {row.metadata?.[field.id] || "-"}
+          </span>
+        </Cell>
+      ))}
       <Cell width={90}>
         <span className="text-xs text-muted">{row.type}</span>
       </Cell>
