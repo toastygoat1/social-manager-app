@@ -34,26 +34,26 @@ describe('evaluateRules', () => {
     expect(evaluateRules(signals)).toHaveLength(0);
   });
 
-  it('R001 fires when engagementDepth < 0.3', () => {
+  it('R001 fires when engagementDepth < 0.03', () => {
     const signals = makeSignals({
       aspectBreakdown: {
         contentQuality: 0.6,
         postingTiming: 0.5,
         audienceReach: 0.5,
-        engagementDepth: 0.25,
+        engagementDepth: 0.02,
       },
     });
     const fired = evaluateRules(signals);
     expect(fired.some((r) => r.ruleId === 'R001')).toBe(true);
   });
 
-  it('R001 does not fire when engagementDepth >= 0.3', () => {
+  it('R001 does not fire when engagementDepth >= 0.03', () => {
     const signals = makeSignals({
       aspectBreakdown: {
         contentQuality: 0.6,
         postingTiming: 0.5,
         audienceReach: 0.5,
-        engagementDepth: 0.3,
+        engagementDepth: 0.03,
       },
     });
     const fired = evaluateRules(signals);
@@ -168,7 +168,7 @@ describe('evaluateRules', () => {
         contentQuality: 0.6,
         postingTiming: 0.5,
         audienceReach: 0.5,
-        engagementDepth: 0.1,
+        engagementDepth: 0.02,
       },
     });
     const r001 = evaluateRules(signals).find((r) => r.ruleId === 'R001');

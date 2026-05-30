@@ -4,10 +4,10 @@ export function evaluateRules(signals: PostSignals): FiredRule[] {
   const fired: FiredRule[] = [];
 
   const engagementDepth = signals.aspectBreakdown.engagementDepth ?? 0;
-  if (engagementDepth < 0.3) {
+  if (engagementDepth < 0.03) {
     fired.push({
       ruleId: 'R001',
-      condition: `engagementDepth (${engagementDepth.toFixed(3)}) < 0.3`,
+      condition: `engagementDepth (${engagementDepth.toFixed(3)}) < 0.03`,
       conclusion: 'UNDERPERFORMING',
       confidence: 0.85,
       action: 'Review caption hooks and call-to-action placement',
