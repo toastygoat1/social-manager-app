@@ -2,6 +2,87 @@ import 'dotenv/config';
 import { Job, UnrecoverableError, Worker } from 'bullmq';
 import { Redis } from 'ioredis';
 
+// ── ai-analysis worker ────────────────────────────────────────────────────────
+
+const AI_ANALYSIS_QUEUE_NAME = 'ai-analysis';
+
+type AiAnalysisJob = {
+  accountId: string;
+  contentPostId: string;
+  sessionId: string;
+};
+
+const aiRedisUrl = requiredEnv('REDIS_URL');
+const aiApiBaseUrl = requiredEnv('API_BASE_URL').replace(/\/$/, '');
+const aiWorkerSecret = requiredEnv('WORKER_AI_SECRET');
+
+const aiConnection = new Redis(aiRedisUrl, { maxRetriesPerRequest: null });
+
+aiConnection.on('error', (error) => {
+  console.error(`AI Redis connection error: ${error.message}`);
+});
+
+const aiWorker = new Worker<AiAnalysisJob>(
+  AI_ANALYSIS_QUEUE_NAME,
+  processAiAnalysis,
+  { connection: aiConnection, concurrency: 2 },
+);
+
+aiWorker.on('ready', () => {
+  console.info(`AI analysis worker ready on "${AI_ANALYSIS_QUEUE_NAME}"`);
+});
+
+aiWorker.on('completed', (job) => {
+  console.info(`AI analysis completed for job ${job.id ?? 'unknown'}`);
+});
+
+aiWorker.on('failed', (job, error) => {
+  const postId = job?.data?.contentPostId ?? 'unknown';
+  console.error(
+    `AI analysis job ${job?.id ?? 'unknown'} failed for post ${postId}: ${error.message}`,
+  );
+});
+
+aiWorker.on('error', (error) => {
+  console.error(`AI analysis worker error: ${error.message}`);
+});
+
+async function processAiAnalysis(job: Job<AiAnalysisJob>) {
+  const { accountId, contentPostId, sessionId } = job.data;
+
+  if (!accountId?.trim() || !contentPostId?.trim() || !sessionId?.trim()) {
+    throw new UnrecoverableError(`Invalid ai-analysis job payload: ${job.id}`);
+  }
+
+  const response = await fetch(`${aiApiBaseUrl}/internal/ai/analyze`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-worker-ai-secret': aiWorkerSecret,
+    },
+    body: JSON.stringify({ accountId, contentPostId, sessionId }),
+  });
+
+  const body = (await response.json().catch(() => ({}))) as ApiFailure;
+
+  if (!response.ok) {
+    const message = readApiFailure(body, response.status);
+    if (
+      response.status >= 400 &&
+      response.status < 500 &&
+      response.status !== 408 &&
+      response.status !== 429
+    ) {
+      throw new UnrecoverableError(message);
+    }
+    throw new Error(message);
+  }
+
+  return body;
+}
+
+// ── publish worker ────────────────────────────────────────────────────────────
+
 const PUBLISH_QUEUE_NAME = 'content-publishing';
 const PUBLISH_SCHEDULED_JOB_NAME = 'publish-scheduled-post';
 
@@ -123,9 +204,9 @@ let shuttingDown = false;
 async function shutdown(signal: string) {
   if (shuttingDown) return;
   shuttingDown = true;
-  console.info(`Received ${signal}; closing publishing worker`);
-  await worker.close();
-  await connection.quit();
+  console.info(`Received ${signal}; closing workers`);
+  await Promise.all([worker.close(), aiWorker.close()]);
+  await Promise.all([connection.quit(), aiConnection.quit()]);
 }
 
 function requiredEnv(key: string) {
