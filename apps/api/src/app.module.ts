@@ -12,6 +12,7 @@ import { GoogleModule } from './integrations/google/google.module.js';
 import { CalendarModule } from './calendar/calendar.module.js';
 import { MediaModule } from './media/media.module.js';
 import { AnalyticsModule } from './analytics/analytics.module.js';
+import { AiModule } from './ai/ai.module.js';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { AnalyticsModule } from './analytics/analytics.module.js';
     CalendarModule,
     MediaModule,
     AnalyticsModule,
+    AiModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],

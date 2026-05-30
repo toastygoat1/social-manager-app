@@ -7,3 +7,11 @@ export interface PostSummary {
   scheduledAt: string | null;
   createdAt: string;
 }
+
+export type {
+  AIAnalysisRequest,
+  AIAnalysisResponse,
+  FiredRule,
+  PostSignals,
+  WorkingMemoryState,
+} from './ai.js';

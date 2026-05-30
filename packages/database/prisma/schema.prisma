@@ -58,6 +58,8 @@ model InstagramAccount {
   contentPosts         ContentPost[]
   dmConversations      DmConversation[]
   instagramStories     InstagramStory[]
+  aiKnowledge          AiKnowledge[]
+  aiProcedures         AiProcedure[]
   user                 User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   webhookEvents        WebhookEvent[]
 
@@ -374,4 +376,33 @@ enum DmSenderType {
 enum ChatbotMessageRole {
   USER
   ASSISTANT
+}
+
+model AiKnowledge {
+  id         String           @id @default(cuid())
+  accountId  String           @map("account_id")
+  category   String
+  fact       String
+  confidence Float            @default(0.8)
+  createdAt  DateTime         @default(now()) @map("created_at")
+  updatedAt  DateTime         @updatedAt @map("updated_at")
+  account    InstagramAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId])
+  @@map("ai_knowledge")
+}
+
+model AiProcedure {
+  id              String           @id @default(cuid())
+  accountId       String           @map("account_id")
+  strategy        String
+  outcome         String?
+  engagementDelta Float?           @map("engagement_delta")
+  savesDelta      Float?           @map("saves_delta")
+  appliedAt       DateTime         @default(now()) @map("applied_at")
+  resolvedAt      DateTime?        @map("resolved_at")
+  account         InstagramAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId])
+  @@map("ai_procedures")
 }
