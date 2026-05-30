@@ -1,6 +1,7 @@
 import type {
   Account,
   ContentRow,
+  MetadataFieldDefinition,
   StatTrend,
 } from "@/app/dashboard/_components/data";
 
@@ -151,6 +152,7 @@ export type AnalyticsData = {
   recentPosts: RecentPost[];
   distribution: DistributionItem[];
   contentCalendar: ContentCalendarMonth | null;
+  metadataFields: MetadataFieldDefinition[];
   contentRows: AnalyticsContentRow[];
   recommendations: Recommendation[];
   notes: AnalyticsNote[];
@@ -239,6 +241,7 @@ export const EMPTY_ANALYTICS: AnalyticsData = {
   recentPosts: [],
   distribution: [],
   contentCalendar: null,
+  metadataFields: [],
   contentRows: [],
   recommendations: [],
   notes: [],
