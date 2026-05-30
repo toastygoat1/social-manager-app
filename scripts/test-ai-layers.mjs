@@ -118,9 +118,9 @@ function evaluateRules(signals) {
   const fired = [];
   const depth = signals.aspectBreakdown.engagementDepth ?? 0;
 
-  if (depth < 0.3) {
+  if (depth < 0.03) {
     fired.push({ ruleId: 'R001', conclusion: 'UNDERPERFORMING', confidence: 0.85,
-      condition: `engagementDepth (${depth.toFixed(4)}) < 0.3`,
+      condition: `engagementDepth (${depth.toFixed(4)}) < 0.03`,
       action: 'Review caption hooks and CTA placement' });
   }
   if (depth < 0.01) {
