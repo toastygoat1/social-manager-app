@@ -82,7 +82,8 @@ Queue: ai-analysis (BullMQ)
 | `layers/layer2.service.ts` | Calls OpenAI for prose explanation. Returns `{ explanation: string, tokensUsed: number }`. Uses `OPENAI_MODEL_LAYER2` (fallback: `gpt-4.1-mini`). Throws `BadRequestException` on failure. `memoryContext` is injected into the system prompt (not the user message). |
 | `expert/rules.ts` | Pure TypeScript function `evaluateRules(signals)`. No NestJS. |
 | `expert/engine.service.ts` | NestJS injectable wrapper around `evaluateRules`. Adds R006 chain detection. |
-| `expert/rules.spec.ts` | 11 unit tests covering all rules and boundary conditions. |
+| `expert/rules.spec.ts` | 11 unit tests covering R001–R005 rules and boundary conditions. |
+| `expert/engine.service.spec.ts` | 2 unit tests for R006 chain: fires when R001+R003 both fire, does not fire when only R001 fires. |
 
 ### scripts/
 
@@ -220,6 +221,7 @@ node scripts/test-ai-layers.mjs
 **Unit tests (expert rules):**
 ```bash
 corepack pnpm --filter api test -- rules.spec.ts
+corepack pnpm --filter api test -- engine.service.spec.ts
 ```
 
 **Full API checks:**
@@ -682,7 +684,7 @@ corepack pnpm --filter worker build
 
 1. Open `apps/api/src/ai/expert/rules.ts`
 2. Add a new block inside `evaluateRules()` following the existing pattern
-3. Add a test in `rules.spec.ts`
+3. Add a test in `rules.spec.ts` (R001–R005) or `engine.service.spec.ts` (R006 chain)
 4. No other files need changing — the output flows automatically to Layer 2
 
 ### Add a new semantic memory category
