@@ -172,6 +172,65 @@ export class CalendarService {
     return fields.map(mapMetadataField);
   }
 
+  async saveMetadataFields(
+    userId: string,
+    input: PostMetadataInput[],
+  ): Promise<CalendarMetadataField[]> {
+    const entries = normalizeMetadataFieldDefinitions(input);
+
+    return this.prisma.$transaction(async (tx) => {
+      const existingFields = await tx.contentMetadataField.findMany({
+        where: { userId },
+        select: { id: true, label: true, sortOrder: true },
+      });
+      const fieldById = new Map(
+        existingFields.map((field) => [field.id, field]),
+      );
+      const requestedExistingIds = new Set(
+        entries.flatMap((entry) => (entry.fieldId ? [entry.fieldId] : [])),
+      );
+      for (const fieldId of requestedExistingIds) {
+        if (!fieldById.has(fieldId)) {
+          throw new ForbiddenException('Metadata field is not available');
+        }
+      }
+
+      const fieldsToDelete = existingFields
+        .filter((field) => !requestedExistingIds.has(field.id))
+        .map((field) => field.id);
+      if (fieldsToDelete.length) {
+        await tx.contentMetadataField.deleteMany({
+          where: { id: { in: fieldsToDelete }, userId },
+        });
+      }
+
+      for (const [sortOrder, entry] of entries.entries()) {
+        if (entry.fieldId) {
+          await tx.contentMetadataField.update({
+            where: { id: entry.fieldId },
+            data: { label: entry.label, sortOrder },
+          });
+          continue;
+        }
+
+        await tx.contentMetadataField.create({
+          data: {
+            userId,
+            label: entry.label,
+            sortOrder,
+          },
+        });
+      }
+
+      const fields = await tx.contentMetadataField.findMany({
+        where: { userId },
+        orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+        select: { id: true, label: true, sortOrder: true },
+      });
+      return fields.map(mapMetadataField);
+    });
+  }
+
   async listEvents(
     userId: string,
     fromDate: Date,
@@ -989,6 +1048,11 @@ type NormalizedMetadataInput = {
   value: string;
 };
 
+type NormalizedMetadataFieldDefinition = {
+  fieldId: string | null;
+  label: string;
+};
+
 type ResolvedMetadataValue = {
   fieldId: string;
   value: string;
@@ -1037,6 +1101,42 @@ function normalizePostMetadataInput(
     }
 
     return [{ fieldId, label, value }];
+  });
+}
+
+function normalizeMetadataFieldDefinitions(
+  input: PostMetadataInput[] | undefined,
+): NormalizedMetadataFieldDefinition[] {
+  if (!input?.length) return [];
+  if (input.length > MAX_METADATA_FIELDS) {
+    throw new BadRequestException(
+      `Metadata supports up to ${MAX_METADATA_FIELDS} fields per user`,
+    );
+  }
+
+  const seenLabels = new Set<string>();
+  return input.flatMap((item) => {
+    const fieldId = item.fieldId?.trim() || null;
+    const label = item.label?.trim() || null;
+    const value = item.value?.trim() ?? '';
+
+    if (!fieldId && !label && !value) return [];
+    if (!label) {
+      throw new BadRequestException('Metadata fields need a label');
+    }
+    if (label.length > MAX_METADATA_KEY_LENGTH) {
+      throw new BadRequestException(
+        `Metadata labels must be ${MAX_METADATA_KEY_LENGTH} characters or fewer`,
+      );
+    }
+
+    const normalizedLabel = label.toLowerCase();
+    if (seenLabels.has(normalizedLabel)) {
+      throw new BadRequestException('Metadata labels must be unique');
+    }
+    seenLabels.add(normalizedLabel);
+
+    return [{ fieldId, label }];
   });
 }
 

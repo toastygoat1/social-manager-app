@@ -20,6 +20,7 @@ import { ListEventsQueryDto } from './dto/list-events-query.dto.js';
 import { CreateEventDto } from './dto/create-event.dto.js';
 import { UpdateDraftDto } from './dto/update-draft.dto.js';
 import { UpdateScheduledPostDto } from './dto/update-scheduled-post.dto.js';
+import { SaveMetadataFieldsDto } from './dto/save-metadata-fields.dto.js';
 
 @UseGuards(JwtAuthGuard)
 @Controller('calendar')
@@ -59,6 +60,17 @@ export class CalendarController {
   @Get('metadata-fields')
   listMetadataFields(@Request() req: AuthedRequest) {
     return this.calendarService.listMetadataFields(req.user.userId);
+  }
+
+  @Patch('metadata-fields')
+  saveMetadataFields(
+    @Request() req: AuthedRequest,
+    @Body() body: SaveMetadataFieldsDto,
+  ) {
+    return this.calendarService.saveMetadataFields(
+      req.user.userId,
+      body.fields,
+    );
   }
 
   @Get('posts/:contentPostId')

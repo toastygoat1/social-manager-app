@@ -14,6 +14,7 @@ import {
   Pencil,
   Play,
   Plus,
+  Save,
   Send,
   Trash2,
   User,
@@ -528,6 +529,7 @@ export function CreatePostModal({
     createMetadataField(),
   ]);
   const [metadataEditing, setMetadataEditing] = useState(false);
+  const [metadataSaving, setMetadataSaving] = useState(false);
   const [media, setMedia] = useState<SelectedMedia[]>([]);
   const [requiresApproval, setRequiresApproval] = useState(false);
   const [scheduledFor, setScheduledFor] = useState(() =>
@@ -574,6 +576,7 @@ export function CreatePostModal({
         setUserMetadataFields(fields);
         setMetadataFields(metadataDefinitionsToFields(fields));
         setMetadataEditing(false);
+        setMetadataSaving(false);
       })
       .catch(() => {
         if (process.env.NODE_ENV !== "production") {
@@ -594,6 +597,7 @@ export function CreatePostModal({
       setAccountPickerOpen(false);
       setMetadataFields([createMetadataField()]);
       setMetadataEditing(false);
+      setMetadataSaving(false);
       setScheduledFor(defaultScheduledInputValue(defaultScheduledIso));
     }
   }, [open, type, defaultScheduledIso]);
@@ -708,6 +712,54 @@ export function CreatePostModal({
       const next = current.filter((item) => item.id !== id);
       return next.length ? next : [createMetadataField()];
     });
+  };
+
+  const saveMetadataFields = async () => {
+    const { metadata, error: metadataError } =
+      metadataFieldsToPayload(metadataFields);
+    if (metadataError) {
+      setError(metadataError);
+      return;
+    }
+
+    const valueByFieldId = new Map(
+      metadataFields.flatMap((field) =>
+        field.fieldId ? [[field.fieldId, field.value] as const] : [],
+      ),
+    );
+    const valueByLabel = new Map(
+      metadataFields.flatMap((field) => {
+        const label = field.label.trim().toLowerCase();
+        return label ? [[label, field.value] as const] : [];
+      }),
+    );
+
+    setMetadataSaving(true);
+    setError(null);
+    try {
+      const savedFields = await apiFetchBrowser<UserMetadataField[]>(
+        "/calendar/metadata-fields",
+        {
+          method: "PATCH",
+          body: { fields: metadata },
+        },
+      );
+      const values = Object.fromEntries(
+        savedFields.map((field) => [
+          field.id,
+          valueByFieldId.get(field.id) ??
+            valueByLabel.get(field.label.toLowerCase()) ??
+            "",
+        ]),
+      );
+      setUserMetadataFields(savedFields);
+      setMetadataFields(metadataDefinitionsToFields(savedFields, values));
+      setMetadataEditing(false);
+    } catch (saveError) {
+      setError(readErrorMessage(saveError));
+    } finally {
+      setMetadataSaving(false);
+    }
   };
 
   const uploadSelectedMedia = async (
@@ -1129,19 +1181,24 @@ export function CreatePostModal({
                 <h3 className="text-[11px] font-semibold text-[#27231d]">Metadata</h3>
                 <button
                   type="button"
+                  disabled={metadataSaving}
                   onClick={() =>
                     metadataEditing
-                      ? setMetadataEditing(false)
+                      ? void saveMetadataFields()
                       : setMetadataEditing(true)
                   }
                   className="inline-flex h-7 items-center gap-1 rounded px-1.5 text-[10px] text-[#686158] transition-colors hover:bg-[#f3f0ea]"
                 >
                   {metadataEditing ? (
-                    <Check className="size-3" />
+                    <Save className="size-3" />
                   ) : (
                     <Pencil className="size-3" />
                   )}
-                  {metadataEditing ? "Done" : "Edit"}
+                  {metadataEditing
+                    ? metadataSaving
+                      ? "Saving..."
+                      : "Save"
+                    : "Edit"}
                 </button>
               </div>
               {metadataEditing ? (
@@ -1198,18 +1255,18 @@ export function CreatePostModal({
                   </button>
                 </div>
               ) : visibleMetadataFields.length ? (
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-2">
                   {visibleMetadataFields.map((field) => (
                     <div
                       key={field.id}
-                      className="min-w-0 rounded-md border border-[#e7e1d6] bg-paper px-3 py-2"
+                      className="flex min-w-0 items-center justify-between gap-3 rounded-md border border-[#e7e1d6] bg-paper px-3 py-2"
                     >
-                      <p className="truncate text-[9px] font-semibold uppercase tracking-[0.1em] text-[#928c84]">
+                      <span className="truncate text-[10px] font-semibold text-[#6e685f]">
                         {field.label || "Metadata"}
-                      </p>
-                      <p className="mt-1 truncate text-[11px] text-[#302b23]">
+                      </span>
+                      <span className="min-w-0 flex-1 truncate text-right text-[11px] text-[#302b23]">
                         {field.value || "-"}
-                      </p>
+                      </span>
                     </div>
                   ))}
                 </div>
