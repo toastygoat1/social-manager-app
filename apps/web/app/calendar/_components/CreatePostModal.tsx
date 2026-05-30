@@ -1259,14 +1259,27 @@ export function CreatePostModal({
                   {visibleMetadataFields.map((field) => (
                     <div
                       key={field.id}
-                      className="flex min-w-0 items-center justify-between gap-3 rounded-md border border-[#e7e1d6] bg-paper px-3 py-2"
+                      className="grid grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] gap-2"
                     >
-                      <span className="truncate text-[10px] font-semibold text-[#6e685f]">
-                        {field.label || "Metadata"}
-                      </span>
-                      <span className="min-w-0 flex-1 truncate text-right text-[11px] text-[#302b23]">
-                        {field.value || "-"}
-                      </span>
+                      <div className="flex h-9 min-w-0 items-center rounded-md border border-[#e7e1d6] bg-[#f7f5ef] px-3">
+                        <span className="truncate text-[10px] font-semibold text-[#6e685f]">
+                          {field.label || "Metadata"}
+                        </span>
+                      </div>
+                      <input
+                        value={field.value}
+                        onChange={(event) =>
+                          updateMetadataField(
+                            field.id,
+                            "value",
+                            event.target.value,
+                          )
+                        }
+                        placeholder="-"
+                        maxLength={160}
+                        className="h-9 min-w-0 rounded-md border border-[#e7e1d6] bg-paper px-3 text-[11px] text-[#302b23] placeholder:text-[#9a9388] focus:outline-none"
+                        aria-label={`${field.label || "Metadata"} value`}
+                      />
                     </div>
                   ))}
                 </div>
