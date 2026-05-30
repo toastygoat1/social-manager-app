@@ -168,7 +168,7 @@ Rules are evaluated in `expert/rules.ts` as pure TypeScript. The engine adds a c
 
 | Rule | Condition | Conclusion |
 |---|---|---|
-| R001 | `engagementDepth < 0.3` | `UNDERPERFORMING` |
+| R001 | `engagementDepth < 0.03` | `UNDERPERFORMING` |
 | R002 | `savesReachRatio < 0.01` | `LOW_SAVE_VALUE` |
 | R003 | `viralRisk=true AND savesReachRatio < 0.02` | `VIRAL_BUT_HOLLOW` |
 | R004 | `topThemes includes 'Food' AND savesReachRatio < 0.05` | `FOOD_SAVE_UNDERPERFORM` |
@@ -536,7 +536,7 @@ flowchart TD
     IN --> R004
     IN --> R005
 
-    R001{engagementDepth < 0.3}
+    R001{engagementDepth < 0.03}
     R002{engagementDepth < 0.01}
     R003{viralRisk=true\nAND depth < 0.02}
     R004{Food in topThemes\nAND depth < 0.05}
