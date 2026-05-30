@@ -3,6 +3,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
@@ -13,6 +14,8 @@ import {
 } from '@social-manager/database';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MediaService } from '../media/media.service.js';
+import { AiQueueService } from '../ai/ai-queue.service.js';
+import { AiService } from '../ai/ai.service.js';
 import { decryptSecret } from '../common/crypto.util.js';
 import { CreateAnalyticsNoteDto } from './dto/create-analytics-note.dto.js';
 import { UpdateAnalyticsNoteDto } from './dto/update-analytics-note.dto.js';
@@ -399,6 +402,8 @@ export class AnalyticsService {
     private readonly prisma: PrismaService,
     private readonly media: MediaService,
     private readonly config: ConfigService,
+    @Optional() private readonly aiQueue: AiQueueService | null,
+    @Optional() private readonly aiService: AiService | null,
   ) {}
 
   async getOverview(
@@ -751,6 +756,27 @@ export class AnalyticsService {
         result.errors[0]?.message ??
           'Instagram insights could not be refreshed.',
       );
+    }
+
+    if (result.refreshed > 0) {
+      const refreshedPosts = posts.slice(0, 5);
+      const accountIds = [...new Set(refreshedPosts.map((p) => p.instagramAccountId))];
+
+      if (this.aiQueue) {
+        for (const post of refreshedPosts) {
+          void this.aiQueue.enqueueAnalysis(post.instagramAccountId, post.id);
+        }
+      }
+
+      if (this.aiService) {
+        for (const accountId of accountIds) {
+          void this.aiService.autoResolveOutcomes(accountId).catch((err: unknown) => {
+            this.logger.warn(
+              `Auto-resolve outcomes failed for account ${accountId}: ${(err as Error).message}`,
+            );
+          });
+        }
+      }
     }
 
     return result;
