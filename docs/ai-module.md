@@ -78,8 +78,8 @@ Queue: ai-analysis (BullMQ)
 | `memory/episodic-memory.service.ts` | Reads/writes `chatbot_messages` and `chatbot_sessions`. |
 | `memory/semantic-memory.service.ts` | Reads/writes `ai_knowledge`. Upserts by `accountId+category+fact`. |
 | `memory/procedural-memory.service.ts` | Reads/writes `ai_procedures`. |
-| `layers/layer1.service.ts` | Calls OpenAI with JSON mode. Returns `{ signals: PostSignals, tokensUsed: number }`. Uses `OPENAI_MODEL_LAYER1`. |
-| `layers/layer2.service.ts` | Calls OpenAI for prose explanation. Returns `{ explanation: string, tokensUsed: number }`. Uses `OPENAI_MODEL_LAYER2`. Accepts nullable signals for chat path. |
+| `layers/layer1.service.ts` | Calls OpenAI with JSON mode. Returns `{ signals: PostSignals, tokensUsed: number }`. Uses `OPENAI_MODEL_LAYER1` (fallback: `gpt-5.4-mini`). System prompt includes category-specific saves/reach benchmarks and traffic source context derived from the portfolio dataset. |
+| `layers/layer2.service.ts` | Calls OpenAI for prose explanation. Returns `{ explanation: string, tokensUsed: number }`. Uses `OPENAI_MODEL_LAYER2` (fallback: `gpt-4.1-mini`). Throws `BadRequestException` on failure. `memoryContext` is injected into the system prompt (not the user message). |
 | `expert/rules.ts` | Pure TypeScript function `evaluateRules(signals)`. No NestJS. |
 | `expert/engine.service.ts` | NestJS injectable wrapper around `evaluateRules`. Adds R006 chain detection. |
 | `expert/rules.spec.ts` | 11 unit tests covering all rules and boundary conditions. |
@@ -467,9 +467,25 @@ Layer 1 receives raw post metrics and returns structured `PostSignals` as JSON (
 
 **Key field — `engagementDepth`:** Layer 1 is instructed to output the **raw saves/reach decimal** here (e.g. `0.0085` = 0.85%), not a normalized 0–1 score. Expert rule thresholds (0.01, 0.02, 0.05) operate on this value.
 
+**Category-specific benchmarks in system prompt** (derived from the 500-row portfolio dataset):
+
+| Category | saves/reach avg | Notes |
+|---|---|---|
+| Fashion | 0.18 | Highest in portfolio — benchmark for save depth |
+| Food | 0.012 | Lowest despite reasonable reach — flag if below 0.05 |
+| Comedy | highest ceiling | Highest volatility — don't over-index on one viral post |
+| Travel | high volatility | Similar caution as Comedy |
+| Technology | moderate saves | Inconsistent engagement — interest without emotional resonance |
+| All others | 0.08 avg | Beauty, Fitness, Lifestyle, Music, Photography |
+
+**Traffic source context also in system prompt:**
+- **Explore** — strongest follower-conversion source; high-reach + low saves = wasted opportunity
+- **Reels Feed** — high reach, lowest follower conversion; prioritize saves over reach
+- **Home Feed + Hashtags** — balanced conversion, ~550 followers gained per post average
+
 | Parameter | Value |
 |---|---|
-| Model | `OPENAI_MODEL_LAYER1` (default: `gpt-5.4-mini`) |
+| Model | `OPENAI_MODEL_LAYER1` (fallback: `gpt-5.4-mini`) |
 | Temperature | `0.1` — deterministic JSON |
 | Max tokens | `400` via `max_completion_tokens` |
 | Response format | `json_object` |
@@ -478,28 +494,35 @@ Layer 1 receives raw post metrics and returns structured `PostSignals` as JSON (
 
 ## Layer 2 — explanation
 
-Layer 2 receives `PostSignals` + `FiredRule[]` + memory context and returns 2–3 paragraphs of plain-English coaching.
+Layer 2 receives `PostSignals` + `FiredRule[]` and returns 2–3 paragraphs of plain-English coaching. `memoryContext` is injected into the **system prompt** (alongside tone/instructions), not the user message — so the model treats it as background knowledge rather than data to analyze.
+
+**Correct `engagementDepth` thresholds used in system prompt:**
+- `< 0.01` — content not perceived as worth saving → add evergreen value and stronger save CTA
+- `< 0.03` — below average save performance for this portfolio → strengthen content utility and hook structure
+
+**Error behaviour:** throws `BadRequestException` on failure — no silent fallback. Both layers now fail loudly so the caller can handle errors correctly.
 
 **Example output:**
 ```
 Your latest post is resonating well in terms of excitement and positive sentiment,
-scoring 0.88. However, the engagement depth is just 0.0085 — well below the 0.3
-threshold — meaning people see the post but aren't interacting deeply with it.
+scoring 0.88. However, the engagement depth (saves/reach) is just 0.0085 — below
+the 0.01 floor — meaning fewer than 1% of reached users saved it.
 
-The saves-to-reach ratio of 0.85% is below the 1% floor. Since your audience already
-shows intent to save recipe content, the fix is structural: lead with a numbered
-breakdown (Step 1, Step 2...) and end with a direct CTA like "Save this for your
-next dinner night."
+The saves-to-reach ratio of 0.85% signals the content is being seen but not valued
+enough to keep. Since your audience already shows intent to save recipe content, the
+fix is structural: lead with a numbered breakdown (Step 1, Step 2...) and close with
+a direct CTA like "Save this for your next dinner night."
 
-The good news: content quality is strong at 0.82 and risk is low. Small caption
-tweaks here are a high-reward, low-risk move.
+Content quality is strong at 0.82 and risk is low — small caption tweaks here are a
+high-reward, low-risk move.
 ```
 
 | Parameter | Value |
 |---|---|
-| Model | `OPENAI_MODEL_LAYER2` (default: `gpt-4.1-mini`) |
+| Model | `OPENAI_MODEL_LAYER2` (fallback: `gpt-4.1-mini`) |
 | Temperature | `0.4` — slightly creative but grounded |
 | Max tokens | `400` via `max_completion_tokens` |
+| On failure | throws `BadRequestException('Explanation generation failed')` |
 
 ---
 
@@ -689,6 +712,7 @@ Users call `PUT /ai/settings` with `preferredTone` and `customInstructions`. Bot
 | Worker jobs always fail with 401 | `WORKER_AI_SECRET` not set or mismatched between API and worker | Set the same value in `.env` for both |
 | `BadRequestError: max_tokens not supported` | Newer OpenAI model deprecated the parameter | Already fixed — both layers use `max_completion_tokens` |
 | `Layer1 analysis failed` in logs | Invalid JSON from model or wrong `response_format` | Check `OPENAI_MODEL_LAYER1`; some models need `json_schema` instead of `json_object` |
+| `Explanation generation failed` (400) returned to caller | Layer 2 OpenAI call failed | Check `OPENAI_API_KEY` and `OPENAI_MODEL_LAYER2`; Layer 2 now throws instead of returning a silent empty string |
 | `ai_knowledge` / `ai_procedures` table not found | Migration not run | `corepack pnpm --filter @social-manager/database prisma:migrate` |
 | Working memory always empty | Redis not running or wrong `REDIS_URL` | Check connection; working memory degrades gracefully (returns null, analysis still runs) |
 | Analytics refresh doesn't enqueue AI jobs | Wiring issue | Confirm `analytics.module.ts` imports `AiModule` and `AnalyticsService` has `@Optional() private readonly aiQueue` |

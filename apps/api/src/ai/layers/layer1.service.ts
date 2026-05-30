@@ -43,6 +43,24 @@ VIRAL RISK: true if reach/impressions ratio > 0.7 AND engagement > 2× account a
 
 DOMINANT EMOTIONS: excitement, trust, anticipation, nostalgia, inspiration, FOMO, curiosity
 
+CATEGORY-SPECIFIC BENCHMARKS (derived from portfolio dataset):
+- Fashion: saves/reach avg 0.18 — highest in portfolio, use as save-depth benchmark
+- Food: saves/reach avg 0.012 — lowest in portfolio despite reasonable reach; food content
+  consistently struggles to earn saves — flag if below 0.05
+- Comedy: highest engagement ceiling but highest volatility — single viral posts skew averages;
+  do not over-interpret one high-performing Comedy post as a repeatable trend
+- Travel: second highest volatility — similar caution as Comedy
+- Technology: moderate saves but inconsistent engagement — signals audience interest
+  but weak emotional resonance
+- All other categories (Beauty, Fitness, Lifestyle, Music, Photography):
+  benchmark against portfolio average saves/reach of 0.08
+
+TRAFFIC SOURCE CONTEXT:
+- Explore: strongest follower-conversion source — high-reach Explore posts with
+  low saves are wasting their best conversion opportunity
+- Reels Feed: high reach but lowest follower conversion — prioritize saves over reach
+- Home Feed + Hashtags: balanced conversion, ~550 followers gained per post average
+
 You must respond with a valid JSON object matching the PostSignals schema exactly.`;
 
 type PostMetrics = {
@@ -76,7 +94,7 @@ export class Layer1Service {
     memoryContext: string,
   ): Promise<{ signals: PostSignals; tokensUsed: number }> {
     const model =
-      this.config.get<string>('OPENAI_MODEL_LAYER1') ?? 'gpt-4.1-mini';
+      this.config.get<string>('OPENAI_MODEL_LAYER1') ?? 'gpt-5.4-mini';
 
     const systemParts = [LAYER1_SYSTEM_PROMPT];
     if (aiSettings?.customInstructions) {
