@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
 import type { AiSettings } from '@social-manager/database';
@@ -21,7 +21,8 @@ Tone and framing:
 
 Benchmark context you must apply:
 - Saves/reach < 1%: content is not perceived as worth keeping → add evergreen value
-- Engagement depth < 0.3 normalized: audience is browsing, not engaging → strengthen hooks
+- Engagement depth (saves/reach raw ratio) < 0.01: content is not perceived as worth saving → add evergreen value and stronger save CTA
+- Engagement depth < 0.03: below average save performance for this portfolio → strengthen content utility and hook structure
 - Viral risk with low saves: superficial virality → content is seen but not valued
 - Volatile narrative + high risk: unstable account performance → consistency intervention needed
 - Food content with < 5% saves/reach: a high-saves niche underperforming → add recipes or step-by-step formats
@@ -54,6 +55,9 @@ export class Layer2Service {
         `\nAdopt this tone in your explanation: ${aiSettings.preferredTone}`,
       );
     }
+    if (memoryContext) {
+      systemParts.push(`\n${memoryContext}`);
+    }
 
     const systemPrompt = systemParts.join('\n');
 
@@ -66,7 +70,7 @@ export class Layer2Service {
           { role: 'system', content: systemPrompt },
           {
             role: 'user',
-            content: JSON.stringify({ signals, firedRules, memoryContext }),
+            content: JSON.stringify({ signals, firedRules }),
           },
         ],
       });
@@ -79,7 +83,7 @@ export class Layer2Service {
       this.logger.error(
         `Layer2 explanation failed: ${(error as Error).message}`,
       );
-      return { explanation: 'Analysis complete — explanation generation encountered an issue.', tokensUsed: 0 };
+      throw new BadRequestException('Explanation generation failed');
     }
   }
 }
