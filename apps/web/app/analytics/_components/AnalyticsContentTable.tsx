@@ -7,7 +7,8 @@ import { useState, type ReactNode } from "react";
 import type { AnalyticsContentRow, AnalyticsMediaItem } from "./data";
 import type { MetadataFieldDefinition } from "@/app/dashboard/_components/data";
 
-const METADATA_WIDTH = 170;
+const METADATA_MIN_WIDTH = 120;
+const METADATA_MAX_WIDTH = 190;
 
 const LEADING_COLUMNS: { label: string; width: number }[] = [
   { label: "Content", width: 265 },
@@ -28,8 +29,19 @@ const TRAILING_COLUMNS: { label: string; width: number }[] = [
 function getTotalWidth(metadataFields: MetadataFieldDefinition[]) {
   return (
     LEADING_COLUMNS.reduce((sum, c) => sum + c.width, 0) +
-    metadataFields.length * METADATA_WIDTH +
-    TRAILING_COLUMNS.reduce((sum, c) => sum + c.width, 0)
+    TRAILING_COLUMNS.reduce((sum, c) => sum + c.width, 0) +
+    metadataFields.reduce(
+      (sum, field) => sum + getMetadataColumnWidth(field),
+      0,
+    )
+  );
+}
+
+function getMetadataColumnWidth(field: MetadataFieldDefinition) {
+  const labelWidth = field.label.trim().length * 7 + 44;
+  return Math.min(
+    METADATA_MAX_WIDTH,
+    Math.max(METADATA_MIN_WIDTH, labelWidth),
   );
 }
 
@@ -84,17 +96,17 @@ export function AnalyticsContentTable({
               </span>
             </Cell>
           ))}
-          {metadataFields.map((field) => (
-            <Cell key={field.id} width={METADATA_WIDTH}>
-              <span className="truncate font-mono text-[10px] uppercase tracking-[0.06em] text-muted">
-                {field.label}
-              </span>
-            </Cell>
-          ))}
           {TRAILING_COLUMNS.map((c) => (
             <Cell key={c.label} width={c.width}>
               <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-muted">
                 {c.label}
+              </span>
+            </Cell>
+          ))}
+          {metadataFields.map((field) => (
+            <Cell key={field.id} width={getMetadataColumnWidth(field)}>
+              <span className="truncate font-mono text-[10px] uppercase tracking-[0.06em] text-muted">
+                {field.label}
               </span>
             </Cell>
           ))}
@@ -174,13 +186,6 @@ function Row({
           className="w-full"
         />
       </div>
-      {metadataFields.map((field) => (
-        <Cell key={field.id} width={METADATA_WIDTH}>
-          <span className="truncate text-xs text-muted">
-            {row.metadata?.[field.id] || "-"}
-          </span>
-        </Cell>
-      ))}
       <Cell width={90}>
         <span className="text-xs text-muted">{row.type}</span>
       </Cell>
@@ -222,6 +227,13 @@ function Row({
           <span className="text-xs text-muted">{row.media}</span>
         )}
       </Cell>
+      {metadataFields.map((field) => (
+        <Cell key={field.id} width={getMetadataColumnWidth(field)}>
+          <span className="truncate text-xs text-muted">
+            {row.metadata?.[field.id] || "-"}
+          </span>
+        </Cell>
+      ))}
     </div>
   );
 }

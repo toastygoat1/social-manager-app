@@ -8,7 +8,8 @@ import { formatNumber } from "@/lib/format";
 
 const ACCOUNT_WIDTH = 250;
 const CONTENT_WIDTH = 260;
-const METADATA_WIDTH = 170;
+const METADATA_MIN_WIDTH = 120;
+const METADATA_MAX_WIDTH = 190;
 
 const TRAILING_COLUMNS: { label: string; width: number }[] = [
   { label: "Type", width: 110 },
@@ -32,8 +33,19 @@ function getTotalWidth(metadataFields: MetadataFieldDefinition[]) {
   return (
     ACCOUNT_WIDTH +
     CONTENT_WIDTH +
-    metadataFields.length * METADATA_WIDTH +
-    TRAILING_COLUMNS.reduce((sum, column) => sum + column.width, 0)
+    TRAILING_COLUMNS.reduce((sum, column) => sum + column.width, 0) +
+    metadataFields.reduce(
+      (sum, field) => sum + getMetadataColumnWidth(field),
+      0,
+    )
+  );
+}
+
+function getMetadataColumnWidth(field: MetadataFieldDefinition) {
+  const labelWidth = field.label.trim().length * 7 + 44;
+  return Math.min(
+    METADATA_MAX_WIDTH,
+    Math.max(METADATA_MIN_WIDTH, labelWidth),
   );
 }
 
@@ -126,14 +138,14 @@ export function ContentTable({ rows, metadataFields }: ContentTableProps) {
           <div className="flex h-9 items-center border-b border-[#ede8e1] bg-[#faf8f4] text-[9px] font-semibold uppercase tracking-[0.13em] text-[#928c84]">
             <Cell width={ACCOUNT_WIDTH}>Accounts</Cell>
             <Cell width={CONTENT_WIDTH}>Contents</Cell>
-            {metadataFields.map((field) => (
-              <Cell key={field.id} width={METADATA_WIDTH}>
-                {field.label}
-              </Cell>
-            ))}
             {TRAILING_COLUMNS.map((column) => (
               <Cell key={column.label} width={column.width}>
                 {column.label}
+              </Cell>
+            ))}
+            {metadataFields.map((field) => (
+              <Cell key={field.id} width={getMetadataColumnWidth(field)}>
+                <span className="truncate">{field.label}</span>
               </Cell>
             ))}
           </div>
@@ -182,13 +194,6 @@ function Row({
       <Cell width={CONTENT_WIDTH}>
         <span className="truncate text-[#4e4942]">{row.contents}</span>
       </Cell>
-      {metadataFields.map((field) => (
-        <Cell key={field.id} width={METADATA_WIDTH}>
-          <span className="truncate text-[#6e685f]">
-            {row.metadata[field.id] || "-"}
-          </span>
-        </Cell>
-      ))}
       <Cell width={TRAILING_COLUMNS[0].width}>
         <span className="text-[#6e685f]">{row.type}</span>
       </Cell>
@@ -219,6 +224,13 @@ function Row({
       <Cell width={TRAILING_COLUMNS[9].width}>
         <span className="text-[#6e685f]">{row.media}</span>
       </Cell>
+      {metadataFields.map((field) => (
+        <Cell key={field.id} width={getMetadataColumnWidth(field)}>
+          <span className="truncate text-[#6e685f]">
+            {row.metadata[field.id] || "-"}
+          </span>
+        </Cell>
+      ))}
     </div>
   );
 }
