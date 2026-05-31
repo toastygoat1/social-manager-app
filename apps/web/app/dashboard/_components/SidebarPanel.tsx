@@ -325,8 +325,10 @@ function AccountRow({
   return (
     <li
       title={isCollapsed ? account.name : undefined}
-      className={`flex min-h-8 items-center rounded-md py-1.5 transition-colors hover:bg-[#f4f2ed] ${
-        isCollapsed ? "justify-center px-0" : "gap-2 px-2"
+      className={`flex items-center transition-colors ${
+        isCollapsed
+          ? "size-8 self-center justify-center rounded-[5px] p-0 hover:bg-[#e8e5dd]"
+          : "min-h-8 gap-2 rounded-md px-2 py-1.5 hover:bg-[#f4f2ed]"
       }`}
     >
       <AccountAvatar account={account} index={index} />
@@ -368,7 +370,6 @@ function AccountRow({
 
 function ProfileAvatar({
   profile,
-  isCollapsed = false,
 }: {
   profile?: UserProfile | null;
   isCollapsed?: boolean;
@@ -377,16 +378,14 @@ function ProfileAvatar({
 
   return (
     <span
-      className={`flex shrink-0 items-center justify-center overflow-hidden rounded-[7px] bg-[#5e6ad2] font-semibold text-white ${
-        isCollapsed ? "size-8 text-xs" : "size-[26px] text-[10.5px]"
-      }`}
+      className="flex size-[26px] shrink-0 items-center justify-center overflow-hidden rounded-[7px] bg-[#5e6ad2] text-[10.5px] font-semibold text-white"
     >
       {profile?.avatarUrl ? (
         <Image
           src={profile.avatarUrl}
           alt={`${name} profile picture`}
-          width={isCollapsed ? 32 : 26}
-          height={isCollapsed ? 32 : 26}
+          width={26}
+          height={26}
           className="size-full object-cover"
         />
       ) : (
@@ -452,7 +451,7 @@ export function SidebarPanel({
   return (
     <aside
       className={`sticky top-0 flex h-screen shrink-0 flex-col gap-[18px] overflow-y-auto border-r border-[#e7e3db] bg-[#fafaf8] pb-3 pt-3.5 font-inter text-[#1a1814] transition-[width,padding] duration-300 ease-in-out motion-reduce:transition-none ${
-        isCollapsed ? "w-20 px-2" : "w-[232px] px-3"
+        isCollapsed ? "w-16 px-2" : "w-[232px] px-3"
       }`}
     >
       <header
@@ -474,7 +473,10 @@ export function SidebarPanel({
         </span>
       </header>
 
-      <nav aria-label="Primary" className="flex flex-col gap-px">
+      <nav
+        aria-label="Primary"
+        className={`flex flex-col gap-px ${isCollapsed ? "items-center" : ""}`}
+      >
         {NAV_ITEMS.map(({ key, label, Icon, href, badge }) => {
           const isActive = key === active;
 
@@ -484,14 +486,20 @@ export function SidebarPanel({
               href={href}
               aria-current={isActive ? "page" : undefined}
               title={isCollapsed ? label : undefined}
-              className={`relative flex min-h-7 items-center rounded-md py-1.5 text-[12.5px] leading-4 transition-[gap,padding,background-color,color] duration-300 ${
-                isCollapsed ? "justify-center gap-0 px-0" : "gap-[9px] px-2"
+              className={`relative flex items-center text-[12.5px] leading-4 transition-[gap,padding,background-color,color] duration-300 ${
+                isCollapsed
+                  ? "size-8 justify-center rounded-[5px] p-0"
+                  : "min-h-7 gap-[9px] rounded-md px-2 py-1.5"
               } ${
                 isActive
-                  ? `bg-[#f4f2ed] font-medium text-[#1a1814] before:absolute before:top-1.5 before:bottom-1.5 before:w-0.5 before:rounded-full before:bg-[#5e6ad2] ${
+                  ? `${
+                      isCollapsed ? "bg-[#e8e5dd]" : "bg-[#f4f2ed]"
+                    } font-medium text-[#1a1814] before:absolute before:top-1.5 before:bottom-1.5 before:w-0.5 before:rounded-full before:bg-[#5e6ad2] ${
                       isCollapsed ? "before:left-0" : "before:-left-3"
                     }`
-                  : "text-[#59544c] hover:bg-[#f4f2ed] hover:text-[#1a1814]"
+                  : `text-[#59544c] ${
+                      isCollapsed ? "hover:bg-[#e8e5dd]" : "hover:bg-[#f4f2ed]"
+                    } hover:text-[#1a1814]`
               }`}
             >
               <span className="relative flex shrink-0 items-center justify-center">
@@ -534,10 +542,10 @@ export function SidebarPanel({
 
         <div
           title={isCollapsed ? "All clients" : undefined}
-          className={`flex min-h-8 items-center rounded-md py-1.5 transition-[gap,padding,background-color,box-shadow] duration-300 ${
+          className={`flex items-center transition-[gap,padding,background-color,box-shadow] duration-300 ${
             isCollapsed
-              ? "justify-center px-0"
-              : "gap-2 bg-[#f4f2ed] px-2 shadow-[inset_0_0_0_1px_#e7e3db]"
+              ? "mx-auto size-8 justify-center rounded-[5px] p-0 hover:bg-[#e8e5dd]"
+              : "min-h-8 gap-2 rounded-md bg-[#f4f2ed] px-2 py-1.5 shadow-[inset_0_0_0_1px_#e7e3db]"
           }`}
         >
           <span className="grid size-[22px] shrink-0 place-items-center rounded-md border border-dashed border-[#d3cec3] text-[#59544c]">
@@ -575,7 +583,7 @@ export function SidebarPanel({
         {additionalAccounts.length > 0 && isCollapsed ? (
           <div
             title={`${additionalAccounts.length} more connected accounts`}
-            className="flex min-h-8 items-center justify-center rounded-md py-1.5 text-[11px] font-medium text-[#8a847a]"
+            className="mx-auto flex size-8 items-center justify-center rounded-[5px] text-[11px] font-medium text-[#8a847a] transition-colors hover:bg-[#e8e5dd]"
           >
             +{additionalAccounts.length}
           </div>
@@ -614,8 +622,10 @@ export function SidebarPanel({
         aria-expanded={!isCollapsed}
         onClick={toggleSidebar}
         title={isCollapsed ? "Expand sidebar" : undefined}
-        className={`mt-auto flex min-h-8 items-center rounded-md py-1.5 text-[12.5px] text-[#59544c] transition-[gap,padding,background-color,color] duration-300 hover:bg-[#f4f2ed] hover:text-[#1a1814] ${
-          isCollapsed ? "justify-center gap-0 px-0" : "gap-2 px-2"
+        className={`mt-auto flex items-center text-[12.5px] text-[#59544c] transition-[gap,padding,background-color,color] duration-300 hover:text-[#1a1814] ${
+          isCollapsed
+            ? "size-8 self-center justify-center rounded-[5px] p-0 hover:bg-[#e8e5dd]"
+            : "min-h-8 gap-2 rounded-md px-2 py-1.5 hover:bg-[#f4f2ed]"
         }`}
       >
         {isCollapsed ? (
