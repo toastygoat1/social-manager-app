@@ -12,6 +12,8 @@ import { NotFoundException } from '@nestjs/common';
 import {
   DmSenderType,
   InstagramAccountType,
+  PostStatus,
+  PostType,
   Prisma,
 } from '@social-manager/database';
 import { InstagramService } from './instagram.service.js';
@@ -52,6 +54,14 @@ describe('InstagramService', () => {
       upsert: jest.Mock<PrismaFn>;
       count: jest.Mock<PrismaFn>;
     };
+    contentPost: {
+      findFirst: jest.Mock<PrismaFn>;
+      create: jest.Mock<PrismaFn>;
+      update: jest.Mock<PrismaFn>;
+    };
+    postAnalytics: {
+      create: jest.Mock<PrismaFn>;
+    };
   };
   let config: {
     get: jest.Mock<(key: string) => string | undefined>;
@@ -89,6 +99,14 @@ describe('InstagramService', () => {
       instagramStory: {
         upsert: jest.fn<PrismaFn>(),
         count: jest.fn<PrismaFn>(),
+      },
+      contentPost: {
+        findFirst: jest.fn<PrismaFn>(),
+        create: jest.fn<PrismaFn>(),
+        update: jest.fn<PrismaFn>(),
+      },
+      postAnalytics: {
+        create: jest.fn<PrismaFn>(),
       },
     };
     config = {
@@ -231,6 +249,146 @@ describe('InstagramService', () => {
     expect(result[0]).toMatchObject({
       id: 'account-1',
       avatarUrl: 'https://cdninstagram.com/avatar.jpg',
+    });
+  });
+
+  it('backfills connected Instagram media without writing custom metadata', async () => {
+    prisma.instagramAccount.findFirst.mockResolvedValue({
+      id: 'account-1',
+      igUserId: 'ig-account-1',
+      username: 'brand',
+      accessTokenEncrypted: encryptSecret('ig-token'),
+    });
+    prisma.contentPost.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ id: 'post-2' });
+    prisma.contentPost.create.mockResolvedValue({ id: 'post-1' });
+    prisma.contentPost.update.mockResolvedValue({ id: 'post-2' });
+    prisma.postAnalytics.create.mockResolvedValue({});
+
+    const fetchMock = jest
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation((input) => {
+        const url =
+          input instanceof URL
+            ? input
+            : new URL(typeof input === 'string' ? input : input.url);
+
+        if (url.pathname.endsWith('/ig-account-1/media')) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                data: [
+                  {
+                    id: 'ig-media-1',
+                    caption: 'Launch reel',
+                    media_type: 'VIDEO',
+                    media_product_type: 'REELS',
+                    permalink: 'https://instagram.com/reel/1',
+                    timestamp: '2026-05-20T01:00:00+0000',
+                    like_count: 12,
+                    comments_count: 3,
+                  },
+                  {
+                    id: 'ig-media-2',
+                    caption: 'Carousel post',
+                    media_type: 'CAROUSEL_ALBUM',
+                    media_product_type: 'FEED',
+                    permalink: 'https://instagram.com/p/2',
+                    timestamp: '2026-05-19T01:00:00+0000',
+                    like_count: 5,
+                    comments_count: 1,
+                  },
+                ],
+              }),
+              {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' },
+              },
+            ),
+          );
+        }
+
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              data: [
+                { name: 'views', total_value: { value: 100 } },
+                { name: 'reach', total_value: { value: 80 } },
+                { name: 'shares', total_value: { value: 4 } },
+                { name: 'saved', total_value: { value: 2 } },
+                { name: 'total_interactions', total_value: { value: 21 } },
+              ],
+            }),
+            {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' },
+            },
+          ),
+        );
+      });
+
+    const result = await service.backfillAccountMedia('user-1', 'account-1');
+    const mediaUrl = fetchMock.mock.calls
+      .map(([input]) =>
+        input instanceof URL
+          ? input
+          : new URL(typeof input === 'string' ? input : input.url),
+      )
+      .find((url) => url.pathname.endsWith('/ig-account-1/media'));
+
+    expect(mediaUrl?.searchParams.get('fields')).toContain('caption');
+    expect(mediaUrl?.searchParams.get('access_token')).toBe('ig-token');
+    expect(prisma.contentPost.create).toHaveBeenCalledWith({
+      data: {
+        instagramAccountId: 'account-1',
+        caption: 'Launch reel',
+        postType: PostType.REEL,
+        status: PostStatus.PUBLISHED,
+        publishedAt: new Date('2026-05-20T01:00:00+0000'),
+        igMediaId: 'ig-media-1',
+        igPermalink: 'https://instagram.com/reel/1',
+      },
+      select: { id: true },
+    });
+    expect(prisma.contentPost.update).toHaveBeenCalledWith({
+      where: { id: 'post-2' },
+      data: {
+        caption: 'Carousel post',
+        postType: PostType.CAROUSEL,
+        status: PostStatus.PUBLISHED,
+        publishedAt: new Date('2026-05-19T01:00:00+0000'),
+        igMediaId: 'ig-media-2',
+        igPermalink: 'https://instagram.com/p/2',
+      },
+      select: { id: true },
+    });
+    const createPostArgs = prisma.contentPost.create.mock.calls[0][0] as {
+      data: Record<string, unknown>;
+    };
+    const updatePostArgs = prisma.contentPost.update.mock.calls[0][0] as {
+      data: Record<string, unknown>;
+    };
+    expect(createPostArgs.data).not.toHaveProperty('metadataValues');
+    expect(updatePostArgs.data).not.toHaveProperty('metadataValues');
+    expect(prisma.postAnalytics.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        contentPostId: 'post-1',
+        likeCount: 12,
+        commentsCount: 3,
+        sharesCount: 4,
+        savesCount: 2,
+        reach: 80,
+        impressions: 100,
+        engagement: 21,
+      }) as Record<string, unknown>,
+    });
+    expect(result).toMatchObject({
+      scanned: 2,
+      imported: 1,
+      updated: 1,
+      analyticsCreated: 2,
+      failed: 0,
     });
   });
 
