@@ -24,6 +24,10 @@ interface InstagramWebhookRequest {
   rawBody?: Buffer;
 }
 
+type InstagramBackfillBody = {
+  limit?: number | null;
+};
+
 @Controller('instagram')
 export class InstagramController {
   constructor(private readonly instagramService: InstagramService) {}
@@ -67,6 +71,22 @@ export class InstagramController {
     @Param('accountId') accountId: string,
   ) {
     await this.instagramService.removeAccount(req.user.userId, accountId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('accounts/:accountId/backfill')
+  backfillAccountMedia(
+    @Request() req: AuthedRequest,
+    @Param('accountId') accountId: string,
+    @Body() body: InstagramBackfillBody,
+  ) {
+    return this.instagramService.backfillAccountMedia(
+      req.user.userId,
+      accountId,
+      {
+        limit: body?.limit,
+      },
+    );
   }
 
   @UseGuards(JwtAuthGuard)

@@ -14,6 +14,8 @@ import { URL } from 'node:url';
 import {
   DmSenderType,
   InstagramAccountType,
+  PostStatus,
+  PostType,
   Prisma,
   WebhookProcessingStatus,
   WebhookSource,
@@ -110,6 +112,20 @@ const DASHBOARD_MEDIA_FIELDS = 'id,like_count,timestamp';
 const MAX_MEDIA_PAGES_FOR_DASHBOARD = 25;
 const MAX_DM_CONVERSATION_PAGES = 3;
 const STORY_TTL_MS = 24 * 60 * 60 * 1000;
+const BACKFILL_MEDIA_FIELDS =
+  'id,caption,media_type,media_product_type,permalink,timestamp,like_count,comments_count';
+const BACKFILL_INSIGHT_METRICS = [
+  'views',
+  'reach',
+  'likes',
+  'comments',
+  'shares',
+  'saved',
+  'total_interactions',
+] as const;
+const DEFAULT_BACKFILL_MEDIA_LIMIT = 250;
+const MAX_BACKFILL_MEDIA_LIMIT = 1000;
+const BACKFILL_PAGE_SIZE = 100;
 
 type DashboardInsightMetric = (typeof DASHBOARD_INSIGHT_METRICS)[number];
 type DashboardMetric = DashboardInsightMetric | 'likes';
@@ -179,7 +195,12 @@ type InstagramInsightsResponse = GraphApiError & {
 
 type InstagramMediaResponse = {
   id?: string;
+  caption?: string;
+  media_type?: string;
+  media_product_type?: string;
+  permalink?: string;
   like_count?: unknown;
+  comments_count?: unknown;
   timestamp?: string;
 };
 
@@ -253,6 +274,36 @@ type ObservedInstagramStory = InstagramStoryResponse & {
 type StoryCountSummary = {
   storyCount: number | null;
   activeStoryCount: number | null;
+};
+
+type BackfillInsightMetric = (typeof BACKFILL_INSIGHT_METRICS)[number];
+
+type InstagramBackfillAccount = {
+  id: string;
+  igUserId: string;
+  username?: string;
+};
+
+type BackfillMediaLimit = number | null;
+
+type BackfillMetrics = {
+  likeCount: number | null;
+  commentsCount: number | null;
+  sharesCount: number | null;
+  savesCount: number | null;
+  reach: number | null;
+  impressions: number | null;
+  engagement: number | null;
+};
+
+type BackfillResult = {
+  scanned: number;
+  imported: number;
+  updated: number;
+  analyticsCreated: number;
+  analyticsSkipped: number;
+  failed: number;
+  errors: { igMediaId: string; message: string }[];
 };
 
 @Injectable()
@@ -441,8 +492,55 @@ export class InstagramService {
         : undefined,
     });
     const connectedAccounts: SafeInstagramAccount[] = [connected];
+    const backfill = await this.backfillConnectedAccount(
+      {
+        id: connected.id,
+        igUserId: connected.igUserId,
+        username: connected.username,
+      },
+      longLivedToken.access_token,
+    ).catch((error) => {
+      this.logger.warn(
+        `Instagram media backfill skipped for account ${connected.id}: ${this.getErrorMessage(error)}`,
+      );
+      return null;
+    });
 
-    return { connected: connectedAccounts };
+    return { connected: connectedAccounts, backfill };
+  }
+
+  async backfillAccountMedia(
+    userId: string,
+    accountId: string,
+    options: { limit?: number | null } = {},
+  ) {
+    const account = await this.prisma.instagramAccount.findFirst({
+      where: {
+        id: accountId,
+        userId,
+        isActive: true,
+      },
+      select: {
+        id: true,
+        igUserId: true,
+        username: true,
+        accessTokenEncrypted: true,
+      },
+    });
+
+    if (!account) {
+      throw new NotFoundException('Instagram account was not found.');
+    }
+
+    return this.backfillConnectedAccount(
+      {
+        id: account.id,
+        igUserId: account.igUserId,
+        username: account.username,
+      },
+      decryptSecret(account.accessTokenEncrypted),
+      options,
+    );
   }
 
   private async upsertAccount(userId: string, data: AddInstagramAccountDto) {
@@ -1218,6 +1316,230 @@ export class InstagramService {
     );
   }
 
+  private async backfillConnectedAccount(
+    account: InstagramBackfillAccount,
+    accessToken: string,
+    options: { limit?: number | null } = {},
+  ): Promise<BackfillResult> {
+    const limit = this.resolveBackfillLimit(options.limit);
+    const result: BackfillResult = {
+      scanned: 0,
+      imported: 0,
+      updated: 0,
+      analyticsCreated: 0,
+      analyticsSkipped: 0,
+      failed: 0,
+      errors: [],
+    };
+    let nextUrl: URL | null = this.createGraphUrl(`${account.igUserId}/media`);
+    const fetchedAt = new Date();
+
+    nextUrl.searchParams.set('fields', BACKFILL_MEDIA_FIELDS);
+    nextUrl.searchParams.set('limit', String(this.getBackfillPageSize(limit)));
+    nextUrl.searchParams.set('access_token', accessToken);
+
+    while (nextUrl && !this.hasReachedBackfillLimit(result.scanned, limit)) {
+      const response: InstagramMediaListResponse =
+        await this.requestGraph<InstagramMediaListResponse>(nextUrl);
+      const mediaItems: InstagramMediaResponse[] = Array.isArray(response.data)
+        ? response.data
+        : [];
+
+      for (const media of mediaItems) {
+        if (this.hasReachedBackfillLimit(result.scanned, limit)) break;
+        const igMediaId = typeof media.id === 'string' ? media.id.trim() : '';
+
+        if (!igMediaId) {
+          result.analyticsSkipped += 1;
+          continue;
+        }
+
+        result.scanned += 1;
+
+        try {
+          const post = await this.upsertBackfilledContentPost(
+            account.id,
+            media,
+          );
+
+          if (post.created) {
+            result.imported += 1;
+          } else {
+            result.updated += 1;
+          }
+
+          try {
+            const metrics = await this.fetchBackfillMediaMetrics(
+              media,
+              accessToken,
+            );
+
+            if (this.hasAnyMetric(metrics)) {
+              await this.prisma.postAnalytics.create({
+                data: {
+                  contentPostId: post.id,
+                  fetchedAt,
+                  likeCount: metrics.likeCount,
+                  commentsCount: metrics.commentsCount,
+                  sharesCount: metrics.sharesCount,
+                  savesCount: metrics.savesCount,
+                  reach: metrics.reach,
+                  impressions: metrics.impressions,
+                  engagement: metrics.engagement,
+                },
+              });
+              result.analyticsCreated += 1;
+            } else {
+              result.analyticsSkipped += 1;
+            }
+          } catch (error) {
+            this.logger.warn(
+              `Instagram media insight backfill skipped for ${igMediaId}: ${this.getErrorMessage(error)}`,
+            );
+            result.analyticsSkipped += 1;
+          }
+        } catch (error) {
+          const message = this.getErrorMessage(error);
+          this.logger.warn(
+            `Instagram media backfill failed for ${igMediaId}: ${message}`,
+          );
+          result.failed += 1;
+          result.errors.push({ igMediaId, message });
+        }
+      }
+
+      const next =
+        typeof response.paging?.next === 'string' ? response.paging.next : null;
+
+      nextUrl =
+        next && !this.hasReachedBackfillLimit(result.scanned, limit)
+          ? new URL(next)
+          : null;
+    }
+
+    return result;
+  }
+
+  private async upsertBackfilledContentPost(
+    instagramAccountId: string,
+    media: InstagramMediaResponse,
+  ) {
+    const igMediaId = media.id?.trim();
+
+    if (!igMediaId) {
+      throw new BadRequestException('Instagram media id was not returned.');
+    }
+
+    const existing = await this.prisma.contentPost.findFirst({
+      where: {
+        instagramAccountId,
+        igMediaId,
+      },
+      select: { id: true },
+    });
+    const data = {
+      caption: this.normalizeOptionalString(media.caption),
+      postType: this.mapInstagramPostType(media),
+      status: PostStatus.PUBLISHED,
+      publishedAt: this.toDate(media.timestamp),
+      igMediaId,
+      igPermalink: this.normalizeOptionalString(media.permalink),
+    };
+
+    if (existing) {
+      const updated = await this.prisma.contentPost.update({
+        where: { id: existing.id },
+        data,
+        select: { id: true },
+      });
+
+      return { id: updated.id, created: false };
+    }
+
+    const created = await this.prisma.contentPost.create({
+      data: {
+        instagramAccountId,
+        ...data,
+      },
+      select: { id: true },
+    });
+
+    return { id: created.id, created: true };
+  }
+
+  private async fetchBackfillMediaMetrics(
+    media: InstagramMediaResponse,
+    accessToken: string,
+  ): Promise<BackfillMetrics> {
+    const fallback: BackfillMetrics = {
+      likeCount: this.toNumber(media.like_count),
+      commentsCount: this.toNumber(media.comments_count),
+      sharesCount: null,
+      savesCount: null,
+      reach: null,
+      impressions: null,
+      engagement: null,
+    };
+
+    if (!media.id) {
+      return fallback;
+    }
+
+    const url = this.createGraphUrl(`${media.id}/insights`);
+    url.searchParams.set('metric', BACKFILL_INSIGHT_METRICS.join(','));
+    url.searchParams.set('access_token', accessToken);
+
+    try {
+      const response = await this.requestGraph<InstagramInsightsResponse>(url);
+      const insights = new Map(
+        BACKFILL_INSIGHT_METRICS.map((metric) => [
+          metric,
+          this.readInsightMetricValue(response, metric),
+        ]).filter(
+          (entry): entry is [BackfillInsightMetric, number] =>
+            entry[1] !== null,
+        ),
+      );
+
+      return {
+        likeCount: fallback.likeCount ?? insights.get('likes') ?? null,
+        commentsCount:
+          fallback.commentsCount ?? insights.get('comments') ?? null,
+        sharesCount: insights.get('shares') ?? null,
+        savesCount: insights.get('saved') ?? null,
+        reach: insights.get('reach') ?? null,
+        impressions: insights.get('views') ?? null,
+        engagement: insights.get('total_interactions') ?? null,
+      };
+    } catch (error) {
+      if (this.hasAnyMetric(fallback)) {
+        return fallback;
+      }
+
+      throw error;
+    }
+  }
+
+  private hasAnyMetric(metrics: BackfillMetrics) {
+    return Object.values(metrics).some((value) => value !== null);
+  }
+
+  private mapInstagramPostType(media: InstagramMediaResponse) {
+    if (media.media_product_type === 'REELS') {
+      return PostType.REEL;
+    }
+
+    if (media.media_product_type === 'STORY') {
+      return PostType.STORY;
+    }
+
+    if (media.media_type === 'CAROUSEL_ALBUM') {
+      return PostType.CAROUSEL;
+    }
+
+    return PostType.FEED;
+  }
+
   private async fetchAccountUploadCount(account: InstagramInsightsAccount) {
     const url = this.createGraphUrl(account.igUserId);
     url.searchParams.set('fields', 'media_count');
@@ -1404,7 +1726,7 @@ export class InstagramService {
 
   private readInsightMetricValue(
     response: InstagramInsightsResponse,
-    metricName: DashboardInsightMetric,
+    metricName: DashboardInsightMetric | BackfillInsightMetric,
   ) {
     const metric = response.data?.find((item) => item.name === metricName);
 
@@ -1439,6 +1761,11 @@ export class InstagramService {
     return null;
   }
 
+  private normalizeOptionalString(value: string | undefined) {
+    const trimmed = value?.trim();
+    return trimmed ? trimmed : null;
+  }
+
   private toDate(value: string | undefined) {
     if (!value) {
       return null;
@@ -1461,6 +1788,53 @@ export class InstagramService {
       since: Math.floor(since / 1000),
       until: Math.floor(until / 1000),
     };
+  }
+
+  private resolveBackfillLimit(
+    limit: number | null | undefined,
+  ): BackfillMediaLimit {
+    if (limit === 0 || limit === null) {
+      return null;
+    }
+
+    const configured = limit ?? this.readConfiguredBackfillLimit();
+
+    if (configured === null) {
+      return null;
+    }
+
+    if (!Number.isInteger(configured) || configured <= 0) {
+      return DEFAULT_BACKFILL_MEDIA_LIMIT;
+    }
+
+    return Math.min(configured, MAX_BACKFILL_MEDIA_LIMIT);
+  }
+
+  private readConfiguredBackfillLimit(): BackfillMediaLimit {
+    const raw = this.config
+      .get<string>('META_INSTAGRAM_BACKFILL_MEDIA_LIMIT')
+      ?.trim();
+
+    if (!raw) {
+      return DEFAULT_BACKFILL_MEDIA_LIMIT;
+    }
+
+    if (raw === '0' || raw.toLowerCase() === 'all') {
+      return null;
+    }
+
+    const parsed = Number(raw);
+    return Number.isInteger(parsed) ? parsed : DEFAULT_BACKFILL_MEDIA_LIMIT;
+  }
+
+  private hasReachedBackfillLimit(scanned: number, limit: BackfillMediaLimit) {
+    return limit !== null && scanned >= limit;
+  }
+
+  private getBackfillPageSize(limit: BackfillMediaLimit) {
+    return limit === null
+      ? BACKFILL_PAGE_SIZE
+      : Math.min(BACKFILL_PAGE_SIZE, limit);
   }
 
   private emptyInsightTotals(): DashboardInsightTotals {
