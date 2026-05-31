@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { LoaderCircle, RefreshCw, Trash2 } from "lucide-react";
+import { LoaderCircle, Trash2 } from "lucide-react";
 import { ApiError, apiFetchBrowser } from "@/lib/api/browser-client";
 import { Instagram } from "./icons";
 
@@ -13,15 +13,6 @@ type AccountChipProps = {
   platform: string;
   avatarUrl?: string | null;
   className?: string;
-};
-
-type BackfillResponse = {
-  scanned: number;
-  imported: number;
-  updated: number;
-  analyticsCreated: number;
-  analyticsSkipped: number;
-  failed: number;
 };
 
 function getApiErrorMessage(error: unknown) {
@@ -54,39 +45,6 @@ function getRemoveErrorMessage(error: unknown) {
   return "Instagram account could not be removed. Please try again after the API finishes redeploying.";
 }
 
-function getBackfillErrorMessage(error: unknown) {
-  if (error instanceof ApiError) {
-    if (error.status === 401) {
-      return "Please sign in again before importing Instagram posts.";
-    }
-
-    if (error.status === 404) {
-      return "This Instagram account is no longer connected.";
-    }
-
-    return (
-      getApiErrorMessage(error) ??
-      `Instagram posts could not be imported. API returned ${error.status}.`
-    );
-  }
-
-  return "Instagram posts could not be imported. Please try again after the API finishes redeploying.";
-}
-
-function getBackfillSuccessMessage(result: BackfillResponse) {
-  const parts = [
-    `${result.imported} imported`,
-    `${result.updated} updated`,
-    `${result.analyticsCreated} analytics snapshots`,
-  ];
-
-  if (result.failed > 0) {
-    parts.push(`${result.failed} failed`);
-  }
-
-  return `Backfill complete: ${parts.join(", ")}.`;
-}
-
 function getFallbackInitial(name: string) {
   return name.replace(/^@/, "").trim().charAt(0).toUpperCase() || "I";
 }
@@ -100,34 +58,6 @@ export function AccountChip({
 }: AccountChipProps) {
   const router = useRouter();
   const [isRemoving, setIsRemoving] = useState(false);
-  const [isBackfilling, setIsBackfilling] = useState(false);
-
-  async function backfillPosts() {
-    if (!accountId) return;
-
-    const confirmed = window.confirm(
-      `Import recent Instagram posts for ${name}? This will fetch up to 250 existing posts and current metrics.`,
-    );
-    if (!confirmed) return;
-
-    setIsBackfilling(true);
-
-    try {
-      const result = await apiFetchBrowser<BackfillResponse>(
-        `/instagram/accounts/${encodeURIComponent(accountId)}/backfill`,
-        {
-          method: "POST",
-          body: { limit: 250 },
-        },
-      );
-      window.alert(getBackfillSuccessMessage(result));
-      router.refresh();
-    } catch (error) {
-      window.alert(getBackfillErrorMessage(error));
-    } finally {
-      setIsBackfilling(false);
-    }
-  }
 
   async function removeAccount() {
     if (!accountId) return;
@@ -178,36 +108,20 @@ export function AccountChip({
         </div>
       </div>
       {accountId ? (
-        <div className="flex shrink-0 items-center gap-1">
-          <button
-            type="button"
-            onClick={backfillPosts}
-            disabled={isBackfilling || isRemoving}
-            title="Import recent Instagram posts"
-            aria-label={`Import recent Instagram posts for ${name}`}
-            className="flex size-7 shrink-0 items-center justify-center rounded-lg text-muted transition hover:bg-emerald-50 hover:text-success disabled:pointer-events-none disabled:opacity-60"
-          >
-            {isBackfilling ? (
-              <LoaderCircle className="size-3.5 animate-spin" strokeWidth={2} />
-            ) : (
-              <RefreshCw className="size-3.5" strokeWidth={2} />
-            )}
-          </button>
-          <button
-            type="button"
-            onClick={removeAccount}
-            disabled={isRemoving || isBackfilling}
-            title="Remove account"
-            aria-label={`Remove ${name}`}
-            className="flex size-7 shrink-0 items-center justify-center rounded-lg text-muted transition hover:bg-red-50 hover:text-danger disabled:pointer-events-none disabled:opacity-60"
-          >
-            {isRemoving ? (
-              <LoaderCircle className="size-3.5 animate-spin" strokeWidth={2} />
-            ) : (
-              <Trash2 className="size-3.5" strokeWidth={2} />
-            )}
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={removeAccount}
+          disabled={isRemoving}
+          title="Remove account"
+          aria-label={`Remove ${name}`}
+          className="flex size-7 shrink-0 items-center justify-center rounded-lg text-muted transition hover:bg-red-50 hover:text-danger disabled:pointer-events-none disabled:opacity-60"
+        >
+          {isRemoving ? (
+            <LoaderCircle className="size-3.5 animate-spin" strokeWidth={2} />
+          ) : (
+            <Trash2 className="size-3.5" strokeWidth={2} />
+          )}
+        </button>
       ) : null}
     </div>
   );
