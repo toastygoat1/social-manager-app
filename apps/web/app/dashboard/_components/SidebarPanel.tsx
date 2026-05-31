@@ -1,7 +1,7 @@
 "use client";
 
 import type { ComponentType, SVGProps } from "react";
-import { useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore } from "react";
 import {
   BarChart3,
   CalendarDays,
@@ -9,13 +9,17 @@ import {
   Home,
   Inbox,
   LayoutGrid,
+  LoaderCircle,
   PanelLeftClose,
   PanelLeftOpen,
+  RefreshCw,
   Settings,
   Sparkles,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { ApiError, apiFetchBrowser } from "@/lib/api/browser-client";
 import type { UserProfile } from "@/lib/supabase/user-profile";
 import type { Account } from "./data";
 import {
@@ -24,7 +28,9 @@ import {
   SIDEBAR_COLLAPSED_MAX_AGE,
 } from "./sidebar-preferences";
 
-type LucideIcon = ComponentType<SVGProps<SVGSVGElement> & { strokeWidth?: number }>;
+type LucideIcon = ComponentType<
+  SVGProps<SVGSVGElement> & { strokeWidth?: number }
+>;
 
 export type SidebarKey =
   | "dashboard"
@@ -41,6 +47,14 @@ type NavItem = {
   badge?: string;
 };
 
+type BackfillResponse = {
+  scanned: number;
+  imported: number;
+  updated: number;
+  analyticsCreated: number;
+  failed: number;
+};
+
 type SidebarPanelProps = {
   active: SidebarKey;
   accounts: Account[];
@@ -50,7 +64,12 @@ type SidebarPanelProps = {
 
 const NAV_ITEMS: NavItem[] = [
   { key: "dashboard", label: "Overview", Icon: Home, href: "/dashboard" },
-  { key: "scheduling", label: "Calendar", Icon: CalendarDays, href: "/calendar" },
+  {
+    key: "scheduling",
+    label: "Calendar",
+    Icon: CalendarDays,
+    href: "/calendar",
+  },
   { key: "snow-ai", label: "Snow AI", Icon: Sparkles, href: "/chat-ai" },
   { key: "chat", label: "Inbox", Icon: Inbox, href: "/chat", badge: "24" },
   { key: "analytics", label: "Insights", Icon: BarChart3, href: "/analytics" },
@@ -85,15 +104,59 @@ function SnowflakeLogo(props: SVGProps<SVGSVGElement>) {
       aria-label="Snowflake logo"
       {...props}
     >
-      <path d="M15.5 4.54004L15.5 27.8859" stroke="currentColor" strokeWidth="2.09452" />
-      <circle cx="15.4993" cy="2.91824" r="1.87098" stroke="currentColor" strokeWidth="2.09452" />
-      <path d="M15.499 27.6357C16.5322 27.6357 17.37 28.4736 17.3701 29.5068C17.3701 30.5401 16.5323 31.3779 15.499 31.3779C14.4658 31.3778 13.6279 30.5401 13.6279 29.5068C13.6281 28.4737 14.4659 27.6359 15.499 27.6357Z" stroke="currentColor" strokeWidth="2.09452" />
-      <path d="M5.3916 10.375L25.6098 22.048" stroke="currentColor" strokeWidth="2.09452" />
-      <circle cx="3.98639" cy="9.56466" r="1.87098" transform="rotate(-60 3.98639 9.56466)" stroke="currentColor" strokeWidth="2.09452" />
-      <path d="M25.392 21.9232C25.9086 21.0284 27.0531 20.7218 27.9479 21.2383C28.8428 21.7549 29.1495 22.8994 28.6328 23.7943C28.1161 24.6889 26.9716 24.9957 26.0768 24.4791C25.1822 23.9624 24.8755 22.8179 25.392 21.9232Z" stroke="currentColor" strokeWidth="2.09452" />
-      <path d="M25.6084 10.375L5.39025 22.048" stroke="currentColor" strokeWidth="2.09452" />
-      <circle cx="2.91824" cy="2.91824" r="1.87098" transform="matrix(-0.5 -0.866025 -0.866025 0.5 30.999 10.6328)" stroke="currentColor" strokeWidth="2.09452" />
-      <path d="M5.60705 21.9232C5.09044 21.0284 3.94593 20.7218 3.05109 21.2383C2.15621 21.7549 1.84957 22.8994 2.36622 23.7943C2.88294 24.6889 4.02739 24.9957 4.92218 24.4791C5.8168 23.9624 6.12347 22.8179 5.60705 21.9232Z" stroke="currentColor" strokeWidth="2.09452" />
+      <path
+        d="M15.5 4.54004L15.5 27.8859"
+        stroke="currentColor"
+        strokeWidth="2.09452"
+      />
+      <circle
+        cx="15.4993"
+        cy="2.91824"
+        r="1.87098"
+        stroke="currentColor"
+        strokeWidth="2.09452"
+      />
+      <path
+        d="M15.499 27.6357C16.5322 27.6357 17.37 28.4736 17.3701 29.5068C17.3701 30.5401 16.5323 31.3779 15.499 31.3779C14.4658 31.3778 13.6279 30.5401 13.6279 29.5068C13.6281 28.4737 14.4659 27.6359 15.499 27.6357Z"
+        stroke="currentColor"
+        strokeWidth="2.09452"
+      />
+      <path
+        d="M5.3916 10.375L25.6098 22.048"
+        stroke="currentColor"
+        strokeWidth="2.09452"
+      />
+      <circle
+        cx="3.98639"
+        cy="9.56466"
+        r="1.87098"
+        transform="rotate(-60 3.98639 9.56466)"
+        stroke="currentColor"
+        strokeWidth="2.09452"
+      />
+      <path
+        d="M25.392 21.9232C25.9086 21.0284 27.0531 20.7218 27.9479 21.2383C28.8428 21.7549 29.1495 22.8994 28.6328 23.7943C28.1161 24.6889 26.9716 24.9957 26.0768 24.4791C25.1822 23.9624 24.8755 22.8179 25.392 21.9232Z"
+        stroke="currentColor"
+        strokeWidth="2.09452"
+      />
+      <path
+        d="M25.6084 10.375L5.39025 22.048"
+        stroke="currentColor"
+        strokeWidth="2.09452"
+      />
+      <circle
+        cx="2.91824"
+        cy="2.91824"
+        r="1.87098"
+        transform="matrix(-0.5 -0.866025 -0.866025 0.5 30.999 10.6328)"
+        stroke="currentColor"
+        strokeWidth="2.09452"
+      />
+      <path
+        d="M5.60705 21.9232C5.09044 21.0284 3.94593 20.7218 3.05109 21.2383C2.15621 21.7549 1.84957 22.8994 2.36622 23.7943C2.88294 24.6889 4.02739 24.9957 4.92218 24.4791C5.8168 23.9624 6.12347 22.8179 5.60705 21.9232Z"
+        stroke="currentColor"
+        strokeWidth="2.09452"
+      />
     </svg>
   );
 }
@@ -147,6 +210,50 @@ function getPlatformCode(platform: string) {
     .toUpperCase();
 }
 
+function getApiErrorMessage(error: unknown) {
+  if (!(error instanceof ApiError)) {
+    return null;
+  }
+
+  const body = error.body as { message?: string | string[] } | null;
+  const message = body?.message;
+
+  return Array.isArray(message) ? message[0] : message;
+}
+
+function getBackfillErrorMessage(error: unknown) {
+  if (error instanceof ApiError) {
+    if (error.status === 401) {
+      return "Please sign in again before importing Instagram posts.";
+    }
+
+    if (error.status === 404) {
+      return "This Instagram account is no longer connected.";
+    }
+
+    return (
+      getApiErrorMessage(error) ??
+      `Instagram posts could not be imported. API returned ${error.status}.`
+    );
+  }
+
+  return "Instagram posts could not be imported. Please try again after the API finishes redeploying.";
+}
+
+function getBackfillSuccessMessage(result: BackfillResponse) {
+  const parts = [
+    `${result.imported} imported`,
+    `${result.updated} updated`,
+    `${result.analyticsCreated} analytics snapshots`,
+  ];
+
+  if (result.failed > 0) {
+    parts.push(`${result.failed} failed`);
+  }
+
+  return `Backfill complete: ${parts.join(", ")}.`;
+}
+
 function AccountAvatar({
   account,
   index,
@@ -187,6 +294,34 @@ function AccountRow({
   index: number;
   isCollapsed?: boolean;
 }) {
+  const router = useRouter();
+  const [isBackfilling, setIsBackfilling] = useState(false);
+
+  async function backfillPosts() {
+    const confirmed = window.confirm(
+      `Import recent Instagram posts for ${account.name}? This will fetch up to 250 existing posts and current metrics.`,
+    );
+    if (!confirmed) return;
+
+    setIsBackfilling(true);
+
+    try {
+      const result = await apiFetchBrowser<BackfillResponse>(
+        `/instagram/accounts/${encodeURIComponent(account.id)}/backfill`,
+        {
+          method: "POST",
+          body: { limit: 250 },
+        },
+      );
+      window.alert(getBackfillSuccessMessage(result));
+      router.refresh();
+    } catch (error) {
+      window.alert(getBackfillErrorMessage(error));
+    } finally {
+      setIsBackfilling(false);
+    }
+  }
+
   return (
     <li
       title={isCollapsed ? account.name : undefined}
@@ -208,6 +343,23 @@ function AccountRow({
           <span className="shrink-0 font-mono text-[9.5px] font-semibold text-[#8a847a]">
             {getPlatformCode(account.platform)}
           </span>
+          <button
+            type="button"
+            onClick={backfillPosts}
+            disabled={isBackfilling}
+            title="Import recent Instagram posts"
+            aria-label={`Import recent Instagram posts for ${account.name}`}
+            className="grid size-6 shrink-0 place-items-center rounded-md text-[#8a847a] transition-colors hover:bg-[#e9f4ef] hover:text-[#287a65] disabled:pointer-events-none disabled:opacity-60"
+          >
+            {isBackfilling ? (
+              <LoaderCircle
+                className="size-3.5 animate-spin"
+                strokeWidth={1.8}
+              />
+            ) : (
+              <RefreshCw className="size-3.5" strokeWidth={1.8} />
+            )}
+          </button>
         </>
       )}
     </li>
@@ -353,7 +505,9 @@ export function SidebarPanel({
               </span>
               <span
                 className={`truncate transition-[max-width,opacity] duration-200 ${
-                  isCollapsed ? "max-w-0 opacity-0" : "max-w-[110px] opacity-100"
+                  isCollapsed
+                    ? "max-w-0 opacity-0"
+                    : "max-w-[110px] opacity-100"
                 }`}
               >
                 {label}
