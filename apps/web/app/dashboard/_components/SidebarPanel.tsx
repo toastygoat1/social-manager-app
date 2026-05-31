@@ -325,45 +325,62 @@ function AccountRow({
   return (
     <li
       title={isCollapsed ? account.name : undefined}
-      className={`flex items-center transition-colors ${
+      className={`group flex min-h-8 w-full items-center transition-[gap,padding,background-color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
         isCollapsed
-          ? "size-8 self-center justify-center rounded-[5px] p-0 hover:bg-[#e8e5dd]"
+          ? "justify-center gap-0 px-0 py-0"
           : "min-h-8 gap-2 rounded-md px-2 py-1.5 hover:bg-[#f4f2ed]"
       }`}
     >
-      <AccountAvatar account={account} index={index} />
-      {isCollapsed ? null : (
-        <>
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-[12.5px] font-medium leading-4 text-[#1a1814]">
-              {account.name}
-            </span>
-            <span className="block truncate text-[10.5px] leading-4 text-[#8a847a]">
-              {account.platform}
-            </span>
-          </span>
-          <span className="shrink-0 font-mono text-[9.5px] font-semibold text-[#8a847a]">
-            {getPlatformCode(account.platform)}
-          </span>
-          <button
-            type="button"
-            onClick={backfillPosts}
-            disabled={isBackfilling}
-            title="Import recent Instagram posts"
-            aria-label={`Import recent Instagram posts for ${account.name}`}
-            className="grid size-6 shrink-0 place-items-center rounded-md text-[#8a847a] transition-colors hover:bg-[#e9f4ef] hover:text-[#287a65] disabled:pointer-events-none disabled:opacity-60"
-          >
-            {isBackfilling ? (
-              <LoaderCircle
-                className="size-3.5 animate-spin"
-                strokeWidth={1.8}
-              />
-            ) : (
-              <RefreshCw className="size-3.5" strokeWidth={1.8} />
-            )}
-          </button>
-        </>
-      )}
+      <span
+        className={`grid shrink-0 place-items-center transition-colors duration-200 ${
+          isCollapsed ? "size-8 rounded-[5px] group-hover:bg-[#e8e5dd]" : ""
+        }`}
+      >
+        <AccountAvatar account={account} index={index} />
+      </span>
+      <span
+        className={`min-w-0 flex-1 overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-300 ease-out ${
+          isCollapsed ? "max-w-0 opacity-0" : "max-w-[128px] opacity-100"
+        }`}
+      >
+        <span className="block truncate text-[12.5px] font-medium leading-4 text-[#1a1814]">
+          {account.name}
+        </span>
+        <span className="block truncate text-[10.5px] leading-4 text-[#8a847a]">
+          {account.platform}
+        </span>
+      </span>
+      <span
+        className={`shrink-0 overflow-hidden whitespace-nowrap font-mono text-[9.5px] font-semibold text-[#8a847a] transition-[max-width,opacity] duration-300 ease-out ${
+          isCollapsed ? "max-w-0 opacity-0" : "max-w-[18px] opacity-100"
+        }`}
+      >
+        {getPlatformCode(account.platform)}
+      </span>
+      <span
+        className={`grid shrink-0 overflow-hidden transition-[width,opacity] duration-300 ease-out ${
+          isCollapsed ? "w-0 opacity-0" : "w-6 opacity-100"
+        }`}
+      >
+        <button
+          type="button"
+          onClick={backfillPosts}
+          disabled={isBackfilling || isCollapsed}
+          tabIndex={isCollapsed ? -1 : undefined}
+          title="Import recent Instagram posts"
+          aria-label={`Import recent Instagram posts for ${account.name}`}
+          className="grid size-6 shrink-0 place-items-center rounded-md text-[#8a847a] transition-colors hover:bg-[#e9f4ef] hover:text-[#287a65] disabled:pointer-events-none disabled:opacity-60"
+        >
+          {isBackfilling ? (
+            <LoaderCircle
+              className="size-3.5 animate-spin"
+              strokeWidth={1.8}
+            />
+          ) : (
+            <RefreshCw className="size-3.5" strokeWidth={1.8} />
+          )}
+        </button>
+      </span>
     </li>
   );
 }
@@ -372,7 +389,6 @@ function ProfileAvatar({
   profile,
 }: {
   profile?: UserProfile | null;
-  isCollapsed?: boolean;
 }) {
   const name = getProfileName(profile);
 
@@ -450,12 +466,12 @@ export function SidebarPanel({
 
   return (
     <aside
-      className={`sticky top-0 flex h-screen shrink-0 flex-col gap-[18px] overflow-y-auto border-r border-[#e7e3db] bg-[#fafaf8] pb-3 pt-3.5 font-inter text-[#1a1814] transition-[width,padding] duration-300 ease-in-out motion-reduce:transition-none ${
+      className={`sticky top-0 flex h-screen shrink-0 flex-col gap-[18px] overflow-y-auto border-r border-[#e7e3db] bg-[#fafaf8] pb-3 pt-3.5 font-inter text-[#1a1814] transition-[width,padding] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
         isCollapsed ? "w-16 px-2" : "w-[232px] px-3"
       }`}
     >
       <header
-        className={`flex h-[33px] items-center pb-1 transition-[gap,padding] duration-300 ${
+        className={`flex h-[33px] items-center pb-1 transition-[gap,padding] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
           isCollapsed ? "justify-center gap-0 px-0" : "gap-3 px-1.5"
         }`}
       >
@@ -463,7 +479,7 @@ export function SidebarPanel({
           <SnowflakeLogo className="h-[33px] w-[31px]" />
         </span>
         <span
-          className={`min-w-0 overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-200 ${
+          className={`min-w-0 overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-300 ease-out ${
             isCollapsed ? "max-w-0 opacity-0" : "max-w-[120px] opacity-100"
           }`}
         >
@@ -473,10 +489,7 @@ export function SidebarPanel({
         </span>
       </header>
 
-      <nav
-        aria-label="Primary"
-        className={`flex flex-col gap-px ${isCollapsed ? "items-center" : ""}`}
-      >
+      <nav aria-label="Primary" className="flex flex-col gap-px">
         {NAV_ITEMS.map(({ key, label, Icon, href, badge }) => {
           const isActive = key === active;
 
@@ -486,23 +499,29 @@ export function SidebarPanel({
               href={href}
               aria-current={isActive ? "page" : undefined}
               title={isCollapsed ? label : undefined}
-              className={`relative flex items-center text-[12.5px] leading-4 transition-[gap,padding,background-color,color] duration-300 ${
+              className={`group relative flex min-h-8 w-full items-center rounded-md text-[12.5px] leading-4 transition-[gap,padding,background-color,color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
                 isCollapsed
-                  ? "size-8 justify-center rounded-[5px] p-0"
-                  : "min-h-7 gap-[9px] rounded-md px-2 py-1.5"
+                  ? "justify-center gap-0 px-0 py-0"
+                  : "gap-[9px] px-2 py-1.5"
               } ${
                 isActive
                   ? `${
-                      isCollapsed ? "bg-[#e8e5dd]" : "bg-[#f4f2ed]"
-                    } font-medium text-[#1a1814] before:absolute before:top-1.5 before:bottom-1.5 before:w-0.5 before:rounded-full before:bg-[#5e6ad2] ${
-                      isCollapsed ? "before:left-0" : "before:-left-3"
-                    }`
+                      isCollapsed ? "" : "bg-[#f4f2ed]"
+                    } font-medium text-[#1a1814]`
                   : `text-[#59544c] ${
-                      isCollapsed ? "hover:bg-[#e8e5dd]" : "hover:bg-[#f4f2ed]"
+                      isCollapsed ? "" : "hover:bg-[#f4f2ed]"
                     } hover:text-[#1a1814]`
               }`}
             >
-              <span className="relative flex shrink-0 items-center justify-center">
+              <span
+                className={`relative grid shrink-0 place-items-center transition-colors duration-200 ${
+                  isCollapsed
+                    ? `size-8 rounded-[5px] ${
+                        isActive ? "bg-[#e8e5dd]" : "group-hover:bg-[#e8e5dd]"
+                      }`
+                    : ""
+                }`}
+              >
                 <Icon className="size-[15px]" strokeWidth={1.7} />
                 {badge && isCollapsed ? (
                   <span
@@ -512,7 +531,7 @@ export function SidebarPanel({
                 ) : null}
               </span>
               <span
-                className={`truncate transition-[max-width,opacity] duration-200 ${
+                className={`truncate transition-[max-width,opacity] duration-300 ease-out ${
                   isCollapsed
                     ? "max-w-0 opacity-0"
                     : "max-w-[110px] opacity-100"
@@ -532,8 +551,8 @@ export function SidebarPanel({
 
       <section aria-label="Clients" className="flex flex-col gap-1">
         <div
-          className={`mb-1 flex items-center justify-between px-2 text-[10.5px] font-medium uppercase text-[#8a847a] ${
-            isCollapsed ? "sr-only" : ""
+          className={`flex items-center justify-between overflow-hidden px-2 text-[10.5px] font-medium uppercase text-[#8a847a] transition-[height,margin,opacity] duration-300 ease-out ${
+            isCollapsed ? "mb-0 h-0 opacity-0" : "mb-1 h-4 opacity-100"
           }`}
         >
           <h2>Clients</h2>
@@ -542,25 +561,35 @@ export function SidebarPanel({
 
         <div
           title={isCollapsed ? "All clients" : undefined}
-          className={`flex items-center transition-[gap,padding,background-color,box-shadow] duration-300 ${
+          className={`group flex min-h-8 w-full items-center transition-[gap,padding,background-color,box-shadow] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
             isCollapsed
-              ? "mx-auto size-8 justify-center rounded-[5px] p-0 hover:bg-[#e8e5dd]"
+              ? "justify-center gap-0 px-0 py-0"
               : "min-h-8 gap-2 rounded-md bg-[#f4f2ed] px-2 py-1.5 shadow-[inset_0_0_0_1px_#e7e3db]"
           }`}
         >
-          <span className="grid size-[22px] shrink-0 place-items-center rounded-md border border-dashed border-[#d3cec3] text-[#59544c]">
-            <LayoutGrid className="size-[13px]" strokeWidth={1.7} />
-          </span>
-          {isCollapsed ? null : (
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-[12.5px] font-medium leading-4 text-[#1a1814]">
-                All clients
-              </span>
-              <span className="block text-[10.5px] leading-4 text-[#8a847a]">
-                {accounts.length} connected
-              </span>
+          <span
+            className={`grid shrink-0 place-items-center transition-colors duration-200 ${
+              isCollapsed
+                ? "size-8 rounded-[5px] group-hover:bg-[#e8e5dd]"
+                : ""
+            }`}
+          >
+            <span className="grid size-[22px] shrink-0 place-items-center rounded-md border border-dashed border-[#d3cec3] text-[#59544c]">
+              <LayoutGrid className="size-[13px]" strokeWidth={1.7} />
             </span>
-          )}
+          </span>
+          <span
+            className={`min-w-0 flex-1 overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-300 ease-out ${
+              isCollapsed ? "max-w-0 opacity-0" : "max-w-[132px] opacity-100"
+            }`}
+          >
+            <span className="block truncate text-[12.5px] font-medium leading-4 text-[#1a1814]">
+              All clients
+            </span>
+            <span className="block text-[10.5px] leading-4 text-[#8a847a]">
+              {accounts.length} connected
+            </span>
+          </span>
         </div>
 
         {accounts.length === 0 && !isCollapsed ? (
@@ -622,19 +651,25 @@ export function SidebarPanel({
         aria-expanded={!isCollapsed}
         onClick={toggleSidebar}
         title={isCollapsed ? "Expand sidebar" : undefined}
-        className={`mt-auto flex items-center text-[12.5px] text-[#59544c] transition-[gap,padding,background-color,color] duration-300 hover:text-[#1a1814] ${
+        className={`group mt-auto flex min-h-8 w-full items-center text-[12.5px] text-[#59544c] transition-[gap,padding,background-color,color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:text-[#1a1814] ${
           isCollapsed
-            ? "size-8 self-center justify-center rounded-[5px] p-0 hover:bg-[#e8e5dd]"
-            : "min-h-8 gap-2 rounded-md px-2 py-1.5 hover:bg-[#f4f2ed]"
+            ? "justify-center gap-0 px-0 py-0"
+            : "gap-2 rounded-md px-2 py-1.5 hover:bg-[#f4f2ed]"
         }`}
       >
-        {isCollapsed ? (
-          <PanelLeftOpen className="size-[15px] shrink-0" strokeWidth={1.7} />
-        ) : (
-          <PanelLeftClose className="size-[15px] shrink-0" strokeWidth={1.7} />
-        )}
         <span
-          className={`overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-200 ${
+          className={`grid shrink-0 place-items-center transition-colors duration-200 ${
+            isCollapsed ? "size-8 rounded-[5px] group-hover:bg-[#e8e5dd]" : ""
+          }`}
+        >
+          {isCollapsed ? (
+            <PanelLeftOpen className="size-[15px]" strokeWidth={1.7} />
+          ) : (
+            <PanelLeftClose className="size-[15px]" strokeWidth={1.7} />
+          )}
+        </span>
+        <span
+          className={`overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-300 ease-out ${
             isCollapsed ? "max-w-0 opacity-0" : "max-w-[132px] opacity-100"
           }`}
         >
@@ -643,13 +678,13 @@ export function SidebarPanel({
       </button>
 
       <footer
-        className={`flex items-center border-t border-[#e7e3db] pb-1 pt-3 transition-[gap,padding] duration-300 ${
+        className={`flex items-center border-t border-[#e7e3db] pb-1 pt-3 transition-[gap,padding] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
           isCollapsed ? "justify-center gap-0 px-0" : "gap-2 px-1.5"
         }`}
       >
-        <ProfileAvatar profile={profile} isCollapsed={isCollapsed} />
+        <ProfileAvatar profile={profile} />
         <span
-          className={`min-w-0 flex-1 overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-200 ${
+          className={`min-w-0 flex-1 overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-300 ease-out ${
             isCollapsed ? "max-w-0 opacity-0" : "max-w-[140px] opacity-100"
           }`}
         >
