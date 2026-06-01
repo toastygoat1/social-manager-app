@@ -31,7 +31,7 @@ export default async function CalendarPage() {
   const initialData = await getCalendarData(from, to);
 
   return (
-    <div className="flex min-h-screen items-start bg-[#fffdf9] font-sans">
+    <div className="flex min-h-screen items-start bg-page font-sans text-ink transition-colors duration-500">
       <Sidebar active="scheduling" profile={getUserProfile(user)} />
       <CalendarShell
         initialReferenceIso={now.toISOString()}

@@ -45,9 +45,9 @@ export default async function ChatAiPage() {
   const profile = getUserProfile(user);
 
   return (
-    <div className="flex h-screen items-start overflow-hidden bg-[#fafaf8] font-sans">
+    <div className="flex h-screen items-start overflow-hidden bg-page font-sans text-ink transition-colors duration-500">
       <Sidebar active="snow-ai" profile={profile} />
-      <main className="flex h-screen min-w-0 flex-1 bg-[#f7f6f2] p-4 font-inter text-[#1d1b18] sm:p-6">
+      <main className="flex h-screen min-w-0 flex-1 bg-card p-4 font-inter text-ink transition-colors duration-500 sm:p-6">
         <section className="mx-auto flex h-full w-full max-w-[980px] min-w-0 flex-col overflow-hidden rounded-xl border border-[#ded8ce] bg-[#fbfaf7]">
           <header className="flex min-h-[72px] items-center justify-between gap-3 border-b border-[#e7e3db] px-4 py-3 sm:px-5">
             <div className="flex min-w-0 items-center gap-3">

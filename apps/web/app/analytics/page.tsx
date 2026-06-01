@@ -127,7 +127,7 @@ export default async function AnalyticsPage({
     : [null, null];
 
   return (
-    <div className="flex min-h-screen items-start bg-[#fafaf8] font-sans">
+    <div className="flex min-h-screen items-start bg-page font-sans text-ink transition-colors duration-500">
       <Sidebar
         active="analytics"
         accounts={data.accounts}

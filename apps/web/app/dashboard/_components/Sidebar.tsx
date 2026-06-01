@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { APP_THEME_COOKIE, normalizeTheme } from "@/app/theme-preferences";
 import { apiFetch } from "@/lib/api/client";
 import type { UserProfile } from "@/lib/supabase/user-profile";
 import type { Account } from "./data";
@@ -50,12 +51,14 @@ export async function Sidebar({
   ]);
   const initialCollapsed =
     cookieStore.get(SIDEBAR_COLLAPSED_COOKIE)?.value === "true";
+  const initialTheme = normalizeTheme(cookieStore.get(APP_THEME_COOKIE)?.value);
 
   return (
     <SidebarPanel
       active={active}
       accounts={accounts}
       initialCollapsed={initialCollapsed}
+      initialTheme={initialTheme}
       profile={profile}
     />
   );
