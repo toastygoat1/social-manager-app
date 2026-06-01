@@ -27,6 +27,56 @@
 
   --success: #359c78;
   --danger: #a92729;
+
+  --sidebar-bg: #fafaf8;
+  --sidebar-border: #e7e3db;
+  --sidebar-text: #1a1814;
+  --sidebar-muted: #59544c;
+  --sidebar-dim: #8a847a;
+  --sidebar-hover: #f4f2ed;
+  --sidebar-hover-strong: #e8e5dd;
+  --sidebar-dashed: #d3cec3;
+  --sidebar-accent: #3ac1d6;
+  --sidebar-success-bg: #e9f4ef;
+  --sidebar-success: #287a65;
+  --sidebar-switch-bg: #e8e5dd;
+  --sidebar-switch-knob: #ffffff;
+  --sidebar-switch-active: #3ac1d6;
+  --sidebar-switch-icon: #59544c;
+}
+
+:root[data-theme="dark"] {
+  --background: #10110f;
+  --foreground: #f4efe6;
+
+  --bg: #171812;
+  --bg-light: #202018;
+  --bg-dark: #11120e;
+  --border: #343127;
+  --text: #f4efe6;
+  --text-muted: #b0aa9d;
+  --cta: #55d4e6;
+  --cta-border: #35adbf;
+  --line-icon: #e0d8c9;
+
+  --success: #6bd6ab;
+  --danger: #ff8d80;
+
+  --sidebar-bg: #12130f;
+  --sidebar-border: #302d25;
+  --sidebar-text: #f4efe6;
+  --sidebar-muted: #c3bcad;
+  --sidebar-dim: #948d80;
+  --sidebar-hover: #1d1e18;
+  --sidebar-hover-strong: #292920;
+  --sidebar-dashed: #4a4639;
+  --sidebar-accent: #55d4e6;
+  --sidebar-success-bg: #173126;
+  --sidebar-success: #74deb3;
+  --sidebar-switch-bg: #302d25;
+  --sidebar-switch-knob: #f4efe6;
+  --sidebar-switch-active: #55d4e6;
+  --sidebar-switch-icon: #f5d46b;
 }
 
 @theme inline {
@@ -65,6 +115,9 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  transition:
+    background-color 450ms cubic-bezier(0.22, 1, 0.36, 1),
+    color 450ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .analytics-theme {
@@ -86,6 +139,27 @@ body {
   --chart-6: #4b7fb8;
   --chart-7: #3c9d74;
   --chart-8: #e27d60;
+}
+
+:root[data-theme="dark"] .analytics-theme {
+  --bg: #171812;
+  --bg-light: #202018;
+  --bg-dark: #11120e;
+  --border: #343127;
+  --text: #f4efe6;
+  --text-muted: #b0aa9d;
+  --cta: #55d4e6;
+  --cta-border: #35adbf;
+  --success: #6bd6ab;
+  --danger: #ff8d80;
+  --chart-1: #55d4e6;
+  --chart-2: #eaa36f;
+  --chart-3: #74deb3;
+  --chart-4: #f5d46b;
+  --chart-5: #c993d8;
+  --chart-6: #8fb4ff;
+  --chart-7: #74deb3;
+  --chart-8: #eaa36f;
 }
 
 .analytics-serif {

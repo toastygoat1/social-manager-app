@@ -1,7 +1,7 @@
 "use client";
 
 import type { ComponentType, SVGProps } from "react";
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import {
   BarChart3,
   CalendarDays,
@@ -10,15 +10,23 @@ import {
   Inbox,
   LayoutGrid,
   LoaderCircle,
+  Moon,
   PanelLeftClose,
   PanelLeftOpen,
   RefreshCw,
   Settings,
   Sparkles,
+  Sun,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import {
+  APP_THEME_COOKIE,
+  APP_THEME_EVENT,
+  APP_THEME_MAX_AGE,
+  type ThemeMode,
+} from "@/app/theme-preferences";
 import { ApiError, apiFetchBrowser } from "@/lib/api/browser-client";
 import type { UserProfile } from "@/lib/supabase/user-profile";
 import type { Account } from "./data";
@@ -59,6 +67,7 @@ type SidebarPanelProps = {
   active: SidebarKey;
   accounts: Account[];
   initialCollapsed?: boolean;
+  initialTheme?: ThemeMode;
   profile?: UserProfile | null;
 };
 
@@ -328,12 +337,14 @@ function AccountRow({
       className={`group flex min-h-8 w-full items-center transition-[gap,padding,background-color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
         isCollapsed
           ? "justify-center gap-0 px-0 py-0"
-          : "min-h-8 gap-2 rounded-md px-2 py-1.5 hover:bg-[#f4f2ed]"
+          : "min-h-8 gap-2 rounded-md px-2 py-1.5 hover:bg-[var(--sidebar-hover)]"
       }`}
     >
       <span
         className={`grid shrink-0 place-items-center transition-colors duration-200 ${
-          isCollapsed ? "size-8 rounded-[5px] group-hover:bg-[#e8e5dd]" : ""
+          isCollapsed
+            ? "size-8 rounded-[5px] group-hover:bg-[var(--sidebar-hover-strong)]"
+            : ""
         }`}
       >
         <AccountAvatar account={account} index={index} />
@@ -343,15 +354,15 @@ function AccountRow({
           isCollapsed ? "max-w-0 opacity-0" : "max-w-[128px] opacity-100"
         }`}
       >
-        <span className="block truncate text-[12.5px] font-medium leading-4 text-[#1a1814]">
+        <span className="block truncate text-[12.5px] font-medium leading-4 text-[var(--sidebar-text)]">
           {account.name}
         </span>
-        <span className="block truncate text-[10.5px] leading-4 text-[#8a847a]">
+        <span className="block truncate text-[10.5px] leading-4 text-[var(--sidebar-dim)]">
           {account.platform}
         </span>
       </span>
       <span
-        className={`shrink-0 overflow-hidden whitespace-nowrap font-mono text-[9.5px] font-semibold text-[#8a847a] transition-[max-width,opacity] duration-300 ease-out ${
+        className={`shrink-0 overflow-hidden whitespace-nowrap font-mono text-[9.5px] font-semibold text-[var(--sidebar-dim)] transition-[max-width,opacity] duration-300 ease-out ${
           isCollapsed ? "max-w-0 opacity-0" : "max-w-[18px] opacity-100"
         }`}
       >
@@ -369,7 +380,7 @@ function AccountRow({
           tabIndex={isCollapsed ? -1 : undefined}
           title="Import recent Instagram posts"
           aria-label={`Import recent Instagram posts for ${account.name}`}
-          className="grid size-6 shrink-0 place-items-center rounded-md text-[#8a847a] transition-colors hover:bg-[#e9f4ef] hover:text-[#287a65] disabled:pointer-events-none disabled:opacity-60"
+          className="grid size-6 shrink-0 place-items-center rounded-md text-[var(--sidebar-dim)] transition-colors hover:bg-[var(--sidebar-success-bg)] hover:text-[var(--sidebar-success)] disabled:pointer-events-none disabled:opacity-60"
         >
           {isBackfilling ? (
             <LoaderCircle
@@ -441,10 +452,46 @@ function subscribeToSidebarCollapsedPreference(onStoreChange: () => void) {
   };
 }
 
+function readAppThemeCookie(): ThemeMode | null {
+  const cookiePrefix = `${APP_THEME_COOKIE}=`;
+  const cookie = document.cookie
+    .split("; ")
+    .find((row) => row.startsWith(cookiePrefix));
+
+  if (!cookie) {
+    return null;
+  }
+
+  return cookie.slice(cookiePrefix.length) === "dark" ? "dark" : "light";
+}
+
+function writeAppThemeCookie(theme: ThemeMode) {
+  document.cookie = [
+    `${APP_THEME_COOKIE}=${theme}`,
+    `Max-Age=${APP_THEME_MAX_AGE}`,
+    "Path=/",
+    "SameSite=Lax",
+  ].join("; ");
+}
+
+function applyDocumentTheme(theme: ThemeMode) {
+  document.documentElement.dataset.theme = theme;
+  document.documentElement.style.colorScheme = theme;
+}
+
+function subscribeToAppThemePreference(onStoreChange: () => void) {
+  window.addEventListener(APP_THEME_EVENT, onStoreChange);
+
+  return () => {
+    window.removeEventListener(APP_THEME_EVENT, onStoreChange);
+  };
+}
+
 export function SidebarPanel({
   active,
   accounts,
   initialCollapsed = false,
+  initialTheme = "light",
   profile,
 }: SidebarPanelProps) {
   const isCollapsed = useSyncExternalStore(
@@ -452,10 +499,20 @@ export function SidebarPanel({
     () => readSidebarCollapsedCookie() ?? initialCollapsed,
     () => initialCollapsed,
   );
+  const theme = useSyncExternalStore(
+    subscribeToAppThemePreference,
+    () => readAppThemeCookie() ?? initialTheme,
+    () => initialTheme,
+  );
   const visibleAccounts = accounts.slice(0, VISIBLE_ACCOUNT_COUNT);
   const additionalAccounts = accounts.slice(VISIBLE_ACCOUNT_COUNT);
   const profileName = getProfileName(profile);
   const profileDetail = getProfileDetail(profile);
+  const isDarkTheme = theme === "dark";
+
+  useEffect(() => {
+    applyDocumentTheme(theme);
+  }, [theme]);
 
   function toggleSidebar() {
     const nextCollapsed = !isCollapsed;
@@ -464,9 +521,18 @@ export function SidebarPanel({
     window.dispatchEvent(new Event(SIDEBAR_COLLAPSED_EVENT));
   }
 
+  function toggleTheme() {
+    const nextTheme = isDarkTheme ? "light" : "dark";
+
+    writeAppThemeCookie(nextTheme);
+    applyDocumentTheme(nextTheme);
+    window.dispatchEvent(new Event(APP_THEME_EVENT));
+  }
+
   return (
     <aside
-      className={`sticky top-0 flex h-screen shrink-0 flex-col gap-[18px] overflow-y-auto border-r border-[#e7e3db] bg-[#fafaf8] pb-3 pt-3.5 font-inter text-[#1a1814] transition-[width,padding] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
+      data-theme={theme}
+      className={`sticky top-0 flex h-screen shrink-0 flex-col gap-[18px] overflow-y-auto border-r border-[var(--sidebar-border)] bg-[var(--sidebar-bg)] pb-3 pt-3.5 font-inter text-[var(--sidebar-text)] transition-[width,padding,background-color,border-color,color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
         isCollapsed ? "w-16 px-2" : "w-[232px] px-3"
       }`}
     >
@@ -475,7 +541,7 @@ export function SidebarPanel({
           isCollapsed ? "justify-center gap-0 px-0" : "gap-3 px-1.5"
         }`}
       >
-        <span className="flex shrink-0 items-center justify-center text-[#3ac1d6]">
+        <span className="flex shrink-0 items-center justify-center text-[var(--sidebar-accent)] transition-colors duration-500">
           <SnowflakeLogo className="h-[33px] w-[31px]" />
         </span>
         <span
@@ -483,7 +549,7 @@ export function SidebarPanel({
             isCollapsed ? "max-w-0 opacity-0" : "max-w-[120px] opacity-100"
           }`}
         >
-          <span className="block truncate text-sm font-semibold leading-4 text-[#1a1814]">
+          <span className="block truncate text-sm font-semibold leading-4 text-[var(--sidebar-text)]">
             Snowflake
           </span>
         </span>
@@ -506,18 +572,20 @@ export function SidebarPanel({
               } ${
                 isActive
                   ? `${
-                      isCollapsed ? "" : "bg-[#f4f2ed]"
-                    } font-medium text-[#1a1814]`
-                  : `text-[#59544c] ${
-                      isCollapsed ? "" : "hover:bg-[#f4f2ed]"
-                    } hover:text-[#1a1814]`
+                      isCollapsed ? "" : "bg-[var(--sidebar-hover)]"
+                    } font-medium text-[var(--sidebar-text)]`
+                  : `text-[var(--sidebar-muted)] ${
+                      isCollapsed ? "" : "hover:bg-[var(--sidebar-hover)]"
+                    } hover:text-[var(--sidebar-text)]`
               }`}
             >
               <span
                 className={`relative grid shrink-0 place-items-center transition-colors duration-200 ${
                   isCollapsed
                     ? `size-8 rounded-[5px] ${
-                        isActive ? "bg-[#e8e5dd]" : "group-hover:bg-[#e8e5dd]"
+                        isActive
+                          ? "bg-[var(--sidebar-hover-strong)]"
+                          : "group-hover:bg-[var(--sidebar-hover-strong)]"
                       }`
                     : ""
                 }`}
@@ -526,7 +594,7 @@ export function SidebarPanel({
                 {badge && isCollapsed ? (
                   <span
                     aria-hidden="true"
-                    className="absolute -right-1 -top-1 size-1.5 rounded-full bg-[#8a847a]"
+                    className="absolute -right-1 -top-1 size-1.5 rounded-full bg-[var(--sidebar-dim)]"
                   />
                 ) : null}
               </span>
@@ -540,7 +608,7 @@ export function SidebarPanel({
                 {label}
               </span>
               {badge && !isCollapsed ? (
-                <span className="ml-auto rounded-full bg-[#e8e5dd] px-1.5 py-px text-[10.5px] leading-4 text-[#59544c]">
+                <span className="ml-auto rounded-full bg-[var(--sidebar-hover-strong)] px-1.5 py-px text-[10.5px] leading-4 text-[var(--sidebar-muted)] transition-colors duration-500">
                   {badge}
                 </span>
               ) : null}
@@ -551,7 +619,7 @@ export function SidebarPanel({
 
       <section aria-label="Clients" className="flex flex-col gap-1">
         <div
-          className={`flex items-center justify-between overflow-hidden px-2 text-[10.5px] font-medium uppercase text-[#8a847a] transition-[height,margin,opacity] duration-300 ease-out ${
+          className={`flex items-center justify-between overflow-hidden px-2 text-[10.5px] font-medium uppercase text-[var(--sidebar-dim)] transition-[height,margin,opacity,color] duration-300 ease-out ${
             isCollapsed ? "mb-0 h-0 opacity-0" : "mb-1 h-4 opacity-100"
           }`}
         >
@@ -564,17 +632,17 @@ export function SidebarPanel({
           className={`group flex min-h-8 w-full items-center transition-[gap,padding,background-color,box-shadow] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
             isCollapsed
               ? "justify-center gap-0 px-0 py-0"
-              : "min-h-8 gap-2 rounded-md bg-[#f4f2ed] px-2 py-1.5 shadow-[inset_0_0_0_1px_#e7e3db]"
+              : "min-h-8 gap-2 rounded-md bg-[var(--sidebar-hover)] px-2 py-1.5 shadow-[inset_0_0_0_1px_var(--sidebar-border)]"
           }`}
         >
           <span
             className={`grid shrink-0 place-items-center transition-colors duration-200 ${
               isCollapsed
-                ? "size-8 rounded-[5px] group-hover:bg-[#e8e5dd]"
+                ? "size-8 rounded-[5px] group-hover:bg-[var(--sidebar-hover-strong)]"
                 : ""
             }`}
           >
-            <span className="grid size-[22px] shrink-0 place-items-center rounded-md border border-dashed border-[#d3cec3] text-[#59544c]">
+            <span className="grid size-[22px] shrink-0 place-items-center rounded-md border border-dashed border-[var(--sidebar-dashed)] text-[var(--sidebar-muted)] transition-colors duration-500">
               <LayoutGrid className="size-[13px]" strokeWidth={1.7} />
             </span>
           </span>
@@ -583,17 +651,17 @@ export function SidebarPanel({
               isCollapsed ? "max-w-0 opacity-0" : "max-w-[132px] opacity-100"
             }`}
           >
-            <span className="block truncate text-[12.5px] font-medium leading-4 text-[#1a1814]">
+            <span className="block truncate text-[12.5px] font-medium leading-4 text-[var(--sidebar-text)]">
               All clients
             </span>
-            <span className="block text-[10.5px] leading-4 text-[#8a847a]">
+            <span className="block text-[10.5px] leading-4 text-[var(--sidebar-dim)]">
               {accounts.length} connected
             </span>
           </span>
         </div>
 
         {accounts.length === 0 && !isCollapsed ? (
-          <p className="px-2 py-3 text-[12.5px] leading-5 text-[#8a847a]">
+          <p className="px-2 py-3 text-[12.5px] leading-5 text-[var(--sidebar-dim)]">
             No accounts connected yet
           </p>
         ) : (
@@ -612,7 +680,7 @@ export function SidebarPanel({
         {additionalAccounts.length > 0 && isCollapsed ? (
           <div
             title={`${additionalAccounts.length} more connected accounts`}
-            className="mx-auto flex size-8 items-center justify-center rounded-[5px] text-[11px] font-medium text-[#8a847a] transition-colors hover:bg-[#e8e5dd]"
+            className="mx-auto flex size-8 items-center justify-center rounded-[5px] text-[11px] font-medium text-[var(--sidebar-dim)] transition-colors hover:bg-[var(--sidebar-hover-strong)]"
           >
             +{additionalAccounts.length}
           </div>
@@ -620,8 +688,8 @@ export function SidebarPanel({
 
         {additionalAccounts.length > 0 && !isCollapsed ? (
           <details className="group">
-            <summary className="flex min-h-8 cursor-pointer list-none items-center gap-2 rounded-md px-2 py-1.5 text-[12.5px] text-[#59544c] transition-colors hover:bg-[#f4f2ed] hover:text-[#1a1814] [&::-webkit-details-marker]:hidden">
-              <span className="grid size-[22px] shrink-0 place-items-center rounded-md border border-dashed border-[#d3cec3] text-[#59544c]">
+            <summary className="flex min-h-8 cursor-pointer list-none items-center gap-2 rounded-md px-2 py-1.5 text-[12.5px] text-[var(--sidebar-muted)] transition-colors hover:bg-[var(--sidebar-hover)] hover:text-[var(--sidebar-text)] [&::-webkit-details-marker]:hidden">
+              <span className="grid size-[22px] shrink-0 place-items-center rounded-md border border-dashed border-[var(--sidebar-dashed)] text-[var(--sidebar-muted)]">
                 <ChevronDown
                   className="size-[13px] transition-transform group-open:rotate-180"
                   strokeWidth={1.7}
@@ -647,19 +715,86 @@ export function SidebarPanel({
 
       <button
         type="button"
+        role="switch"
+        aria-checked={isDarkTheme}
+        aria-label={isDarkTheme ? "Use light mode" : "Use dark mode"}
+        onClick={toggleTheme}
+        title={
+          isCollapsed ? (isDarkTheme ? "Light mode" : "Dark mode") : undefined
+        }
+        className={`group mt-auto flex min-h-8 w-full items-center text-[12.5px] text-[var(--sidebar-muted)] transition-[gap,padding,background-color,color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:text-[var(--sidebar-text)] ${
+          isCollapsed
+            ? "justify-center gap-0 px-0 py-0"
+            : "gap-2 rounded-md px-2 py-1.5 hover:bg-[var(--sidebar-hover)]"
+        }`}
+      >
+        <span
+          className={`relative grid shrink-0 place-items-center overflow-hidden transition-colors duration-200 ${
+            isCollapsed
+              ? "size-8 rounded-[5px] group-hover:bg-[var(--sidebar-hover-strong)]"
+              : "size-[22px]"
+          }`}
+        >
+          <Sun
+            className={`absolute size-[15px] text-[var(--sidebar-switch-icon)] transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+              isDarkTheme
+                ? "scale-50 rotate-90 opacity-0"
+                : "scale-100 rotate-0 opacity-100"
+            }`}
+            strokeWidth={1.7}
+          />
+          <Moon
+            className={`absolute size-[15px] text-[var(--sidebar-accent)] transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+              isDarkTheme
+                ? "scale-100 rotate-0 opacity-100"
+                : "scale-50 -rotate-90 opacity-0"
+            }`}
+            strokeWidth={1.7}
+          />
+        </span>
+        <span
+          className={`overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-300 ease-out ${
+            isCollapsed ? "max-w-0 opacity-0" : "max-w-[88px] opacity-100"
+          }`}
+        >
+          Dark mode
+        </span>
+        <span
+          aria-hidden="true"
+          className={`relative ml-auto h-5 w-9 shrink-0 overflow-hidden rounded-full bg-[var(--sidebar-switch-bg)] transition-[max-width,opacity,background-color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+            isCollapsed ? "max-w-0 opacity-0" : "max-w-9 opacity-100"
+          }`}
+        >
+          <span
+            className={`absolute left-0.5 top-0.5 z-10 size-4 rounded-full bg-[var(--sidebar-switch-knob)] shadow-sm transition-[transform,background-color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+              isDarkTheme ? "translate-x-4" : "translate-x-0"
+            }`}
+          />
+          <span
+            className={`absolute inset-0 rounded-full bg-[var(--sidebar-switch-active)] transition-opacity duration-300 ${
+              isDarkTheme ? "opacity-35" : "opacity-0"
+            }`}
+          />
+        </span>
+      </button>
+
+      <button
+        type="button"
         aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         aria-expanded={!isCollapsed}
         onClick={toggleSidebar}
         title={isCollapsed ? "Expand sidebar" : undefined}
-        className={`group mt-auto flex min-h-8 w-full items-center text-[12.5px] text-[#59544c] transition-[gap,padding,background-color,color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:text-[#1a1814] ${
+        className={`group flex min-h-8 w-full items-center text-[12.5px] text-[var(--sidebar-muted)] transition-[gap,padding,background-color,color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:text-[var(--sidebar-text)] ${
           isCollapsed
             ? "justify-center gap-0 px-0 py-0"
-            : "gap-2 rounded-md px-2 py-1.5 hover:bg-[#f4f2ed]"
+            : "gap-2 rounded-md px-2 py-1.5 hover:bg-[var(--sidebar-hover)]"
         }`}
       >
         <span
           className={`grid shrink-0 place-items-center transition-colors duration-200 ${
-            isCollapsed ? "size-8 rounded-[5px] group-hover:bg-[#e8e5dd]" : ""
+            isCollapsed
+              ? "size-8 rounded-[5px] group-hover:bg-[var(--sidebar-hover-strong)]"
+              : ""
           }`}
         >
           {isCollapsed ? (
@@ -678,7 +813,7 @@ export function SidebarPanel({
       </button>
 
       <footer
-        className={`flex items-center border-t border-[#e7e3db] pb-1 pt-3 transition-[gap,padding] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+        className={`flex items-center border-t border-[var(--sidebar-border)] pb-1 pt-3 transition-[gap,padding,border-color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
           isCollapsed ? "justify-center gap-0 px-0" : "gap-2 px-1.5"
         }`}
       >
@@ -688,10 +823,10 @@ export function SidebarPanel({
             isCollapsed ? "max-w-0 opacity-0" : "max-w-[140px] opacity-100"
           }`}
         >
-          <span className="block truncate text-xs font-medium leading-4 text-[#1a1814]">
+          <span className="block truncate text-xs font-medium leading-4 text-[var(--sidebar-text)]">
             {profileName}
           </span>
-          <span className="block truncate text-[10.5px] leading-4 text-[#8a847a]">
+          <span className="block truncate text-[10.5px] leading-4 text-[var(--sidebar-dim)]">
             {profileDetail}
           </span>
         </span>
@@ -699,7 +834,7 @@ export function SidebarPanel({
           <button
             type="button"
             aria-label="Settings"
-            className="grid size-7 shrink-0 place-items-center rounded-md text-[#59544c] transition-colors hover:bg-[#f4f2ed] hover:text-[#1a1814]"
+            className="grid size-7 shrink-0 place-items-center rounded-md text-[var(--sidebar-muted)] transition-colors hover:bg-[var(--sidebar-hover)] hover:text-[var(--sidebar-text)]"
           >
             <Settings className="size-3.5" strokeWidth={1.7} />
           </button>
