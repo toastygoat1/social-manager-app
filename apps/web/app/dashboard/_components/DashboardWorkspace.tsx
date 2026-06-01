@@ -120,9 +120,9 @@ function MetricCard({
   detail,
 }: MetricCardProps) {
   return (
-    <article className="min-w-0 border-b border-[#e8e3db] px-1 py-4 last:border-b-0 lg:border-b-0 lg:border-r lg:px-5 lg:last:border-r-0">
+    <article className="min-w-0 rounded-lg border border-line bg-paper p-4 shadow-[0_10px_28px_rgba(42,39,33,0.04)] transition-colors duration-500">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-[11px] font-medium text-[#827d75]">{title}</h2>
+        <h2 className="text-[11px] font-medium text-muted">{title}</h2>
         {delta ? (
           <span
             className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
@@ -135,10 +135,10 @@ function MetricCard({
           </span>
         ) : null}
       </div>
-      <p className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-[#292824]">
+      <p className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-ink">
         {value}
       </p>
-      <p className="mt-3 text-[10px] text-[#99938a]">{detail}</p>
+      <p className="mt-3 text-[10px] text-muted">{detail}</p>
     </article>
   );
 }
@@ -150,7 +150,7 @@ function Metrics({ data, today }: { data: DashboardData; today: Date }) {
   return (
     <section
       aria-label="Performance summary"
-      className="mt-2 grid gap-x-0 border-y border-[#e8e3db] sm:grid-cols-2 lg:grid-cols-4"
+      className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
     >
       <MetricCard
         title="Total views"
