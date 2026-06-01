@@ -23,6 +23,9 @@ type MetricCardProps = {
   delta?: string | null;
   positive?: boolean;
   detail: string;
+  chartId: string;
+  chartTone: string;
+  series: number[];
 };
 
 const STATUS_STYLES: Record<string, string> = {
@@ -65,6 +68,14 @@ function statusLabel(status: string) {
 function rowDate(row: ContentRow) {
   const parsed = new Date(`${row.datePost}T00:00:00`);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function toIsoDay(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
 }
 
 function displayName(profile: UserProfile) {
@@ -112,15 +123,169 @@ function getEngagement(data: DashboardData) {
   return (data.likes.value / data.views.value) * 100;
 }
 
+function getTrailingDays(today: Date, count = 7) {
+  return Array.from({ length: count }, (_, index) => {
+    const day = new Date(today);
+    day.setDate(today.getDate() - (count - 1 - index));
+    day.setHours(0, 0, 0, 0);
+
+    return toIsoDay(day);
+  });
+}
+
+function getDailySums(
+  rows: ContentRow[],
+  days: string[],
+  value: (row: ContentRow) => number | null,
+) {
+  const totals = new Map(days.map((day) => [day, 0]));
+
+  rows.forEach((row) => {
+    const date = rowDate(row);
+    if (!date) return;
+
+    const key = toIsoDay(date);
+    const current = totals.get(key);
+    const nextValue = value(row);
+
+    if (current === undefined || nextValue === null) return;
+
+    totals.set(key, current + nextValue);
+  });
+
+  return days.map((day) => totals.get(day) ?? 0);
+}
+
+function getDailyCounts(
+  rows: ContentRow[],
+  days: string[],
+  matches: (row: ContentRow) => boolean,
+) {
+  return getDailySums(rows, days, (row) => (matches(row) ? 1 : 0));
+}
+
+function getDailyEngagementRates(rows: ContentRow[], days: string[]) {
+  const totals = new Map(days.map((day) => [day, { likes: 0, views: 0 }]));
+
+  rows.forEach((row) => {
+    const date = rowDate(row);
+    if (!date || row.likes === null || row.views === null) return;
+
+    const key = toIsoDay(date);
+    const total = totals.get(key);
+    if (!total) return;
+
+    total.likes += row.likes;
+    total.views += row.views;
+  });
+
+  return days.map((day) => {
+    const total = totals.get(day);
+
+    return total && total.views > 0 ? (total.likes / total.views) * 100 : 0;
+  });
+}
+
+function buildSparklinePath(values: number[], width: number, height: number) {
+  const padding = 5;
+  const usableWidth = width - padding * 2;
+  const usableHeight = height - padding * 2;
+  const max = Math.max(...values);
+  const min = Math.min(...values);
+  const range = max - min;
+  const points = values.map((value, index) => {
+    const x =
+      values.length === 1
+        ? width / 2
+        : padding + (index / (values.length - 1)) * usableWidth;
+    const y =
+      range === 0
+        ? height / 2
+        : padding + (1 - (value - min) / range) * usableHeight;
+
+    return [x, y] as const;
+  });
+  const linePath = points
+    .map(([x, y], index) => `${index === 0 ? "M" : "L"} ${x} ${y}`)
+    .join(" ");
+  const areaPath = `${linePath} L ${points.at(-1)?.[0] ?? width} ${
+    height - padding
+  } L ${points[0]?.[0] ?? 0} ${height - padding} Z`;
+
+  return { areaPath, linePath, points };
+}
+
+function Sparkline({
+  id,
+  series,
+  tone,
+}: {
+  id: string;
+  series: number[];
+  tone: string;
+}) {
+  const width = 220;
+  const height = 58;
+  const values = series.length > 0 ? series : [0, 0, 0, 0, 0, 0, 0];
+  const { areaPath, linePath, points } = buildSparklinePath(
+    values,
+    width,
+    height,
+  );
+  const [lastX, lastY] = points.at(-1) ?? [width - 5, height / 2];
+
+  return (
+    <svg
+      aria-hidden="true"
+      className={`h-full w-full ${tone}`}
+      fill="none"
+      preserveAspectRatio="none"
+      viewBox={`0 0 ${width} ${height}`}
+    >
+      <defs>
+        <linearGradient id={`${id}-fill`} x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stopColor="currentColor" stopOpacity="0.24" />
+          <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={areaPath} fill={`url(#${id}-fill)`} />
+      <path
+        d="M 5 49 L 215 49"
+        stroke="var(--border)"
+        strokeDasharray="3 5"
+        strokeOpacity="0.8"
+      />
+      <path
+        d={linePath}
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="3"
+      />
+      <circle
+        cx={lastX}
+        cy={lastY}
+        fill="var(--bg-light)"
+        r="4"
+        stroke="currentColor"
+        strokeWidth="2.25"
+      />
+    </svg>
+  );
+}
+
 function MetricCard({
   title,
   value,
   delta,
   positive = true,
   detail,
+  chartId,
+  chartTone,
+  series,
 }: MetricCardProps) {
   return (
-    <article className="min-w-0 rounded-lg border border-line bg-paper p-4 shadow-[0_10px_28px_rgba(42,39,33,0.04)] transition-colors duration-500">
+    <article className="flex min-h-[168px] min-w-0 flex-col rounded-lg border border-line bg-paper p-4 shadow-[0_10px_28px_rgba(42,39,33,0.04)] transition-colors duration-500">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-[11px] font-medium text-muted">{title}</h2>
         {delta ? (
@@ -138,7 +303,10 @@ function MetricCard({
       <p className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-ink">
         {value}
       </p>
-      <p className="mt-3 text-[10px] text-muted">{detail}</p>
+      <div className="mt-3 h-[58px] min-w-0">
+        <Sparkline id={chartId} series={series} tone={chartTone} />
+      </div>
+      <p className="mt-auto pt-3 text-[10px] text-muted">{detail}</p>
     </article>
   );
 }
@@ -146,6 +314,17 @@ function MetricCard({
 function Metrics({ data, today }: { data: DashboardData; today: Date }) {
   const reviewRows = getReviewRows(data.contentRows);
   const engagement = getEngagement(data);
+  const trailingDays = getTrailingDays(today);
+  const dailyViews = getDailySums(data.contentRows, trailingDays, (row) =>
+    row.views === null ? null : row.views,
+  );
+  const dailyPosts = getDailyCounts(data.contentRows, trailingDays, (row) =>
+    Boolean(rowDate(row)),
+  );
+  const dailyEngagement = getDailyEngagementRates(data.contentRows, trailingDays);
+  const dailyReviews = getDailyCounts(data.contentRows, trailingDays, (row) =>
+    getReviewRows([row]).length > 0,
+  );
 
   return (
     <section
@@ -158,16 +337,25 @@ function Metrics({ data, today }: { data: DashboardData; today: Date }) {
         delta={formatDelta(data.views)}
         positive={data.views.trend !== "down"}
         detail="Instagram analytics"
+        chartId="total-views"
+        chartTone="text-chart-1"
+        series={dailyViews}
       />
       <MetricCard
         title="Listed posts this week"
         value={formatCount(getPostsThisWeek(data.contentRows, today))}
         detail="From scheduled content"
+        chartId="listed-posts"
+        chartTone="text-chart-4"
+        series={dailyPosts}
       />
       <MetricCard
         title="Engagement rate"
         value={formatPercent(engagement)}
         detail="Likes divided by views"
+        chartId="engagement-rate"
+        chartTone="text-chart-2"
+        series={dailyEngagement}
       />
       <MetricCard
         title="Awaiting review"
@@ -175,6 +363,9 @@ function Metrics({ data, today }: { data: DashboardData; today: Date }) {
         delta={reviewRows.length > 0 ? "Needs eyes" : null}
         positive={reviewRows.length === 0}
         detail="From scheduled content"
+        chartId="awaiting-review"
+        chartTone="text-chart-3"
+        series={dailyReviews}
       />
     </section>
   );
