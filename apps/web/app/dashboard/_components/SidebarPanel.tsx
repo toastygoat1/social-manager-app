@@ -79,9 +79,9 @@ const NAV_ITEMS: NavItem[] = [
     Icon: CalendarDays,
     href: "/scheduler",
   },
-  { key: "snow-ai", label: "Snow AI", Icon: Sparkles, href: "/chat-ai" },
-  { key: "chat", label: "Inbox", Icon: Inbox, href: "/chat", badge: "24" },
   { key: "analytics", label: "Insights", Icon: BarChart3, href: "/analytics" },
+  { key: "chat", label: "Inbox", Icon: Inbox, href: "/chat", badge: "24" },
+  { key: "snow-ai", label: "Snow AI", Icon: Sparkles, href: "/chat-ai" },
 ];
 
 const VISIBLE_ACCOUNT_COUNT = 8;
@@ -219,6 +219,24 @@ function getPlatformCode(platform: string) {
     .toUpperCase();
 }
 
+function getAccountTitle(account: Account) {
+  const displayName = account.displayName?.trim();
+
+  if (displayName) {
+    return displayName;
+  }
+
+  return account.name.replace(/^@/, "").trim() || account.name;
+}
+
+function getAccountHandle(account: Account) {
+  const username =
+    account.username?.replace(/^@/, "").trim() ||
+    account.name.replace(/^@/, "").trim();
+
+  return username.startsWith("@") ? username : `@${username}`;
+}
+
 function getApiErrorMessage(error: unknown) {
   if (!(error instanceof ApiError)) {
     return null;
@@ -305,6 +323,8 @@ function AccountRow({
 }) {
   const router = useRouter();
   const [isBackfilling, setIsBackfilling] = useState(false);
+  const accountTitle = getAccountTitle(account);
+  const accountHandle = getAccountHandle(account);
 
   async function backfillPosts() {
     const confirmed = window.confirm(
@@ -333,7 +353,7 @@ function AccountRow({
 
   return (
     <li
-      title={isCollapsed ? account.name : undefined}
+      title={isCollapsed ? `${accountTitle} ${accountHandle}` : undefined}
       className={`group flex min-h-8 w-full items-center transition-[gap,padding,background-color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
         isCollapsed
           ? "justify-center gap-0 px-0 py-0"
@@ -351,14 +371,14 @@ function AccountRow({
       </span>
       <span
         className={`min-w-0 flex-1 overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-300 ease-out ${
-          isCollapsed ? "max-w-0 opacity-0" : "max-w-[128px] opacity-100"
+          isCollapsed ? "max-w-0 opacity-0" : "max-w-[142px] opacity-100"
         }`}
       >
         <span className="block truncate text-[12.5px] font-medium leading-4 text-[var(--sidebar-text)]">
-          {account.name}
+          {accountTitle}
         </span>
         <span className="block truncate text-[10.5px] leading-4 text-[var(--sidebar-dim)]">
-          {account.platform}
+          {accountHandle}
         </span>
       </span>
       <span
@@ -617,18 +637,18 @@ export function SidebarPanel({
         })}
       </nav>
 
-      <section aria-label="Clients" className="flex flex-col gap-1">
+      <section aria-label="Accounts" className="flex flex-col gap-1">
         <div
           className={`flex items-center justify-between overflow-hidden px-2 text-[10.5px] font-medium uppercase text-[var(--sidebar-dim)] transition-[height,margin,opacity,color] duration-300 ease-out ${
             isCollapsed ? "mb-0 h-0 opacity-0" : "mb-1 h-4 opacity-100"
           }`}
         >
-          <h2>Clients</h2>
+          <h2>Accounts</h2>
           <span>{accounts.length}</span>
         </div>
 
         <div
-          title={isCollapsed ? "All clients" : undefined}
+          title={isCollapsed ? "All accounts" : undefined}
           className={`group flex min-h-8 w-full items-center transition-[gap,padding,background-color,box-shadow] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
             isCollapsed
               ? "justify-center gap-0 px-0 py-0"
@@ -652,7 +672,7 @@ export function SidebarPanel({
             }`}
           >
             <span className="block truncate text-[12.5px] font-medium leading-4 text-[var(--sidebar-text)]">
-              All clients
+              All accounts
             </span>
             <span className="block text-[10.5px] leading-4 text-[var(--sidebar-dim)]">
               {accounts.length} connected
@@ -761,8 +781,8 @@ export function SidebarPanel({
         </span>
         <span
           aria-hidden="true"
-          className={`relative ml-auto h-5 w-9 shrink-0 overflow-hidden rounded-full bg-[var(--sidebar-switch-bg)] transition-[max-width,opacity,background-color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-            isCollapsed ? "max-w-0 opacity-0" : "max-w-9 opacity-100"
+          className={`relative h-5 w-9 shrink-0 overflow-hidden rounded-full bg-[var(--sidebar-switch-bg)] transition-[max-width,opacity,background-color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+            isCollapsed ? "ml-0 max-w-0 opacity-0" : "ml-auto max-w-9 opacity-100"
           }`}
         >
           <span

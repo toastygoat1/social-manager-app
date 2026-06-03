@@ -482,15 +482,15 @@ export function EditorialCalendar({
   return (
     <>
       <div className="grid items-start gap-4 xl:grid-cols-[minmax(620px,1fr)_318px]">
-        <section className="overflow-hidden rounded-xl border border-[#e3dfd8] bg-[#fffefa]">
-          <header className="flex flex-wrap items-start justify-between gap-4 border-b border-[#e8e3db] px-5 py-4">
+        <section className="overflow-hidden rounded-[10px] border border-line bg-paper">
+          <header className="flex flex-wrap items-start justify-between gap-4 border-b border-line px-5 py-4">
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                <div className="inline-flex overflow-hidden rounded-lg border border-[#d9d4cb] bg-white">
+                <div className="inline-flex overflow-hidden rounded-lg border border-line bg-card">
                   <button
                     type="button"
                     onClick={() => shiftVisibleRange(-1)}
-                    className="inline-flex size-8 items-center justify-center text-[#746d63] transition hover:bg-[#f4f1ec] hover:text-[#2c2924]"
+                    className="inline-flex size-8 items-center justify-center text-muted transition hover:bg-paper hover:text-ink"
                     aria-label={`Previous ${viewMode}`}
                   >
                     <ChevronLeft className="size-4" />
@@ -498,7 +498,7 @@ export function EditorialCalendar({
                   <button
                     type="button"
                     onClick={() => shiftVisibleRange(1)}
-                    className="inline-flex size-8 items-center justify-center border-l border-[#d9d4cb] text-[#746d63] transition hover:bg-[#f4f1ec] hover:text-[#2c2924]"
+                    className="inline-flex size-8 items-center justify-center border-l border-line text-muted transition hover:bg-paper hover:text-ink"
                     aria-label={`Next ${viewMode}`}
                   >
                     <ChevronRight className="size-4" />
@@ -507,15 +507,15 @@ export function EditorialCalendar({
                 <button
                   type="button"
                   onClick={jumpToToday}
-                  className="h-8 rounded-lg border border-[#d9d4cb] bg-white px-3 text-xs font-semibold text-[#615b52] transition hover:border-[#657de8] hover:text-[#657de8]"
+                  className="h-8 rounded-lg border border-line bg-card px-3 text-xs font-semibold text-ink transition hover:border-cta hover:text-cta"
                 >
                   Today
                 </button>
                 <div className="min-w-[180px]">
-                  <h2 className="truncate text-base font-semibold leading-5 text-[#2a2926]">
+                  <h2 className="truncate text-base font-semibold leading-5 text-ink">
                     {visibleRange.label}
                   </h2>
-                  <p className="mt-1 text-xs text-[#827d75]">
+                  <p className="mt-1 text-xs text-muted">
                     {!calendar
                       ? "Connect your Google Calendar to see events"
                       : isLoading
@@ -524,7 +524,7 @@ export function EditorialCalendar({
                   </p>
                 </div>
               </div>
-              <div className="mt-3 inline-flex rounded-lg border border-[#d9d4cb] bg-white p-0.5">
+              <div className="mt-3 inline-flex rounded-lg border border-line bg-card p-0.5">
                 {VIEW_OPTIONS.map(({ mode, label, Icon }) => {
                   const active = viewMode === mode;
                   return (
@@ -535,8 +535,8 @@ export function EditorialCalendar({
                       onClick={() => changeViewMode(mode)}
                       className={`inline-flex h-8 min-w-[78px] items-center justify-center gap-1.5 rounded-md px-2.5 text-xs font-semibold transition ${
                         active
-                          ? "bg-[#283146] text-white shadow-sm"
-                          : "text-[#6f685f] hover:bg-[#f4f1ec] hover:text-[#2c2924]"
+                          ? "bg-ink text-page shadow-sm"
+                          : "text-muted hover:bg-paper hover:text-ink"
                       }`}
                     >
                       <Icon className="size-3.5" />
@@ -548,7 +548,7 @@ export function EditorialCalendar({
             </div>
             <div className="flex flex-wrap items-center justify-end gap-2">
               {successMessage ? (
-                <span className="inline-flex items-center gap-1 rounded-full border border-[#cde7d9] bg-[#effaf5] px-2.5 py-1.5 text-[11px] font-medium text-[#247868]">
+                <span className="inline-flex items-center gap-1 rounded-full border border-success/20 bg-success/10 px-2.5 py-1.5 text-[11px] font-medium text-success">
                   <CheckCircle2 className="size-3.5" />
                   {successMessage}
                 </span>
@@ -559,7 +559,7 @@ export function EditorialCalendar({
                 <button
                   type="button"
                   onClick={() => openCreateEvent(activeDateKey)}
-                  className="inline-flex items-center gap-2 rounded-lg bg-[#657de8] px-3.5 py-2 text-xs font-semibold text-white shadow-[0_10px_22px_rgba(101,125,232,0.22)] transition hover:bg-[#586fe0]"
+                  className="inline-flex items-center gap-2 rounded-lg bg-cta px-3.5 py-2 text-xs font-semibold text-white shadow-[0_10px_22px_rgba(101,125,232,0.22)] transition hover:bg-cta-edge"
                 >
                   <CalendarPlus className="size-4" />
                   Add event
@@ -602,13 +602,13 @@ export function EditorialCalendar({
           )}
         </section>
 
-        <section className="overflow-hidden rounded-xl border border-[#e3dfd8] bg-[#fffefa]">
-          <header className="flex items-start justify-between gap-3 border-b border-[#ece7df] px-4 py-4">
+        <section className="overflow-hidden rounded-[10px] border border-line bg-paper">
+          <header className="flex items-start justify-between gap-3 border-b border-line px-4 py-4">
             <div>
-              <h2 className="text-sm font-semibold text-[#292824]">
+              <h2 className="text-sm font-semibold text-ink">
                 Agenda / {shortDateLabel(anchorDate)}
               </h2>
-              <p className="mt-1 text-[11px] text-[#827d75]">
+              <p className="mt-1 text-[11px] text-muted">
                 {activeDateKey === todayKey ? "Today" : "Google Calendar"}
               </p>
             </div>
@@ -616,7 +616,7 @@ export function EditorialCalendar({
               <button
                 type="button"
                 onClick={() => openCreateEvent(activeDateKey)}
-                className="inline-flex size-8 items-center justify-center rounded-lg border border-[#d9d4cb] bg-white text-[#6c665d] transition hover:border-[#657de8] hover:text-[#657de8]"
+                className="inline-flex size-8 items-center justify-center rounded-lg border border-line bg-card text-muted transition hover:border-cta hover:text-cta"
                 aria-label={`Add event on ${eventDateLabel(activeDateKey)}`}
               >
                 <CalendarPlus className="size-4" />
@@ -625,15 +625,15 @@ export function EditorialCalendar({
           </header>
           <div className="px-4 py-3">
             {!calendar ? (
-              <p className="py-12 text-center text-xs text-[#817c74]">
+              <p className="py-12 text-center text-xs text-muted">
                 Connect Google Calendar to see today&apos;s agenda.
               </p>
             ) : isLoading ? (
-              <p className="py-12 text-center text-xs text-[#817c74]">
+              <p className="py-12 text-center text-xs text-muted">
                 Loading events...
               </p>
             ) : activeDateEvents.length === 0 ? (
-              <p className="py-12 text-center text-xs text-[#817c74]">
+              <p className="py-12 text-center text-xs text-muted">
                 No Google Calendar events on this day.
               </p>
             ) : (
@@ -641,12 +641,12 @@ export function EditorialCalendar({
                 {activeDateEvents.map((event) => (
                   <li
                     key={event.id}
-                    className="grid grid-cols-[56px_1fr] gap-2 border-b border-[#eee9e1] py-3 last:border-b-0"
+                    className="grid grid-cols-[56px_1fr] gap-2 border-b border-line py-3 last:border-b-0"
                   >
-                    <span className="pt-0.5 text-[10px] text-[#a19a91]">
+                    <span className="pt-0.5 text-[10px] text-muted">
                       {eventTime(event)}
                     </span>
-                    <p className="text-xs font-medium text-[#302e2a]">
+                    <p className="text-xs font-medium text-ink">
                       {event.summary}
                     </p>
                   </li>
@@ -696,14 +696,14 @@ function EventPreview({
   return (
     <div
       title={event.summary}
-      className={`min-w-0 rounded border border-[#e7e0d6] bg-[#f7f4ee] ${
+      className={`min-w-0 rounded border border-line bg-card ${
         compact ? "px-1.5 py-1" : "px-2 py-1.5"
       }`}
     >
-      <span className="block text-[9px] font-medium text-[#9a8f81]">
+      <span className="block text-[9px] font-medium text-muted">
         {eventTime(event)}
       </span>
-      <p className="truncate text-[10px] font-semibold leading-tight text-[#3b352d]">
+      <p className="truncate text-[10px] font-semibold leading-tight text-ink">
         {event.summary}
       </p>
     </div>
@@ -724,11 +724,11 @@ function MonthCalendarGrid({
 }: MonthCalendarGridProps) {
   return (
     <>
-      <div className="grid grid-cols-7 border-b border-[#ece7df] bg-[#faf8f4]">
+      <div className="grid grid-cols-7 border-b border-line bg-card">
         {WEEKDAYS.map((weekday) => (
           <span
             key={weekday}
-            className="px-3 py-2 text-[10px] font-semibold tracking-[0.12em] text-[#9a948b]"
+            className="px-3 py-2 text-[10px] font-semibold tracking-[0.12em] text-muted"
           >
             {weekday}
           </span>
@@ -749,10 +749,10 @@ function MonthCalendarGrid({
           return (
             <div
               key={cell.key}
-              className={`group relative min-h-[78px] border-b border-r border-[#ece7df] px-2.5 py-2 sm:min-h-[96px] ${
+              className={`group relative min-h-[78px] border-b border-r border-line px-2.5 py-2 sm:min-h-[96px] ${
                 index % 7 === 6 ? "border-r-0" : ""
               } ${index >= 35 ? "border-b-0" : ""} ${
-                isToday ? "bg-[#f2f6ff]" : isActive ? "bg-[#fbf7ed]" : ""
+                isToday ? "bg-cta/10" : isActive ? "bg-card" : ""
               }`}
             >
               <button
@@ -760,12 +760,12 @@ function MonthCalendarGrid({
                 onClick={() => onSelectDate(cell.date)}
                 className={`inline-flex size-6 items-center justify-center text-[11px] font-semibold transition ${
                   isToday
-                    ? "rounded-full bg-[#283146] text-white"
+                    ? "rounded-full bg-ink text-page"
                     : isActive
-                      ? "rounded-full border border-[#b59355] bg-white text-[#8f6f31]"
+                      ? "rounded-full border border-cta bg-paper text-cta"
                       : cell.outside
-                        ? "text-[#bbb4ab] hover:text-[#81786d]"
-                        : "text-[#514d46] hover:text-[#657de8]"
+                        ? "text-muted/50 hover:text-muted"
+                        : "text-ink hover:text-cta"
                 }`}
                 aria-label={`Show agenda for ${eventDateLabel(cell.key)}`}
               >
@@ -776,7 +776,7 @@ function MonthCalendarGrid({
                 <button
                   type="button"
                   onClick={() => onCreateEvent(cell.key)}
-                  className="absolute right-2 top-2 inline-flex size-6 items-center justify-center rounded-full border border-[#d9d4cb] bg-white text-[#746d63] opacity-100 shadow-sm transition hover:border-[#657de8] hover:text-[#657de8] sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+                  className="absolute right-2 top-2 inline-flex size-6 items-center justify-center rounded-full border border-line bg-paper text-muted opacity-100 shadow-sm transition hover:border-cta hover:text-cta sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
                   aria-label={`Add event on ${eventDateLabel(cell.key)}`}
                 >
                   <Plus className="size-3.5" />
@@ -801,7 +801,7 @@ function MonthCalendarGrid({
                   <span className="size-1.5 rounded-full bg-[#b59355]" />
                 ) : null}
                 {dayEvents.length > 5 ? (
-                  <span className="text-[9px] text-[#817a70]">
+                  <span className="text-[9px] text-muted">
                     +{dayEvents.length - 5}
                   </span>
                 ) : null}
@@ -828,7 +828,7 @@ function WeekCalendarGrid({
   onCreateEvent,
 }: WeekCalendarGridProps) {
   return (
-    <div className="grid min-h-[430px] grid-cols-1 divide-y divide-[#ece7df] sm:grid-cols-7 sm:divide-x sm:divide-y-0">
+    <div className="grid min-h-[430px] grid-cols-1 divide-y divide-line sm:grid-cols-7 sm:divide-x sm:divide-y-0">
       {cells.map((cell) => {
         const dayEvents = eventsByDay.get(cell.key) ?? [];
         const isToday = cell.key === todayKey;
@@ -837,11 +837,11 @@ function WeekCalendarGrid({
         return (
           <div key={cell.key} className="group relative flex min-w-0 flex-col">
             <header
-              className={`border-b border-[#ece7df] px-3 py-3 ${
-                isToday ? "bg-[#f2f6ff]" : isActive ? "bg-[#fbf7ed]" : ""
+              className={`border-b border-line px-3 py-3 ${
+                isToday ? "bg-cta/10" : isActive ? "bg-card" : ""
               }`}
             >
-              <span className="block text-[10px] font-semibold tracking-[0.12em] text-[#9a948b]">
+              <span className="block text-[10px] font-semibold tracking-[0.12em] text-muted">
                 {WEEKDAYS[cell.date.getDay()]}
               </span>
               <button
@@ -849,10 +849,10 @@ function WeekCalendarGrid({
                 onClick={() => onSelectDate(cell.date)}
                 className={`mt-1 inline-flex size-8 items-center justify-center rounded-full text-sm font-semibold transition ${
                   isToday
-                    ? "bg-[#283146] text-white"
+                    ? "bg-ink text-page"
                     : isActive
-                      ? "border border-[#b59355] bg-white text-[#8f6f31]"
-                      : "text-[#34302a] hover:bg-white hover:text-[#657de8]"
+                      ? "border border-cta bg-paper text-cta"
+                      : "text-ink hover:bg-card hover:text-cta"
                 }`}
                 aria-label={`Show agenda for ${eventDateLabel(cell.key)}`}
               >
@@ -862,7 +862,7 @@ function WeekCalendarGrid({
                 <button
                   type="button"
                   onClick={() => onCreateEvent(cell.key)}
-                  className="absolute right-2 top-3 inline-flex size-7 items-center justify-center rounded-lg border border-[#d9d4cb] bg-white text-[#746d63] opacity-100 shadow-sm transition hover:border-[#657de8] hover:text-[#657de8] sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+                  className="absolute right-2 top-3 inline-flex size-7 items-center justify-center rounded-lg border border-line bg-paper text-muted opacity-100 shadow-sm transition hover:border-cta hover:text-cta sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
                   aria-label={`Add event on ${eventDateLabel(cell.key)}`}
                 >
                   <Plus className="size-3.5" />
@@ -872,7 +872,7 @@ function WeekCalendarGrid({
 
             <div className="flex min-h-[120px] flex-1 flex-col gap-2 p-2">
               {dayEvents.length === 0 ? (
-                <span className="mt-3 text-[10px] text-[#aaa299]">
+                <span className="mt-3 text-[10px] text-muted">
                   No events
                 </span>
               ) : (
@@ -907,18 +907,18 @@ function DayCalendarView({
   return (
     <div className="min-h-[430px]">
       <header
-        className={`flex items-start justify-between gap-3 border-b border-[#ece7df] px-5 py-4 ${
-          isToday ? "bg-[#f2f6ff]" : "bg-[#faf8f4]"
+        className={`flex items-start justify-between gap-3 border-b border-line px-5 py-4 ${
+          isToday ? "bg-cta/10" : "bg-card"
         }`}
       >
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#9a948b]">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted">
             {isToday ? "Today" : "Selected day"}
           </p>
-          <h3 className="mt-1 text-sm font-semibold text-[#292824]">
+          <h3 className="mt-1 text-sm font-semibold text-ink">
             {eventDateLabel(dateKey)}
           </h3>
-          <p className="mt-1 text-[11px] text-[#827d75]">
+          <p className="mt-1 text-[11px] text-muted">
             {events.length} event{events.length === 1 ? "" : "s"}
           </p>
         </div>
@@ -926,7 +926,7 @@ function DayCalendarView({
           <button
             type="button"
             onClick={() => onCreateEvent(dateKey)}
-            className="inline-flex items-center gap-2 rounded-lg bg-[#657de8] px-3 py-2 text-xs font-semibold text-white shadow-[0_10px_22px_rgba(101,125,232,0.18)] transition hover:bg-[#586fe0]"
+            className="inline-flex items-center gap-2 rounded-lg bg-cta px-3 py-2 text-xs font-semibold text-white shadow-[0_10px_22px_rgba(101,125,232,0.18)] transition hover:bg-cta-edge"
           >
             <CalendarPlus className="size-4" />
             Add event
@@ -936,11 +936,11 @@ function DayCalendarView({
 
       <div className="px-5 py-4">
         {!calendar ? (
-          <p className="py-20 text-center text-xs text-[#817c74]">
+          <p className="py-20 text-center text-xs text-muted">
             Connect Google Calendar to see this day.
           </p>
         ) : events.length === 0 ? (
-          <p className="py-20 text-center text-xs text-[#817c74]">
+          <p className="py-20 text-center text-xs text-muted">
             No Google Calendar events on this day.
           </p>
         ) : (
@@ -948,12 +948,12 @@ function DayCalendarView({
             {events.map((event) => (
               <li
                 key={event.id}
-                className="grid grid-cols-[72px_1fr] gap-3 rounded-lg border border-[#ece7df] bg-white px-3 py-3"
+                className="grid grid-cols-[72px_1fr] gap-3 rounded-lg border border-line bg-card px-3 py-3"
               >
-                <span className="pt-0.5 text-[10px] font-semibold text-[#9a948b]">
+                <span className="pt-0.5 text-[10px] font-semibold text-muted">
                   {eventTime(event)}
                 </span>
-                <p className="text-sm font-semibold text-[#302e2a]">
+                <p className="text-sm font-semibold text-ink">
                   {event.summary}
                 </p>
               </li>
@@ -983,7 +983,7 @@ function CreateEventModal({
   onSubmit,
 }: CreateEventModalProps) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#16140f]/35 px-4 py-6 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#16140f]/45 px-4 py-6 backdrop-blur-sm">
       <button
         type="button"
         className="absolute inset-0 cursor-default"
@@ -995,17 +995,17 @@ function CreateEventModal({
           event.preventDefault();
           void onSubmit();
         }}
-        className="relative w-full max-w-[520px] overflow-hidden rounded-2xl border border-[#e2ddd4] bg-[#fffefa] shadow-[0_28px_70px_rgba(36,31,24,0.22)]"
+        className="relative w-full max-w-[520px] overflow-hidden rounded-2xl border border-line bg-paper shadow-[0_28px_70px_rgba(36,31,24,0.22)]"
       >
-        <header className="flex items-start justify-between gap-4 border-b border-[#ece7df] bg-[#faf8f4] px-5 py-4">
+        <header className="flex items-start justify-between gap-4 border-b border-line bg-card px-5 py-4">
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#8f887d]">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">
               Google Calendar
             </p>
-            <h2 className="mt-1 text-lg font-semibold tracking-[-0.03em] text-[#25231f]">
+            <h2 className="mt-1 text-lg font-semibold tracking-[-0.03em] text-ink">
               Add event
             </h2>
-            <p className="mt-1 text-xs text-[#827d75]">
+            <p className="mt-1 text-xs text-muted">
               {eventDateLabel(draft.date)}
             </p>
           </div>
@@ -1013,7 +1013,7 @@ function CreateEventModal({
             type="button"
             onClick={onClose}
             disabled={saving}
-            className="inline-flex size-8 items-center justify-center rounded-lg border border-[#d8d2c8] bg-white text-[#7a746b] transition hover:border-[#bfb7aa] hover:text-[#292824] disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex size-8 items-center justify-center rounded-lg border border-line bg-paper text-muted transition hover:border-cta hover:text-ink disabled:cursor-not-allowed disabled:opacity-60"
             aria-label="Close"
           >
             <X className="size-4" />
@@ -1022,7 +1022,7 @@ function CreateEventModal({
 
         <div className="space-y-4 px-5 py-5">
           <label className="block">
-            <span className="text-[11px] font-semibold text-[#5d574f]">
+            <span className="text-[11px] font-semibold text-muted">
               Title
             </span>
             <input
@@ -1030,23 +1030,23 @@ function CreateEventModal({
               onChange={(event) => onChange({ summary: event.target.value })}
               placeholder="Content planning sync"
               maxLength={160}
-              className="mt-1.5 w-full rounded-lg border border-[#d8d2c8] bg-white px-3 py-2.5 text-sm text-[#2e2b26] outline-none transition placeholder:text-[#b0a99e] focus:border-[#657de8] focus:ring-2 focus:ring-[#657de8]/15"
+              className="mt-1.5 w-full rounded-lg border border-line bg-card px-3 py-2.5 text-sm text-ink outline-none transition placeholder:text-muted focus:border-cta focus:ring-2 focus:ring-cta/15"
               autoFocus
             />
           </label>
 
           <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
             <label className="block">
-              <span className="text-[11px] font-semibold text-[#5d574f]">
+              <span className="text-[11px] font-semibold text-muted">
                 Date
               </span>
-              <div className="mt-1.5 flex items-center gap-2 rounded-lg border border-[#d8d2c8] bg-white px-3 py-2">
-                <CalendarPlus className="size-4 text-[#8c857a]" />
+              <div className="mt-1.5 flex items-center gap-2 rounded-lg border border-line bg-card px-3 py-2">
+                <CalendarPlus className="size-4 text-muted" />
                 <input
                   type="date"
                   value={draft.date}
                   onChange={(event) => onChange({ date: event.target.value })}
-                  className="min-w-0 flex-1 bg-transparent text-sm text-[#2e2b26] outline-none"
+                  className="min-w-0 flex-1 bg-transparent text-sm text-ink outline-none"
                 />
               </div>
             </label>
@@ -1059,8 +1059,8 @@ function CreateEventModal({
                 onClick={() => onChange({ allDay: !draft.allDay })}
                 className={`flex h-[42px] items-center gap-2 rounded-lg border px-3 text-xs font-semibold transition ${
                   draft.allDay
-                    ? "border-[#657de8] bg-[#edf2ff] text-[#526ed5]"
-                    : "border-[#d8d2c8] bg-white text-[#6f685f]"
+                    ? "border-cta bg-cta/10 text-cta"
+                    : "border-line bg-card text-muted"
                 }`}
               >
                 <span
@@ -1082,34 +1082,34 @@ function CreateEventModal({
           {!draft.allDay ? (
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block">
-                <span className="text-[11px] font-semibold text-[#5d574f]">
+                <span className="text-[11px] font-semibold text-muted">
                   Start
                 </span>
-                <div className="mt-1.5 flex items-center gap-2 rounded-lg border border-[#d8d2c8] bg-white px-3 py-2">
-                  <Clock3 className="size-4 text-[#8c857a]" />
+                <div className="mt-1.5 flex items-center gap-2 rounded-lg border border-line bg-card px-3 py-2">
+                  <Clock3 className="size-4 text-muted" />
                   <input
                     type="time"
                     value={draft.startTime}
                     onChange={(event) =>
                       onChange({ startTime: event.target.value })
                     }
-                    className="min-w-0 flex-1 bg-transparent text-sm text-[#2e2b26] outline-none"
+                    className="min-w-0 flex-1 bg-transparent text-sm text-ink outline-none"
                   />
                 </div>
               </label>
               <label className="block">
-                <span className="text-[11px] font-semibold text-[#5d574f]">
+                <span className="text-[11px] font-semibold text-muted">
                   End
                 </span>
-                <div className="mt-1.5 flex items-center gap-2 rounded-lg border border-[#d8d2c8] bg-white px-3 py-2">
-                  <Clock3 className="size-4 text-[#8c857a]" />
+                <div className="mt-1.5 flex items-center gap-2 rounded-lg border border-line bg-card px-3 py-2">
+                  <Clock3 className="size-4 text-muted" />
                   <input
                     type="time"
                     value={draft.endTime}
                     onChange={(event) =>
                       onChange({ endTime: event.target.value })
                     }
-                    className="min-w-0 flex-1 bg-transparent text-sm text-[#2e2b26] outline-none"
+                    className="min-w-0 flex-1 bg-transparent text-sm text-ink outline-none"
                   />
                 </div>
               </label>
@@ -1117,11 +1117,11 @@ function CreateEventModal({
           ) : null}
 
           <label className="block">
-            <span className="text-[11px] font-semibold text-[#5d574f]">
+            <span className="text-[11px] font-semibold text-muted">
               Notes
             </span>
-            <div className="mt-1.5 flex gap-2 rounded-lg border border-[#d8d2c8] bg-white px-3 py-2.5 focus-within:border-[#657de8] focus-within:ring-2 focus-within:ring-[#657de8]/15">
-              <FileText className="mt-0.5 size-4 shrink-0 text-[#8c857a]" />
+            <div className="mt-1.5 flex gap-2 rounded-lg border border-line bg-card px-3 py-2.5 focus-within:border-cta focus-within:ring-2 focus-within:ring-cta/15">
+              <FileText className="mt-0.5 size-4 shrink-0 text-muted" />
               <textarea
                 value={draft.description}
                 onChange={(event) =>
@@ -1130,24 +1130,24 @@ function CreateEventModal({
                 placeholder="Agenda, campaign notes, or links"
                 rows={3}
                 maxLength={2000}
-                className="min-w-0 flex-1 resize-none bg-transparent text-sm text-[#2e2b26] outline-none placeholder:text-[#b0a99e]"
+                className="min-w-0 flex-1 resize-none bg-transparent text-sm text-ink outline-none placeholder:text-muted"
               />
             </div>
           </label>
 
           {error ? (
-            <p className="rounded-lg border border-[#f2c9c4] bg-[#fff1ef] px-3 py-2 text-xs text-[#a8463d]">
+            <p className="rounded-lg border border-danger/20 bg-danger/10 px-3 py-2 text-xs text-danger">
               {error}
             </p>
           ) : null}
         </div>
 
-        <footer className="flex flex-wrap items-center justify-end gap-2 border-t border-[#ece7df] bg-[#faf8f4] px-5 py-4">
+        <footer className="flex flex-wrap items-center justify-end gap-2 border-t border-line bg-card px-5 py-4">
           <button
             type="button"
             onClick={onClose}
             disabled={saving}
-            className="rounded-lg border border-[#d8d2c8] bg-white px-4 py-2 text-xs font-semibold text-[#615a51] transition hover:border-[#bbb2a6] disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded-lg border border-line bg-paper px-4 py-2 text-xs font-semibold text-ink transition hover:border-cta disabled:cursor-not-allowed disabled:opacity-60"
           >
             Cancel
           </button>

@@ -23,6 +23,7 @@ describe('AnalyticsService', () => {
       findMany: jest.Mock<AsyncFn>;
       findFirst: jest.Mock<AsyncFn>;
     };
+    contentMetadataField: { findMany: jest.Mock<AsyncFn> };
     contentPost: { findMany: jest.Mock<AsyncFn> };
     postAnalytics: { create: jest.Mock<AsyncFn> };
     analyticsSnapshot: {
@@ -49,6 +50,9 @@ describe('AnalyticsService', () => {
       instagramAccount: {
         findMany: jest.fn<AsyncFn>(),
         findFirst: jest.fn<AsyncFn>(),
+      },
+      contentMetadataField: {
+        findMany: jest.fn<AsyncFn>().mockResolvedValue([]),
       },
       contentPost: { findMany: jest.fn<AsyncFn>() },
       postAnalytics: { create: jest.fn<AsyncFn>() },
@@ -183,6 +187,7 @@ describe('AnalyticsService', () => {
       {
         id: 'account-1',
         username: 'ambacafe',
+        displayName: null,
         accountType: 'BUSINESS',
         avatarUrl: 'https://example.test/avatar.jpg',
       },
@@ -213,6 +218,8 @@ describe('AnalyticsService', () => {
       {
         id: 'account-1',
         name: '@ambacafe',
+        username: 'ambacafe',
+        displayName: null,
         platform: 'Instagram',
         avatarUrl: 'https://example.test/avatar.jpg',
         tone: 'blue',
@@ -323,6 +330,8 @@ describe('AnalyticsService', () => {
       id: 'post-1',
       account: {
         name: '@ambacafe',
+        username: 'ambacafe',
+        displayName: null,
         avatarUrl: 'https://example.test/avatar.jpg',
       },
       views: 120,
@@ -615,9 +624,11 @@ function makePost(input: {
     instagramAccount: {
       id: 'account-1',
       username: 'ambacafe',
+      displayName: null,
       accountType: 'BUSINESS',
       avatarUrl: 'https://example.test/avatar.jpg',
     },
+    metadataValues: [],
     postAnalytics: [
       {
         id: `${input.id}-analytics`,

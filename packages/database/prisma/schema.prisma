@@ -43,6 +43,7 @@ model InstagramAccount {
   userId               String               @map("user_id")
   igUserId             String               @map("ig_user_id")
   username             String
+  displayName          String?              @map("display_name")
   accountType          InstagramAccountType @map("account_type")
   avatarUrl            String?              @map("avatar_url")
   accessTokenEncrypted String               @map("access_token_encrypted")

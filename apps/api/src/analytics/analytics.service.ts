@@ -40,6 +40,8 @@ type AnalyticsMetricField =
 type AnalyticsAccount = {
   id: string;
   name: string;
+  username: string;
+  displayName: string | null;
   platform: string;
   avatarUrl: string | null;
   tone: AccountTone;
@@ -338,6 +340,7 @@ const ANALYTICS_POST_INCLUDE = {
     select: {
       id: true,
       username: true,
+      displayName: true,
       accountType: true,
       avatarUrl: true,
     },
@@ -416,6 +419,7 @@ export class AnalyticsService {
       select: {
         id: true,
         username: true,
+        displayName: true,
         accountType: true,
         avatarUrl: true,
       },
@@ -815,7 +819,11 @@ export class AnalyticsService {
         const latest = latestAnalytics(post);
         const account = accountById.get(post.instagramAccountId) ?? {
           id: post.instagramAccount.id,
-          name: `@${post.instagramAccount.username}`,
+          name:
+            post.instagramAccount.displayName?.trim() ||
+            `@${post.instagramAccount.username}`,
+          username: post.instagramAccount.username,
+          displayName: post.instagramAccount.displayName ?? null,
           platform:
             post.instagramAccount.accountType === 'CREATOR'
               ? 'Instagram Creator'
@@ -1178,6 +1186,7 @@ function mapAccount(
   account: {
     id: string;
     username: string;
+    displayName?: string | null;
     accountType: string;
     avatarUrl?: string | null;
   },
@@ -1185,7 +1194,9 @@ function mapAccount(
 ): AnalyticsAccount {
   return {
     id: account.id,
-    name: `@${account.username}`,
+    name: account.displayName?.trim() || `@${account.username}`,
+    username: account.username,
+    displayName: account.displayName ?? null,
     platform:
       account.accountType === 'CREATOR' ? 'Instagram Creator' : 'Instagram',
     avatarUrl: account.avatarUrl ?? null,

@@ -23,6 +23,7 @@ const STORY_UPLOAD_COLOR = "var(--chart-3)";
 type InstagramAccountResponse = {
   id: string;
   username: string;
+  displayName?: string | null;
   accountType: "PERSONAL" | "BUSINESS" | "CREATOR";
   avatarUrl?: string | null;
   isActive: boolean;
@@ -34,6 +35,7 @@ type InstagramAnalyticsSummaryResponse = {
   accounts: {
     id: string;
     username: string;
+    displayName?: string | null;
     uploadCount: number | null;
     storyCount: number | null;
     activeStoryCount: number | null;
@@ -57,7 +59,7 @@ function getUploadChartBars(
         const storyCount = account.storyCount ?? 0;
 
         return {
-          label: `@${account.username}`,
+          label: account.displayName?.trim() || `@${account.username}`,
           value: mediaCount + storyCount,
           color: MEDIA_UPLOAD_COLOR,
           segments: [
@@ -103,7 +105,9 @@ export async function getDashboardData(): Promise<DashboardData> {
     contentRows: overview?.contentRows ?? EMPTY_DASHBOARD.contentRows,
     accounts: activeAccounts.map((account) => ({
       id: account.id,
-      name: `@${account.username}`,
+      name: account.displayName?.trim() || `@${account.username}`,
+      username: account.username,
+      displayName: account.displayName ?? null,
       platform:
         account.accountType === "CREATOR" ? "Instagram Creator" : "Instagram",
       avatarUrl: account.avatarUrl ?? null,

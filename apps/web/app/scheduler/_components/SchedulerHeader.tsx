@@ -179,7 +179,7 @@ export function SchedulerHeader({
         </div>
 
         <div className="flex items-center gap-2">
-          <FilterPill label="All clients" />
+          <FilterPill label="All accounts" />
           <FilterPill label="All networks" />
           <div className="relative">
             <button
