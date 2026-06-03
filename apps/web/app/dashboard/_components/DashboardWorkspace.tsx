@@ -200,7 +200,7 @@ function FocusCard({ reminder }: { reminder: DashboardData["reminder"] }) {
           {reminder ? "Today" : "Open schedule"}
         </span>
         <Link
-          href="/calendar"
+          href="/scheduler"
           className="rounded-md bg-[#657de8] px-3 py-1.5 font-medium text-white"
         >
           Open brief

@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { PostDetailsModal } from "@/app/calendar/_components/PostDetailsModal";
+import { PostDetailsModal } from "@/app/scheduler/_components/PostDetailsModal";
 import { formatNumber } from "@/lib/format";
 import type { PostStat, RecentPost } from "./data";
 

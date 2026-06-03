@@ -1,4 +1,4 @@
-# Interface TODO — Dashboard, Calendar, Analytics, Chat, Chat-AI
+# Interface TODO — Dashboard, Scheduler, Analytics, Chat, Chat-AI
 
 > Branch: `integrated-dashboard`
 > Tanggal: 2026-05-20
@@ -57,25 +57,25 @@ Referensi sudah jalan: `apps/web/lib/dashboard-data.ts`, `apps/web/app/dashboard
 
 ---
 
-## 2. Calendar (Scheduling) - `apps/web/app/calendar/`
+## 2. Scheduler - `apps/web/app/scheduler/`
 
-**Status**: In progress / publishable MVP wired. Calendar data is API-backed, scheduled posts are stored in DB, Google Calendar events are merged when connected, the create modal supports media upload, multi-account targeting with per-account results, schedule/post-now/draft actions, immediate Instagram publishing for "Post Now", BullMQ-backed scheduled publishing, post-detail popup workflows, an approval/draft work panel, scheduled-post management, and failed-publish retries. Remaining calendar-page gap: an optional direct Google Calendar connect CTA.
+**Status**: In progress / publishable MVP wired. Scheduler data is API-backed and posts-only: scheduled posts are stored in DB, while Google Calendar remains on the dashboard and `integrations/google/*` routes. The create modal supports media upload, multi-account targeting with per-account results, schedule/post-now/draft actions, immediate Instagram publishing for "Post Now", BullMQ-backed scheduled publishing, post-detail popup workflows, an approval/draft work panel, scheduled-post management, and failed-publish retries.
 
 ### Files
 
 | Path | Purpose |
 |---|---|
-| `apps/web/app/calendar/page.tsx` | Server Component, auth check, initial calendar fetch |
-| `apps/web/lib/calendar-data.ts` | `getCalendarData()` server fetch helper with `EMPTY_CALENDAR` fallback |
-| `apps/web/app/calendar/_components/CalendarShell.tsx` | Stateful calendar container, view switching, range refetch, error/empty states |
-| `apps/web/app/calendar/_components/CalendarHeader.tsx` | Navigation, week/month toggle, create modal launcher |
-| `apps/web/app/calendar/_components/CalendarWorkPanel.tsx` | Review tabs for awaiting approval, drafts, and failed publish retries |
-| `apps/web/app/calendar/_components/MonthlyCalendar.tsx` | Dynamic month grid + event chips |
-| `apps/web/app/calendar/_components/WeeklyCalendar.tsx` | Dynamic week grid + event chips |
-| `apps/web/app/calendar/_components/CreatePostModal.tsx` | Post/story/reels modal, media upload, account multi-select, schedule/post-now/draft |
-| `apps/web/app/calendar/_components/PostDetailsModal.tsx` | Click-through post popup, draft/scheduled editing, approval, deletion, and failed-publish retry |
-| `apps/web/app/calendar/_components/data.ts` | Pure calendar types, date helpers, `EMPTY_CALENDAR` |
-| `apps/api/src/calendar/*` | Event/detail/create, work-item/failure feeds, draft/scheduled updates, approve, retry, and delete routes |
+| `apps/web/app/scheduler/page.tsx` | Server Component, auth check, initial scheduler fetch |
+| `apps/web/lib/scheduler-data.ts` | `getSchedulerData()` server fetch helper with `EMPTY_SCHEDULER` fallback |
+| `apps/web/app/scheduler/_components/SchedulerShell.tsx` | Stateful scheduler container, view switching, range refetch, error/empty states |
+| `apps/web/app/scheduler/_components/SchedulerHeader.tsx` | Navigation, week/month toggle, create modal launcher |
+| `apps/web/app/scheduler/_components/SchedulerWorkPanel.tsx` | Review tabs for awaiting approval, drafts, and failed publish retries |
+| `apps/web/app/scheduler/_components/MonthlyCalendar.tsx` | Dynamic month grid + post event chips |
+| `apps/web/app/scheduler/_components/WeeklyCalendar.tsx` | Dynamic week grid + post event chips |
+| `apps/web/app/scheduler/_components/CreatePostModal.tsx` | Post/story/reels modal, media upload, account multi-select, schedule/post-now/draft |
+| `apps/web/app/scheduler/_components/PostDetailsModal.tsx` | Click-through post popup, draft/scheduled editing, approval, deletion, and failed-publish retry |
+| `apps/web/app/scheduler/_components/data.ts` | Pure scheduler types, date helpers, `EMPTY_SCHEDULER` |
+| `apps/api/src/scheduler/*` | Event/detail/create, work-item/failure feeds, draft/scheduled updates, approve, retry, and delete routes |
 | `apps/api/src/media/*` | Supabase Storage signed upload URLs + `MediaAsset` creation |
 | `apps/api/src/publishing/*` | Instagram publish flow for "Post Now" and guarded worker-triggered scheduled publishing |
 | `apps/api/src/queue/*` | BullMQ delayed-job producer plus replacement/removal support for reschedule, retry, and delete |
@@ -85,35 +85,29 @@ Referensi sudah jalan: `apps/web/lib/dashboard-data.ts`, `apps/web/app/dashboard
 
 | Item | Catatan |
 |---|---|
-| API-backed calendar data | `GET /calendar/events?from=&to=` returns scheduled DB posts + Google Calendar events when connected. |
-| Removed hardcoded calendar events | Calendar data file now exports types/helpers/empty state, not dummy events. |
+| API-backed scheduler data | `GET /scheduler/events?from=&to=` returns scheduled DB posts only. |
+| Removed hardcoded scheduler events | Scheduler data file now exports types/helpers/empty state, not dummy events. |
 | Dynamic week/month dates | Week and month grids are generated from `referenceIso`. |
-| Create modal submit flow | Modal calls `POST /calendar/events` and refreshes calendar after create. |
+| Create modal submit flow | Modal calls `POST /scheduler/events` and refreshes scheduler after create. |
 | Media upload | Upload flow uses signed Supabase Storage URLs, then creates `MediaAsset` and `PostMedia` rows. |
 | Submit actions | `Schedule` requires date/time, `Post Now` skips date/time and publishes immediately, `Save as Draft` skips date/time. |
 | Account targeting | Modal supports selecting one or more connected Instagram accounts. |
 | Media rules | Feed posts use images; multiple feed images become carousel; Reels require video; Stories allow image or video. |
 | Feed image auto-crop | Feed/carousel images outside Instagram's `4:5` to `1.91:1` ratio are center-cropped in-browser before upload. |
 | Scheduled-time publishing | `READY` scheduled posts are enqueued as delayed BullMQ jobs; the worker triggers the same Instagram publisher with retry attempt tracking. |
-| Calendar status labels | Queued `READY` posts display as Scheduled; only `PENDING` posts display as awaiting approval. |
-| Calendar post popup | Clicking an app-owned post/story/reel card opens its account, caption, status, schedule, and signed media previews. |
-| Approval from calendar | A `PENDING` post can be approved in its popup; approval changes it to `READY` and enqueues publishing for its scheduled time. |
-| Draft editor from calendar | `DRAFT` posts render on their creation date and open an editor for text, media attachments, schedule time, and optional approval. |
+| Scheduler status labels | Queued `READY` posts display as Scheduled; only `PENDING` posts display as awaiting approval. |
+| Scheduler post popup | Clicking an app-owned post/story/reel card opens its account, caption, status, schedule, and signed media previews. |
+| Approval from scheduler | A `PENDING` post can be approved in its popup; approval changes it to `READY` and enqueues publishing for its scheduled time. |
+| Draft editor from scheduler | `DRAFT` posts render on their creation date and open an editor for text, media attachments, schedule time, and optional approval. |
 | Scheduled content completeness | A post must contain publishable media before it can be scheduled, including when it will wait for approval. |
 | Multi-account result feedback | Submit results are shown per account; after a partial failure only failed accounts remain selected for a safe retry. |
-| Approval/draft work panel | The calendar page includes filtered tabs for pending approvals and drafts, so they do not need to be found by date alone. |
+| Approval/draft work panel | The scheduler page includes filtered tabs for pending approvals and drafts, so they do not need to be found by date alone. |
 | Scheduled-post management | Scheduled posts can be edited, rescheduled, or deleted from their popup while the delayed BullMQ job is kept in sync. |
 | Failed publish recovery | Failed due posts appear in the work panel and detail popup with their last error and a retry action. |
 
-### TODO
-
-| Item | Catatan |
-|---|---|
-| Google Calendar connect CTA | Calendar page shows a disconnected hint but does not yet include a direct connect button. |
-
 ### Rekomendasi tambahan
 
-- Keep scheduled post events and Google events separate in the payload with `source: "scheduled_post" | "google"` so frontend styling can stay clear.
+- Keep scheduler payloads posts-only; Google Calendar belongs to dashboard cards and `integrations/google/*`.
 - Keep `InstagramPublisherService` as the one Meta Graph API implementation; the worker should continue to trigger it through the guarded internal route.
 - Consider adding retry progress polling or worker completion notifications so a queued retry disappears without a page refresh.
 
@@ -154,7 +148,7 @@ Referensi sudah jalan: `apps/web/lib/dashboard-data.ts`, `apps/web/app/dashboard
 ### Rekomendasi tambahan
 
 - `ChannelDistribution` items pakai `var(--chart-N)` token — bagus, tetap pakai. Tinggal datanya dinamis.
-- `ContentCalendar` overlap dengan `Calendar` page. Pastikan beda scope (analytics: read-only past events; calendar page: editable scheduled posts).
+- `ContentCalendar` overlap dengan Scheduler page. Pastikan beda scope (analytics: read-only past events; scheduler page: editable scheduled posts).
 
 ---
 
@@ -240,9 +234,9 @@ Referensi sudah jalan: `apps/web/lib/dashboard-data.ts`, `apps/web/app/dashboard
 ## 7. Urutan Eksekusi yang Disarankan
 
 1. **Backend IG integration** (`apps/api` `InstagramModule` + worker) → fill `DashboardData` real.
-2. **Google Calendar OAuth + sync** → fill `calendar` field + Calendar page.
+2. **Google Calendar OAuth + sync** → fill dashboard `calendar` field.
 3. **Analytics endpoint** (turunan dari data IG yang sama).
 4. **Chat scope decision** → implement sesuai pilihan (IG DM vs internal).
 5. **Snow AI** terakhir (paling self-contained, bisa dikerjakan paralel kalau provider sudah diputuskan).
 
-Tujuannya: 1 sumber data (IG Graph API) memecah ke 3 halaman dulu (Dashboard, Calendar, Analytics) sebelum cabang ke Chat & AI.
+Tujuannya: 1 sumber data (IG Graph API) memecah ke 3 halaman dulu (Dashboard, Scheduler, Analytics) sebelum cabang ke Chat & AI.

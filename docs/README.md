@@ -16,7 +16,7 @@ written before later implementation work landed.
 | Document | Notes |
 |---|---|
 | [Dashboard Setup](./dashboard-setup.md) | Dashboard integration history and credential notes. |
-| [Calendar Feature](./calendar-feature.md) | Initial scheduling implementation summary. |
+| [Scheduler Feature](./scheduler-feature.md) | Scheduling implementation summary and current posts-only scope. |
 | [Interface TODO](./interface-todo.md) | Historical UI integration plan. Some analytics items are now implemented. |
 | [API Helpers](./api-helpers.md) | Background on frontend API fetch helpers. |
 | [Frontend Skills](./frontend-skills.md) | Older skill-style frontend conventions. |

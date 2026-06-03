@@ -72,12 +72,12 @@ type SidebarPanelProps = {
 };
 
 const NAV_ITEMS: NavItem[] = [
-  { key: "dashboard", label: "Overview", Icon: Home, href: "/dashboard" },
+  { key: "dashboard", label: "Dashboard", Icon: Home, href: "/dashboard" },
   {
     key: "scheduling",
-    label: "Calendar",
+    label: "Scheduler",
     Icon: CalendarDays,
-    href: "/calendar",
+    href: "/scheduler",
   },
   { key: "snow-ai", label: "Snow AI", Icon: Sparkles, href: "/chat-ai" },
   { key: "chat", label: "Inbox", Icon: Inbox, href: "/chat", badge: "24" },

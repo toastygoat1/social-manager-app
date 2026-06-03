@@ -1,12 +1,12 @@
 import type { DragEvent as ReactDragEvent } from "react";
-import type { CalendarEvent } from "./data";
+import type { SchedulerEvent } from "./data";
 
-export type CalendarDragController = {
+export type SchedulerDragController = {
   draggingEventId: string | null;
   dropTargetIso: string | null;
   movingEventId: string | null;
   onEventDragStart: (
-    event: CalendarEvent,
+    event: SchedulerEvent,
     dragEvent: ReactDragEvent<HTMLElement>,
   ) => void;
   onEventDragEnd: () => void;
@@ -25,7 +25,7 @@ export type CalendarDragController = {
   onDateDrop: (iso: string, dragEvent: ReactDragEvent<HTMLElement>) => void;
 };
 
-export function canDragCalendarEvent(event: CalendarEvent) {
+export function canDragSchedulerEvent(event: SchedulerEvent) {
   return (
     event.source === "scheduled_post" &&
     event.status === "scheduled" &&
@@ -34,7 +34,7 @@ export function canDragCalendarEvent(event: CalendarEvent) {
 }
 
 export function getDateDropProps(
-  dragController: CalendarDragController | undefined,
+  dragController: SchedulerDragController | undefined,
   iso: string,
 ) {
   return {

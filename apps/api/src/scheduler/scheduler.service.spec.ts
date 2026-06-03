@@ -1,16 +1,15 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { PostStatus, PostType } from '@social-manager/database';
-import { GoogleService } from '../integrations/google/google.service.js';
 import { MediaService } from '../media/media.service.js';
 import { InstagramPublisherService } from '../publishing/instagram-publisher.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { PublishQueueService } from '../queue/publish-queue.service.js';
-import { CalendarService } from './calendar.service.js';
+import { SchedulerService } from './scheduler.service.js';
 
 type AsyncFn = (...args: unknown[]) => Promise<unknown>;
 
-describe('CalendarService queue compensation', () => {
-  let service: CalendarService;
+describe('SchedulerService queue compensation', () => {
+  let service: SchedulerService;
   let prisma: {
     $transaction: jest.Mock<AsyncFn>;
     contentPost: {
@@ -41,9 +40,8 @@ describe('CalendarService queue compensation', () => {
       replaceScheduledPost: jest.fn<AsyncFn>().mockResolvedValue(undefined),
       removeScheduledPost: jest.fn<AsyncFn>().mockResolvedValue(undefined),
     };
-    service = new CalendarService(
+    service = new SchedulerService(
       prisma as unknown as PrismaService,
-      {} as GoogleService,
       {} as InstagramPublisherService,
       publishQueue as unknown as PublishQueueService,
       {} as MediaService,

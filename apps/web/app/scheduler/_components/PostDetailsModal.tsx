@@ -23,7 +23,7 @@ import {
   type MetadataField,
 } from "@/lib/post-metadata";
 import { createClient } from "@/lib/supabase/client";
-import type { CalendarPostDetail, EventStatus } from "./data";
+import type { SchedulerPostDetail, EventStatus } from "./data";
 
 type Props = {
   postId: string | null;
@@ -114,11 +114,11 @@ function formatFileSize(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function mediaLimit(postType: CalendarPostDetail["postType"]) {
+function mediaLimit(postType: SchedulerPostDetail["postType"]) {
   return postType === "CAROUSEL" ? 10 : 1;
 }
 
-function mediaAccept(postType: CalendarPostDetail["postType"]) {
+function mediaAccept(postType: SchedulerPostDetail["postType"]) {
   if (postType === "REEL") return "video/*";
   if (postType === "STORY") return "image/*,video/*";
   return "image/*";
@@ -181,7 +181,7 @@ async function buildDraftUpload(file: File): Promise<DraftUpload> {
 }
 
 function validateDraftFiles(
-  postType: CalendarPostDetail["postType"],
+  postType: SchedulerPostDetail["postType"],
   files: File[],
   totalCount: number,
 ) {
@@ -250,7 +250,7 @@ function StatusBadge({ status }: { status: EventStatus }) {
 }
 
 export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
-  const [post, setPost] = useState<CalendarPostDetail | null>(null);
+  const [post, setPost] = useState<SchedulerPostDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -263,7 +263,7 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
   const [scheduledFor, setScheduledFor] = useState(defaultScheduleValue);
   const [requiresApproval, setRequiresApproval] = useState(false);
   const [attachedMedia, setAttachedMedia] = useState<
-    CalendarPostDetail["media"]
+    SchedulerPostDetail["media"]
   >([]);
   const [draftUploads, setDraftUploads] = useState<DraftUpload[]>([]);
 
@@ -275,7 +275,7 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
     setNotice(null);
     setLoading(true);
 
-    apiFetchBrowser<CalendarPostDetail>(`/calendar/posts/${postId}`)
+    apiFetchBrowser<SchedulerPostDetail>(`/scheduler/posts/${postId}`)
       .then((result) => {
         if (!active) return;
         setPost(result);
@@ -337,8 +337,8 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
     setError(null);
     setNotice(null);
     try {
-      const updated = await apiFetchBrowser<CalendarPostDetail>(
-        `/calendar/posts/${post.id}/approve`,
+      const updated = await apiFetchBrowser<SchedulerPostDetail>(
+        `/scheduler/posts/${post.id}/approve`,
         { method: "POST" },
       );
       setPost(updated);
@@ -374,8 +374,8 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
     setNotice(null);
     try {
       const addedMediaAssetIds = await uploadDraftMedia();
-      const updated = await apiFetchBrowser<CalendarPostDetail>(
-        `/calendar/posts/${post.id}/draft`,
+      const updated = await apiFetchBrowser<SchedulerPostDetail>(
+        `/scheduler/posts/${post.id}/draft`,
         {
           method: "PATCH",
           body: {
@@ -564,8 +564,8 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
     setError(null);
     setNotice(null);
     try {
-      const updated = await apiFetchBrowser<CalendarPostDetail>(
-        `/calendar/posts/${post.id}/scheduled`,
+      const updated = await apiFetchBrowser<SchedulerPostDetail>(
+        `/scheduler/posts/${post.id}/scheduled`,
         {
           method: "PATCH",
           body: {
@@ -599,7 +599,7 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
     setError(null);
     setNotice(null);
     try {
-      await apiFetchBrowser(`/calendar/posts/${post.id}`, { method: "DELETE" });
+      await apiFetchBrowser(`/scheduler/posts/${post.id}`, { method: "DELETE" });
       onChanged();
       onClose();
     } catch (submitError) {
@@ -615,8 +615,8 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
     setError(null);
     setNotice(null);
     try {
-      const updated = await apiFetchBrowser<CalendarPostDetail>(
-        `/calendar/posts/${post.id}/retry`,
+      const updated = await apiFetchBrowser<SchedulerPostDetail>(
+        `/scheduler/posts/${post.id}/retry`,
         { method: "POST" },
       );
       setPost(updated);
