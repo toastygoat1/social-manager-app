@@ -108,19 +108,19 @@ export function ContentTable({ rows, metadataFields }: ContentTableProps) {
   const totalWidth = getTotalWidth(metadataFields);
 
   return (
-    <section className="mt-4 overflow-hidden rounded-xl border border-[#e3dfd8] bg-[#fffefa]">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-[#e8e3db] px-4 py-3">
+    <section className="mt-4 overflow-hidden rounded-[10px] border border-line bg-paper">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-3">
         <div>
-          <h2 className="text-sm font-semibold text-[#2e2c29]">
+          <h2 className="text-sm font-semibold text-ink">
             Scheduled content
           </h2>
-          <p className="mt-0.5 text-[10px] text-[#8d877f]">
+          <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.06em] text-muted">
             {query
               ? `${filteredRows.length} matching result${filteredRows.length === 1 ? "" : "s"}`
               : `${rows.length} total items`}
           </p>
         </div>
-        <label className="flex h-8 w-full max-w-[264px] items-center gap-2 rounded-lg border border-[#ded9d1] bg-white px-3 text-[#928c84]">
+        <label className="flex h-8 w-full max-w-[264px] items-center gap-2 rounded-lg border border-line bg-card px-3 text-muted">
           <Search className="size-3.5 shrink-0" strokeWidth={1.8} />
           <span className="sr-only">Search scheduled content</span>
           <input
@@ -128,14 +128,14 @@ export function ContentTable({ rows, metadataFields }: ContentTableProps) {
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search scheduled content"
-            className="min-w-0 flex-1 bg-transparent text-xs text-[#403d37] outline-none placeholder:text-[#9a948b]"
+            className="min-w-0 flex-1 bg-transparent text-xs text-ink outline-none placeholder:text-muted"
           />
         </label>
       </header>
 
       <div className="overflow-x-auto">
         <div style={{ minWidth: `${totalWidth}px` }}>
-          <div className="flex h-9 items-center border-b border-[#ede8e1] bg-[#faf8f4] text-[9px] font-semibold uppercase tracking-[0.13em] text-[#928c84]">
+          <div className="flex h-9 items-center border-b border-line bg-card text-[9px] font-semibold uppercase tracking-[0.13em] text-muted">
             <Cell width={ACCOUNT_WIDTH}>Accounts</Cell>
             <Cell width={CONTENT_WIDTH}>Contents</Cell>
             {TRAILING_COLUMNS.map((column) => (
@@ -151,7 +151,7 @@ export function ContentTable({ rows, metadataFields }: ContentTableProps) {
           </div>
 
           {filteredRows.length === 0 ? (
-            <div className="flex h-20 items-center justify-center text-xs text-[#817c74]">
+            <div className="flex h-20 items-center justify-center text-xs text-muted">
               {query
                 ? "No content matches your search."
                 : "No content scheduled yet."}
@@ -179,7 +179,7 @@ function Row({
   metadataFields: MetadataFieldDefinition[];
 }) {
   return (
-    <div className="flex h-14 items-center border-b border-[#f0ece4] text-xs last:border-b-0">
+    <div className="flex h-14 items-center border-b border-line text-xs last:border-b-0">
       <div
         className="flex h-full shrink-0 items-center px-2 py-1"
         style={{ width: `${ACCOUNT_WIDTH}px` }}
@@ -192,41 +192,41 @@ function Row({
         />
       </div>
       <Cell width={CONTENT_WIDTH}>
-        <span className="truncate text-[#4e4942]">{row.contents}</span>
+        <span className="truncate text-ink">{row.contents}</span>
       </Cell>
       <Cell width={TRAILING_COLUMNS[0].width}>
-        <span className="text-[#6e685f]">{row.type}</span>
+        <span className="text-muted">{row.type}</span>
       </Cell>
       <Cell width={TRAILING_COLUMNS[1].width}>
-        <span className="text-[#6e685f]">{row.status}</span>
+        <span className="text-muted">{row.status}</span>
       </Cell>
       <Cell width={TRAILING_COLUMNS[2].width}>
-        <span className="truncate text-[#6e685f]">{row.audio}</span>
+        <span className="truncate text-muted">{row.audio}</span>
       </Cell>
       <Cell width={TRAILING_COLUMNS[3].width}>
-        <span className="text-[#6e685f]">{row.datePost}</span>
+        <span className="text-muted">{row.datePost}</span>
       </Cell>
       <Cell width={TRAILING_COLUMNS[4].width}>
-        <span className="truncate text-[#6e685f]">{row.caption}</span>
+        <span className="truncate text-muted">{row.caption}</span>
       </Cell>
       <Cell width={TRAILING_COLUMNS[5].width}>
-        <span className="text-[#6e685f]">{formatNumber(row.views)}</span>
+        <span className="text-muted">{formatNumber(row.views)}</span>
       </Cell>
       <Cell width={TRAILING_COLUMNS[6].width}>
-        <span className="text-[#6e685f]">{formatNumber(row.likes)}</span>
+        <span className="text-muted">{formatNumber(row.likes)}</span>
       </Cell>
       <Cell width={TRAILING_COLUMNS[7].width}>
-        <span className="text-[#6e685f]">{formatNumber(row.comments)}</span>
+        <span className="text-muted">{formatNumber(row.comments)}</span>
       </Cell>
       <Cell width={TRAILING_COLUMNS[8].width}>
-        <span className="text-[#6e685f]">{formatNumber(row.shares)}</span>
+        <span className="text-muted">{formatNumber(row.shares)}</span>
       </Cell>
       <Cell width={TRAILING_COLUMNS[9].width}>
-        <span className="text-[#6e685f]">{row.media}</span>
+        <span className="text-muted">{row.media}</span>
       </Cell>
       {metadataFields.map((field) => (
         <Cell key={field.id} width={getMetadataColumnWidth(field)}>
-          <span className="truncate text-[#6e685f]">
+          <span className="truncate text-muted">
             {row.metadata[field.id] || "-"}
           </span>
         </Cell>

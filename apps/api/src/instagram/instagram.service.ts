@@ -37,6 +37,7 @@ const SAFE_INSTAGRAM_ACCOUNT_SELECT = {
   userId: true,
   igUserId: true,
   username: true,
+  displayName: true,
   accountType: true,
   avatarUrl: true,
   pageId: true,
@@ -77,6 +78,7 @@ const INSTAGRAM_INSIGHTS_ACCOUNT_SELECT = {
   id: true,
   igUserId: true,
   username: true,
+  displayName: true,
   accessTokenEncrypted: true,
 } satisfies Prisma.InstagramAccountSelect;
 
@@ -176,6 +178,7 @@ type InstagramTokenResponse = GraphApiError & {
 type InstagramProfileResponse = GraphApiError & {
   id: string;
   username: string;
+  name?: string;
   account_type?: string;
   media_count?: number;
   profile_picture_url?: string;
@@ -327,23 +330,28 @@ export class InstagramService {
       select: SAFE_INSTAGRAM_ACCOUNT_SELECT,
     });
 
-    const missingAvatarIds = accounts
-      .filter((account) => !account.avatarUrl)
+    const missingProfileIds = accounts
+      .filter((account) => !account.avatarUrl || !account.displayName)
       .map((account) => account.id);
 
-    if (missingAvatarIds.length === 0) return accounts;
+    if (missingProfileIds.length === 0) return accounts;
 
-    const syncedAvatars = await this.syncMissingAccountAvatars(
+    const syncedProfiles = await this.syncMissingAccountProfiles(
       userId,
-      missingAvatarIds,
+      missingProfileIds,
     );
 
-    if (syncedAvatars.size === 0) return accounts;
+    if (syncedProfiles.size === 0) return accounts;
 
-    return accounts.map((account) => ({
-      ...account,
-      avatarUrl: syncedAvatars.get(account.id) ?? account.avatarUrl,
-    }));
+    return accounts.map((account) => {
+      const syncedProfile = syncedProfiles.get(account.id);
+
+      return {
+        ...account,
+        avatarUrl: syncedProfile?.avatarUrl ?? account.avatarUrl,
+        displayName: syncedProfile?.displayName ?? account.displayName,
+      };
+    });
   }
 
   async removeAccount(userId: string, accountId: string) {
@@ -397,6 +405,7 @@ export class InstagramService {
           return {
             accountId: account.id,
             username: account.username,
+            displayName: account.displayName ?? null,
             uploadCount,
             storyCount: storyCounts.storyCount,
             activeStoryCount: storyCounts.activeStoryCount,
@@ -408,6 +417,7 @@ export class InstagramService {
           return {
             accountId: account.id,
             username: account.username,
+            displayName: account.displayName ?? null,
             uploadCount,
             storyCount: storyCounts.storyCount,
             activeStoryCount: storyCounts.activeStoryCount,
@@ -439,6 +449,7 @@ export class InstagramService {
       accounts: accountResults.map((result) => ({
         id: result.accountId,
         username: result.username,
+        displayName: result.displayName,
         uploadCount: result.uploadCount,
         storyCount: result.storyCount,
         activeStoryCount: result.activeStoryCount,
@@ -484,6 +495,7 @@ export class InstagramService {
     const connected = await this.upsertAccount(user.userId, {
       igUserId: profile.id,
       username: profile.username,
+      displayName: profile.name?.trim() || undefined,
       accessToken: longLivedToken.access_token,
       accountType: this.normalizeAccountType(profile.account_type),
       avatarUrl: avatarUrl ?? undefined,
@@ -561,6 +573,7 @@ export class InstagramService {
           userId: userId,
           igUserId: data.igUserId,
           username: data.username,
+          displayName: data.displayName?.trim() || null,
           accessTokenEncrypted,
           accountType: data.accountType,
           avatarUrl: data.avatarUrl ?? null,
@@ -615,6 +628,10 @@ export class InstagramService {
         where: { id: accountId },
         data: {
           username: data.username,
+          displayName:
+            data.displayName === undefined
+              ? undefined
+              : data.displayName.trim() || null,
           accessTokenEncrypted,
           accountType: data.accountType,
           avatarUrl: data.avatarUrl ?? undefined,
@@ -1246,29 +1263,37 @@ export class InstagramService {
 
   private async fetchInstagramProfile(accessToken: string) {
     const url = this.createGraphUrl('me');
-    url.searchParams.set('fields', 'id,username,account_type,media_count');
+    url.searchParams.set('fields', 'id,username,name,account_type,media_count');
     url.searchParams.set('access_token', accessToken);
 
     return this.requestGraph<InstagramProfileResponse>(url);
   }
 
   private async fetchInstagramProfilePictureUrl(accessToken: string) {
+    const profile = await this.fetchInstagramProfileDetails(accessToken);
+    return profile.avatarUrl;
+  }
+
+  private async fetchInstagramProfileDetails(accessToken: string) {
     const url = this.createGraphUrl('me');
-    url.searchParams.set('fields', 'profile_picture_url');
+    url.searchParams.set('fields', 'name,profile_picture_url');
     url.searchParams.set('access_token', accessToken);
 
     try {
       const profile = await this.requestGraph<InstagramProfileResponse>(url);
-      return profile.profile_picture_url?.trim() || null;
+      return {
+        avatarUrl: profile.profile_picture_url?.trim() || null,
+        displayName: profile.name?.trim() || null,
+      };
     } catch (error) {
       this.logger.warn(
-        `Instagram profile picture fetch skipped: ${this.getErrorMessage(error)}`,
+        `Instagram profile fetch skipped: ${this.getErrorMessage(error)}`,
       );
-      return null;
+      return { avatarUrl: null, displayName: null };
     }
   }
 
-  private async syncMissingAccountAvatars(
+  private async syncMissingAccountProfiles(
     userId: string,
     accountIds: string[],
   ) {
@@ -1280,6 +1305,8 @@ export class InstagramService {
       },
       select: {
         id: true,
+        avatarUrl: true,
+        displayName: true,
         accessTokenEncrypted: true,
       },
     });
@@ -1287,22 +1314,37 @@ export class InstagramService {
     const updates = await Promise.all(
       accounts.map(async (account) => {
         try {
-          const avatarUrl = await this.fetchInstagramProfilePictureUrl(
+          const profile = await this.fetchInstagramProfileDetails(
             decryptSecret(account.accessTokenEncrypted),
           );
+          const data: Prisma.InstagramAccountUpdateInput = {};
 
-          if (!avatarUrl) return null;
+          if (!account.avatarUrl && profile.avatarUrl) {
+            data.avatarUrl = profile.avatarUrl;
+          }
+
+          if (!account.displayName && profile.displayName) {
+            data.displayName = profile.displayName;
+          }
+
+          if (Object.keys(data).length === 0) return null;
 
           await this.prisma.instagramAccount.update({
             where: { id: account.id },
-            data: { avatarUrl },
+            data,
             select: { id: true },
           });
 
-          return [account.id, avatarUrl] as const;
+          return [
+            account.id,
+            {
+              avatarUrl: profile.avatarUrl,
+              displayName: profile.displayName,
+            },
+          ] as const;
         } catch (error) {
           this.logger.warn(
-            `Instagram profile picture sync skipped for account ${account.id}: ${this.getErrorMessage(error)}`,
+            `Instagram profile sync skipped for account ${account.id}: ${this.getErrorMessage(error)}`,
           );
           return null;
         }

@@ -16,6 +16,11 @@ export class AddInstagramAccountDto {
   @MaxLength(128)
   username!: string;
 
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  displayName?: string;
+
   @IsString()
   accessToken!: string;
 

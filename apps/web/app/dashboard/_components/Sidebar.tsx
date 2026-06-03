@@ -17,6 +17,7 @@ type SidebarProps = {
 type InstagramAccountResponse = {
   id: string;
   username: string;
+  displayName?: string | null;
   accountType: "PERSONAL" | "BUSINESS" | "CREATOR";
   avatarUrl?: string | null;
   isActive: boolean;
@@ -30,7 +31,9 @@ async function getConnectedAccounts() {
       .filter((account) => account.isActive)
       .map((account) => ({
         id: account.id,
-        name: `@${account.username}`,
+        name: account.displayName?.trim() || `@${account.username}`,
+        username: account.username,
+        displayName: account.displayName ?? null,
         platform:
           account.accountType === "CREATOR" ? "Instagram Creator" : "Instagram",
         avatarUrl: account.avatarUrl ?? null,

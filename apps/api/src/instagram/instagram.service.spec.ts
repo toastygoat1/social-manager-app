@@ -200,12 +200,13 @@ describe('InstagramService', () => {
     expect(findManyArgs.select).not.toHaveProperty('accessTokenEncrypted');
   });
 
-  it('backfills missing profile pictures when listing accounts', async () => {
+  it('backfills missing profile details when listing accounts', async () => {
     const account = {
       id: 'account-1',
       userId: 'user-1',
       igUserId: 'ig-1',
       username: 'brand',
+      displayName: null,
       accountType: InstagramAccountType.BUSINESS,
       avatarUrl: null,
       pageId: null,
@@ -221,6 +222,8 @@ describe('InstagramService', () => {
       .mockResolvedValueOnce([
         {
           id: 'account-1',
+          avatarUrl: null,
+          displayName: null,
           accessTokenEncrypted: encryptSecret('ig-token'),
         },
       ]);
@@ -229,6 +232,7 @@ describe('InstagramService', () => {
       new Response(
         JSON.stringify({
           id: 'ig-1',
+          name: 'Brand Studio',
           profile_picture_url: 'https://cdninstagram.com/avatar.jpg',
         }),
         { status: 200, headers: { 'Content-Type': 'application/json' } },
@@ -239,16 +243,22 @@ describe('InstagramService', () => {
 
     const profileUrl = fetchMock.mock.calls[0]?.[0] as URL;
     expect(profileUrl.pathname).toBe('/v21.0/me');
-    expect(profileUrl.searchParams.get('fields')).toBe('profile_picture_url');
+    expect(profileUrl.searchParams.get('fields')).toBe(
+      'name,profile_picture_url',
+    );
     expect(profileUrl.searchParams.get('access_token')).toBe('ig-token');
     expect(prisma.instagramAccount.update).toHaveBeenCalledWith({
       where: { id: 'account-1' },
-      data: { avatarUrl: 'https://cdninstagram.com/avatar.jpg' },
+      data: {
+        avatarUrl: 'https://cdninstagram.com/avatar.jpg',
+        displayName: 'Brand Studio',
+      },
       select: { id: true },
     });
     expect(result[0]).toMatchObject({
       id: 'account-1',
       avatarUrl: 'https://cdninstagram.com/avatar.jpg',
+      displayName: 'Brand Studio',
     });
   });
 
@@ -1134,6 +1144,7 @@ describe('InstagramService', () => {
       {
         id: 'account-1',
         username: 'brand',
+        displayName: null,
         uploadCount: 42,
         storyCount: 7,
         activeStoryCount: 2,
