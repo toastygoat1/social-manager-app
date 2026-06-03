@@ -10,17 +10,17 @@ import {
 import { useState } from "react";
 import { ApiError, apiFetchBrowser } from "@/lib/api/browser-client";
 import type {
-  CalendarFailedPost,
-  CalendarPostDetail,
-  CalendarWorkItem,
-  CalendarWorkItems,
+  SchedulerFailedPost,
+  SchedulerPostDetail,
+  SchedulerWorkItem,
+  SchedulerWorkItems,
 } from "./data";
 
 type Panel = "pending" | "drafts" | "failed";
 
 type Props = {
-  workItems: CalendarWorkItems;
-  failedPosts: CalendarFailedPost[];
+  workItems: SchedulerWorkItems;
+  failedPosts: SchedulerFailedPost[];
   loading: boolean;
   onOpenPost: (postId: string) => void;
   onChanged: () => void;
@@ -45,7 +45,7 @@ function readError(error: unknown) {
   return "Could not retry this post.";
 }
 
-export function CalendarWorkPanel({
+export function SchedulerWorkPanel({
   workItems,
   failedPosts,
   loading,
@@ -58,12 +58,12 @@ export function CalendarWorkPanel({
 
   const items = active === "pending" ? workItems.pending : workItems.drafts;
 
-  async function retry(post: CalendarFailedPost) {
+  async function retry(post: SchedulerFailedPost) {
     setRetryingId(post.id);
     setError(null);
     try {
-      await apiFetchBrowser<CalendarPostDetail>(
-        `/calendar/posts/${post.id}/retry`,
+      await apiFetchBrowser<SchedulerPostDetail>(
+        `/scheduler/posts/${post.id}/retry`,
         { method: "POST" },
       );
       onChanged();
@@ -217,7 +217,7 @@ function WorkItemCard({
   post,
   onOpen,
 }: {
-  post: CalendarWorkItem;
+  post: SchedulerWorkItem;
   onOpen: () => void;
 }) {
   return (

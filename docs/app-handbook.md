@@ -1,6 +1,6 @@
 # Social Manager App Handbook
 
-Last updated: 2026-05-24
+Last updated: 2026-06-02
 
 This is the current onboarding document for humans and AI agents working on
 Social Manager App. It describes what the app does, where code lives, how data
@@ -14,8 +14,8 @@ The current product surface includes:
 | Area | What it does |
 |---|---|
 | Auth | Supabase email auth and session middleware. |
-| Dashboard | Account overview, connected Instagram accounts, upload stats, content rows, calendar summary. |
-| Calendar | Schedule posts, create drafts, upload media, approve posts, retry failed publishes, inspect post details. |
+| Dashboard | Account overview, connected Instagram accounts, upload stats, content rows, and Google Calendar summary. |
+| Scheduler | Schedule posts, create drafts, upload media, approve posts, retry failed publishes, inspect post details. |
 | Analytics | Account-filtered Instagram analytics, manual insight refresh, media previews, notes, recent post details, and side-by-side account comparison. |
 | Messages | Instagram DM conversation surface backed by the Instagram API module. |
 | Chat AI | Shell for future AI assistant workflows. |
@@ -128,7 +128,7 @@ Use `prisma:migrate` for local migration development. Use
 | `/dashboard` | `apps/web/app/dashboard/page.tsx` | Main dashboard overview. |
 | `/dashboard/instagram/callback` | `apps/web/app/dashboard/instagram/callback/route.ts` | Instagram OAuth callback bridge. |
 | `/dashboard/messages` | `apps/web/app/dashboard/messages/page.tsx` | Instagram DM page. |
-| `/calendar` | `apps/web/app/calendar/page.tsx` | Scheduling calendar. |
+| `/scheduler` | `apps/web/app/scheduler/page.tsx` | Post scheduler. |
 | `/analytics` | `apps/web/app/analytics/page.tsx` | Analytics overview and compare mode. |
 | `/chat` | `apps/web/app/chat/page.tsx` | Chat surface. |
 | `/chat-ai` | `apps/web/app/chat-ai/page.tsx` | AI chat surface. |
@@ -211,7 +211,7 @@ Presentation components receive data by prop and render empty states for
 | Instagram | `instagram/*` | Account connection, OAuth, webhooks, DM, profile avatars, summary metrics. |
 | Dashboard | `dashboard/*` | Dashboard aggregate endpoint. |
 | Analytics | `analytics/*` | Analytics overview, insight refresh, analytics notes. |
-| Calendar | `calendar/*` | Scheduling event feed and post workflow routes. |
+| Scheduler | `scheduler/*` | Post event feed and post workflow routes. |
 | Media | `media/*` | Signed upload URLs and media asset records. |
 | Publishing | `publishing/*` | Instagram publishing and worker-triggered scheduled publishes. |
 | Queue | `queue/*` | BullMQ job creation, replacement, and removal. |
@@ -232,15 +232,15 @@ All routes below are relative to `NEXT_PUBLIC_API_URL`.
 | Instagram summary | `GET /instagram/analytics/summary` | Dashboard-oriented Instagram summary. |
 | Instagram DMs | `GET /instagram/dm/conversations`, `GET /instagram/dm/conversations/:conversationId`, `POST /instagram/dm/conversations/:conversationId/messages` | DM surfaces. |
 | Instagram webhooks | `GET /instagram/webhooks`, `POST /instagram/webhooks` | Meta webhook verification and ingestion. |
-| Calendar | `GET /calendar/events`, `POST /calendar/events` | Date-range event feed and create flow. |
-| Calendar work | `GET /calendar/work-items`, `GET /calendar/failed-posts` | Approval/draft/failure panels. |
-| Calendar post detail | `GET /calendar/posts/:contentPostId` | Post modal detail. |
-| Calendar post mutation | `PATCH /calendar/posts/:contentPostId/draft`, `PATCH /calendar/posts/:contentPostId/scheduled`, `POST /calendar/posts/:contentPostId/approve`, `POST /calendar/posts/:contentPostId/retry`, `DELETE /calendar/posts/:contentPostId` | Draft, schedule, approve, retry, delete. |
+| Scheduler | `GET /scheduler/events`, `POST /scheduler/events` | Date-range post event feed and create flow. |
+| Scheduler work | `GET /scheduler/work-items`, `GET /scheduler/failed-posts` | Approval/draft/failure panels. |
+| Scheduler post detail | `GET /scheduler/posts/:contentPostId` | Post modal detail. |
+| Scheduler post mutation | `PATCH /scheduler/posts/:contentPostId/draft`, `PATCH /scheduler/posts/:contentPostId/scheduled`, `POST /scheduler/posts/:contentPostId/approve`, `POST /scheduler/posts/:contentPostId/retry`, `DELETE /scheduler/posts/:contentPostId` | Draft, schedule, approve, retry, delete. |
 | Media | `POST /media/upload-urls`, `POST /media/assets` | Supabase Storage upload flow. |
 | Analytics | `GET /analytics/overview` | Supports `accountId` and `range`. |
 | Analytics refresh | `POST /analytics/insights/refresh` | Fetches current Instagram insight snapshots. |
 | Analytics notes | `POST /analytics/notes`, `PATCH /analytics/notes/:noteId`, `DELETE /analytics/notes/:noteId` | Notes are user-owned and optionally account-scoped. |
-| Google | `GET /integrations/google/auth`, `GET /integrations/google/callback`, `POST /integrations/google/link`, `GET /integrations/google/calendar`, `GET /integrations/google/calendar/events`, `GET /integrations/google/status`, `DELETE /integrations/google` | Google Calendar integration. |
+| Google | `GET /integrations/google/auth`, `GET /integrations/google/callback`, `POST /integrations/google/link`, `GET /integrations/google/calendar`, `GET /integrations/google/calendar/events`, `POST /integrations/google/calendar/events`, `GET /integrations/google/status`, `DELETE /integrations/google` | Google Calendar integration. |
 | Worker publish | `POST /internal/publishing/scheduled/:contentPostId` | Guarded by `WORKER_PUBLISH_SECRET`; called by worker. |
 
 ## Data Model
@@ -314,9 +314,9 @@ account list is loaded.
 
 ### Scheduling And Publishing
 
-1. User creates a post in the calendar modal.
+1. User creates a post in the scheduler modal.
 2. Web uploads media via `POST /media/upload-urls` and `POST /media/assets`.
-3. Web creates/updates the calendar post through `/calendar`.
+3. Web creates/updates the scheduled post through `/scheduler`.
 4. API creates or replaces a delayed BullMQ job for scheduled posts.
 5. Worker consumes `publish-scheduled-post` jobs.
 6. Worker calls `POST /internal/publishing/scheduled/:contentPostId`.
@@ -399,7 +399,7 @@ corepack pnpm --filter @social-manager/database build
 |---|---|
 | Chat AI | UI shell exists; provider integration and persistence need further work. |
 | Instagram permissions | Real publishing, insights, and DM access depend on Meta app scopes and review state. |
-| Google Calendar | Backend integration exists; some UI connect CTAs may still be incomplete. |
+| Google Calendar | Dashboard widgets and `integrations/google/*` own Google Calendar data; the scheduler is posts-only. |
 | Background processing | Scheduled publishing requires Redis, worker, and matching `WORKER_PUBLISH_SECRET`. |
 | Historical docs | Some older docs describe TODOs that have since been implemented. Prefer this handbook first. |
 
@@ -410,10 +410,10 @@ corepack pnpm --filter @social-manager/database build
 | Dashboard UI | `apps/web/app/dashboard` and `apps/web/lib/dashboard-data.ts` |
 | Analytics UI | `apps/web/app/analytics` and `apps/web/lib/analytics-data.ts` |
 | Analytics backend | `apps/api/src/analytics` |
-| Calendar UI | `apps/web/app/calendar` and `apps/web/lib/calendar-data.ts` |
-| Calendar backend | `apps/api/src/calendar`, `apps/api/src/publishing`, `apps/api/src/queue` |
+| Scheduler UI | `apps/web/app/scheduler` and `apps/web/lib/scheduler-data.ts` |
+| Scheduler backend | `apps/api/src/scheduler`, `apps/api/src/publishing`, `apps/api/src/queue` |
 | Instagram connection | `apps/api/src/instagram`, `apps/web/app/dashboard/instagram/callback` |
-| Media upload | `apps/api/src/media`, calendar create/detail components |
+| Media upload | `apps/api/src/media`, scheduler create/detail components |
 | Auth | `apps/web/lib/supabase`, `apps/web/app/auth`, `apps/api/src/auth` |
 | Prisma schema | `packages/database/prisma/schema.prisma` |
 | Worker jobs | `apps/worker/src/index.ts` and API queue/publishing modules |

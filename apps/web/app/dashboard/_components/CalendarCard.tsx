@@ -177,7 +177,7 @@ export function CalendarCard({ calendar }: CalendarCardProps) {
           <CalendarView calendar={calendar} />
         ) : (
           <div className="flex flex-1 flex-col items-center justify-center gap-2 text-sm text-muted">
-            <span>No calendar connected</span>
+            <span>No Google Calendar connected</span>
             <ConnectGoogleButton />
           </div>
         )}

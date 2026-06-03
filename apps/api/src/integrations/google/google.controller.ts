@@ -17,6 +17,7 @@ import type { AuthedRequest } from '../../auth/auth.types.js';
 import { LinkGoogleDto } from './dto/link-google.dto.js';
 import { CalendarQueryDto } from './dto/calendar-query.dto.js';
 import { EventsQueryDto } from './dto/events-query.dto.js';
+import { CreateGoogleCalendarEventDto } from './dto/create-google-calendar-event.dto.js';
 
 @Controller('integrations/google')
 export class GoogleController {
@@ -105,6 +106,19 @@ export class GoogleController {
       new Date(query.end),
     );
     return { events };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('calendar/events')
+  async createCalendarEvent(
+    @Request() req: AuthedRequest,
+    @Body() body: CreateGoogleCalendarEventDto,
+  ) {
+    const event = await this.googleService.createCalendarEvent(
+      req.user.userId,
+      body,
+    );
+    return { event };
   }
 
   @UseGuards(JwtAuthGuard)

@@ -1,41 +1,40 @@
 export type EventStatus = "published" | "scheduled" | "pending" | "draft";
 
-export type CalendarEventSource = "scheduled_post" | "google";
+export type SchedulerEventSource = "scheduled_post";
 
-export type CalendarPostType = "FEED" | "REEL" | "STORY" | "CAROUSEL";
+export type SchedulerPostType = "FEED" | "REEL" | "STORY" | "CAROUSEL";
 
-export type CalendarMetadataField = {
+export type SchedulerMetadataField = {
   id: string;
   label: string;
   sortOrder: number;
 };
 
-export type CalendarEvent = {
+export type SchedulerEvent = {
   id: string;
-  source: CalendarEventSource;
+  source: SchedulerEventSource;
   title: string;
   start: string;
   end: string | null;
   allDay: boolean;
   status: EventStatus | null;
-  postType: CalendarPostType | null;
+  postType: SchedulerPostType | null;
   accountId: string | null;
   accountUsername: string | null;
   caption: string | null;
 };
 
-export type CalendarData = {
-  googleConnected: boolean;
-  events: CalendarEvent[];
+export type SchedulerData = {
+  events: SchedulerEvent[];
 };
 
-export type CalendarPostDetail = {
+export type SchedulerPostDetail = {
   id: string;
   title: string | null;
   caption: string | null;
-  metadataFields: CalendarMetadataField[];
+  metadataFields: SchedulerMetadataField[];
   metadata: Record<string, string>;
-  postType: CalendarPostType;
+  postType: SchedulerPostType;
   status: EventStatus;
   accountId: string;
   accountUsername: string;
@@ -61,25 +60,25 @@ export type CalendarPostDetail = {
   } | null;
 };
 
-export type CalendarWorkItem = {
+export type SchedulerWorkItem = {
   id: string;
   title: string;
-  postType: CalendarPostType;
+  postType: SchedulerPostType;
   status: "pending" | "draft";
   accountUsername: string;
   scheduledFor: string | null;
   createdAt: string;
 };
 
-export type CalendarWorkItems = {
-  pending: CalendarWorkItem[];
-  drafts: CalendarWorkItem[];
+export type SchedulerWorkItems = {
+  pending: SchedulerWorkItem[];
+  drafts: SchedulerWorkItem[];
 };
 
-export type CalendarFailedPost = {
+export type SchedulerFailedPost = {
   id: string;
   title: string;
-  postType: CalendarPostType;
+  postType: SchedulerPostType;
   accountUsername: string;
   scheduledFor: string | null;
   attemptNumber: number;
@@ -88,12 +87,11 @@ export type CalendarFailedPost = {
   retryable: boolean;
 };
 
-export const EMPTY_CALENDAR: CalendarData = {
-  googleConnected: false,
+export const EMPTY_SCHEDULER: SchedulerData = {
   events: [],
 };
 
-export const EMPTY_WORK_ITEMS: CalendarWorkItems = {
+export const EMPTY_WORK_ITEMS: SchedulerWorkItems = {
   pending: [],
   drafts: [],
 };

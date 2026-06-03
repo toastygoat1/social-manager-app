@@ -9,7 +9,7 @@ import { AuthModule } from './auth/auth.module.js';
 import { InstagramModule } from './instagram/instagram.module.js';
 import { DashboardModule } from './dashboard/dashboard.module.js';
 import { GoogleModule } from './integrations/google/google.module.js';
-import { CalendarModule } from './calendar/calendar.module.js';
+import { SchedulerModule } from './scheduler/scheduler.module.js';
 import { MediaModule } from './media/media.module.js';
 import { AnalyticsModule } from './analytics/analytics.module.js';
 
@@ -32,7 +32,7 @@ import { AnalyticsModule } from './analytics/analytics.module.js';
     InstagramModule,
     DashboardModule,
     GoogleModule,
-    CalendarModule,
+    SchedulerModule,
     MediaModule,
     AnalyticsModule,
   ],

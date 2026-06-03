@@ -25,8 +25,10 @@ export function GoogleSignInButton() {
     setError(null);
     setLoading(true);
 
-    const left = window.screenX + Math.max(0, (window.outerWidth - POPUP_W) / 2);
-    const top = window.screenY + Math.max(0, (window.outerHeight - POPUP_H) / 2);
+    const left =
+      window.screenX + Math.max(0, (window.outerWidth - POPUP_W) / 2);
+    const top =
+      window.screenY + Math.max(0, (window.outerHeight - POPUP_H) / 2);
     const popup = window.open(
       "about:blank",
       "googleAuth",
@@ -48,7 +50,7 @@ export function GoogleSignInButton() {
         redirectTo: `${origin}/auth/callback?next=/auth/popup-complete`,
         skipBrowserRedirect: true,
         scopes:
-          "openid email profile https://www.googleapis.com/auth/calendar.readonly",
+          "openid email profile https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events",
         queryParams: {
           prompt: "select_account consent",
           access_type: "offline",

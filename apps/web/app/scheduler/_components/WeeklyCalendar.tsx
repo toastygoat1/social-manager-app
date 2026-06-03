@@ -2,11 +2,11 @@ import { Loader2 } from "lucide-react";
 import { AgendaEventCard } from "./AgendaEventCard";
 import {
   getDateDropProps,
-  type CalendarDragController,
+  type SchedulerDragController,
 } from "./drag";
 import {
   buildWeekDays,
-  type CalendarEvent,
+  type SchedulerEvent,
   toIsoDate,
   WEEK_HOUR_END,
   WEEK_HOUR_START,
@@ -22,10 +22,10 @@ function formatHour(hour: number) {
 
 type Props = {
   reference: Date;
-  events: CalendarEvent[];
+  events: SchedulerEvent[];
   loading: boolean;
-  onOpenPost: (event: CalendarEvent) => void;
-  dragController?: CalendarDragController;
+  onOpenPost: (event: SchedulerEvent) => void;
+  dragController?: SchedulerDragController;
 };
 
 export function WeeklyCalendar({
@@ -41,7 +41,7 @@ export function WeeklyCalendar({
     (_, index) => WEEK_HOUR_START + index,
   );
   const allDayEvents = events.filter((event) => event.allDay);
-  const eventsByCell = new Map<string, CalendarEvent[]>();
+  const eventsByCell = new Map<string, SchedulerEvent[]>();
 
   for (const event of events) {
     if (event.allDay) continue;

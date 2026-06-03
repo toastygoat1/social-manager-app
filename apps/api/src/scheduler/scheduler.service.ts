@@ -8,10 +8,6 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
-  GoogleService,
-  type GoogleCalendarEvent,
-} from '../integrations/google/google.service.js';
-import {
   MediaType,
   PostStatus,
   PublishAttemptStatus,
@@ -24,7 +20,7 @@ import { MediaService } from '../media/media.service.js';
 import type { UpdateDraftAction } from './dto/update-draft.dto.js';
 import type { PostMetadataDto } from './dto/post-metadata.dto.js';
 
-export type CalendarEventSource = 'scheduled_post' | 'google';
+export type SchedulerEventSource = 'scheduled_post';
 type CreateEventAction = 'SCHEDULE' | 'POST_NOW' | 'DRAFT';
 export type PostMetadata = Record<string, string>;
 type PostMetadataInput = PostMetadataDto;
@@ -34,9 +30,9 @@ const MAX_METADATA_FIELDS = 12;
 const MAX_METADATA_KEY_LENGTH = 40;
 const MAX_METADATA_VALUE_LENGTH = 160;
 
-export type CalendarEvent = {
+export type SchedulerEvent = {
   id: string;
-  source: CalendarEventSource;
+  source: SchedulerEventSource;
   title: string;
   start: string;
   end: string | null;
@@ -48,12 +44,11 @@ export type CalendarEvent = {
   caption: string | null;
 };
 
-export type CalendarPayload = {
-  googleConnected: boolean;
-  events: CalendarEvent[];
+export type SchedulerPayload = {
+  events: SchedulerEvent[];
 };
 
-export type CalendarMetadataField = {
+export type SchedulerMetadataField = {
   id: string;
   label: string;
   sortOrder: number;
@@ -87,11 +82,11 @@ type PostDetailRecord = Prisma.ContentPostGetPayload<{
   include: typeof POST_DETAIL_INCLUDE;
 }>;
 
-export type CalendarPostDetail = {
+export type SchedulerPostDetail = {
   id: string;
   title: string | null;
   caption: string | null;
-  metadataFields: CalendarMetadataField[];
+  metadataFields: SchedulerMetadataField[];
   metadata: PostMetadata;
   postType: PostType;
   status: 'published' | 'scheduled' | 'pending' | 'draft';
@@ -119,7 +114,7 @@ export type CalendarPostDetail = {
   } | null;
 };
 
-export type CalendarWorkItem = {
+export type SchedulerWorkItem = {
   id: string;
   title: string;
   postType: PostType;
@@ -129,7 +124,7 @@ export type CalendarWorkItem = {
   createdAt: string;
 };
 
-export type CalendarFailedPost = {
+export type SchedulerFailedPost = {
   id: string;
   title: string;
   postType: PostType;
@@ -152,18 +147,17 @@ const POST_STATUS_TO_UI: Record<
 };
 
 @Injectable()
-export class CalendarService {
-  private readonly logger = new Logger(CalendarService.name);
+export class SchedulerService {
+  private readonly logger = new Logger(SchedulerService.name);
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly google: GoogleService,
     private readonly publisher: InstagramPublisherService,
     private readonly publishQueue: PublishQueueService,
     private readonly media: MediaService,
   ) {}
 
-  async listMetadataFields(userId: string): Promise<CalendarMetadataField[]> {
+  async listMetadataFields(userId: string): Promise<SchedulerMetadataField[]> {
     const fields = await this.prisma.contentMetadataField.findMany({
       where: { userId },
       orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
@@ -175,7 +169,7 @@ export class CalendarService {
   async saveMetadataFields(
     userId: string,
     input: PostMetadataInput[],
-  ): Promise<CalendarMetadataField[]> {
+  ): Promise<SchedulerMetadataField[]> {
     const entries = normalizeMetadataFieldDefinitions(input);
 
     return this.prisma.$transaction(async (tx) => {
@@ -235,7 +229,7 @@ export class CalendarService {
     userId: string,
     fromDate: Date,
     toDate: Date,
-  ): Promise<CalendarPayload> {
+  ): Promise<SchedulerPayload> {
     if (Number.isNaN(fromDate.getTime()) || Number.isNaN(toDate.getTime())) {
       throw new BadRequestException('Invalid date range');
     }
@@ -269,15 +263,7 @@ export class CalendarService {
         })
       : [];
 
-    const googleConnected = await this.google.isConnected(userId);
-    const googleEvents = googleConnected
-      ? await this.getGoogleEvents(userId, fromDate, toDate)
-      : [];
-    const currentGoogleConnected = googleConnected
-      ? await this.google.isConnected(userId)
-      : false;
-
-    const events: CalendarEvent[] = scheduledPosts.map<CalendarEvent>(
+    const events: SchedulerEvent[] = scheduledPosts.map<SchedulerEvent>(
       (post) => {
         const when = post.scheduledFor ?? post.publishedAt ?? post.createdAt;
         return {
@@ -296,11 +282,10 @@ export class CalendarService {
         };
       },
     );
-    events.push(...googleEvents.map(mapGoogleEvent).filter(isCalendarEvent));
 
     events.sort((a, b) => a.start.localeCompare(b.start));
 
-    return { googleConnected: currentGoogleConnected, events };
+    return { events };
   }
 
   async createScheduledEvent(
@@ -316,7 +301,7 @@ export class CalendarService {
       requiresApproval?: boolean;
       mediaAssetIds?: string[];
     },
-  ): Promise<CalendarEvent> {
+  ): Promise<SchedulerEvent> {
     const account = await this.prisma.instagramAccount.findUnique({
       where: { id: input.instagramAccountId },
       select: { id: true, userId: true, username: true, isActive: true },
@@ -427,8 +412,8 @@ export class CalendarService {
   }
 
   async listWorkItems(userId: string): Promise<{
-    pending: CalendarWorkItem[];
-    drafts: CalendarWorkItem[];
+    pending: SchedulerWorkItem[];
+    drafts: SchedulerWorkItem[];
   }> {
     const posts = await this.prisma.contentPost.findMany({
       where: {
@@ -460,7 +445,7 @@ export class CalendarService {
     };
   }
 
-  async listFailedPosts(userId: string): Promise<CalendarFailedPost[]> {
+  async listFailedPosts(userId: string): Promise<SchedulerFailedPost[]> {
     const posts = await this.prisma.contentPost.findMany({
       where: {
         status: PostStatus.READY,
@@ -512,7 +497,7 @@ export class CalendarService {
   async getPostDetail(
     userId: string,
     contentPostId: string,
-  ): Promise<CalendarPostDetail> {
+  ): Promise<SchedulerPostDetail> {
     const post = await this.getOwnedPost(userId, contentPostId);
     return this.mapPostDetail(post);
   }
@@ -520,7 +505,7 @@ export class CalendarService {
   async approvePost(
     userId: string,
     contentPostId: string,
-  ): Promise<CalendarPostDetail> {
+  ): Promise<SchedulerPostDetail> {
     const post = await this.getOwnedPost(userId, contentPostId);
     if (post.status !== PostStatus.PENDING || !post.scheduledFor) {
       throw new BadRequestException('This post is not awaiting approval');
@@ -565,7 +550,7 @@ export class CalendarService {
       requiresApproval?: boolean;
       mediaAssetIds?: string[];
     },
-  ): Promise<CalendarPostDetail> {
+  ): Promise<SchedulerPostDetail> {
     const post = await this.getOwnedPost(userId, contentPostId);
     if (post.status !== PostStatus.DRAFT) {
       throw new BadRequestException('Only draft posts can be edited');
@@ -659,7 +644,7 @@ export class CalendarService {
       metadata?: PostMetadataInput[];
       scheduledFor?: string;
     },
-  ): Promise<CalendarPostDetail> {
+  ): Promise<SchedulerPostDetail> {
     const post = await this.getOwnedPost(userId, contentPostId);
     if (post.status !== PostStatus.READY || !post.scheduledFor) {
       throw new BadRequestException('Only scheduled posts can be edited');
@@ -742,7 +727,7 @@ export class CalendarService {
   async retryFailedPost(
     userId: string,
     contentPostId: string,
-  ): Promise<CalendarPostDetail> {
+  ): Promise<SchedulerPostDetail> {
     const post = await this.getOwnedPost(userId, contentPostId);
     const latestAttempt = post.publishAttempts[0];
     if (post.status === PostStatus.READY && post.igMediaContainerId) {
@@ -922,7 +907,7 @@ export class CalendarService {
 
   private async mapPostDetail(
     post: PostDetailRecord,
-  ): Promise<CalendarPostDetail> {
+  ): Promise<SchedulerPostDetail> {
     const media = await Promise.all(
       post.postMedia.map(async ({ mediaAsset }) => ({
         id: mediaAsset.id,
@@ -978,57 +963,6 @@ export class CalendarService {
     };
   }
 
-  private async getGoogleEvents(
-    userId: string,
-    fromDate: Date,
-    toDate: Date,
-  ): Promise<GoogleCalendarEvent[]> {
-    try {
-      return await this.google.getCalendarEvents(userId, fromDate, toDate);
-    } catch (err) {
-      this.logger.warn(
-        `Google Calendar events skipped for ${userId}: ${(err as Error).message}`,
-      );
-      return [];
-    }
-  }
-}
-
-function mapGoogleEvent(event: GoogleCalendarEvent): CalendarEvent | null {
-  const start = normalizeGoogleDate(event.start, event.allDay);
-  if (!start) return null;
-
-  return {
-    id: `google:${event.id || `${start}:${event.summary}`}`,
-    source: 'google',
-    title: event.summary || '(no title)',
-    start,
-    end: normalizeGoogleDate(event.end, event.allDay),
-    allDay: event.allDay,
-    status: null,
-    postType: null,
-    accountId: null,
-    accountUsername: null,
-    caption: null,
-  };
-}
-
-function normalizeGoogleDate(
-  value: string | null,
-  allDay: boolean,
-): string | null {
-  if (!value) return null;
-  if (allDay && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    return `${value}T00:00:00`;
-  }
-
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return null;
-  return parsed.toISOString();
-}
-
-function isCalendarEvent(event: CalendarEvent | null): event is CalendarEvent {
-  return event !== null;
 }
 
 function readMessage(error: unknown) {
@@ -1062,7 +996,7 @@ function mapMetadataField(field: {
   id: string;
   label: string;
   sortOrder: number;
-}): CalendarMetadataField {
+}): SchedulerMetadataField {
   return {
     id: field.id,
     label: field.label,
