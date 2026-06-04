@@ -201,6 +201,7 @@ export class AiService {
     );
     const knowledge = await this.semanticMemory.getForAccount(accountId);
     const procedures = await this.proceduralMemory.getSuccessful(accountId);
+    const currentState = await this.workingMemory.get(accountId, sessionId);
 
     const memoryParts: string[] = [];
     const episodicCtx = this.episodicMemory.buildContextString(recentMessages);
@@ -209,13 +210,37 @@ export class AiService {
     if (semanticCtx) memoryParts.push(semanticCtx);
     const proceduralCtx = this.proceduralMemory.buildContextString(procedures);
     if (proceduralCtx) memoryParts.push(proceduralCtx);
+    if (
+      currentState?.lastExplanation ||
+      currentState?.lastSignals ||
+      currentState?.lastFiredRules
+    ) {
+      memoryParts.push(
+        [
+          'Last analyzed post context:',
+          currentState.lastContentPostId
+            ? `Post ID: ${currentState.lastContentPostId}`
+            : null,
+          currentState.lastSignals
+            ? `Signals: ${JSON.stringify(currentState.lastSignals)}`
+            : null,
+          currentState.lastFiredRules
+            ? `Fired rules: ${JSON.stringify(currentState.lastFiredRules)}`
+            : null,
+          currentState.lastExplanation
+            ? `Explanation: ${currentState.lastExplanation}`
+            : null,
+        ]
+          .filter(Boolean)
+          .join('\n'),
+      );
+    }
     const memoryContext = memoryParts.join('\n\n');
 
-    const { explanation: reply, tokensUsed } = await this.layer2.explain(
-      null,
-      [],
+    const { reply, tokensUsed } = await this.layer2.chat(
+      message,
       aiSettings,
-      `${memoryContext}\n\nUser message: ${message}`,
+      memoryContext,
     );
 
     await this.episodicMemory.saveMessage(sessionId, 'user', message);
@@ -230,7 +255,6 @@ export class AiService {
     // Update Redis working memory so turnCount stays accurate across chat turns.
     // Preserves lastSignals/lastFiredRules/lastExplanation from the previous
     // analyze() call — chat turns do not overwrite signal state.
-    const currentState = await this.workingMemory.get(accountId, sessionId);
     const updatedState: WorkingMemoryState = {
       lastContentPostId: currentState?.lastContentPostId,
       lastSignals: currentState?.lastSignals,

@@ -72,6 +72,18 @@ function makeDeps() {
       explain: jest
         .fn<() => Promise<{ explanation: string; tokensUsed: number }>>()
         .mockResolvedValue({ explanation: 'Good analysis.', tokensUsed: 42 }),
+      chat: jest
+        .fn<
+          (
+            message: string,
+            aiSettings: unknown,
+            memoryContext: string,
+          ) => Promise<{
+            reply: string;
+            tokensUsed: number;
+          }>
+        >()
+        .mockResolvedValue({ reply: 'Good chat.', tokensUsed: 24 }),
     },
     expertEngine: {},
     batchSummary: null,
@@ -190,6 +202,29 @@ describe('AiService.chat()', () => {
       'acct-xyz',
       'sess-abc',
       expect.any(Object),
+    );
+  });
+
+  it('uses the conversational Layer 2 path instead of the analysis explainer', async () => {
+    deps.workingMemory.get.mockResolvedValue(null);
+
+    await service.chat(USER_ID, {
+      accountId: ACCOUNT_ID,
+      sessionId: SESSION_ID,
+      message: 'Write me a launch caption',
+    });
+
+    expect(deps.layer2.chat).toHaveBeenCalledWith(
+      'Write me a launch caption',
+      null,
+      '',
+    );
+    expect(deps.layer2.explain).not.toHaveBeenCalled();
+    expect(deps.episodicMemory.saveMessage).toHaveBeenCalledWith(
+      SESSION_ID,
+      'assistant',
+      'Good chat.',
+      24,
     );
   });
 });

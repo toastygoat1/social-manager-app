@@ -29,6 +29,18 @@ Benchmark context you must apply:
 
 Format your response as 3–4 paragraphs of plain text. No markdown headers, no bullet lists — flowing prose that creators actually want to read.`;
 
+const LAYER2_CHAT_SYSTEM_PROMPT = `You are Snow AI, a social media assistant inside Social Manager App.
+
+You help users with Instagram strategy, captions, content planning, message replies, and interpreting analytics when analytics context is available.
+
+For normal writing, planning, or brainstorming requests, answer directly and helpfully. Do not say you lack performance data unless the user's request specifically requires account metrics.
+
+If the user asks for performance analysis and no analytics context is available, be brief: say you do not have enough metrics for a precise read, then give the best next step such as refreshing insights, clicking Analyze on a post, or sharing reach/saves/engagement. Do not repeat a long generic disclaimer.
+
+If memory context includes prior analysis, use it naturally. Never invent metrics that are not present.
+
+Keep responses concise, practical, and conversational.`;
+
 @Injectable()
 export class Layer2Service {
   private readonly logger = new Logger(Layer2Service.name);
@@ -95,6 +107,51 @@ export class Layer2Service {
         `Layer2 explanation failed: ${(error as Error).message}`,
       );
       throw new BadRequestException('Explanation generation failed');
+    }
+  }
+
+  async chat(
+    message: string,
+    aiSettings: AiSettings | null,
+    memoryContext: string,
+  ): Promise<{ reply: string; tokensUsed: number }> {
+    const model =
+      this.config.get<string>('OPENAI_MODEL_LAYER2') ?? 'gpt-4.1-mini';
+
+    const systemParts = [LAYER2_CHAT_SYSTEM_PROMPT];
+    if (aiSettings?.preferredTone) {
+      systemParts.push(`\nAdopt this tone: ${aiSettings.preferredTone}`);
+    }
+    if (aiSettings?.customInstructions) {
+      systemParts.push(
+        `\nUser custom instructions: ${aiSettings.customInstructions}`,
+      );
+    }
+    if (memoryContext) {
+      systemParts.push(`\nRelevant memory/context:\n${memoryContext}`);
+    }
+
+    const client = this.getClient();
+
+    try {
+      const response = await client.chat.completions.create({
+        model,
+        temperature: 0.5,
+        max_completion_tokens: 500,
+        messages: [
+          { role: 'system', content: systemParts.join('\n') },
+          { role: 'user', content: message },
+        ],
+      });
+
+      const reply =
+        response.choices[0]?.message?.content ??
+        'I can help with captions, planning, replies, or post analysis.';
+      const tokensUsed = response.usage?.total_tokens ?? 0;
+      return { reply, tokensUsed };
+    } catch (error) {
+      this.logger.error(`Layer2 chat failed: ${(error as Error).message}`);
+      throw new BadRequestException('AI chat response failed');
     }
   }
 }
