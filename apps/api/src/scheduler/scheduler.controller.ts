@@ -15,7 +15,7 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import type { AuthedRequest } from '../auth/auth.types.js';
-import { CalendarService } from './calendar.service.js';
+import { SchedulerService } from './scheduler.service.js';
 import { ListEventsQueryDto } from './dto/list-events-query.dto.js';
 import { CreateEventDto } from './dto/create-event.dto.js';
 import { UpdateDraftDto } from './dto/update-draft.dto.js';
@@ -23,16 +23,16 @@ import { UpdateScheduledPostDto } from './dto/update-scheduled-post.dto.js';
 import { SaveMetadataFieldsDto } from './dto/save-metadata-fields.dto.js';
 
 @UseGuards(JwtAuthGuard)
-@Controller('calendar')
-export class CalendarController {
-  constructor(private readonly calendarService: CalendarService) {}
+@Controller('scheduler')
+export class SchedulerController {
+  constructor(private readonly schedulerService: SchedulerService) {}
 
   @Get('events')
   async listEvents(
     @Request() req: AuthedRequest,
     @Query() query: ListEventsQueryDto,
   ) {
-    return this.calendarService.listEvents(
+    return this.schedulerService.listEvents(
       req.user.userId,
       new Date(query.from),
       new Date(query.to),
@@ -44,22 +44,22 @@ export class CalendarController {
     @Request() req: AuthedRequest,
     @Body() body: CreateEventDto,
   ) {
-    return this.calendarService.createScheduledEvent(req.user.userId, body);
+    return this.schedulerService.createScheduledEvent(req.user.userId, body);
   }
 
   @Get('work-items')
   listWorkItems(@Request() req: AuthedRequest) {
-    return this.calendarService.listWorkItems(req.user.userId);
+    return this.schedulerService.listWorkItems(req.user.userId);
   }
 
   @Get('failed-posts')
   listFailedPosts(@Request() req: AuthedRequest) {
-    return this.calendarService.listFailedPosts(req.user.userId);
+    return this.schedulerService.listFailedPosts(req.user.userId);
   }
 
   @Get('metadata-fields')
   listMetadataFields(@Request() req: AuthedRequest) {
-    return this.calendarService.listMetadataFields(req.user.userId);
+    return this.schedulerService.listMetadataFields(req.user.userId);
   }
 
   @Patch('metadata-fields')
@@ -67,7 +67,7 @@ export class CalendarController {
     @Request() req: AuthedRequest,
     @Body() body: SaveMetadataFieldsDto,
   ) {
-    return this.calendarService.saveMetadataFields(
+    return this.schedulerService.saveMetadataFields(
       req.user.userId,
       body.fields,
     );
@@ -78,7 +78,7 @@ export class CalendarController {
     @Request() req: AuthedRequest,
     @Param('contentPostId', new ParseUUIDPipe()) contentPostId: string,
   ) {
-    return this.calendarService.getPostDetail(req.user.userId, contentPostId);
+    return this.schedulerService.getPostDetail(req.user.userId, contentPostId);
   }
 
   @Patch('posts/:contentPostId/draft')
@@ -87,7 +87,7 @@ export class CalendarController {
     @Param('contentPostId', new ParseUUIDPipe()) contentPostId: string,
     @Body() body: UpdateDraftDto,
   ) {
-    return this.calendarService.updateDraft(
+    return this.schedulerService.updateDraft(
       req.user.userId,
       contentPostId,
       body,
@@ -99,7 +99,7 @@ export class CalendarController {
     @Request() req: AuthedRequest,
     @Param('contentPostId', new ParseUUIDPipe()) contentPostId: string,
   ) {
-    return this.calendarService.approvePost(req.user.userId, contentPostId);
+    return this.schedulerService.approvePost(req.user.userId, contentPostId);
   }
 
   @Patch('posts/:contentPostId/scheduled')
@@ -108,7 +108,7 @@ export class CalendarController {
     @Param('contentPostId', new ParseUUIDPipe()) contentPostId: string,
     @Body() body: UpdateScheduledPostDto,
   ) {
-    return this.calendarService.updateScheduledPost(
+    return this.schedulerService.updateScheduledPost(
       req.user.userId,
       contentPostId,
       body,
@@ -120,7 +120,7 @@ export class CalendarController {
     @Request() req: AuthedRequest,
     @Param('contentPostId', new ParseUUIDPipe()) contentPostId: string,
   ) {
-    return this.calendarService.retryFailedPost(req.user.userId, contentPostId);
+    return this.schedulerService.retryFailedPost(req.user.userId, contentPostId);
   }
 
   @Delete('posts/:contentPostId')
@@ -129,6 +129,6 @@ export class CalendarController {
     @Request() req: AuthedRequest,
     @Param('contentPostId', new ParseUUIDPipe()) contentPostId: string,
   ) {
-    await this.calendarService.deletePost(req.user.userId, contentPostId);
+    await this.schedulerService.deletePost(req.user.userId, contentPostId);
   }
 }

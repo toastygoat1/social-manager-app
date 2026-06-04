@@ -14,6 +14,7 @@ const DASHBOARD_OVERVIEW_ENDPOINT = "/dashboard/overview";
 
 type DashboardOverviewResponse = {
   calendar: CalendarMonth | null;
+  accounts: DashboardData["accounts"];
   metadataFields: DashboardData["metadataFields"];
   contentRows: ContentRow[];
 };
@@ -23,6 +24,7 @@ const STORY_UPLOAD_COLOR = "var(--chart-3)";
 type InstagramAccountResponse = {
   id: string;
   username: string;
+  displayName?: string | null;
   accountType: "PERSONAL" | "BUSINESS" | "CREATOR";
   avatarUrl?: string | null;
   isActive: boolean;
@@ -34,6 +36,7 @@ type InstagramAnalyticsSummaryResponse = {
   accounts: {
     id: string;
     username: string;
+    displayName?: string | null;
     uploadCount: number | null;
     storyCount: number | null;
     activeStoryCount: number | null;
@@ -57,7 +60,7 @@ function getUploadChartBars(
         const storyCount = account.storyCount ?? 0;
 
         return {
-          label: `@${account.username}`,
+          label: account.displayName?.trim() || `@${account.username}`,
           value: mediaCount + storyCount,
           color: MEDIA_UPLOAD_COLOR,
           segments: [
@@ -91,22 +94,29 @@ export async function getDashboardData(): Promise<DashboardData> {
   const analytics = getSettledValue(analyticsResult);
   const overview = getSettledValue(overviewResult);
   const activeAccounts = accounts.filter((account) => account.isActive);
+  const mappedActiveAccounts = activeAccounts.map((account) => ({
+    id: account.id,
+    name: account.displayName?.trim() || `@${account.username}`,
+    username: account.username,
+    displayName: account.displayName ?? null,
+    platform:
+      account.accountType === "CREATOR" ? "Instagram Creator" : "Instagram",
+    avatarUrl: account.avatarUrl ?? null,
+  }));
+  const dashboardAccounts =
+    mappedActiveAccounts.length > 0
+      ? mappedActiveAccounts
+      : (overview?.accounts ?? EMPTY_DASHBOARD.accounts);
 
   return {
     ...EMPTY_DASHBOARD,
-    totalAccounts: activeAccounts.length,
+    totalAccounts: dashboardAccounts.length,
     views: analytics?.views ?? EMPTY_DASHBOARD.views,
     likes: analytics?.likes ?? EMPTY_DASHBOARD.likes,
     uploadChart: getUploadChartBars(analytics),
     calendar: overview?.calendar ?? EMPTY_DASHBOARD.calendar,
     metadataFields: overview?.metadataFields ?? EMPTY_DASHBOARD.metadataFields,
     contentRows: overview?.contentRows ?? EMPTY_DASHBOARD.contentRows,
-    accounts: activeAccounts.map((account) => ({
-      id: account.id,
-      name: `@${account.username}`,
-      platform:
-        account.accountType === "CREATOR" ? "Instagram Creator" : "Instagram",
-      avatarUrl: account.avatarUrl ?? null,
-    })),
+    accounts: dashboardAccounts,
   };
 }

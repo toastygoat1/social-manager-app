@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { APP_THEME_COOKIE, normalizeTheme } from "@/app/theme-preferences";
 import { apiFetch } from "@/lib/api/client";
 import type { UserProfile } from "@/lib/supabase/user-profile";
 import type { Account } from "./data";
@@ -16,6 +17,7 @@ type SidebarProps = {
 type InstagramAccountResponse = {
   id: string;
   username: string;
+  displayName?: string | null;
   accountType: "PERSONAL" | "BUSINESS" | "CREATOR";
   avatarUrl?: string | null;
   isActive: boolean;
@@ -29,7 +31,9 @@ async function getConnectedAccounts() {
       .filter((account) => account.isActive)
       .map((account) => ({
         id: account.id,
-        name: `@${account.username}`,
+        name: account.displayName?.trim() || `@${account.username}`,
+        username: account.username,
+        displayName: account.displayName ?? null,
         platform:
           account.accountType === "CREATOR" ? "Instagram Creator" : "Instagram",
         avatarUrl: account.avatarUrl ?? null,
@@ -50,12 +54,14 @@ export async function Sidebar({
   ]);
   const initialCollapsed =
     cookieStore.get(SIDEBAR_COLLAPSED_COOKIE)?.value === "true";
+  const initialTheme = normalizeTheme(cookieStore.get(APP_THEME_COOKIE)?.value);
 
   return (
     <SidebarPanel
       active={active}
       accounts={accounts}
       initialCollapsed={initialCollapsed}
+      initialTheme={initialTheme}
       profile={profile}
     />
   );

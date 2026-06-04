@@ -14,6 +14,8 @@ import { URL } from 'node:url';
 import {
   DmSenderType,
   InstagramAccountType,
+  PostStatus,
+  PostType,
   Prisma,
   WebhookProcessingStatus,
   WebhookSource,
@@ -35,6 +37,7 @@ const SAFE_INSTAGRAM_ACCOUNT_SELECT = {
   userId: true,
   igUserId: true,
   username: true,
+  displayName: true,
   accountType: true,
   avatarUrl: true,
   pageId: true,
@@ -75,6 +78,7 @@ const INSTAGRAM_INSIGHTS_ACCOUNT_SELECT = {
   id: true,
   igUserId: true,
   username: true,
+  displayName: true,
   accessTokenEncrypted: true,
 } satisfies Prisma.InstagramAccountSelect;
 
@@ -102,6 +106,7 @@ const DEFAULT_INSTAGRAM_SCOPES = [
   'instagram_business_content_publish',
   'instagram_business_manage_insights',
   'instagram_business_manage_messages',
+  'instagram_business_manage_comments',
 ];
 const OAUTH_STATE_TTL_MS = 15 * 60 * 1000;
 const DASHBOARD_INSIGHTS_DAYS = 30;
@@ -110,6 +115,20 @@ const DASHBOARD_MEDIA_FIELDS = 'id,like_count,timestamp';
 const MAX_MEDIA_PAGES_FOR_DASHBOARD = 25;
 const MAX_DM_CONVERSATION_PAGES = 3;
 const STORY_TTL_MS = 24 * 60 * 60 * 1000;
+const BACKFILL_MEDIA_FIELDS =
+  'id,caption,media_type,media_product_type,media_url,thumbnail_url,children{media_type,media_url,thumbnail_url},permalink,timestamp,like_count,comments_count';
+const BACKFILL_INSIGHT_METRICS = [
+  'views',
+  'reach',
+  'likes',
+  'comments',
+  'shares',
+  'saved',
+  'total_interactions',
+] as const;
+const DEFAULT_BACKFILL_MEDIA_LIMIT = 250;
+const MAX_BACKFILL_MEDIA_LIMIT = 1000;
+const BACKFILL_PAGE_SIZE = 100;
 
 type DashboardInsightMetric = (typeof DASHBOARD_INSIGHT_METRICS)[number];
 type DashboardMetric = DashboardInsightMetric | 'likes';
@@ -160,6 +179,7 @@ type InstagramTokenResponse = GraphApiError & {
 type InstagramProfileResponse = GraphApiError & {
   id: string;
   username: string;
+  name?: string;
   account_type?: string;
   media_count?: number;
   profile_picture_url?: string;
@@ -179,7 +199,17 @@ type InstagramInsightsResponse = GraphApiError & {
 
 type InstagramMediaResponse = {
   id?: string;
+  caption?: string;
+  media_type?: string;
+  media_product_type?: string;
+  media_url?: string;
+  thumbnail_url?: string;
+  children?: {
+    data?: InstagramMediaResponse[];
+  };
+  permalink?: string;
   like_count?: unknown;
+  comments_count?: unknown;
   timestamp?: string;
 };
 
@@ -255,6 +285,36 @@ type StoryCountSummary = {
   activeStoryCount: number | null;
 };
 
+type BackfillInsightMetric = (typeof BACKFILL_INSIGHT_METRICS)[number];
+
+type InstagramBackfillAccount = {
+  id: string;
+  igUserId: string;
+  username?: string;
+};
+
+type BackfillMediaLimit = number | null;
+
+type BackfillMetrics = {
+  likeCount: number | null;
+  commentsCount: number | null;
+  sharesCount: number | null;
+  savesCount: number | null;
+  reach: number | null;
+  impressions: number | null;
+  engagement: number | null;
+};
+
+type BackfillResult = {
+  scanned: number;
+  imported: number;
+  updated: number;
+  analyticsCreated: number;
+  analyticsSkipped: number;
+  failed: number;
+  errors: { igMediaId: string; message: string }[];
+};
+
 @Injectable()
 export class InstagramService {
   private readonly logger = new Logger(InstagramService.name);
@@ -276,23 +336,28 @@ export class InstagramService {
       select: SAFE_INSTAGRAM_ACCOUNT_SELECT,
     });
 
-    const missingAvatarIds = accounts
-      .filter((account) => !account.avatarUrl)
+    const missingProfileIds = accounts
+      .filter((account) => !account.avatarUrl || !account.displayName)
       .map((account) => account.id);
 
-    if (missingAvatarIds.length === 0) return accounts;
+    if (missingProfileIds.length === 0) return accounts;
 
-    const syncedAvatars = await this.syncMissingAccountAvatars(
+    const syncedProfiles = await this.syncMissingAccountProfiles(
       userId,
-      missingAvatarIds,
+      missingProfileIds,
     );
 
-    if (syncedAvatars.size === 0) return accounts;
+    if (syncedProfiles.size === 0) return accounts;
 
-    return accounts.map((account) => ({
-      ...account,
-      avatarUrl: syncedAvatars.get(account.id) ?? account.avatarUrl,
-    }));
+    return accounts.map((account) => {
+      const syncedProfile = syncedProfiles.get(account.id);
+
+      return {
+        ...account,
+        avatarUrl: syncedProfile?.avatarUrl ?? account.avatarUrl,
+        displayName: syncedProfile?.displayName ?? account.displayName,
+      };
+    });
   }
 
   async removeAccount(userId: string, accountId: string) {
@@ -346,6 +411,7 @@ export class InstagramService {
           return {
             accountId: account.id,
             username: account.username,
+            displayName: account.displayName ?? null,
             uploadCount,
             storyCount: storyCounts.storyCount,
             activeStoryCount: storyCounts.activeStoryCount,
@@ -357,6 +423,7 @@ export class InstagramService {
           return {
             accountId: account.id,
             username: account.username,
+            displayName: account.displayName ?? null,
             uploadCount,
             storyCount: storyCounts.storyCount,
             activeStoryCount: storyCounts.activeStoryCount,
@@ -388,6 +455,7 @@ export class InstagramService {
       accounts: accountResults.map((result) => ({
         id: result.accountId,
         username: result.username,
+        displayName: result.displayName,
         uploadCount: result.uploadCount,
         storyCount: result.storyCount,
         activeStoryCount: result.activeStoryCount,
@@ -433,6 +501,7 @@ export class InstagramService {
     const connected = await this.upsertAccount(user.userId, {
       igUserId: profile.id,
       username: profile.username,
+      displayName: profile.name?.trim() || undefined,
       accessToken: longLivedToken.access_token,
       accountType: this.normalizeAccountType(profile.account_type),
       avatarUrl: avatarUrl ?? undefined,
@@ -441,8 +510,55 @@ export class InstagramService {
         : undefined,
     });
     const connectedAccounts: SafeInstagramAccount[] = [connected];
+    const backfill = await this.backfillConnectedAccount(
+      {
+        id: connected.id,
+        igUserId: connected.igUserId,
+        username: connected.username,
+      },
+      longLivedToken.access_token,
+    ).catch((error) => {
+      this.logger.warn(
+        `Instagram media backfill skipped for account ${connected.id}: ${this.getErrorMessage(error)}`,
+      );
+      return null;
+    });
 
-    return { connected: connectedAccounts };
+    return { connected: connectedAccounts, backfill };
+  }
+
+  async backfillAccountMedia(
+    userId: string,
+    accountId: string,
+    options: { limit?: number | null } = {},
+  ) {
+    const account = await this.prisma.instagramAccount.findFirst({
+      where: {
+        id: accountId,
+        userId,
+        isActive: true,
+      },
+      select: {
+        id: true,
+        igUserId: true,
+        username: true,
+        accessTokenEncrypted: true,
+      },
+    });
+
+    if (!account) {
+      throw new NotFoundException('Instagram account was not found.');
+    }
+
+    return this.backfillConnectedAccount(
+      {
+        id: account.id,
+        igUserId: account.igUserId,
+        username: account.username,
+      },
+      decryptSecret(account.accessTokenEncrypted),
+      options,
+    );
   }
 
   private async upsertAccount(userId: string, data: AddInstagramAccountDto) {
@@ -463,6 +579,7 @@ export class InstagramService {
           userId: userId,
           igUserId: data.igUserId,
           username: data.username,
+          displayName: data.displayName?.trim() || null,
           accessTokenEncrypted,
           accountType: data.accountType,
           avatarUrl: data.avatarUrl ?? null,
@@ -517,6 +634,10 @@ export class InstagramService {
         where: { id: accountId },
         data: {
           username: data.username,
+          displayName:
+            data.displayName === undefined
+              ? undefined
+              : data.displayName.trim() || null,
           accessTokenEncrypted,
           accountType: data.accountType,
           avatarUrl: data.avatarUrl ?? undefined,
@@ -1148,29 +1269,37 @@ export class InstagramService {
 
   private async fetchInstagramProfile(accessToken: string) {
     const url = this.createGraphUrl('me');
-    url.searchParams.set('fields', 'id,username,account_type,media_count');
+    url.searchParams.set('fields', 'id,username,name,account_type,media_count');
     url.searchParams.set('access_token', accessToken);
 
     return this.requestGraph<InstagramProfileResponse>(url);
   }
 
   private async fetchInstagramProfilePictureUrl(accessToken: string) {
+    const profile = await this.fetchInstagramProfileDetails(accessToken);
+    return profile.avatarUrl;
+  }
+
+  private async fetchInstagramProfileDetails(accessToken: string) {
     const url = this.createGraphUrl('me');
-    url.searchParams.set('fields', 'profile_picture_url');
+    url.searchParams.set('fields', 'name,profile_picture_url');
     url.searchParams.set('access_token', accessToken);
 
     try {
       const profile = await this.requestGraph<InstagramProfileResponse>(url);
-      return profile.profile_picture_url?.trim() || null;
+      return {
+        avatarUrl: profile.profile_picture_url?.trim() || null,
+        displayName: profile.name?.trim() || null,
+      };
     } catch (error) {
       this.logger.warn(
-        `Instagram profile picture fetch skipped: ${this.getErrorMessage(error)}`,
+        `Instagram profile fetch skipped: ${this.getErrorMessage(error)}`,
       );
-      return null;
+      return { avatarUrl: null, displayName: null };
     }
   }
 
-  private async syncMissingAccountAvatars(
+  private async syncMissingAccountProfiles(
     userId: string,
     accountIds: string[],
   ) {
@@ -1182,6 +1311,8 @@ export class InstagramService {
       },
       select: {
         id: true,
+        avatarUrl: true,
+        displayName: true,
         accessTokenEncrypted: true,
       },
     });
@@ -1189,22 +1320,37 @@ export class InstagramService {
     const updates = await Promise.all(
       accounts.map(async (account) => {
         try {
-          const avatarUrl = await this.fetchInstagramProfilePictureUrl(
+          const profile = await this.fetchInstagramProfileDetails(
             decryptSecret(account.accessTokenEncrypted),
           );
+          const data: Prisma.InstagramAccountUpdateInput = {};
 
-          if (!avatarUrl) return null;
+          if (!account.avatarUrl && profile.avatarUrl) {
+            data.avatarUrl = profile.avatarUrl;
+          }
+
+          if (!account.displayName && profile.displayName) {
+            data.displayName = profile.displayName;
+          }
+
+          if (Object.keys(data).length === 0) return null;
 
           await this.prisma.instagramAccount.update({
             where: { id: account.id },
-            data: { avatarUrl },
+            data,
             select: { id: true },
           });
 
-          return [account.id, avatarUrl] as const;
+          return [
+            account.id,
+            {
+              avatarUrl: profile.avatarUrl,
+              displayName: profile.displayName,
+            },
+          ] as const;
         } catch (error) {
           this.logger.warn(
-            `Instagram profile picture sync skipped for account ${account.id}: ${this.getErrorMessage(error)}`,
+            `Instagram profile sync skipped for account ${account.id}: ${this.getErrorMessage(error)}`,
           );
           return null;
         }
@@ -1216,6 +1362,269 @@ export class InstagramService {
         Boolean(entry),
       ),
     );
+  }
+
+  private async backfillConnectedAccount(
+    account: InstagramBackfillAccount,
+    accessToken: string,
+    options: { limit?: number | null } = {},
+  ): Promise<BackfillResult> {
+    const limit = this.resolveBackfillLimit(options.limit);
+    const result: BackfillResult = {
+      scanned: 0,
+      imported: 0,
+      updated: 0,
+      analyticsCreated: 0,
+      analyticsSkipped: 0,
+      failed: 0,
+      errors: [],
+    };
+    let nextUrl: URL | null = this.createGraphUrl(`${account.igUserId}/media`);
+    const fetchedAt = new Date();
+
+    nextUrl.searchParams.set('fields', BACKFILL_MEDIA_FIELDS);
+    nextUrl.searchParams.set('limit', String(this.getBackfillPageSize(limit)));
+    nextUrl.searchParams.set('access_token', accessToken);
+
+    while (nextUrl && !this.hasReachedBackfillLimit(result.scanned, limit)) {
+      const response: InstagramMediaListResponse =
+        await this.requestGraph<InstagramMediaListResponse>(nextUrl);
+      const mediaItems: InstagramMediaResponse[] = Array.isArray(response.data)
+        ? response.data
+        : [];
+
+      for (const media of mediaItems) {
+        if (this.hasReachedBackfillLimit(result.scanned, limit)) break;
+        const igMediaId = typeof media.id === 'string' ? media.id.trim() : '';
+
+        if (!igMediaId) {
+          result.analyticsSkipped += 1;
+          continue;
+        }
+
+        result.scanned += 1;
+
+        try {
+          const post = await this.upsertBackfilledContentPost(
+            account.id,
+            media,
+          );
+
+          if (post.created) {
+            result.imported += 1;
+          } else {
+            result.updated += 1;
+          }
+
+          try {
+            const metrics = await this.fetchBackfillMediaMetrics(
+              media,
+              accessToken,
+            );
+
+            if (this.hasAnyMetric(metrics)) {
+              await this.prisma.postAnalytics.create({
+                data: {
+                  contentPostId: post.id,
+                  fetchedAt,
+                  likeCount: metrics.likeCount,
+                  commentsCount: metrics.commentsCount,
+                  sharesCount: metrics.sharesCount,
+                  savesCount: metrics.savesCount,
+                  reach: metrics.reach,
+                  impressions: metrics.impressions,
+                  engagement: metrics.engagement,
+                },
+              });
+              result.analyticsCreated += 1;
+            } else {
+              result.analyticsSkipped += 1;
+            }
+          } catch (error) {
+            this.logger.warn(
+              `Instagram media insight backfill skipped for ${igMediaId}: ${this.getErrorMessage(error)}`,
+            );
+            result.analyticsSkipped += 1;
+          }
+        } catch (error) {
+          const message = this.getErrorMessage(error);
+          this.logger.warn(
+            `Instagram media backfill failed for ${igMediaId}: ${message}`,
+          );
+          result.failed += 1;
+          result.errors.push({ igMediaId, message });
+        }
+      }
+
+      const next =
+        typeof response.paging?.next === 'string' ? response.paging.next : null;
+
+      nextUrl =
+        next && !this.hasReachedBackfillLimit(result.scanned, limit)
+          ? new URL(next)
+          : null;
+    }
+
+    return result;
+  }
+
+  private async upsertBackfilledContentPost(
+    instagramAccountId: string,
+    media: InstagramMediaResponse,
+  ) {
+    const igMediaId = media.id?.trim();
+
+    if (!igMediaId) {
+      throw new BadRequestException('Instagram media id was not returned.');
+    }
+
+    const existing = await this.prisma.contentPost.findFirst({
+      where: {
+        instagramAccountId,
+        igMediaId,
+      },
+      select: { id: true },
+    });
+    const data = {
+      caption: this.normalizeOptionalString(media.caption),
+      postType: this.mapInstagramPostType(media),
+      status: PostStatus.PUBLISHED,
+      publishedAt: this.toDate(media.timestamp),
+      igMediaId,
+      igPermalink: this.normalizeOptionalString(media.permalink),
+      igMediaUrl: this.getInstagramMediaUrl(media),
+      igThumbnailUrl: this.getInstagramThumbnailUrl(media),
+    };
+
+    if (existing) {
+      const updated = await this.prisma.contentPost.update({
+        where: { id: existing.id },
+        data,
+        select: { id: true },
+      });
+
+      return { id: updated.id, created: false };
+    }
+
+    const created = await this.prisma.contentPost.create({
+      data: {
+        instagramAccountId,
+        ...data,
+      },
+      select: { id: true },
+    });
+
+    return { id: created.id, created: true };
+  }
+
+  private getInstagramMediaUrl(media: InstagramMediaResponse) {
+    return (
+      this.normalizeOptionalString(media.media_url) ??
+      this.findChildPreviewUrl(media, 'media') ??
+      null
+    );
+  }
+
+  private getInstagramThumbnailUrl(media: InstagramMediaResponse) {
+    return (
+      this.normalizeOptionalString(media.thumbnail_url) ??
+      this.findChildPreviewUrl(media, 'thumbnail') ??
+      this.findChildPreviewUrl(media, 'media') ??
+      null
+    );
+  }
+
+  private findChildPreviewUrl(
+    media: InstagramMediaResponse,
+    kind: 'media' | 'thumbnail',
+  ) {
+    const children = Array.isArray(media.children?.data)
+      ? media.children.data
+      : [];
+
+    for (const child of children) {
+      const value =
+        kind === 'thumbnail'
+          ? this.normalizeOptionalString(child.thumbnail_url)
+          : this.normalizeOptionalString(child.media_url);
+
+      if (value) return value;
+    }
+
+    return null;
+  }
+
+  private async fetchBackfillMediaMetrics(
+    media: InstagramMediaResponse,
+    accessToken: string,
+  ): Promise<BackfillMetrics> {
+    const fallback: BackfillMetrics = {
+      likeCount: this.toNumber(media.like_count),
+      commentsCount: this.toNumber(media.comments_count),
+      sharesCount: null,
+      savesCount: null,
+      reach: null,
+      impressions: null,
+      engagement: null,
+    };
+
+    if (!media.id) {
+      return fallback;
+    }
+
+    const url = this.createGraphUrl(`${media.id}/insights`);
+    url.searchParams.set('metric', BACKFILL_INSIGHT_METRICS.join(','));
+    url.searchParams.set('access_token', accessToken);
+
+    try {
+      const response = await this.requestGraph<InstagramInsightsResponse>(url);
+      const insights = new Map(
+        BACKFILL_INSIGHT_METRICS.map((metric) => [
+          metric,
+          this.readInsightMetricValue(response, metric),
+        ]).filter(
+          (entry): entry is [BackfillInsightMetric, number] =>
+            entry[1] !== null,
+        ),
+      );
+
+      return {
+        likeCount: fallback.likeCount ?? insights.get('likes') ?? null,
+        commentsCount:
+          fallback.commentsCount ?? insights.get('comments') ?? null,
+        sharesCount: insights.get('shares') ?? null,
+        savesCount: insights.get('saved') ?? null,
+        reach: insights.get('reach') ?? null,
+        impressions: insights.get('views') ?? null,
+        engagement: insights.get('total_interactions') ?? null,
+      };
+    } catch (error) {
+      if (this.hasAnyMetric(fallback)) {
+        return fallback;
+      }
+
+      throw error;
+    }
+  }
+
+  private hasAnyMetric(metrics: BackfillMetrics) {
+    return Object.values(metrics).some((value) => value !== null);
+  }
+
+  private mapInstagramPostType(media: InstagramMediaResponse) {
+    if (media.media_product_type === 'REELS') {
+      return PostType.REEL;
+    }
+
+    if (media.media_product_type === 'STORY') {
+      return PostType.STORY;
+    }
+
+    if (media.media_type === 'CAROUSEL_ALBUM') {
+      return PostType.CAROUSEL;
+    }
+
+    return PostType.FEED;
   }
 
   private async fetchAccountUploadCount(account: InstagramInsightsAccount) {
@@ -1404,7 +1813,7 @@ export class InstagramService {
 
   private readInsightMetricValue(
     response: InstagramInsightsResponse,
-    metricName: DashboardInsightMetric,
+    metricName: DashboardInsightMetric | BackfillInsightMetric,
   ) {
     const metric = response.data?.find((item) => item.name === metricName);
 
@@ -1439,6 +1848,11 @@ export class InstagramService {
     return null;
   }
 
+  private normalizeOptionalString(value: string | undefined) {
+    const trimmed = value?.trim();
+    return trimmed ? trimmed : null;
+  }
+
   private toDate(value: string | undefined) {
     if (!value) {
       return null;
@@ -1461,6 +1875,53 @@ export class InstagramService {
       since: Math.floor(since / 1000),
       until: Math.floor(until / 1000),
     };
+  }
+
+  private resolveBackfillLimit(
+    limit: number | null | undefined,
+  ): BackfillMediaLimit {
+    if (limit === 0 || limit === null) {
+      return null;
+    }
+
+    const configured = limit ?? this.readConfiguredBackfillLimit();
+
+    if (configured === null) {
+      return null;
+    }
+
+    if (!Number.isInteger(configured) || configured <= 0) {
+      return DEFAULT_BACKFILL_MEDIA_LIMIT;
+    }
+
+    return Math.min(configured, MAX_BACKFILL_MEDIA_LIMIT);
+  }
+
+  private readConfiguredBackfillLimit(): BackfillMediaLimit {
+    const raw = this.config
+      .get<string>('META_INSTAGRAM_BACKFILL_MEDIA_LIMIT')
+      ?.trim();
+
+    if (!raw) {
+      return DEFAULT_BACKFILL_MEDIA_LIMIT;
+    }
+
+    if (raw === '0' || raw.toLowerCase() === 'all') {
+      return null;
+    }
+
+    const parsed = Number(raw);
+    return Number.isInteger(parsed) ? parsed : DEFAULT_BACKFILL_MEDIA_LIMIT;
+  }
+
+  private hasReachedBackfillLimit(scanned: number, limit: BackfillMediaLimit) {
+    return limit !== null && scanned >= limit;
+  }
+
+  private getBackfillPageSize(limit: BackfillMediaLimit) {
+    return limit === null
+      ? BACKFILL_PAGE_SIZE
+      : Math.min(BACKFILL_PAGE_SIZE, limit);
   }
 
   private emptyInsightTotals(): DashboardInsightTotals {

@@ -30,6 +30,8 @@ const ACCOUNT_TONES: AccountTone[] = ['blue', 'cyan', 'pink', 'yellow'];
 type AccountDto = {
   id: string;
   name: string;
+  username: string;
+  displayName: string | null;
   platform: string;
   avatarUrl: string | null;
   tone: AccountTone;
@@ -95,13 +97,16 @@ export class DashboardService {
       select: {
         id: true,
         username: true,
+        displayName: true,
         avatarUrl: true,
       },
     });
 
     const accounts: AccountDto[] = accountsRaw.map((acct, idx) => ({
       id: acct.id,
-      name: acct.username,
+      name: acct.displayName?.trim() || `@${acct.username}`,
+      username: acct.username,
+      displayName: acct.displayName ?? null,
       platform: 'Instagram',
       avatarUrl: acct.avatarUrl ?? null,
       tone: ACCOUNT_TONES[idx % ACCOUNT_TONES.length],
@@ -153,7 +158,9 @@ export class DashboardService {
           orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }],
           take: 20,
           include: {
-            instagramAccount: { select: { id: true, username: true } },
+            instagramAccount: {
+              select: { id: true, username: true, displayName: true },
+            },
             postAnalytics: {
               orderBy: { fetchedAt: 'desc' },
               take: 1,

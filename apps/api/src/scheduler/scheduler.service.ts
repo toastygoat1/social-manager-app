@@ -6,11 +6,9 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service.js';
-import {
-  GoogleService,
-  type GoogleCalendarEvent,
-} from '../integrations/google/google.service.js';
 import {
   MediaType,
   PostStatus,
@@ -21,10 +19,11 @@ import {
 import { InstagramPublisherService } from '../publishing/instagram-publisher.service.js';
 import { PublishQueueService } from '../queue/publish-queue.service.js';
 import { MediaService } from '../media/media.service.js';
+import { decryptSecret } from '../common/crypto.util.js';
 import type { UpdateDraftAction } from './dto/update-draft.dto.js';
 import type { PostMetadataDto } from './dto/post-metadata.dto.js';
 
-export type CalendarEventSource = 'scheduled_post' | 'google';
+export type SchedulerEventSource = 'scheduled_post';
 type CreateEventAction = 'SCHEDULE' | 'POST_NOW' | 'DRAFT';
 export type PostMetadata = Record<string, string>;
 type PostMetadataInput = PostMetadataDto;
@@ -33,10 +32,15 @@ const FEED_IMAGE_MAX_ASPECT = 1.91;
 const MAX_METADATA_FIELDS = 12;
 const MAX_METADATA_KEY_LENGTH = 40;
 const MAX_METADATA_VALUE_LENGTH = 160;
+const DEFAULT_GRAPH_API_VERSION = 'v21.0';
+const COMMENT_SYNC_TTL_MS = 15 * 60 * 1000;
+const COMMENT_SYNC_LIMIT = 25;
+const COMMENT_FIELDS =
+  'id,text,username,timestamp,like_count,hidden,replies{id,text,username,timestamp,like_count,hidden}';
 
-export type CalendarEvent = {
+export type SchedulerEvent = {
   id: string;
-  source: CalendarEventSource;
+  source: SchedulerEventSource;
   title: string;
   start: string;
   end: string | null;
@@ -48,12 +52,11 @@ export type CalendarEvent = {
   caption: string | null;
 };
 
-export type CalendarPayload = {
-  googleConnected: boolean;
-  events: CalendarEvent[];
+export type SchedulerPayload = {
+  events: SchedulerEvent[];
 };
 
-export type CalendarMetadataField = {
+export type SchedulerMetadataField = {
   id: string;
   label: string;
   sortOrder: number;
@@ -66,6 +69,7 @@ const POST_DETAIL_INCLUDE = {
       userId: true,
       username: true,
       isActive: true,
+      accessTokenEncrypted: true,
     },
   },
   postMedia: {
@@ -75,6 +79,14 @@ const POST_DETAIL_INCLUDE = {
   publishAttempts: {
     orderBy: { startedAt: 'desc' },
     take: 1,
+  },
+  postAnalytics: {
+    orderBy: { fetchedAt: 'desc' },
+    take: 1,
+  },
+  postComments: {
+    orderBy: [{ timestamp: 'desc' }, { createdAt: 'desc' }],
+    take: COMMENT_SYNC_LIMIT,
   },
   metadataValues: {
     include: {
@@ -87,11 +99,11 @@ type PostDetailRecord = Prisma.ContentPostGetPayload<{
   include: typeof POST_DETAIL_INCLUDE;
 }>;
 
-export type CalendarPostDetail = {
+export type SchedulerPostDetail = {
   id: string;
   title: string | null;
   caption: string | null;
-  metadataFields: CalendarMetadataField[];
+  metadataFields: SchedulerMetadataField[];
   metadata: PostMetadata;
   postType: PostType;
   status: 'published' | 'scheduled' | 'pending' | 'draft';
@@ -100,6 +112,7 @@ export type CalendarPostDetail = {
   scheduledFor: string | null;
   publishedAt: string | null;
   createdAt: string;
+  permalink: string | null;
   media: {
     id: string;
     fileType: MediaType;
@@ -109,7 +122,25 @@ export type CalendarPostDetail = {
     height: number | null;
     durationSeconds: number | null;
     previewUrl: string | null;
+    sourceUrl: string | null;
+    thumbnailUrl: string | null;
   }[];
+  analytics: {
+    views: number | null;
+    reach: number | null;
+    likes: number | null;
+    comments: number | null;
+    shares: number | null;
+    saves: number | null;
+    interactions: number | null;
+    fetchedAt: string | null;
+  } | null;
+  comments: {
+    items: SchedulerPostComment[];
+    syncedAt: string | null;
+    status: 'synced' | 'cached' | 'unavailable' | 'not_available';
+    errorMessage: string | null;
+  };
   latestFailure: {
     id: string;
     attemptNumber: number;
@@ -119,7 +150,50 @@ export type CalendarPostDetail = {
   } | null;
 };
 
-export type CalendarWorkItem = {
+export type SchedulerPostComment = {
+  id: string;
+  instagramCommentId: string;
+  parentInstagramCommentId: string | null;
+  username: string | null;
+  text: string | null;
+  likeCount: number | null;
+  hidden: boolean | null;
+  timestamp: string | null;
+  syncedAt: string;
+};
+
+type InstagramCommentResponse = {
+  id?: string;
+  text?: string;
+  username?: string;
+  timestamp?: string;
+  like_count?: unknown;
+  hidden?: boolean;
+  replies?: {
+    data?: InstagramCommentResponse[];
+  };
+};
+
+type InstagramCommentsResponse = {
+  data?: InstagramCommentResponse[];
+  error?: {
+    message?: string;
+    type?: string;
+    code?: number;
+  };
+};
+
+type FetchedInstagramComment = {
+  instagramCommentId: string;
+  parentInstagramCommentId: string | null;
+  username: string | null;
+  text: string | null;
+  likeCount: number | null;
+  hidden: boolean | null;
+  timestamp: Date | null;
+};
+
+export type SchedulerWorkItem = {
   id: string;
   title: string;
   postType: PostType;
@@ -129,7 +203,7 @@ export type CalendarWorkItem = {
   createdAt: string;
 };
 
-export type CalendarFailedPost = {
+export type SchedulerFailedPost = {
   id: string;
   title: string;
   postType: PostType;
@@ -152,18 +226,18 @@ const POST_STATUS_TO_UI: Record<
 };
 
 @Injectable()
-export class CalendarService {
-  private readonly logger = new Logger(CalendarService.name);
+export class SchedulerService {
+  private readonly logger = new Logger(SchedulerService.name);
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly google: GoogleService,
     private readonly publisher: InstagramPublisherService,
     private readonly publishQueue: PublishQueueService,
     private readonly media: MediaService,
+    private readonly config: ConfigService,
   ) {}
 
-  async listMetadataFields(userId: string): Promise<CalendarMetadataField[]> {
+  async listMetadataFields(userId: string): Promise<SchedulerMetadataField[]> {
     const fields = await this.prisma.contentMetadataField.findMany({
       where: { userId },
       orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
@@ -175,7 +249,7 @@ export class CalendarService {
   async saveMetadataFields(
     userId: string,
     input: PostMetadataInput[],
-  ): Promise<CalendarMetadataField[]> {
+  ): Promise<SchedulerMetadataField[]> {
     const entries = normalizeMetadataFieldDefinitions(input);
 
     return this.prisma.$transaction(async (tx) => {
@@ -235,7 +309,7 @@ export class CalendarService {
     userId: string,
     fromDate: Date,
     toDate: Date,
-  ): Promise<CalendarPayload> {
+  ): Promise<SchedulerPayload> {
     if (Number.isNaN(fromDate.getTime()) || Number.isNaN(toDate.getTime())) {
       throw new BadRequestException('Invalid date range');
     }
@@ -269,15 +343,7 @@ export class CalendarService {
         })
       : [];
 
-    const googleConnected = await this.google.isConnected(userId);
-    const googleEvents = googleConnected
-      ? await this.getGoogleEvents(userId, fromDate, toDate)
-      : [];
-    const currentGoogleConnected = googleConnected
-      ? await this.google.isConnected(userId)
-      : false;
-
-    const events: CalendarEvent[] = scheduledPosts.map<CalendarEvent>(
+    const events: SchedulerEvent[] = scheduledPosts.map<SchedulerEvent>(
       (post) => {
         const when = post.scheduledFor ?? post.publishedAt ?? post.createdAt;
         return {
@@ -296,11 +362,10 @@ export class CalendarService {
         };
       },
     );
-    events.push(...googleEvents.map(mapGoogleEvent).filter(isCalendarEvent));
 
     events.sort((a, b) => a.start.localeCompare(b.start));
 
-    return { googleConnected: currentGoogleConnected, events };
+    return { events };
   }
 
   async createScheduledEvent(
@@ -316,7 +381,7 @@ export class CalendarService {
       requiresApproval?: boolean;
       mediaAssetIds?: string[];
     },
-  ): Promise<CalendarEvent> {
+  ): Promise<SchedulerEvent> {
     const account = await this.prisma.instagramAccount.findUnique({
       where: { id: input.instagramAccountId },
       select: { id: true, userId: true, username: true, isActive: true },
@@ -427,8 +492,8 @@ export class CalendarService {
   }
 
   async listWorkItems(userId: string): Promise<{
-    pending: CalendarWorkItem[];
-    drafts: CalendarWorkItem[];
+    pending: SchedulerWorkItem[];
+    drafts: SchedulerWorkItem[];
   }> {
     const posts = await this.prisma.contentPost.findMany({
       where: {
@@ -460,7 +525,7 @@ export class CalendarService {
     };
   }
 
-  async listFailedPosts(userId: string): Promise<CalendarFailedPost[]> {
+  async listFailedPosts(userId: string): Promise<SchedulerFailedPost[]> {
     const posts = await this.prisma.contentPost.findMany({
       where: {
         status: PostStatus.READY,
@@ -512,7 +577,7 @@ export class CalendarService {
   async getPostDetail(
     userId: string,
     contentPostId: string,
-  ): Promise<CalendarPostDetail> {
+  ): Promise<SchedulerPostDetail> {
     const post = await this.getOwnedPost(userId, contentPostId);
     return this.mapPostDetail(post);
   }
@@ -520,7 +585,7 @@ export class CalendarService {
   async approvePost(
     userId: string,
     contentPostId: string,
-  ): Promise<CalendarPostDetail> {
+  ): Promise<SchedulerPostDetail> {
     const post = await this.getOwnedPost(userId, contentPostId);
     if (post.status !== PostStatus.PENDING || !post.scheduledFor) {
       throw new BadRequestException('This post is not awaiting approval');
@@ -565,7 +630,7 @@ export class CalendarService {
       requiresApproval?: boolean;
       mediaAssetIds?: string[];
     },
-  ): Promise<CalendarPostDetail> {
+  ): Promise<SchedulerPostDetail> {
     const post = await this.getOwnedPost(userId, contentPostId);
     if (post.status !== PostStatus.DRAFT) {
       throw new BadRequestException('Only draft posts can be edited');
@@ -659,7 +724,7 @@ export class CalendarService {
       metadata?: PostMetadataInput[];
       scheduledFor?: string;
     },
-  ): Promise<CalendarPostDetail> {
+  ): Promise<SchedulerPostDetail> {
     const post = await this.getOwnedPost(userId, contentPostId);
     if (post.status !== PostStatus.READY || !post.scheduledFor) {
       throw new BadRequestException('Only scheduled posts can be edited');
@@ -742,7 +807,7 @@ export class CalendarService {
   async retryFailedPost(
     userId: string,
     contentPostId: string,
-  ): Promise<CalendarPostDetail> {
+  ): Promise<SchedulerPostDetail> {
     const post = await this.getOwnedPost(userId, contentPostId);
     const latestAttempt = post.publishAttempts[0];
     if (post.status === PostStatus.READY && post.igMediaContainerId) {
@@ -922,21 +987,34 @@ export class CalendarService {
 
   private async mapPostDetail(
     post: PostDetailRecord,
-  ): Promise<CalendarPostDetail> {
-    const media = await Promise.all(
-      post.postMedia.map(async ({ mediaAsset }) => ({
-        id: mediaAsset.id,
-        fileType: mediaAsset.fileType,
-        mimeType: mediaAsset.mimeType,
-        fileSize: mediaAsset.fileSize,
-        width: mediaAsset.width,
-        height: mediaAsset.height,
-        durationSeconds: mediaAsset.durationSeconds,
-        previewUrl: await this.media.createSignedPreviewUrl(
+  ): Promise<SchedulerPostDetail> {
+    const localMedia = await Promise.all(
+      post.postMedia.map(async ({ mediaAsset }) => {
+        const previewUrl = await this.media.createSignedPreviewUrl(
           mediaAsset.storagePath,
-        ),
-      })),
+        );
+        return {
+          id: mediaAsset.id,
+          fileType: mediaAsset.fileType,
+          mimeType: mediaAsset.mimeType,
+          fileSize: mediaAsset.fileSize,
+          width: mediaAsset.width,
+          height: mediaAsset.height,
+          durationSeconds: mediaAsset.durationSeconds,
+          previewUrl,
+          sourceUrl: previewUrl,
+          thumbnailUrl: null,
+        };
+      }),
     );
+    const instagramMedia = buildInstagramMediaPreview(post);
+    const media =
+      localMedia.length > 0
+        ? localMedia
+        : instagramMedia
+          ? [instagramMedia]
+          : [];
+    const latestAnalytics = post.postAnalytics[0] ?? null;
     const latestAttempt = post.publishAttempts[0];
     const requiresReview =
       post.status === PostStatus.READY && !!post.igMediaContainerId;
@@ -959,6 +1037,7 @@ export class CalendarService {
     const metadataFields = await this.listMetadataFields(
       post.instagramAccount.userId,
     );
+    const comments = await this.readPostComments(post);
 
     return {
       id: post.id,
@@ -973,62 +1052,317 @@ export class CalendarService {
       scheduledFor: post.scheduledFor?.toISOString() ?? null,
       publishedAt: post.publishedAt?.toISOString() ?? null,
       createdAt: post.createdAt.toISOString(),
+      permalink: post.igPermalink,
       media,
+      analytics: latestAnalytics
+        ? {
+            views: latestAnalytics.impressions,
+            reach: latestAnalytics.reach,
+            likes: latestAnalytics.likeCount,
+            comments: latestAnalytics.commentsCount,
+            shares: latestAnalytics.sharesCount,
+            saves: latestAnalytics.savesCount,
+            interactions: latestAnalytics.engagement,
+            fetchedAt: latestAnalytics.fetchedAt.toISOString(),
+          }
+        : null,
+      comments,
       latestFailure,
     };
   }
 
-  private async getGoogleEvents(
-    userId: string,
-    fromDate: Date,
-    toDate: Date,
-  ): Promise<GoogleCalendarEvent[]> {
-    try {
-      return await this.google.getCalendarEvents(userId, fromDate, toDate);
-    } catch (err) {
-      this.logger.warn(
-        `Google Calendar events skipped for ${userId}: ${(err as Error).message}`,
-      );
-      return [];
+  private async readPostComments(
+    post: PostDetailRecord,
+  ): Promise<SchedulerPostDetail['comments']> {
+    const cachedItems = post.postComments.map(mapStoredPostComment);
+    const cachedSyncedAt =
+      post.commentsSyncedAt?.toISOString() ??
+      latestCommentSyncedAt(cachedItems);
+
+    if (!post.igMediaId) {
+      return {
+        items: cachedItems,
+        syncedAt: cachedSyncedAt,
+        status: cachedItems.length ? 'cached' : 'not_available',
+        errorMessage: null,
+      };
     }
+
+    if (hasFreshCommentSync(post.commentsSyncedAt)) {
+      return {
+        items: cachedItems,
+        syncedAt: cachedSyncedAt,
+        status: 'synced',
+        errorMessage: null,
+      };
+    }
+
+    try {
+      return await this.syncPostComments(post);
+    } catch (error) {
+      this.logger.warn(
+        `Instagram comments sync skipped for ${post.id}: ${readMessage(error)}`,
+      );
+      return {
+        items: cachedItems,
+        syncedAt: cachedSyncedAt,
+        status: cachedItems.length ? 'cached' : 'unavailable',
+        errorMessage: formatCommentSyncError(error),
+      };
+    }
+  }
+
+  private async syncPostComments(
+    post: PostDetailRecord,
+  ): Promise<SchedulerPostDetail['comments']> {
+    if (!post.igMediaId) {
+      return {
+        items: post.postComments.map(mapStoredPostComment),
+        syncedAt: post.commentsSyncedAt?.toISOString() ?? null,
+        status: 'not_available',
+        errorMessage: null,
+      };
+    }
+
+    const fetchedAt = new Date();
+    const fetchedComments = await this.fetchInstagramComments(
+      post.igMediaId,
+      decryptSecret(post.instagramAccount.accessTokenEncrypted),
+    );
+    const comments = dedupeFetchedComments(fetchedComments);
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.postComment.deleteMany({
+        where: { contentPostId: post.id },
+      });
+
+      if (comments.length) {
+        await tx.postComment.createMany({
+          data: comments.map((comment) => ({
+            id: randomUUID(),
+            contentPostId: post.id,
+            igCommentId: comment.instagramCommentId,
+            parentIgCommentId: comment.parentInstagramCommentId,
+            username: comment.username,
+            text: comment.text,
+            likeCount: comment.likeCount,
+            hidden: comment.hidden,
+            timestamp: comment.timestamp,
+            syncedAt: fetchedAt,
+            createdAt: fetchedAt,
+            updatedAt: fetchedAt,
+          })),
+        });
+      }
+
+      await tx.contentPost.update({
+        where: { id: post.id },
+        data: { commentsSyncedAt: fetchedAt },
+      });
+    });
+
+    return {
+      items: comments.map((comment) =>
+        mapFetchedPostComment(comment, fetchedAt),
+      ),
+      syncedAt: fetchedAt.toISOString(),
+      status: 'synced',
+      errorMessage: null,
+    };
+  }
+
+  private async fetchInstagramComments(
+    igMediaId: string,
+    accessToken: string,
+  ): Promise<FetchedInstagramComment[]> {
+    const url = this.createGraphUrl(`${igMediaId}/comments`);
+    url.searchParams.set('fields', COMMENT_FIELDS);
+    url.searchParams.set('limit', String(COMMENT_SYNC_LIMIT));
+    url.searchParams.set('access_token', accessToken);
+
+    const response = await fetch(url);
+    const body = (await response.json().catch(() => ({}))) as
+      | InstagramCommentsResponse
+      | undefined;
+
+    if (!response.ok || body?.error) {
+      throw new Error(
+        body?.error?.message ??
+          `Instagram comments request failed with status ${response.status}`,
+      );
+    }
+
+    return flattenInstagramComments(body?.data ?? []);
+  }
+
+  private createGraphUrl(path: string) {
+    return new URL(`${this.getGraphApiBaseUrl()}/${path}`);
+  }
+
+  private getGraphApiBaseUrl() {
+    const baseUrl =
+      this.config.get<string>('INSTAGRAM_GRAPH_API_BASE_URL')?.trim() ||
+      'https://graph.instagram.com';
+    return `${baseUrl.replace(/\/$/, '')}/${this.getGraphApiVersion()}`;
+  }
+
+  private getGraphApiVersion() {
+    return (
+      this.config.get<string>('INSTAGRAM_GRAPH_API_VERSION')?.trim() ||
+      this.config.get<string>('META_GRAPH_API_VERSION')?.trim() ||
+      DEFAULT_GRAPH_API_VERSION
+    );
   }
 }
 
-function mapGoogleEvent(event: GoogleCalendarEvent): CalendarEvent | null {
-  const start = normalizeGoogleDate(event.start, event.allDay);
-  if (!start) return null;
+function buildInstagramMediaPreview(
+  post: PostDetailRecord,
+): SchedulerPostDetail['media'][number] | null {
+  const sourceUrl = post.igMediaUrl ?? null;
+  const thumbnailUrl = post.igThumbnailUrl ?? null;
+  const previewUrl = thumbnailUrl ?? sourceUrl;
+
+  if (!previewUrl) return null;
+
+  const fileType = inferInstagramPreviewType(post);
 
   return {
-    id: `google:${event.id || `${start}:${event.summary}`}`,
-    source: 'google',
-    title: event.summary || '(no title)',
-    start,
-    end: normalizeGoogleDate(event.end, event.allDay),
-    allDay: event.allDay,
-    status: null,
-    postType: null,
-    accountId: null,
-    accountUsername: null,
-    caption: null,
+    id: `${post.id}:instagram-preview`,
+    fileType,
+    mimeType: fileType === MediaType.VIDEO ? 'video/mp4' : 'image/jpeg',
+    fileSize: 0,
+    width: null,
+    height: null,
+    durationSeconds: null,
+    previewUrl,
+    sourceUrl,
+    thumbnailUrl,
   };
 }
 
-function normalizeGoogleDate(
-  value: string | null,
-  allDay: boolean,
-): string | null {
-  if (!value) return null;
-  if (allDay && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    return `${value}T00:00:00`;
+function inferInstagramPreviewType(post: PostDetailRecord): MediaType {
+  if (post.postType === 'REEL') return MediaType.VIDEO;
+  if (post.igThumbnailUrl && post.igMediaUrl) return MediaType.VIDEO;
+  if (post.igMediaUrl && /\.(mp4|mov)(?:$|\?)/i.test(post.igMediaUrl)) {
+    return MediaType.VIDEO;
   }
-
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return null;
-  return parsed.toISOString();
+  return MediaType.IMAGE;
 }
 
-function isCalendarEvent(event: CalendarEvent | null): event is CalendarEvent {
-  return event !== null;
+function flattenInstagramComments(
+  comments: InstagramCommentResponse[],
+): FetchedInstagramComment[] {
+  return comments.flatMap((comment) => [
+    ...mapInstagramComment(comment, null),
+    ...((comment.replies?.data ?? []).flatMap((reply) =>
+      mapInstagramComment(reply, comment.id ?? null),
+    ) ?? []),
+  ]);
+}
+
+function mapInstagramComment(
+  comment: InstagramCommentResponse,
+  parentInstagramCommentId: string | null,
+): FetchedInstagramComment[] {
+  const instagramCommentId = normalizeOptionalText(comment.id);
+  if (!instagramCommentId) return [];
+
+  return [
+    {
+      instagramCommentId,
+      parentInstagramCommentId,
+      username: normalizeOptionalText(comment.username),
+      text: normalizeOptionalText(comment.text),
+      likeCount: readNumber(comment.like_count),
+      hidden: typeof comment.hidden === 'boolean' ? comment.hidden : null,
+      timestamp: parseNullableDate(comment.timestamp),
+    },
+  ];
+}
+
+function dedupeFetchedComments(
+  comments: FetchedInstagramComment[],
+): FetchedInstagramComment[] {
+  const byId = new Map<string, FetchedInstagramComment>();
+  for (const comment of comments) {
+    byId.set(comment.instagramCommentId, comment);
+  }
+  return [...byId.values()].sort(
+    (left, right) =>
+      (right.timestamp?.getTime() ?? 0) - (left.timestamp?.getTime() ?? 0),
+  );
+}
+
+function mapStoredPostComment(
+  comment: PostDetailRecord['postComments'][number],
+): SchedulerPostComment {
+  return {
+    id: comment.id,
+    instagramCommentId: comment.igCommentId,
+    parentInstagramCommentId: comment.parentIgCommentId,
+    username: comment.username,
+    text: comment.text,
+    likeCount: comment.likeCount,
+    hidden: comment.hidden,
+    timestamp: comment.timestamp?.toISOString() ?? null,
+    syncedAt: comment.syncedAt.toISOString(),
+  };
+}
+
+function mapFetchedPostComment(
+  comment: FetchedInstagramComment,
+  syncedAt: Date,
+): SchedulerPostComment {
+  return {
+    id: comment.instagramCommentId,
+    instagramCommentId: comment.instagramCommentId,
+    parentInstagramCommentId: comment.parentInstagramCommentId,
+    username: comment.username,
+    text: comment.text,
+    likeCount: comment.likeCount,
+    hidden: comment.hidden,
+    timestamp: comment.timestamp?.toISOString() ?? null,
+    syncedAt: syncedAt.toISOString(),
+  };
+}
+
+function latestCommentSyncedAt(comments: SchedulerPostComment[]) {
+  return (
+    comments
+      .map((comment) => comment.syncedAt)
+      .filter(Boolean)
+      .sort()
+      .at(-1) ?? null
+  );
+}
+
+function hasFreshCommentSync(value: Date | null) {
+  return value ? Date.now() - value.getTime() < COMMENT_SYNC_TTL_MS : false;
+}
+
+function formatCommentSyncError(error: unknown) {
+  const message = readMessage(error);
+  if (/permission|capability|scope|oauth|access token/i.test(message)) {
+    return 'Reconnect Instagram with comment management permission to sync comment text.';
+  }
+  return 'Could not sync Instagram comments right now.';
+}
+
+function parseNullableDate(value: string | undefined) {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function readNumber(value: unknown) {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+
+  return null;
 }
 
 function readMessage(error: unknown) {
@@ -1062,7 +1396,7 @@ function mapMetadataField(field: {
   id: string;
   label: string;
   sortOrder: number;
-}): CalendarMetadataField {
+}): SchedulerMetadataField {
   return {
     id: field.id,
     label: field.label,

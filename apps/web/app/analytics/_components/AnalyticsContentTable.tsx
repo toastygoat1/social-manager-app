@@ -80,11 +80,11 @@ export function AnalyticsContentTable({
         <div>
           <h2 className="text-sm font-semibold text-ink">Content table</h2>
           <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
-            {rows.length} items / current period
+            {rows.length} recent items / all statuses
           </p>
         </div>
         <span className="rounded-lg border border-line px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
-          All formats
+          All statuses
         </span>
       </header>
       <div className="flex w-full flex-col overflow-x-auto">
@@ -116,7 +116,7 @@ export function AnalyticsContentTable({
             className="flex h-20 items-center justify-center text-sm text-muted"
             style={{ width: `${totalWidth}px` }}
           >
-            No content posted yet
+            No content tracked yet
           </div>
         ) : (
           rows.map((row) => (
@@ -140,12 +140,15 @@ export function AnalyticsContentTable({
 }
 
 function StatusPill({ status }: { status: string }) {
+  const normalized = status.toLowerCase();
   const tone =
-    status.toLowerCase() === "published"
+    normalized === "published"
       ? "bg-emerald-50 text-success"
-      : status.toLowerCase() === "scheduled"
+      : normalized === "scheduled"
         ? "bg-indigo-50 text-[#5e6ad2]"
-        : "bg-card text-muted";
+        : normalized === "pending"
+          ? "bg-amber-50 text-[#98640d]"
+          : "bg-card text-muted";
 
   return (
     <span

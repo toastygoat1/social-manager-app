@@ -1,5 +1,5 @@
 import { AccountChip, AllAccountsChip } from "./AccountChip";
-import { ConnectInstagramButton } from "./ConnectInstagramButton";
+import { ConnectAccountsButton } from "./ConnectAccountsButton";
 import type { Account } from "./data";
 
 type AccountsListProps = {
@@ -18,7 +18,7 @@ export function AccountsList({
       <div className="flex w-full items-center">
         <h3 className="text-xl font-medium leading-none text-ink">Accounts</h3>
         <div className="flex-1" />
-        <ConnectInstagramButton />
+        <ConnectAccountsButton label="Add" />
       </div>
       {statusMessage ? (
         <p

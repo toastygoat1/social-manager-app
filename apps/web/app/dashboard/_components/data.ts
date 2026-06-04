@@ -16,6 +16,8 @@ export type AccountTone = "blue" | "cyan" | "pink" | "yellow";
 export type Account = {
   id: string;
   name: string;
+  username?: string | null;
+  displayName?: string | null;
   platform: string;
   avatarUrl?: string | null;
   tone?: AccountTone;

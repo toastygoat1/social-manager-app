@@ -1,17 +1,17 @@
 import { Loader2 } from "lucide-react";
 import { AgendaEventCard } from "./AgendaEventCard";
-import { type CalendarEvent, toIsoDate } from "./data";
+import { type SchedulerEvent, toIsoDate } from "./data";
 import {
   getDateDropProps,
-  type CalendarDragController,
+  type SchedulerDragController,
 } from "./drag";
 
 type Props = {
   reference: Date;
-  events: CalendarEvent[];
+  events: SchedulerEvent[];
   loading: boolean;
-  onOpenPost: (event: CalendarEvent) => void;
-  dragController?: CalendarDragController;
+  onOpenPost: (event: SchedulerEvent) => void;
+  dragController?: SchedulerDragController;
 };
 
 export function ListCalendar({
@@ -24,7 +24,7 @@ export function ListCalendar({
   const sortedEvents = [...events].sort((first, second) =>
     first.start.localeCompare(second.start),
   );
-  const groupedEvents = new Map<string, CalendarEvent[]>();
+  const groupedEvents = new Map<string, SchedulerEvent[]>();
   for (const event of sortedEvents) {
     const dateKey = toIsoDate(new Date(event.start));
     const dayEvents = groupedEvents.get(dateKey) ?? [];

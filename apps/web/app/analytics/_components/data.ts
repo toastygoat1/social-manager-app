@@ -9,6 +9,7 @@ export type AnalyticsStatId =
   | "views"
   | "reach"
   | "interactions"
+  | "engagementRate"
   | "likes"
   | "comments"
   | "saves"
@@ -32,6 +33,7 @@ export type RecentPost = {
   id: string;
   title: string;
   mediaUrl: string | null;
+  thumbnailUrl: string | null;
   mediaType: "IMAGE" | "VIDEO" | null;
   badge: { label: string; color: string };
   publishedAt: string | null;
@@ -150,6 +152,7 @@ export type AnalyticsData = {
   leaderboard: AccountPerformance[];
   audience: AudienceInsight;
   recentPosts: RecentPost[];
+  latestPosts: RecentPost[];
   distribution: DistributionItem[];
   contentCalendar: ContentCalendarMonth | null;
   metadataFields: MetadataFieldDefinition[];
@@ -177,6 +180,13 @@ const EMPTY_STAT_GRID: AnalyticsStat[] = [
   {
     id: "interactions",
     title: "Interactions",
+    value: null,
+    delta: null,
+    trend: null,
+  },
+  {
+    id: "engagementRate",
+    title: "Engagement Rate",
     value: null,
     delta: null,
     trend: null,
@@ -239,6 +249,7 @@ export const EMPTY_ANALYTICS: AnalyticsData = {
     cities: [],
   },
   recentPosts: [],
+  latestPosts: [],
   distribution: [],
   contentCalendar: null,
   metadataFields: [],
