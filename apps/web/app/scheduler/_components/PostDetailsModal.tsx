@@ -1,14 +1,21 @@
 "use client";
 
 import {
+  BarChart3,
+  Bookmark,
   Calendar,
   CheckCircle2,
   Clock3,
+  ExternalLink,
+  Eye,
+  Heart,
   ImageIcon,
   Loader2,
+  MessageSquareText,
   Pencil,
   Play,
   Plus,
+  Share2,
   Trash2,
   TriangleAlert,
   Upload,
@@ -16,6 +23,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ApiError, apiFetchBrowser } from "@/lib/api/browser-client";
+import { formatNumber } from "@/lib/format";
 import {
   createMetadataField,
   metadataDefinitionsToFields,
@@ -110,8 +118,33 @@ function formatDate(value: string | null) {
 }
 
 function formatFileSize(bytes: number) {
+  if (bytes <= 0) return "Instagram media";
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatFetchedAt(value: string | null) {
+  if (!value) return null;
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+
+  return date.toLocaleString("en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+}
+
+function formatCommentTime(value: string | null) {
+  if (!value) return "No time";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "No time";
+
+  return date.toLocaleString("en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
 }
 
 function mediaLimit(postType: SchedulerPostDetail["postType"]) {
@@ -235,6 +268,51 @@ function DetailRow({ label, value }: { label: string; value: string }) {
       <span className="text-right font-medium text-ink">{value}</span>
     </div>
   );
+}
+
+function PerformanceTile({
+  label,
+  value,
+  Icon,
+}: {
+  label: string;
+  value: number | null;
+  Icon: typeof Eye;
+}) {
+  return (
+    <div className="flex h-[72px] min-w-0 flex-col justify-between rounded-lg border border-line bg-card px-3 py-2.5">
+      <span className="flex min-w-0 items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.05em] text-muted">
+        <Icon className="size-3.5 shrink-0" strokeWidth={1.8} />
+        <span className="truncate">{label}</span>
+      </span>
+      <span className="truncate font-mono text-[22px] leading-none text-ink">
+        {formatNumber(value)}
+      </span>
+    </div>
+  );
+}
+
+function commentStatusLabel(
+  status: SchedulerPostDetail["comments"]["status"],
+) {
+  if (status === "synced") return "Synced";
+  if (status === "cached") return "Cached";
+  if (status === "unavailable") return "Needs access";
+  return "No Instagram media";
+}
+
+function commentAuthorInitial(username: string | null) {
+  return (username?.trim().charAt(0) || "?").toUpperCase();
+}
+
+function mediaPreviewUrl(item: SchedulerPostDetail["media"][number] | DraftUpload) {
+  return "thumbnailUrl" in item
+    ? (item.thumbnailUrl ?? item.previewUrl)
+    : item.previewUrl;
+}
+
+function mediaSourceUrl(item: SchedulerPostDetail["media"][number] | DraftUpload) {
+  return "sourceUrl" in item ? (item.sourceUrl ?? item.previewUrl) : item.previewUrl;
 }
 
 function StatusBadge({ status }: { status: EventStatus }) {
@@ -423,6 +501,15 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
     post?.metadataFields
       .map((field) => [field.label, post.metadata[field.id]] as const)
       .filter(([, value]) => Boolean(value)) ?? [];
+  const analyticsUpdatedAt = post?.analytics
+    ? formatFetchedAt(post.analytics.fetchedAt)
+    : null;
+  const commentItems = post?.comments.items ?? [];
+  const commentsSyncedAt = post?.comments.syncedAt
+    ? formatFetchedAt(post.comments.syncedAt)
+    : null;
+  const commentsTotal =
+    post?.analytics?.comments ?? (post?.comments.syncedAt ? commentItems.length : null);
 
   function updateMetadataField(
     id: string,
@@ -634,26 +721,32 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
       role="dialog"
       aria-modal="true"
       aria-label="Post details"
-      className="fixed inset-0 z-50 flex items-center justify-center p-3"
-      style={{ backgroundColor: "rgba(89, 89, 89, 0.8)" }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/55 p-3 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className="flex max-h-[calc(100vh-24px)] w-[940px] max-w-[calc(100vw-24px)] flex-col overflow-hidden rounded-3xl border border-line bg-paper shadow-xl"
+        className="flex max-h-[calc(100vh-24px)] w-full max-w-5xl flex-col overflow-hidden rounded-[10px] border border-line bg-paper shadow-2xl"
         onClick={(event) => event.stopPropagation()}
       >
-        <header className="flex shrink-0 items-center justify-between border-b border-line px-7 py-5">
-          <div className="flex items-center gap-3">
-            <h2 className="text-xl font-semibold text-ink">Post Details</h2>
-            {post ? <StatusBadge status={post.status} /> : null}
+        <header className="flex shrink-0 items-start justify-between gap-4 border-b border-line px-5 py-4">
+          <div className="flex min-w-0 flex-col gap-2">
+            <p className="font-mono text-[10px] uppercase tracking-[0.06em] text-muted">
+              Post details
+            </p>
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <h2 className="line-clamp-2 text-lg font-semibold leading-6 text-ink">
+                {post?.title || post?.caption || "Post details"}
+              </h2>
+              {post ? <StatusBadge status={post.status} /> : null}
+            </div>
           </div>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close post details"
-            className="flex size-8 items-center justify-center rounded-full text-muted hover:bg-card"
+            className="flex size-9 shrink-0 items-center justify-center rounded-lg text-muted transition hover:bg-card hover:text-ink"
           >
-            <X className="size-5" strokeWidth={2} />
+            <X className="size-5" strokeWidth={1.8} />
           </button>
         </header>
 
@@ -776,54 +869,71 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
                 <h3 className="mb-3 text-sm font-semibold text-ink">Media</h3>
                 {shownMedia.length ? (
                   <div className="grid grid-cols-2 gap-3">
-                    {shownMedia.map((item) => (
-                      <div
-                        key={item.id}
-                        className="group relative overflow-hidden rounded-xl border border-line bg-card"
-                      >
-                        <div className="relative flex aspect-square items-center justify-center overflow-hidden bg-[#495057]">
-                          {item.fileType === "IMAGE" && item.previewUrl ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={item.previewUrl}
-                              alt=""
-                              className="h-full w-full object-cover"
-                            />
-                          ) : item.fileType === "VIDEO" && item.previewUrl ? (
-                            <>
-                              <video
-                                src={item.previewUrl}
+                    {shownMedia.map((item) => {
+                      const previewUrl = mediaPreviewUrl(item);
+                      const sourceUrl = mediaSourceUrl(item);
+                      const imageUrl = previewUrl ?? sourceUrl;
+
+                      return (
+                        <div
+                          key={item.id}
+                          className="group relative overflow-hidden rounded-lg border border-line bg-card"
+                        >
+                          <div className="relative flex aspect-square items-center justify-center overflow-hidden bg-[#495057]">
+                            {item.fileType === "IMAGE" && imageUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={imageUrl}
+                                alt=""
                                 className="h-full w-full object-cover"
-                                muted
-                                playsInline
                               />
-                              <Play className="absolute size-9 fill-current text-paper" />
-                            </>
-                          ) : (
-                            <ImageIcon className="size-10 text-paper/70" />
-                          )}
+                            ) : item.fileType === "VIDEO" && sourceUrl ? (
+                              <>
+                                <video
+                                  src={sourceUrl}
+                                  poster={previewUrl ?? undefined}
+                                  className="h-full w-full object-cover"
+                                  muted
+                                  playsInline
+                                />
+                                <Play className="absolute size-9 fill-current text-paper" />
+                              </>
+                            ) : item.fileType === "VIDEO" && imageUrl ? (
+                              <>
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={imageUrl}
+                                  alt=""
+                                  className="h-full w-full object-cover"
+                                />
+                                <Play className="absolute size-9 fill-current text-paper" />
+                              </>
+                            ) : (
+                              <ImageIcon className="size-10 text-paper/70" />
+                            )}
+                          </div>
+                          <p className="px-3 pt-2 text-xs font-semibold text-ink">
+                            {item.fileType === "IMAGE" ? "Image" : "Video"} -{" "}
+                            {formatFileSize(item.fileSize)}
+                          </p>
+                          <p className="px-3 pb-2 text-[11px] text-muted">
+                            {item.width && item.height
+                              ? `${item.width} x ${item.height}`
+                              : item.mimeType}
+                          </p>
+                          {isDraft ? (
+                            <button
+                              type="button"
+                              aria-label="Remove media"
+                              onClick={() => removeMedia(item.id)}
+                              className="absolute right-2 top-2 flex size-7 items-center justify-center rounded-full bg-ink/75 text-paper opacity-0 transition group-hover:opacity-100"
+                            >
+                              <Trash2 className="size-3.5" />
+                            </button>
+                          ) : null}
                         </div>
-                        <p className="px-3 pt-2 text-xs font-semibold text-ink">
-                          {item.fileType === "IMAGE" ? "Image" : "Video"} -{" "}
-                          {formatFileSize(item.fileSize)}
-                        </p>
-                        <p className="px-3 pb-2 text-[11px] text-muted">
-                          {item.width && item.height
-                            ? `${item.width} x ${item.height}`
-                            : item.mimeType}
-                        </p>
-                        {isDraft ? (
-                          <button
-                            type="button"
-                            aria-label="Remove media"
-                            onClick={() => removeMedia(item.id)}
-                            className="absolute right-2 top-2 flex size-7 items-center justify-center rounded-full bg-ink/75 text-paper opacity-0 transition group-hover:opacity-100"
-                          >
-                            <Trash2 className="size-3.5" />
-                          </button>
-                        ) : null}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="rounded-xl border border-dashed border-line bg-card px-4 py-8 text-center text-sm text-muted">
@@ -865,6 +975,150 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
                   label="Published"
                   value={formatDate(post.publishedAt)}
                 />
+              </div>
+
+              {post.permalink ? (
+                <a
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-ink px-4 text-sm font-semibold text-page transition hover:opacity-90"
+                  href={post.permalink}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  <ExternalLink className="size-4" strokeWidth={1.8} />
+                  Open Instagram
+                </a>
+              ) : null}
+
+              {post.analytics ? (
+                <div className="rounded-lg border border-line bg-paper p-4">
+                  <div className="mb-3 flex items-start justify-between gap-3">
+                    <div>
+                      <h3 className="text-sm font-semibold text-ink">
+                        Performance
+                      </h3>
+                      {analyticsUpdatedAt ? (
+                        <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.05em] text-muted">
+                          Synced {analyticsUpdatedAt}
+                        </p>
+                      ) : null}
+                    </div>
+                    <BarChart3 className="size-4 text-muted" strokeWidth={1.8} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <PerformanceTile
+                      label="Views"
+                      value={post.analytics.views}
+                      Icon={Eye}
+                    />
+                    <PerformanceTile
+                      label="Reach"
+                      value={post.analytics.reach}
+                      Icon={BarChart3}
+                    />
+                    <PerformanceTile
+                      label="Likes"
+                      value={post.analytics.likes}
+                      Icon={Heart}
+                    />
+                    <PerformanceTile
+                      label="Comments"
+                      value={post.analytics.comments}
+                      Icon={MessageSquareText}
+                    />
+                    <PerformanceTile
+                      label="Shares"
+                      value={post.analytics.shares}
+                      Icon={Share2}
+                    />
+                    <PerformanceTile
+                      label="Saves"
+                      value={post.analytics.saves}
+                      Icon={Bookmark}
+                    />
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="rounded-lg border border-line bg-card p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-semibold text-ink">
+                      Comments
+                    </h3>
+                    {commentsSyncedAt ? (
+                      <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.05em] text-muted">
+                        Synced {commentsSyncedAt}
+                      </p>
+                    ) : null}
+                  </div>
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    <span className="rounded border border-line bg-paper px-2 py-1 font-mono text-[10px] uppercase tracking-[0.05em] text-muted">
+                      {formatNumber(commentsTotal)} total
+                    </span>
+                    <span className="font-mono text-[9px] uppercase tracking-[0.05em] text-muted">
+                      {commentStatusLabel(post.comments.status)}
+                    </span>
+                  </div>
+                </div>
+                {commentItems.length ? (
+                  <div className="mt-4 flex max-h-72 flex-col gap-3 overflow-y-auto pr-1">
+                    {commentItems.map((comment) => (
+                      <article
+                        key={comment.id}
+                        className="rounded-lg border border-line bg-paper p-3"
+                      >
+                        <div className="flex items-start gap-3">
+                          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-ink font-mono text-xs font-semibold text-page">
+                            {commentAuthorInitial(comment.username)}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                              <p className="truncate text-sm font-semibold text-ink">
+                                {comment.username
+                                  ? `@${comment.username}`
+                                  : "Instagram user"}
+                              </p>
+                              <span className="font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
+                                {formatCommentTime(comment.timestamp)}
+                              </span>
+                              {comment.parentInstagramCommentId ? (
+                                <span className="rounded border border-line px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.04em] text-muted">
+                                  Reply
+                                </span>
+                              ) : null}
+                              {comment.hidden ? (
+                                <span className="rounded border border-line px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.04em] text-muted">
+                                  Hidden
+                                </span>
+                              ) : null}
+                            </div>
+                            <p className="mt-2 whitespace-pre-wrap text-sm leading-5 text-ink">
+                              {comment.text || "No comment text"}
+                            </p>
+                            {comment.likeCount !== null ? (
+                              <p className="mt-2 inline-flex items-center gap-1 font-mono text-[10px] text-muted">
+                                <Heart className="size-3" strokeWidth={1.8} />
+                                {formatNumber(comment.likeCount)}
+                              </p>
+                            ) : null}
+                          </div>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-3 text-sm leading-6 text-muted">
+                    {post.comments.errorMessage ??
+                      (post.comments.status === "synced"
+                        ? "No comments found for this post."
+                        : "Comments will appear here after this post is published and the Instagram account has comment access.")}
+                  </p>
+                )}
+                {post.comments.errorMessage && commentItems.length ? (
+                  <p className="mt-3 rounded-lg bg-[#fff8e8] px-3 py-2 text-xs font-medium text-muted">
+                    {post.comments.errorMessage}
+                  </p>
+                ) : null}
               </div>
 
               {isDraft ? (

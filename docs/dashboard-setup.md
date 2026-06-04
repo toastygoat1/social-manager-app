@@ -58,6 +58,7 @@ Tanpa ini, semua angka Dashboard akan `0` / `—`. Endpoint `/dashboard/overview
    - `pages_show_list`
    - `pages_read_engagement`
    - (Opsional, kalau implement Chat) `instagram_business_manage_messages`
+   - (Opsional, kalau tampilkan komentar post) `instagram_business_manage_comments`
 7. Tukar short-lived token → long-lived token (60 hari):
    ```
    GET https://graph.facebook.com/v21.0/oauth/access_token
@@ -107,7 +108,7 @@ META_INSTAGRAM_APP_ID=
 META_INSTAGRAM_APP_SECRET=
 META_REDIRECT_URI=http://localhost:3000/dashboard/instagram/callback
 META_GRAPH_API_VERSION=v21.0
-META_INSTAGRAM_SCOPES=instagram_business_basic,instagram_business_manage_insights,instagram_business_manage_messages
+META_INSTAGRAM_SCOPES=instagram_business_basic,instagram_business_manage_insights,instagram_business_manage_messages,instagram_business_manage_comments
 META_OAUTH_STATE_SECRET=
 ```
 
