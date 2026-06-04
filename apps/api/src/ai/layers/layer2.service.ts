@@ -32,12 +32,22 @@ Format your response as 3–4 paragraphs of plain text. No markdown headers, no 
 @Injectable()
 export class Layer2Service {
   private readonly logger = new Logger(Layer2Service.name);
-  private readonly client: OpenAI;
+  private client: OpenAI | null = null;
 
-  constructor(private readonly config: ConfigService) {
-    this.client = new OpenAI({
-      apiKey: this.config.getOrThrow<string>('OPENAI_API_KEY'),
-    });
+  constructor(private readonly config: ConfigService) {}
+
+  private getClient(): OpenAI {
+    if (this.client) return this.client;
+
+    const apiKey = this.config.get<string>('OPENAI_API_KEY')?.trim();
+    if (!apiKey) {
+      throw new BadRequestException(
+        'OPENAI_API_KEY is required for AI analysis',
+      );
+    }
+
+    this.client = new OpenAI({ apiKey });
+    return this.client;
   }
 
   async explain(
@@ -60,9 +70,10 @@ export class Layer2Service {
     }
 
     const systemPrompt = systemParts.join('\n');
+    const client = this.getClient();
 
     try {
-      const response = await this.client.chat.completions.create({
+      const response = await client.chat.completions.create({
         model,
         temperature: 0.4,
         max_completion_tokens: 400,

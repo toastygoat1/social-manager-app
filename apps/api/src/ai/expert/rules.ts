@@ -1,4 +1,8 @@
-import type { FiredRule, PostSignals, StorySignals } from '@social-manager/types';
+import type {
+  FiredRule,
+  PostSignals,
+  StorySignals,
+} from '@social-manager/types';
 
 export function evaluateRules(signals: PostSignals): FiredRule[] {
   const fired: FiredRule[] = [];
@@ -70,24 +74,26 @@ export function evaluateStoryRules(signals: StorySignals): FiredRule[] {
   const fired: FiredRule[] = [];
 
   // SR001 — high exit rate
-  if (signals.exitRate > 0.40) {
+  if (signals.exitRate > 0.4) {
     fired.push({
       ruleId: 'SR001',
       condition: `exitRate (${signals.exitRate.toFixed(4)}) > 0.40`,
       conclusion: 'HIGH_EXIT_RATE',
-      confidence: 0.90,
-      action: 'Open with a stronger hook — viewers are leaving in the first frame',
+      confidence: 0.9,
+      action:
+        'Open with a stronger hook — viewers are leaving in the first frame',
     });
   }
 
   // SR002 — content being skipped
-  if (signals.tapForwardRate > 0.30) {
+  if (signals.tapForwardRate > 0.3) {
     fired.push({
       ruleId: 'SR002',
       condition: `tapForwardRate (${signals.tapForwardRate.toFixed(4)}) > 0.30`,
       conclusion: 'CONTENT_SKIPPED',
       confidence: 0.85,
-      action: 'Shorten story duration or front-load value — audience is tapping past',
+      action:
+        'Shorten story duration or front-load value — audience is tapping past',
     });
   }
 
@@ -108,7 +114,7 @@ export function evaluateStoryRules(signals: StorySignals): FiredRule[] {
       ruleId: 'SR004',
       condition: `replyRate (${signals.replyRate.toFixed(5)}) < 0.005`,
       conclusion: 'LOW_REPLY_ENGAGEMENT',
-      confidence: 0.80,
+      confidence: 0.8,
       action: 'Add a direct question or poll sticker to drive replies',
     });
   }
@@ -120,7 +126,8 @@ export function evaluateStoryRules(signals: StorySignals): FiredRule[] {
       condition: `profileVisitRate (${signals.profileVisitRate.toFixed(4)}) > 0.05 AND replyRate < 0.005`,
       conclusion: 'PROFILE_TRAFFIC_NO_ENGAGEMENT',
       confidence: 0.82,
-      action: 'Add a CTA that converts profile visitors — they are curious but not engaging',
+      action:
+        'Add a CTA that converts profile visitors — they are curious but not engaging',
     });
   }
 

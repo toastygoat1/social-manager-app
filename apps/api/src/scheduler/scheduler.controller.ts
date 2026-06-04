@@ -120,7 +120,10 @@ export class SchedulerController {
     @Request() req: AuthedRequest,
     @Param('contentPostId', new ParseUUIDPipe()) contentPostId: string,
   ) {
-    return this.schedulerService.retryFailedPost(req.user.userId, contentPostId);
+    return this.schedulerService.retryFailedPost(
+      req.user.userId,
+      contentPostId,
+    );
   }
 
   @Delete('posts/:contentPostId')

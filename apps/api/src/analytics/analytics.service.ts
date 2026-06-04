@@ -61,6 +61,7 @@ type AnalyticsMetric = {
 
 type RecentPost = {
   id: string;
+  accountId: string;
   title: string;
   mediaUrl: string | null;
   thumbnailUrl: string | null;
@@ -858,6 +859,7 @@ export class AnalyticsService {
 
         return {
           id: post.id,
+          accountId: post.instagramAccountId,
           title: post.title ?? truncate(post.caption, 48) ?? 'Untitled post',
           mediaUrl,
           thumbnailUrl,

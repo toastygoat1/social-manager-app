@@ -445,19 +445,19 @@ export class AiService {
     }
 
     // Compute derived metrics — guard against division by zero
-    const impressions   = story.impressions ?? 0;
-    const reach         = story.reach ?? 0;
-    const exits         = story.exits ?? 0;
-    const replies       = story.replies ?? 0;
-    const tapsForward   = story.tapsForward ?? 0;
-    const tapsBack      = story.tapsBack ?? 0;
+    const impressions = story.impressions ?? 0;
+    const reach = story.reach ?? 0;
+    const exits = story.exits ?? 0;
+    const replies = story.replies ?? 0;
+    const tapsForward = story.tapsForward ?? 0;
+    const tapsBack = story.tapsBack ?? 0;
     const profileVisits = story.profileVisits ?? 0;
 
-    const exitRate         = impressions > 0 ? exits / impressions : 0;
-    const completionRate   = 1 - exitRate;
-    const replyRate        = reach > 0 ? replies / reach : 0;
-    const tapForwardRate   = impressions > 0 ? tapsForward / impressions : 0;
-    const tapBackRate      = impressions > 0 ? tapsBack / impressions : 0;
+    const exitRate = impressions > 0 ? exits / impressions : 0;
+    const completionRate = 1 - exitRate;
+    const replyRate = reach > 0 ? replies / reach : 0;
+    const tapForwardRate = impressions > 0 ? tapsForward / impressions : 0;
+    const tapBackRate = impressions > 0 ? tapsBack / impressions : 0;
     const profileVisitRate = reach > 0 ? profileVisits / reach : 0;
 
     const metrics: StoryMetrics = {
@@ -495,13 +495,12 @@ export class AiService {
     const firedRules = this.expertEngine.runStory(signals);
 
     // Layer 2: explanation
-    const { explanation, tokensUsed: layer2Tokens } =
-      await this.layer2.explain(
-        null,
-        firedRules,
-        aiSettings,
-        `Story performance signals: ${JSON.stringify(signals)}`,
-      );
+    const { explanation, tokensUsed: layer2Tokens } = await this.layer2.explain(
+      null,
+      firedRules,
+      aiSettings,
+      `Story performance signals: ${JSON.stringify(signals)}`,
+    );
 
     // Save to episodic memory
     await this.episodicMemory.saveMessage(

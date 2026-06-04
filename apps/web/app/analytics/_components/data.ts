@@ -31,6 +31,7 @@ export type PostStat = {
 
 export type RecentPost = {
   id: string;
+  accountId: string;
   title: string;
   mediaUrl: string | null;
   thumbnailUrl: string | null;
