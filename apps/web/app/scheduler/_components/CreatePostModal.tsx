@@ -20,8 +20,8 @@ import {
   User,
   X,
 } from "lucide-react";
-import NextImage from "next/image";
 import { useEffect, useRef, useState } from "react";
+import { AvatarImage } from "@/app/_components/AvatarImage";
 import { ApiError, apiFetchBrowser } from "@/lib/api/browser-client";
 import {
   createMetadataField,
@@ -379,17 +379,14 @@ function AccountAvatar({
     <span
       className={`flex shrink-0 items-center justify-center overflow-hidden bg-[#4e8b73] text-[9px] font-semibold uppercase text-white ${className}`}
     >
-      {avatarUrl ? (
-        <NextImage
-          src={avatarUrl}
-          alt=""
-          width={32}
-          height={32}
-          className="size-full object-cover"
-        />
-      ) : (
-        username.slice(0, 2)
-      )}
+      <AvatarImage
+        src={avatarUrl}
+        alt=""
+        width={32}
+        height={32}
+        className="size-full object-cover"
+        fallback={username.slice(0, 2)}
+      />
     </span>
   );
 }

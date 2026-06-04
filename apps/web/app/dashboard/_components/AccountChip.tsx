@@ -1,9 +1,9 @@
 "use client";
 
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { LoaderCircle, Trash2 } from "lucide-react";
+import { AvatarImage } from "@/app/_components/AvatarImage";
 import { ApiError, apiFetchBrowser } from "@/lib/api/browser-client";
 import { Instagram } from "./icons";
 
@@ -86,19 +86,16 @@ export function AccountChip({
       className={`flex h-11 items-center gap-2 overflow-hidden rounded-lg bg-paper px-4 py-2 ${className ?? ""}`}
     >
       <div className="relative size-7 shrink-0 overflow-hidden rounded-full bg-line">
-        {avatarUrl ? (
-          <Image
+        <div className="flex size-7 items-center justify-center text-[10px] font-medium text-muted">
+          <AvatarImage
             src={avatarUrl}
             alt=""
             width={28}
             height={28}
             className="size-7 object-cover"
+            fallback={getFallbackInitial(name)}
           />
-        ) : (
-          <div className="flex size-7 items-center justify-center text-[10px] font-medium text-muted">
-            {getFallbackInitial(name)}
-          </div>
-        )}
+        </div>
       </div>
       <div className="flex min-w-0 flex-1 flex-col items-start">
         <p className="truncate text-xs leading-none text-ink">{name}</p>

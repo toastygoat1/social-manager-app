@@ -294,6 +294,8 @@ describe('InstagramService', () => {
                     caption: 'Launch reel',
                     media_type: 'VIDEO',
                     media_product_type: 'REELS',
+                    media_url: 'https://cdn.example/reel.mp4',
+                    thumbnail_url: 'https://cdn.example/reel.jpg',
                     permalink: 'https://instagram.com/reel/1',
                     timestamp: '2026-05-20T01:00:00+0000',
                     like_count: 12,
@@ -304,6 +306,14 @@ describe('InstagramService', () => {
                     caption: 'Carousel post',
                     media_type: 'CAROUSEL_ALBUM',
                     media_product_type: 'FEED',
+                    children: {
+                      data: [
+                        {
+                          media_type: 'IMAGE',
+                          media_url: 'https://cdn.example/carousel-1.jpg',
+                        },
+                      ],
+                    },
                     permalink: 'https://instagram.com/p/2',
                     timestamp: '2026-05-19T01:00:00+0000',
                     like_count: 5,
@@ -348,6 +358,9 @@ describe('InstagramService', () => {
       .find((url) => url.pathname.endsWith('/ig-account-1/media'));
 
     expect(mediaUrl?.searchParams.get('fields')).toContain('caption');
+    expect(mediaUrl?.searchParams.get('fields')).toContain('media_url');
+    expect(mediaUrl?.searchParams.get('fields')).toContain('thumbnail_url');
+    expect(mediaUrl?.searchParams.get('fields')).toContain('children');
     expect(mediaUrl?.searchParams.get('access_token')).toBe('ig-token');
     expect(prisma.contentPost.create).toHaveBeenCalledWith({
       data: {
@@ -358,6 +371,8 @@ describe('InstagramService', () => {
         publishedAt: new Date('2026-05-20T01:00:00+0000'),
         igMediaId: 'ig-media-1',
         igPermalink: 'https://instagram.com/reel/1',
+        igMediaUrl: 'https://cdn.example/reel.mp4',
+        igThumbnailUrl: 'https://cdn.example/reel.jpg',
       },
       select: { id: true },
     });
@@ -370,6 +385,8 @@ describe('InstagramService', () => {
         publishedAt: new Date('2026-05-19T01:00:00+0000'),
         igMediaId: 'ig-media-2',
         igPermalink: 'https://instagram.com/p/2',
+        igMediaUrl: 'https://cdn.example/carousel-1.jpg',
+        igThumbnailUrl: 'https://cdn.example/carousel-1.jpg',
       },
       select: { id: true },
     });

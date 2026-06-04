@@ -18,9 +18,9 @@ import {
   Sparkles,
   Sun,
 } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { AvatarImage } from "@/app/_components/AvatarImage";
 import {
   APP_THEME_COOKIE,
   APP_THEME_EVENT,
@@ -297,17 +297,14 @@ function AccountAvatar({
         background: `linear-gradient(135deg, ${color}, ${color}cc)`,
       }}
     >
-      {account.avatarUrl ? (
-        <Image
-          src={account.avatarUrl}
-          alt=""
-          width={22}
-          height={22}
-          className="size-full object-cover"
-        />
-      ) : (
-        getInitials(account.name, "I")
-      )}
+      <AvatarImage
+        src={account.avatarUrl}
+        alt=""
+        width={22}
+        height={22}
+        className="size-full object-cover"
+        fallback={getInitials(account.name, "I")}
+      />
     </span>
   );
 }
@@ -427,17 +424,14 @@ function ProfileAvatar({
     <span
       className="flex size-[26px] shrink-0 items-center justify-center overflow-hidden rounded-[7px] bg-[#5e6ad2] text-[10.5px] font-semibold text-white"
     >
-      {profile?.avatarUrl ? (
-        <Image
-          src={profile.avatarUrl}
-          alt={`${name} profile picture`}
-          width={26}
-          height={26}
-          className="size-full object-cover"
-        />
-      ) : (
-        getInitials(name)
-      )}
+      <AvatarImage
+        src={profile?.avatarUrl}
+        alt={`${name} profile picture`}
+        width={26}
+        height={26}
+        className="size-full object-cover"
+        fallback={getInitials(name)}
+      />
     </span>
   );
 }

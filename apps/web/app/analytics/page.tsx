@@ -178,7 +178,10 @@ export default async function AnalyticsPage({
                 />
               ) : null}
               <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(340px,1fr)]">
-                <RecentPosts posts={data.recentPosts} />
+                <RecentPosts
+                  posts={data.recentPosts}
+                  latestPosts={data.latestPosts}
+                />
                 <ChannelDistribution items={data.distribution} />
               </div>
               <ContentCalendar calendar={data.contentCalendar} />

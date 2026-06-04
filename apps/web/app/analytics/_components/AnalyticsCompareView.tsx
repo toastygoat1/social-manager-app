@@ -56,7 +56,11 @@ function CompareColumn({ marker, accountId, data }: CompareColumnProps) {
         compact
       />
       <ChannelDistribution items={data.distribution} compact />
-      <RecentPosts posts={data.recentPosts} compact />
+      <RecentPosts
+        posts={data.recentPosts}
+        latestPosts={data.latestPosts}
+        compact
+      />
     </div>
   );
 }
