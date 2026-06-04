@@ -177,6 +177,30 @@ Tracks a user-triggered batch analysis of all posts in a date range and stores t
 | `started_at` | timestamp | |
 | `completed_at` | timestamp? | Set when summary is saved |
 
+### `instagram_stories` — insight fields
+
+The existing `instagram_stories` table gained 10 new columns for Graph API insights:
+
+| Column | Type | Notes |
+|---|---|---|
+| `impressions` | int? | Total story impressions |
+| `reach` | int? | Unique accounts reached |
+| `exits` | int? | Exits before story ended |
+| `replies` | int? | Direct replies to story |
+| `taps_forward` | int? | Taps to skip to next story |
+| `taps_back` | int? | Taps to replay previous story |
+| `profile_visits` | int? | Profile visits from story |
+| `follows` | int? | New follows attributed to story |
+| `insights_fetched_at` | timestamp? | When insights were last fetched |
+| `insights_error` | text? | Error message if fetch failed |
+
+> **Migration:** The story insights fields are created by the committed
+> migration `<timestamp>_add_story_insights_fields`. Running
+> `prisma:migrate` on a fresh environment will apply this migration
+> automatically — no manual SQL needed.
+> Replace `<timestamp>` with the actual folder name after running the
+> migration (e.g. `20260605120000_add_story_insights_fields`).
+
 ---
 
 ## API endpoints
@@ -552,6 +576,26 @@ sequenceDiagram
 
 **Polling:** clients poll `GET /ai/batch/:batchId` until `status` is `COMPLETED` or `FAILED`. The `summary` field is populated only when `COMPLETED`.
 
+### Batch report lifecycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> PENDING : aiBatchReport.create
+    PENDING --> PROCESSING : all jobs enqueued
+    PROCESSING --> PROCESSING : each post completes\n(completedPosts++)
+    PROCESSING --> COMPLETED : last post done\n+ summary generated
+    PROCESSING --> FAILED : last post done\n+ Layer 2 summary throws
+    COMPLETED --> [*]
+    FAILED --> [*]
+```
+
+| Status | When set | `summary` field |
+|---|---|---|
+| `PENDING` | On `aiBatchReport.create` | null |
+| `PROCESSING` | After all jobs enqueued | null |
+| `COMPLETED` | After `BatchSummaryService.generate()` succeeds | populated |
+| `FAILED` | If `generate()` throws | null |
+
 ---
 
 ## Story analysis flow
@@ -614,6 +658,33 @@ sequenceDiagram
 | `tapForwardRate` | `tapsForward / impressions` | 0 if `impressions = 0` |
 | `tapBackRate` | `tapsBack / impressions` | 0 if `impressions = 0` |
 | `profileVisitRate` | `profileVisits / reach` | 0 if `reach = 0` |
+
+### Story rules flow
+
+```mermaid
+flowchart TD
+    IN[StorySignals] --> SR001
+    IN --> SR002
+    IN --> SR003
+    IN --> SR004
+    IN --> SR005
+
+    SR001{exitRate > 0.40}
+    SR002{tapForwardRate > 0.30}
+    SR003{tapBackRate > 0.08}
+    SR004{replyRate < 0.005}
+    SR005{profileVisitRate > 0.05\nAND replyRate < 0.005}
+
+    SR001 -->|yes| C1[HIGH_EXIT_RATE\nconfidence 0.90]
+    SR002 -->|yes| C2[CONTENT_SKIPPED\nconfidence 0.85]
+    SR003 -->|yes| C3[STRONG_RESONANCE ✓\nconfidence 0.88]
+    SR004 -->|yes| C4[LOW_REPLY_ENGAGEMENT\nconfidence 0.80]
+    SR005 -->|yes| C5[PROFILE_TRAFFIC_NO_ENGAGEMENT\nconfidence 0.82]
+
+    C1 & C2 & C3 & C4 & C5 --> OUT[FiredRule Array → Layer 2]
+```
+
+SR003 is the only positive rule — it fires when content is being rewatched, which is a strong signal to replicate the format. Rules are independent; there is no chain rule equivalent to R006 for stories.
 
 ---
 
@@ -955,6 +1026,11 @@ echo "WORKER_AI_SECRET=$(openssl rand -hex 32)" >> .env
 # 2. Run database migration (creates ai_knowledge, ai_procedures,
 #    and ai_batch_reports tables)
 corepack pnpm --filter @social-manager/database prisma:migrate
+# → enter: add_ai_module_tables
+
+# If deploying story analysis for the first time:
+corepack pnpm --filter @social-manager/database prisma:migrate
+# → enter: add_story_insights_fields
 
 # 3. Regenerate Prisma client and verify database package
 corepack pnpm --filter @social-manager/database prisma:generate
