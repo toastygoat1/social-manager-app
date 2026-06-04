@@ -1,6 +1,6 @@
 # AI Module
 
-Last updated: 2026-06-04
+Last updated: 2026-06-04 (story analysis added)
 
 This document covers everything added and changed when the AI module was built for Social Manager App.
 
@@ -56,7 +56,7 @@ Queue: ai-analysis (BullMQ)
 
 | File | Purpose |
 |---|---|
-| `ai.ts` | Shared TypeScript interfaces: `PostSignals`, `AIAnalysisRequest`, `AIAnalysisResponse`, `FiredRule`, `WorkingMemoryState`, `BatchRange`, `BatchAnalyzeRequest`, `BatchAnalyzeResponse`, `BatchStatusResponse` |
+| `ai.ts` | Shared TypeScript interfaces: `PostSignals`, `AIAnalysisRequest`, `AIAnalysisResponse`, `FiredRule`, `WorkingMemoryState`, `BatchRange`, `BatchAnalyzeRequest`, `BatchAnalyzeResponse`, `BatchStatusResponse`, `StoryMetrics`, `StorySignals`, `StoryAnalysisRequest`, `StoryAnalysisResponse` |
 
 ### apps/api/src/ai/
 
@@ -75,6 +75,7 @@ Queue: ai-analysis (BullMQ)
 | `dto/resolve-outcome.dto.ts` | `ResolveOutcomeDto` — outcome, engagementDelta, savesDelta |
 | `dto/queue-analysis.dto.ts` | `QueueAnalysisDto` — accountId, contentPostId, sessionId?, batchId? |
 | `dto/batch-analyze.dto.ts` | `BatchAnalyzeDto` — accountId, range (`week`\|`month`\|`year`) |
+| `dto/analyze-story.dto.ts` | `AnalyzeStoryDto` — accountId, storyId, sessionId |
 | `batch/batch-ai.service.ts` | `enqueueBatch()`, `getBatchStatus()`, `listBatches()`. Verifies account ownership, resolves date window, creates `AiBatchReport`, enqueues one job per post, updates status to PROCESSING. |
 | `batch/batch-summary.service.ts` | `markPostComplete(batchId, failed)` — increments counters atomically; triggers `generate()` when all posts are accounted for. `generate()` collects assistant messages from the batch window, calls Layer 2 with a batch-summary instruction, saves the result to `AiBatchReport.summary`, and marks status COMPLETED. |
 | `batch/batch-ai.service.spec.ts` | 15 unit tests covering `BatchAiService` and `BatchSummaryService`. |
@@ -82,11 +83,11 @@ Queue: ai-analysis (BullMQ)
 | `memory/episodic-memory.service.ts` | Reads/writes `chatbot_messages` and `chatbot_sessions`. |
 | `memory/semantic-memory.service.ts` | Reads/writes `ai_knowledge`. Upserts by `accountId+category+fact`. |
 | `memory/procedural-memory.service.ts` | Reads/writes `ai_procedures`. |
-| `layers/layer1.service.ts` | Calls OpenAI with JSON mode. Returns `{ signals: PostSignals, tokensUsed: number }`. Uses `OPENAI_MODEL_LAYER1` (fallback: `gpt-5.4-mini`). System prompt includes category-specific saves/reach benchmarks and traffic source context derived from the portfolio dataset. |
+| `layers/layer1.service.ts` | Calls OpenAI with JSON mode. Returns `{ signals: PostSignals, tokensUsed: number }`. Uses `OPENAI_MODEL_LAYER1` (fallback: `gpt-5.4-mini`). System prompt includes category-specific saves/reach benchmarks and traffic source context derived from the portfolio dataset. Also exposes `analyzeStory()` for story analysis using a separate `LAYER1_STORY_SYSTEM_PROMPT`. |
 | `layers/layer2.service.ts` | Calls OpenAI for prose explanation. Returns `{ explanation: string, tokensUsed: number }`. Uses `OPENAI_MODEL_LAYER2` (fallback: `gpt-4.1-mini`). Throws `BadRequestException` on failure. `memoryContext` is injected into the system prompt (not the user message). |
-| `expert/rules.ts` | Pure TypeScript function `evaluateRules(signals)`. No NestJS. |
-| `expert/engine.service.ts` | NestJS injectable wrapper around `evaluateRules`. Adds R006 chain detection. |
-| `expert/rules.spec.ts` | 11 unit tests covering all rules and boundary conditions. |
+| `expert/rules.ts` | Pure TypeScript functions: `evaluateRules(signals)` for post analysis (R001–R006) and `evaluateStoryRules(signals)` for story analysis (SR001–SR005). No NestJS. |
+| `expert/engine.service.ts` | NestJS injectable wrapper. `run()` evaluates post rules R001–R006. `runStory()` evaluates story rules SR001–SR005. |
+| `expert/rules.spec.ts` | 20 unit tests: 11 covering post rules (R001–R006) and 9 covering story rules (SR001–SR005). |
 | `expert/engine.service.spec.ts` | 2 unit tests covering R006 chain detection: fires when R001 + R003 both fire, does not fire when only R001 fires. |
 | `ai.service.chat.spec.ts` | 3 unit tests covering `chat()` working memory: increments `turnCount`, preserves signal state from previous `analyze()`, uses correct accountId/sessionId as Redis key. |
 
@@ -102,15 +103,15 @@ Queue: ai-analysis (BullMQ)
 
 | File | What changed |
 |---|---|
-| `packages/database/prisma/schema.prisma` | Added `AiKnowledge`, `AiProcedure`, `AiBatchReport` models and `AiBatchStatus` enum. Added reverse relations to `InstagramAccount` and `User`. |
+| `packages/database/prisma/schema.prisma` | Added `AiKnowledge`, `AiProcedure`, `AiBatchReport` models and `AiBatchStatus` enum. Added reverse relations to `InstagramAccount` and `User`. Added 10 story insight fields to `InstagramStory` (`impressions`, `reach`, `exits`, `replies`, `tapsForward`, `tapsBack`, `profileVisits`, `follows`, `insightsFetchedAt`, `insightsError`). |
 | `packages/types/src/index.ts` | Re-exports all types from `ai.ts`. |
 | `apps/api/src/app.module.ts` | Imports `AiModule`. |
 | `apps/api/src/analytics/analytics.module.ts` | Imports `AiModule` to get `AiQueueService` and `AiService`. |
 | `apps/api/src/analytics/analytics.service.ts` | After a successful `refreshInsights`, enqueues AI analysis jobs (up to 5 posts) and runs `autoResolveOutcomes` for each refreshed account. Both injections are `@Optional()` so analytics still works if AI is disabled. |
 | `apps/api/package.json` | Added `openai` dependency. |
 | `apps/api/src/ai/ai.module.ts` | Added `BatchAiService` and `BatchSummaryService` to providers. |
-| `apps/api/src/ai/ai.controller.ts` | Added `POST /ai/batch/analyze`, `GET /ai/batch/:batchId`, `GET /ai/batch/account/:accountId`. Also passes `batchId` through the existing `POST /ai/analyze/queue` handler. |
-| `apps/api/src/ai/ai.service.ts` | Injected `BatchSummaryService` as `@Optional()`. `analyze()` wrapped in try/catch: calls `markPostComplete(false)` on success and `markPostComplete(true)` in the catch block. Core logic extracted to private `runAnalyze()`. `chat()` now updates Redis working memory after each turn (increments `turnCount`, preserves signal state from last `analyze()` call). |
+| `apps/api/src/ai/ai.controller.ts` | Added `POST /ai/batch/analyze`, `GET /ai/batch/:batchId`, `GET /ai/batch/account/:accountId`. Also passes `batchId` through the existing `POST /ai/analyze/queue` handler. Added `POST /ai/analyze/story`. |
+| `apps/api/src/ai/ai.service.ts` | Injected `BatchSummaryService` as `@Optional()`. `analyze()` wrapped in try/catch: calls `markPostComplete(false)` on success and `markPostComplete(true)` in the catch block. Core logic extracted to private `runAnalyze()`. `chat()` now updates Redis working memory after each turn (increments `turnCount`, preserves signal state from last `analyze()` call). Added `analyzeStory()`. |
 | `apps/api/src/ai/ai-queue.service.ts` | `enqueueAnalysis()` accepts optional `batchId` and passes it in the job payload. |
 | `apps/api/src/ai/dto/analyze.dto.ts` | Added optional `batchId?`. |
 | `apps/api/src/ai/dto/queue-analysis.dto.ts` | Added optional `batchId?`. |
@@ -194,6 +195,7 @@ All public endpoints require a Supabase JWT (`Authorization: Bearer <token>`). A
 | `GET` | `/ai/settings` | JWT | Get the user's AI settings |
 | `PUT` | `/ai/settings` | JWT | Create or update AI settings |
 | `POST` | `/ai/procedures/:procedureId/resolve` | JWT | Manually resolve a procedure outcome |
+| `POST` | `/ai/analyze/story` | JWT | Run full analysis on a published story (requires `insightsFetchedAt` to be set) |
 | `POST` | `/ai/batch/analyze` | JWT | Enqueue batch analysis for all posts in a date range. Returns **202** with `BatchAnalyzeResponse`. |
 | `GET` | `/ai/batch/:batchId` | JWT | Get status and summary of a batch report |
 | `GET` | `/ai/batch/account/:accountId` | JWT | List last 10 batch reports for an account |
@@ -215,6 +217,20 @@ Rules are evaluated in `expert/rules.ts` as pure TypeScript. The engine adds a c
 | R006 | R001 AND R003 both fired | `CRITICAL_INTERVENTION_NEEDED` |
 
 `aspectBreakdown.engagementDepth` in `PostSignals` is the raw saves/reach ratio (e.g. `0.008` = 0.8%), not a normalized 0–1 score. Layer 1 is prompted to output it this way.
+
+### Story rules
+
+Story rules are evaluated by `evaluateStoryRules(signals)` in the same `expert/rules.ts` file and called via `ExpertEngineService.runStory()`. All operate on `StorySignals` fields as raw ratios.
+
+| Rule | Condition | Conclusion |
+|---|---|---|
+| SR001 | `exitRate > 0.40` | `HIGH_EXIT_RATE` |
+| SR002 | `tapForwardRate > 0.30` | `CONTENT_SKIPPED` |
+| SR003 | `tapBackRate > 0.08` | `STRONG_RESONANCE` |
+| SR004 | `replyRate < 0.005` | `LOW_REPLY_ENGAGEMENT` |
+| SR005 | `profileVisitRate > 0.05 AND replyRate < 0.005` | `PROFILE_TRAFFIC_NO_ENGAGEMENT` |
+
+SR003 is a positive rule (content is performing well). There is no chain rule equivalent to R006 for stories.
 
 ---
 
@@ -256,7 +272,7 @@ openssl rand -hex 32
 node scripts/test-ai-layers.mjs
 ```
 
-**Unit tests (expert rules):**
+**Unit tests (expert rules — 20 tests: 11 post rules + 9 story rules):**
 ```bash
 corepack pnpm --filter api test -- rules.spec.ts
 ```
@@ -538,6 +554,69 @@ sequenceDiagram
 
 ---
 
+## Story analysis flow
+
+`POST /ai/analyze/story` runs the full Layer 1 → story rules → Layer 2 pipeline on a single published story. It is self-contained — no batch, no worker, no memory system reads beyond episodic message saving.
+
+```mermaid
+sequenceDiagram
+    participant C as Caller (Web)
+    participant AC as AiController
+    participant AS as AiService
+    participant DB as PostgreSQL
+    participant L1 as Layer1 (gpt-5.4-mini)
+    participant EE as ExpertEngine
+    participant L2 as Layer2 (gpt-4.1-mini)
+
+    C->>AC: POST /ai/analyze/story { accountId, storyId, sessionId }
+    AC->>AS: analyzeStory(userId, dto)
+
+    AS->>DB: instagramAccount.findFirst (verify ownership)
+    AS->>DB: instagramStory.findFirst (by id + accountId)
+    Note over AS: 422 if insightsFetchedAt is null
+
+    Note over AS: Compute derived metrics with division-by-zero guards\n(exitRate, completionRate, replyRate, tapForwardRate,\ntapBackRate, profileVisitRate)
+
+    AS->>DB: fetch ai_settings (tone, instructions)
+    AS->>L1: analyzeStory(storyMetrics, aiSettings)
+    L1->>L1: LAYER1_STORY_SYSTEM_PROMPT + story benchmarks
+    L1-->>AS: { signals: StorySignals, tokensUsed }
+
+    AS->>EE: runStory(signals)
+    EE->>EE: evaluate SR001–SR005
+    EE-->>AS: FiredRule[]
+
+    AS->>L2: explain(null, firedRules, aiSettings, storySignalsContext)
+    L2-->>AS: { explanation: string, tokensUsed }
+
+    AS->>DB: chatbot_messages.create (role: user — "analyze story")
+    AS->>DB: chatbot_messages.create (role: assistant, explanation)
+    AS->>DB: chatbot_sessions.update (lastActiveAt = now)
+
+    AS-->>C: StoryAnalysisResponse { sessionId, storyId, signals, explanation, firedRules, metricsAvailable: true }
+```
+
+**Key differences from `analyze` (post):**
+- Input is `InstagramStory` not `ContentPost` — different DB model, different metrics shape
+- Returns `StoryAnalysisResponse` (not `AIAnalysisResponse`) — no `memoryUpdated` flag
+- `metricsAvailable: true` always when the call succeeds; the 422 guard prevents reaching Layer 1 without data
+- Working memory is **not** updated — story analyses are stateless relative to the session's working state
+- Semantic and procedural memory are **not** read or written — story analysis is purely analytical, not persistent
+- Layer 2 receives `null` for `signals` with a JSON stringification of `StorySignals` injected into `memoryContext` instead
+
+**Story metrics derivation (computed before passing to Layer 1):**
+
+| Field | Formula | Guard |
+|---|---|---|
+| `exitRate` | `exits / impressions` | 0 if `impressions = 0` |
+| `completionRate` | `1 - exitRate` | derived |
+| `replyRate` | `replies / reach` | 0 if `reach = 0` |
+| `tapForwardRate` | `tapsForward / impressions` | 0 if `impressions = 0` |
+| `tapBackRate` | `tapsBack / impressions` | 0 if `impressions = 0` |
+| `profileVisitRate` | `profileVisits / reach` | 0 if `reach = 0` |
+
+---
+
 ## Memory system diagram
 
 ```mermaid
@@ -748,6 +827,42 @@ interface PostSignals {
 
   bestAction: string;   // single recommended action
   confidence: number;   // 0–1 overall analysis confidence
+}
+```
+
+---
+
+## StorySignals full schema
+
+```typescript
+interface StorySignals {
+  storyId: string;
+
+  overallSentiment: 'positive' | 'negative' | 'neutral' | 'mixed';
+  sentimentScore:   number;          // 0–1
+  dominantEmotion:  string;          // excitement | curiosity | trust | FOMO | inspiration | nostalgia
+
+  performanceVerdict: 'strong' | 'average' | 'weak' | 'viral';
+
+  // Raw ratios — pre-computed by AiService before passing to Layer 1
+  completionRate:    number;         // 1 - exitRate; e.g. 0.82 = 82% watched to end
+  exitRate:          number;         // exits / impressions
+  replyRate:         number;         // replies / reach
+  tapBackRate:       number;         // tapsBack / impressions — high = content rewatched
+  tapForwardRate:    number;         // tapsForward / impressions — high = content skipped
+  profileVisitRate:  number;         // profileVisits / reach — conversion signal
+
+  contentInsight: string;            // one sentence on what the metrics reveal
+
+  strategicSignals: {
+    riskLevel:   'low' | 'medium' | 'high';
+    opportunity: string | null;
+    urgency:     'low' | 'medium' | 'high';
+    // Note: no viralRisk boolean — performanceVerdict covers viral detection
+  };
+
+  bestAction: string;
+  confidence: number;                // 0–1
 }
 ```
 

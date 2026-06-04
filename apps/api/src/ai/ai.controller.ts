@@ -23,9 +23,11 @@ import { ResolveOutcomeDto } from './dto/resolve-outcome.dto.js';
 import { QueueAnalysisDto } from './dto/queue-analysis.dto.js';
 import { BatchAnalyzeDto } from './dto/batch-analyze.dto.js';
 import { BatchAiService } from './batch/batch-ai.service.js';
+import { AnalyzeStoryDto } from './dto/analyze-story.dto.js';
 import type {
   BatchAnalyzeResponse,
   BatchStatusResponse,
+  StoryAnalysisResponse,
 } from '@social-manager/types';
 import { PrismaService } from '../prisma/prisma.service.js';
 
@@ -184,6 +186,14 @@ export class AiController {
       dto.savesDelta,
     );
     return { resolved: true };
+  }
+
+  @Post('analyze/story')
+  async analyzeStory(
+    @Request() req: AuthedRequest,
+    @Body() dto: AnalyzeStoryDto,
+  ): Promise<StoryAnalysisResponse> {
+    return this.aiService.analyzeStory(req.user.userId, dto);
   }
 
   @Post('batch/analyze')

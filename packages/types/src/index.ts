@@ -17,5 +17,9 @@ export type {
   BatchStatusResponse,
   FiredRule,
   PostSignals,
+  StoryAnalysisRequest,
+  StoryAnalysisResponse,
+  StoryMetrics,
+  StorySignals,
   WorkingMemoryState,
 } from './ai.js';

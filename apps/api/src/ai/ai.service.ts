@@ -1,12 +1,16 @@
 import {
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
   Optional,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type {
   AIAnalysisResponse,
+  StoryAnalysisResponse,
+  StoryMetrics,
   WorkingMemoryState,
 } from '@social-manager/types';
 import { WorkingMemoryService } from './memory/working-memory.service.js';
@@ -19,6 +23,7 @@ import { ExpertEngineService } from './expert/engine.service.js';
 import type { AnalyzeDto } from './dto/analyze.dto.js';
 import type { ChatDto } from './dto/chat.dto.js';
 import type { CreateSessionDto } from './dto/create-session.dto.js';
+import type { AnalyzeStoryDto } from './dto/analyze-story.dto.js';
 import { BatchSummaryService } from './batch/batch-summary.service.js';
 
 @Injectable()
@@ -412,5 +417,114 @@ export class AiService {
         savesDelta,
       );
     }
+  }
+
+  async analyzeStory(
+    userId: string,
+    dto: AnalyzeStoryDto,
+  ): Promise<StoryAnalysisResponse> {
+    const { accountId, storyId, sessionId } = dto;
+
+    // Verify account ownership
+    const account = await this.prisma.instagramAccount.findFirst({
+      where: { id: accountId, userId },
+    });
+    if (!account) throw new ForbiddenException('Account not found');
+
+    // Fetch the story
+    const story = await this.prisma.instagramStory.findFirst({
+      where: { id: storyId, instagramAccountId: accountId },
+    });
+    if (!story) throw new NotFoundException('Story not found');
+
+    // Guard: insights must have been fetched
+    if (!story.insightsFetchedAt) {
+      throw new UnprocessableEntityException(
+        'Story insights not yet available — fetch insights first',
+      );
+    }
+
+    // Compute derived metrics — guard against division by zero
+    const impressions   = story.impressions ?? 0;
+    const reach         = story.reach ?? 0;
+    const exits         = story.exits ?? 0;
+    const replies       = story.replies ?? 0;
+    const tapsForward   = story.tapsForward ?? 0;
+    const tapsBack      = story.tapsBack ?? 0;
+    const profileVisits = story.profileVisits ?? 0;
+
+    const exitRate         = impressions > 0 ? exits / impressions : 0;
+    const completionRate   = 1 - exitRate;
+    const replyRate        = reach > 0 ? replies / reach : 0;
+    const tapForwardRate   = impressions > 0 ? tapsForward / impressions : 0;
+    const tapBackRate      = impressions > 0 ? tapsBack / impressions : 0;
+    const profileVisitRate = reach > 0 ? profileVisits / reach : 0;
+
+    const metrics: StoryMetrics = {
+      storyId: story.id,
+      mediaType: story.mediaType,
+      mediaProductType: story.mediaProductType,
+      timestamp: story.timestamp,
+      impressions,
+      reach,
+      exits,
+      replies,
+      tapsForward,
+      tapsBack,
+      profileVisits,
+      follows: story.follows ?? 0,
+      exitRate,
+      completionRate,
+      replyRate,
+      tapForwardRate,
+      tapBackRate,
+      profileVisitRate,
+      accountUsername: account.username,
+    };
+
+    // Fetch AI settings
+    const aiSettings = await this.prisma.aiSettings.findUnique({
+      where: { userId },
+    });
+
+    // Layer 1: produce StorySignals
+    const { signals, tokensUsed: layer1Tokens } =
+      await this.layer1.analyzeStory(metrics, aiSettings);
+
+    // Expert rules: SR001–SR005
+    const firedRules = this.expertEngine.runStory(signals);
+
+    // Layer 2: explanation
+    const { explanation, tokensUsed: layer2Tokens } =
+      await this.layer2.explain(
+        null,
+        firedRules,
+        aiSettings,
+        `Story performance signals: ${JSON.stringify(signals)}`,
+      );
+
+    // Save to episodic memory
+    await this.episodicMemory.saveMessage(
+      sessionId,
+      'user',
+      'analyze story',
+      layer1Tokens,
+    );
+    await this.episodicMemory.saveMessage(
+      sessionId,
+      'assistant',
+      explanation,
+      layer2Tokens,
+    );
+    await this.episodicMemory.updateSessionActivity(sessionId);
+
+    return {
+      sessionId,
+      storyId,
+      signals,
+      explanation,
+      firedRules,
+      metricsAvailable: true,
+    };
   }
 }
