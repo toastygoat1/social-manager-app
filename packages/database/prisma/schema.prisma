@@ -121,6 +121,8 @@ model ContentPost {
   igMediaId          String?                    @map("ig_media_id")
   igMediaContainerId String?                    @map("ig_media_container_id")
   igPermalink        String?                    @map("ig_permalink")
+  igMediaUrl         String?                    @map("ig_media_url")
+  igThumbnailUrl     String?                    @map("ig_thumbnail_url")
   isAiGenerated      Boolean                    @default(false) @map("is_ai_generated")
   createdAt          DateTime                   @default(now()) @map("created_at")
   updatedAt          DateTime                   @updatedAt @map("updated_at")

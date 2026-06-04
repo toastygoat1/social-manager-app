@@ -1,6 +1,6 @@
-import Image from "next/image";
 import Link from "next/link";
 import { Columns2, LayoutDashboard } from "lucide-react";
+import { AvatarImage } from "@/app/_components/AvatarImage";
 import type { Account } from "@/app/dashboard/_components/data";
 import { RefreshInsightsButton } from "./RefreshInsightsButton";
 import type { AnalyticsRange } from "./data";
@@ -69,17 +69,14 @@ function resolveCompareAccountIds(
 function Avatar({ account }: { account: Account }) {
   return (
     <span className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#5e6ad2] text-[11px] font-medium text-white">
-      {account.avatarUrl ? (
-        <Image
-          src={account.avatarUrl}
-          alt=""
-          width={28}
-          height={28}
-          className="size-full object-cover"
-        />
-      ) : (
-        account.name.replace(/^@/, "").charAt(0).toUpperCase()
-      )}
+      <AvatarImage
+        src={account.avatarUrl}
+        alt=""
+        width={28}
+        height={28}
+        className="size-full object-cover"
+        fallback={account.name.replace(/^@/, "").charAt(0).toUpperCase()}
+      />
     </span>
   );
 }

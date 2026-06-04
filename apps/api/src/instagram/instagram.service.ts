@@ -115,7 +115,7 @@ const MAX_MEDIA_PAGES_FOR_DASHBOARD = 25;
 const MAX_DM_CONVERSATION_PAGES = 3;
 const STORY_TTL_MS = 24 * 60 * 60 * 1000;
 const BACKFILL_MEDIA_FIELDS =
-  'id,caption,media_type,media_product_type,permalink,timestamp,like_count,comments_count';
+  'id,caption,media_type,media_product_type,media_url,thumbnail_url,children{media_type,media_url,thumbnail_url},permalink,timestamp,like_count,comments_count';
 const BACKFILL_INSIGHT_METRICS = [
   'views',
   'reach',
@@ -201,6 +201,11 @@ type InstagramMediaResponse = {
   caption?: string;
   media_type?: string;
   media_product_type?: string;
+  media_url?: string;
+  thumbnail_url?: string;
+  children?: {
+    data?: InstagramMediaResponse[];
+  };
   permalink?: string;
   like_count?: unknown;
   comments_count?: unknown;
@@ -1486,6 +1491,8 @@ export class InstagramService {
       publishedAt: this.toDate(media.timestamp),
       igMediaId,
       igPermalink: this.normalizeOptionalString(media.permalink),
+      igMediaUrl: this.getInstagramMediaUrl(media),
+      igThumbnailUrl: this.getInstagramThumbnailUrl(media),
     };
 
     if (existing) {
@@ -1507,6 +1514,43 @@ export class InstagramService {
     });
 
     return { id: created.id, created: true };
+  }
+
+  private getInstagramMediaUrl(media: InstagramMediaResponse) {
+    return (
+      this.normalizeOptionalString(media.media_url) ??
+      this.findChildPreviewUrl(media, 'media') ??
+      null
+    );
+  }
+
+  private getInstagramThumbnailUrl(media: InstagramMediaResponse) {
+    return (
+      this.normalizeOptionalString(media.thumbnail_url) ??
+      this.findChildPreviewUrl(media, 'thumbnail') ??
+      this.findChildPreviewUrl(media, 'media') ??
+      null
+    );
+  }
+
+  private findChildPreviewUrl(
+    media: InstagramMediaResponse,
+    kind: 'media' | 'thumbnail',
+  ) {
+    const children = Array.isArray(media.children?.data)
+      ? media.children.data
+      : [];
+
+    for (const child of children) {
+      const value =
+        kind === 'thumbnail'
+          ? this.normalizeOptionalString(child.thumbnail_url)
+          : this.normalizeOptionalString(child.media_url);
+
+      if (value) return value;
+    }
+
+    return null;
   }
 
   private async fetchBackfillMediaMetrics(

@@ -1,6 +1,6 @@
 import Link from "next/link";
-import Image from "next/image";
 import { Clock3 } from "lucide-react";
+import { AvatarImage } from "@/app/_components/AvatarImage";
 import type { UserProfile } from "@/lib/supabase/user-profile";
 import { ContentTable } from "./ContentTable";
 import { EditorialCalendar } from "./EditorialCalendar";
@@ -194,17 +194,14 @@ function AccountMark({
         compact ? "size-8 text-[11px]" : "size-9 text-xs"
       }`}
     >
-      {account.avatarUrl ? (
-        <Image
-          src={account.avatarUrl}
-          alt=""
-          width={compact ? 32 : 36}
-          height={compact ? 32 : 36}
-          className="size-full object-cover"
-        />
-      ) : (
-        initials(account.name).slice(0, 2)
-      )}
+      <AvatarImage
+        src={account.avatarUrl}
+        alt=""
+        width={compact ? 32 : 36}
+        height={compact ? 32 : 36}
+        className="size-full object-cover"
+        fallback={initials(account.name).slice(0, 2)}
+      />
     </span>
   );
 }

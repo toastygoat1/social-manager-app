@@ -8,7 +8,7 @@ import {
 } from '@jest/globals';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
-import { MediaType, PostStatus } from '@social-manager/database';
+import { MediaType, PostStatus, PostType } from '@social-manager/database';
 import { MediaService } from '../media/media.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AnalyticsService } from './analytics.service.js';
@@ -24,7 +24,10 @@ describe('AnalyticsService', () => {
       findFirst: jest.Mock<AsyncFn>;
     };
     contentMetadataField: { findMany: jest.Mock<AsyncFn> };
-    contentPost: { findMany: jest.Mock<AsyncFn> };
+    contentPost: {
+      findMany: jest.Mock<AsyncFn>;
+      update: jest.Mock<AsyncFn>;
+    };
     postAnalytics: { create: jest.Mock<AsyncFn> };
     analyticsSnapshot: {
       findMany: jest.Mock<AsyncFn>;
@@ -54,7 +57,10 @@ describe('AnalyticsService', () => {
       contentMetadataField: {
         findMany: jest.fn<AsyncFn>().mockResolvedValue([]),
       },
-      contentPost: { findMany: jest.fn<AsyncFn>() },
+      contentPost: {
+        findMany: jest.fn<AsyncFn>(),
+        update: jest.fn<AsyncFn>(),
+      },
       postAnalytics: { create: jest.fn<AsyncFn>() },
       analyticsSnapshot: {
         findMany: jest.fn<AsyncFn>().mockResolvedValue([]),
@@ -129,6 +135,13 @@ describe('AnalyticsService', () => {
         trend: null,
       },
       {
+        id: 'engagementRate',
+        title: 'Engagement Rate',
+        value: null,
+        delta: null,
+        trend: null,
+      },
+      {
         id: 'likes',
         title: 'Total Likes',
         value: null,
@@ -182,6 +195,19 @@ describe('AnalyticsService', () => {
       savesCount: 1,
       impressions: 80,
     });
+    const scheduledPost = makePost({
+      id: 'post-scheduled',
+      likeCount: 0,
+      commentsCount: 0,
+      sharesCount: 0,
+      savesCount: 0,
+      impressions: 0,
+      status: PostStatus.READY,
+      scheduledFor: '2026-05-24T09:00:00Z',
+      publishedAt: null,
+      title: 'Scheduled post',
+      withAnalytics: false,
+    });
 
     prisma.instagramAccount.findMany.mockResolvedValue([
       {
@@ -196,7 +222,7 @@ describe('AnalyticsService', () => {
       .mockResolvedValueOnce([currentPost])
       .mockResolvedValueOnce([previousPost])
       .mockResolvedValueOnce([currentPost])
-      .mockResolvedValueOnce([currentPost]);
+      .mockResolvedValueOnce([currentPost, scheduledPost]);
     prisma.analyticsSnapshot.findMany.mockResolvedValue([
       makeSnapshot({
         snapshotDate: '2026-04-23T00:00:00Z',
@@ -243,6 +269,13 @@ describe('AnalyticsService', () => {
       {
         id: 'interactions',
         title: 'Interactions',
+        value: 35,
+        delta: 0,
+        trend: null,
+      },
+      {
+        id: 'engagementRate',
+        title: 'Engagement Rate',
         value: 35,
         delta: 0,
         trend: null,
@@ -349,7 +382,128 @@ describe('AnalyticsService', () => {
         },
       ],
     });
+    expect(overview.contentRows.map((row) => row.status)).toEqual([
+      'Published',
+      'Scheduled',
+    ]);
+    expect(overview.contentRows[1]).toMatchObject({
+      id: 'post-scheduled',
+      contents: 'Scheduled post',
+      views: null,
+      likes: null,
+      comments: null,
+      shares: null,
+    });
+    expect(prisma.contentPost.findMany).toHaveBeenNthCalledWith(
+      4,
+      expect.objectContaining({
+        where: { instagramAccountId: { in: ['account-1'] } },
+        take: 20,
+      }),
+    );
     expect(overview.notes).toEqual([]);
+  });
+
+  it('returns separate top-performing and latest post lists', async () => {
+    const latestPost = makePost({
+      id: 'post-latest',
+      likeCount: 4,
+      commentsCount: 1,
+      sharesCount: 0,
+      savesCount: 1,
+      impressions: 40,
+      reach: 30,
+      publishedAt: '2026-05-22T08:00:00Z',
+      title: 'Newest post',
+    });
+    const topPost = makePost({
+      id: 'post-top',
+      likeCount: 80,
+      commentsCount: 20,
+      sharesCount: 8,
+      savesCount: 12,
+      impressions: 900,
+      reach: 700,
+      publishedAt: '2026-05-18T08:00:00Z',
+      title: 'Top post',
+    });
+
+    prisma.instagramAccount.findMany.mockResolvedValue([
+      {
+        id: 'account-1',
+        username: 'ambacafe',
+        displayName: null,
+        accountType: 'BUSINESS',
+        avatarUrl: null,
+      },
+    ]);
+    prisma.contentPost.findMany
+      .mockResolvedValueOnce([latestPost, topPost])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([latestPost, topPost]);
+    prisma.analyticsSnapshot.findMany.mockResolvedValue([]);
+    media.createSignedPreviewUrl.mockResolvedValue(
+      'https://example.test/preview',
+    );
+
+    const overview = await service.getOverview('user-1', { range: '30d' });
+
+    expect(overview.recentPosts.map((post) => post.id)).toEqual([
+      'post-top',
+      'post-latest',
+    ]);
+    expect(overview.latestPosts.map((post) => post.id)).toEqual([
+      'post-latest',
+      'post-top',
+    ]);
+  });
+
+  it('uses stored Instagram media previews for imported posts without local media', async () => {
+    const importedPost = makePost({
+      id: 'post-imported',
+      likeCount: 14,
+      commentsCount: 2,
+      sharesCount: 1,
+      savesCount: 3,
+      impressions: 180,
+      postType: PostType.REEL,
+      withMedia: false,
+      igMediaUrl: 'https://cdn.example/reel.mp4',
+      igThumbnailUrl: 'https://cdn.example/reel.jpg',
+    });
+
+    prisma.instagramAccount.findMany.mockResolvedValue([
+      {
+        id: 'account-1',
+        username: 'ambacafe',
+        displayName: null,
+        accountType: 'BUSINESS',
+        avatarUrl: null,
+      },
+    ]);
+    prisma.contentPost.findMany
+      .mockResolvedValueOnce([importedPost])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([importedPost])
+      .mockResolvedValueOnce([importedPost]);
+    prisma.analyticsSnapshot.findMany.mockResolvedValue([]);
+
+    const overview = await service.getOverview('user-1', { range: '30d' });
+
+    expect(media.createSignedPreviewUrl).not.toHaveBeenCalled();
+    expect(overview.recentPosts[0]).toMatchObject({
+      id: 'post-imported',
+      mediaUrl: 'https://cdn.example/reel.mp4',
+      thumbnailUrl: 'https://cdn.example/reel.jpg',
+      mediaType: MediaType.VIDEO,
+    });
+    expect(overview.latestPosts[0]).toMatchObject({
+      id: 'post-imported',
+      mediaUrl: 'https://cdn.example/reel.mp4',
+      thumbnailUrl: 'https://cdn.example/reel.jpg',
+      mediaType: MediaType.VIDEO,
+    });
   });
 
   it('creates an account-scoped analytics note', async () => {
@@ -496,6 +650,8 @@ describe('AnalyticsService', () => {
                 id: 'ig-media-1',
                 like_count: 21,
                 comments_count: 9,
+                media_url: 'https://cdn.example/ig-media-1.jpg',
+                thumbnail_url: 'https://cdn.example/ig-media-1-thumb.jpg',
               }),
               { status: 200, headers: { 'Content-Type': 'application/json' } },
             ),
@@ -566,6 +722,13 @@ describe('AnalyticsService', () => {
         engagement: 41,
       },
     });
+    expect(prisma.contentPost.update).toHaveBeenCalledWith({
+      where: { id: 'post-1' },
+      data: {
+        igMediaUrl: 'https://cdn.example/ig-media-1.jpg',
+        igThumbnailUrl: 'https://cdn.example/ig-media-1-thumb.jpg',
+      },
+    });
     expect(prisma.analyticsSnapshot.upsert).toHaveBeenCalledWith({
       where: {
         instagramAccountId_snapshotDate: {
@@ -605,21 +768,46 @@ function makePost(input: {
   sharesCount: number;
   savesCount: number;
   impressions: number;
+  reach?: number;
+  engagement?: number;
+  postType?: PostType;
+  status?: PostStatus;
+  scheduledFor?: string | null;
+  publishedAt?: string | null;
+  title?: string;
+  withAnalytics?: boolean;
+  withMedia?: boolean;
+  localMediaType?: MediaType;
+  igMediaUrl?: string | null;
+  igThumbnailUrl?: string | null;
 }) {
+  const publishedAt =
+    input.publishedAt === null
+      ? null
+      : new Date(input.publishedAt ?? '2026-05-20T08:00:00Z');
+  const scheduledFor =
+    input.scheduledFor === undefined
+      ? null
+      : input.scheduledFor === null
+        ? null
+        : new Date(input.scheduledFor);
+
   return {
     id: input.id,
     instagramAccountId: 'account-1',
-    title: 'Launch post',
+    title: input.title ?? 'Launch post',
     caption: 'A real caption',
-    postType: 'FEED',
-    status: PostStatus.PUBLISHED,
-    scheduledFor: null,
-    publishedAt: new Date('2026-05-20T08:00:00Z'),
+    postType: input.postType ?? PostType.FEED,
+    status: input.status ?? PostStatus.PUBLISHED,
+    scheduledFor,
+    publishedAt,
     createdAt: new Date('2026-05-19T08:00:00Z'),
     updatedAt: new Date('2026-05-20T08:00:00Z'),
     igMediaId: 'ig-media-1',
     igMediaContainerId: null,
     igPermalink: null,
+    igMediaUrl: input.igMediaUrl ?? null,
+    igThumbnailUrl: input.igThumbnailUrl ?? null,
     isAiGenerated: false,
     instagramAccount: {
       id: 'account-1',
@@ -629,42 +817,52 @@ function makePost(input: {
       avatarUrl: 'https://example.test/avatar.jpg',
     },
     metadataValues: [],
-    postAnalytics: [
-      {
-        id: `${input.id}-analytics`,
-        contentPostId: input.id,
-        fetchedAt: new Date('2026-05-21T08:00:00Z'),
-        likeCount: input.likeCount,
-        commentsCount: input.commentsCount,
-        sharesCount: input.sharesCount,
-        savesCount: input.savesCount,
-        reach: 100,
-        impressions: input.impressions,
-        engagement: 35,
-      },
-    ],
-    postMedia: [
-      {
-        id: `${input.id}-media`,
-        contentPostId: input.id,
-        mediaAssetId: `${input.id}-asset`,
-        sortOrder: 0,
-        mediaAsset: {
-          id: `${input.id}-asset`,
-          userId: 'user-1',
-          storagePath: 'user-1/image.png',
-          fileType: MediaType.IMAGE,
-          mimeType: 'image/png',
-          fileSize: 1024,
-          width: 1200,
-          height: 1200,
-          durationSeconds: null,
-          createdAt: new Date('2026-05-19T08:00:00Z'),
-          updatedAt: new Date('2026-05-19T08:00:00Z'),
-        },
-      },
-    ],
-    _count: { postMedia: 1 },
+    postAnalytics:
+      input.withAnalytics === false
+        ? []
+        : [
+            {
+              id: `${input.id}-analytics`,
+              contentPostId: input.id,
+              fetchedAt: new Date('2026-05-21T08:00:00Z'),
+              likeCount: input.likeCount,
+              commentsCount: input.commentsCount,
+              sharesCount: input.sharesCount,
+              savesCount: input.savesCount,
+              reach: input.reach ?? 100,
+              impressions: input.impressions,
+              engagement: input.engagement ?? 35,
+            },
+          ],
+    postMedia:
+      input.withMedia === false
+        ? []
+        : [
+            {
+              id: `${input.id}-media`,
+              contentPostId: input.id,
+              mediaAssetId: `${input.id}-asset`,
+              sortOrder: 0,
+              mediaAsset: {
+                id: `${input.id}-asset`,
+                userId: 'user-1',
+                storagePath: 'user-1/image.png',
+                fileType: input.localMediaType ?? MediaType.IMAGE,
+                mimeType:
+                  input.localMediaType === MediaType.VIDEO
+                    ? 'video/mp4'
+                    : 'image/png',
+                fileSize: 1024,
+                width: 1200,
+                height: 1200,
+                durationSeconds:
+                  input.localMediaType === MediaType.VIDEO ? 12 : null,
+                createdAt: new Date('2026-05-19T08:00:00Z'),
+                updatedAt: new Date('2026-05-19T08:00:00Z'),
+              },
+            },
+          ],
+    _count: { postMedia: input.withMedia === false ? 0 : 1 },
   };
 }
 

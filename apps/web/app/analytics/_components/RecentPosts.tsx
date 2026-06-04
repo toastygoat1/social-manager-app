@@ -2,11 +2,13 @@
 
 import {
   Bookmark,
+  Clock3,
   Eye,
   Heart,
   ImageIcon,
   MessageSquareText,
   Share2,
+  TrendingUp,
   Video,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -23,6 +25,26 @@ const ICONS = {
   save: Bookmark,
 } as const;
 
+type PostListMode = "top" | "latest";
+
+const POST_LIST_COPY = {
+  top: {
+    title: "Top performing posts",
+    description: "Ranked by reach, then views / current period",
+    empty: "No top posts",
+  },
+  latest: {
+    title: "Latest posts",
+    description: "Newest published posts / current period",
+    empty: "No latest posts",
+  },
+} as const;
+
+const POST_LIST_MODES = [
+  { id: "top", label: "Top", Icon: TrendingUp },
+  { id: "latest", label: "Latest", Icon: Clock3 },
+] as const;
+
 function StatChip({ stat }: { stat: PostStat }) {
   const Icon = ICONS[stat.icon];
   return (
@@ -36,13 +58,28 @@ function StatChip({ stat }: { stat: PostStat }) {
 }
 
 function MediaPreview({ post }: { post: RecentPost }) {
-  if (post.mediaUrl && post.mediaType === "IMAGE") {
+  const previewImageUrl =
+    post.thumbnailUrl ?? (post.mediaType === "IMAGE" ? post.mediaUrl : null);
+
+  if (previewImageUrl) {
     return (
       <div
         className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: `url("${post.mediaUrl}")` }}
+        style={{ backgroundImage: `url("${previewImageUrl}")` }}
         aria-label={post.title}
         role="img"
+      />
+    );
+  }
+
+  if (post.mediaUrl && post.mediaType === "VIDEO") {
+    return (
+      <video
+        className="absolute inset-0 size-full object-cover"
+        muted
+        playsInline
+        preload="metadata"
+        src={post.mediaUrl}
       />
     );
   }
@@ -75,13 +112,18 @@ function formatTimeAgo(value: string | null) {
 
 export function RecentPosts({
   posts,
+  latestPosts = posts,
   compact = false,
 }: {
   posts: RecentPost[];
+  latestPosts?: RecentPost[];
   compact?: boolean;
 }) {
   const router = useRouter();
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+  const [mode, setMode] = useState<PostListMode>("top");
+  const activeCopy = POST_LIST_COPY[mode];
+  const visiblePosts = mode === "latest" ? latestPosts : posts;
 
   return (
     <section
@@ -89,11 +131,40 @@ export function RecentPosts({
         compact ? "gap-4 p-4" : "gap-5 p-[18px]"
       }`}
     >
-      <header>
-        <h2 className="text-sm font-semibold text-ink">Top performing posts</h2>
-        <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
-          Ranked by reach, then views / current period
-        </p>
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h2 className="text-sm font-semibold text-ink">
+            {activeCopy.title}
+          </h2>
+          <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
+            {activeCopy.description}
+          </p>
+        </div>
+        <div
+          className="grid h-9 w-full shrink-0 grid-cols-2 rounded-lg border border-line bg-card p-1 sm:w-[196px]"
+          aria-label="Post list view"
+        >
+          {POST_LIST_MODES.map(({ id, label, Icon }) => {
+            const isActive = mode === id;
+
+            return (
+              <button
+                type="button"
+                key={id}
+                onClick={() => setMode(id)}
+                aria-pressed={isActive}
+                className={`inline-flex min-w-0 items-center justify-center gap-1.5 rounded-md px-2 text-[11px] font-medium transition ${
+                  isActive
+                    ? "bg-paper text-ink shadow-sm"
+                    : "text-muted hover:text-ink"
+                }`}
+              >
+                <Icon className="size-3.5 shrink-0" strokeWidth={1.8} />
+                <span className="truncate">{label}</span>
+              </button>
+            );
+          })}
+        </div>
       </header>
       <div
         className={`grid w-full gap-3 ${
@@ -102,12 +173,12 @@ export function RecentPosts({
             : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
         }`}
       >
-        {posts.length === 0 ? (
+        {visiblePosts.length === 0 ? (
           <div className="col-span-full flex h-36 items-center justify-center rounded-lg bg-card text-sm text-muted">
-            No recent posts
+            {activeCopy.empty}
           </div>
         ) : (
-          posts.map((post, index) => (
+          visiblePosts.map((post, index) => (
             <button
               type="button"
               key={post.id}
@@ -128,7 +199,7 @@ export function RecentPosts({
               <div className="flex w-full flex-col gap-3 p-3">
                 <div className="flex items-start justify-between gap-2">
                   <p className="line-clamp-2 min-h-9 text-[12px] leading-[18px] text-ink">
-                  {post.title}
+                    {post.title}
                   </p>
                   <span className="shrink-0 font-mono text-[10px] text-muted">
                     {formatTimeAgo(post.publishedAt)}

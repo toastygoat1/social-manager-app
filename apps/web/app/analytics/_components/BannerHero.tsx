@@ -1,4 +1,4 @@
-import Image from "next/image";
+import { AvatarImage } from "@/app/_components/AvatarImage";
 import type { Account } from "@/app/dashboard/_components/data";
 
 type BannerHeroProps = {
@@ -26,17 +26,14 @@ function AccountMark({
         compact ? "size-8 text-[11px]" : "size-9 text-xs"
       }`}
     >
-      {account.avatarUrl ? (
-        <Image
-          src={account.avatarUrl}
-          alt=""
-          width={compact ? 32 : 36}
-          height={compact ? 32 : 36}
-          className="size-full object-cover"
-        />
-      ) : (
-        accountInitial(account)
-      )}
+      <AvatarImage
+        src={account.avatarUrl}
+        alt=""
+        width={compact ? 32 : 36}
+        height={compact ? 32 : 36}
+        className="size-full object-cover"
+        fallback={accountInitial(account)}
+      />
     </span>
   );
 }

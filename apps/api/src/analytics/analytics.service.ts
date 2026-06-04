@@ -23,6 +23,7 @@ type StatId =
   | 'views'
   | 'reach'
   | 'interactions'
+  | 'engagementRate'
   | 'likes'
   | 'comments'
   | 'saves'
@@ -59,6 +60,7 @@ type RecentPost = {
   id: string;
   title: string;
   mediaUrl: string | null;
+  thumbnailUrl: string | null;
   mediaType: MediaType | null;
   badge: { label: string; color: string };
   publishedAt: string | null;
@@ -185,6 +187,7 @@ type AnalyticsOverview = {
   leaderboard: AccountPerformance[];
   audience: AudienceInsight;
   recentPosts: RecentPost[];
+  latestPosts: RecentPost[];
   distribution: DistributionItem[];
   contentCalendar: ContentCalendar;
   metadataFields: MetadataField[];
@@ -231,6 +234,11 @@ type InstagramMediaFieldsResponse = GraphApiError & {
   id?: string;
   like_count?: unknown;
   comments_count?: unknown;
+  media_url?: string;
+  thumbnail_url?: string;
+  children?: {
+    data?: InstagramMediaFieldsResponse[];
+  };
 };
 
 type InstagramAccountFieldsResponse = GraphApiError & {
@@ -250,6 +258,8 @@ type PostInsightMetrics = {
   reach: number | null;
   impressions: number | null;
   engagement: number | null;
+  mediaUrl: string | null;
+  thumbnailUrl: string | null;
 };
 
 type AccountInsightMetrics = {
@@ -455,6 +465,7 @@ export class AnalyticsService {
         leaderboard: [],
         audience: buildAudienceInsight([], currentStart),
         recentPosts: [],
+        latestPosts: [],
         distribution: [],
         contentCalendar: buildContentCalendar([], now),
         metadataFields,
@@ -468,30 +479,36 @@ export class AnalyticsService {
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
-    const [currentPosts, previousPosts, calendarPosts, snapshots] =
-      await Promise.all([
-        this.findPublishedPosts(accountIds, currentStart, now, MAX_RANGE_POSTS),
-        this.findPublishedPosts(
-          accountIds,
-          previousStart,
-          currentStart,
-          MAX_RANGE_POSTS,
-        ),
-        this.findPublishedPosts(
-          accountIds,
-          monthStart,
-          nextMonthStart,
-          MAX_RANGE_POSTS,
-        ),
-        this.prisma.analyticsSnapshot.findMany({
-          where: {
-            instagramAccountId: { in: accountIds },
-            snapshotDate: { gte: previousStart, lte: now },
-          },
-          orderBy: { snapshotDate: 'asc' },
-          select: ANALYTICS_SNAPSHOT_SELECT,
-        }),
-      ]);
+    const [
+      currentPosts,
+      previousPosts,
+      calendarPosts,
+      contentTablePosts,
+      snapshots,
+    ] = await Promise.all([
+      this.findPublishedPosts(accountIds, currentStart, now, MAX_RANGE_POSTS),
+      this.findPublishedPosts(
+        accountIds,
+        previousStart,
+        currentStart,
+        MAX_RANGE_POSTS,
+      ),
+      this.findPublishedPosts(
+        accountIds,
+        monthStart,
+        nextMonthStart,
+        MAX_RANGE_POSTS,
+      ),
+      this.findContentTablePosts(accountIds, MAX_CONTENT_ROWS),
+      this.prisma.analyticsSnapshot.findMany({
+        where: {
+          instagramAccountId: { in: accountIds },
+          snapshotDate: { gte: previousStart, lte: now },
+        },
+        orderBy: { snapshotDate: 'asc' },
+        select: ANALYTICS_SNAPSHOT_SELECT,
+      }),
+    ]);
 
     const accountById = new Map(
       accounts.map((account) => [account.id, account]),
@@ -519,13 +536,11 @@ export class AnalyticsService {
       ),
       audience: buildAudienceInsight(snapshots, currentStart),
       recentPosts: await this.mapRecentPosts(findTopPosts(currentPosts)),
+      latestPosts: await this.mapRecentPosts(findLatestPosts(currentPosts)),
       distribution,
       contentCalendar: buildContentCalendar(calendarPosts, now),
       metadataFields,
-      contentRows: await this.mapContentRows(
-        currentPosts.slice(0, MAX_CONTENT_ROWS),
-        accountById,
-      ),
+      contentRows: await this.mapContentRows(contentTablePosts, accountById),
       recommendations: buildRecommendations(
         currentPosts,
         distribution,
@@ -730,6 +745,7 @@ export class AnalyticsService {
             engagement: metrics.engagement,
           },
         });
+        await this.updatePostInstagramPreview(post.id, metrics);
 
         result.refreshed += 1;
       } catch (error) {
@@ -778,21 +794,44 @@ export class AnalyticsService {
     });
   }
 
+  private findContentTablePosts(accountIds: string[], take: number) {
+    return this.prisma.contentPost.findMany({
+      where: {
+        instagramAccountId: { in: accountIds },
+      },
+      orderBy: [
+        { publishedAt: 'desc' },
+        { scheduledFor: 'desc' },
+        { createdAt: 'desc' },
+      ],
+      take,
+      include: ANALYTICS_POST_INCLUDE,
+    });
+  }
+
   private async mapRecentPosts(posts: AnalyticsPost[]): Promise<RecentPost[]> {
     return Promise.all(
       posts.map(async (post) => {
         const latest = latestAnalytics(post);
         const mediaAsset = post.postMedia[0]?.mediaAsset ?? null;
+        const localMediaUrl = mediaAsset
+          ? await this.media.createSignedPreviewUrl(mediaAsset.storagePath)
+          : null;
+        const mediaType = mediaAsset?.fileType ?? inferInstagramMediaType(post);
         const mediaUrl =
+          localMediaUrl ?? post.igMediaUrl ?? post.igThumbnailUrl ?? null;
+        const thumbnailUrl =
           mediaAsset?.fileType === MediaType.IMAGE
-            ? await this.media.createSignedPreviewUrl(mediaAsset.storagePath)
-            : null;
+            ? localMediaUrl
+            : (post.igThumbnailUrl ??
+              (mediaType === MediaType.IMAGE ? post.igMediaUrl : null));
 
         return {
           id: post.id,
           title: post.title ?? truncate(post.caption, 48) ?? 'Untitled post',
           mediaUrl,
-          mediaType: mediaAsset?.fileType ?? null,
+          thumbnailUrl,
+          mediaType,
           badge: {
             label: POST_TYPE_LABELS[post.postType],
             color: POST_TYPE_COLORS[post.postType],
@@ -1037,15 +1076,35 @@ export class AnalyticsService {
       reach: insights.get('reach') ?? null,
       impressions: insights.get('views') ?? null,
       engagement: insights.get('total_interactions') ?? null,
+      mediaUrl: getInstagramMediaUrl(fields),
+      thumbnailUrl: getInstagramThumbnailUrl(fields),
     };
   }
 
   private async fetchMediaFields(igMediaId: string, accessToken: string) {
     const url = this.createGraphUrl(igMediaId);
-    url.searchParams.set('fields', 'id,like_count,comments_count');
+    url.searchParams.set(
+      'fields',
+      'id,like_count,comments_count,media_url,thumbnail_url,children{media_type,media_url,thumbnail_url}',
+    );
     url.searchParams.set('access_token', accessToken);
 
     return this.requestGraph<InstagramMediaFieldsResponse>(url);
+  }
+
+  private async updatePostInstagramPreview(
+    postId: string,
+    metrics: PostInsightMetrics,
+  ) {
+    if (!metrics.mediaUrl && !metrics.thumbnailUrl) return;
+
+    await this.prisma.contentPost.update({
+      where: { id: postId },
+      data: {
+        igMediaUrl: metrics.mediaUrl,
+        igThumbnailUrl: metrics.thumbnailUrl,
+      },
+    });
   }
 
   private async fetchMediaInsights(igMediaId: string, accessToken: string) {
@@ -1228,7 +1287,7 @@ function buildStatGrid(
   currentPosts: AnalyticsPost[],
   previousPosts: AnalyticsPost[],
 ): AnalyticsMetric[] {
-  return STAT_DEFINITIONS.map((definition) => {
+  const stats = STAT_DEFINITIONS.map((definition) => {
     const current = sumLatestAnalytics(currentPosts, definition.metric);
     const previous = sumLatestAnalytics(previousPosts, definition.metric);
 
@@ -1238,6 +1297,20 @@ function buildStatGrid(
       ...buildMetric(current, previous),
     };
   });
+  const currentEngagementRate = buildEngagementRate(currentPosts);
+  const previousEngagementRate = buildEngagementRate(previousPosts);
+  const engagementRateMetric = {
+    id: 'engagementRate' as const,
+    title: 'Engagement Rate',
+    ...buildMetric(currentEngagementRate, previousEngagementRate),
+  };
+  const insertIndex = stats.findIndex((stat) => stat.id === 'interactions') + 1;
+
+  return [
+    ...stats.slice(0, insertIndex),
+    engagementRateMetric,
+    ...stats.slice(insertIndex),
+  ];
 }
 
 function sumLatestAnalytics(
@@ -1250,6 +1323,14 @@ function sumLatestAnalytics(
 
   if (values.length === 0) return null;
   return values.reduce((sum, value) => sum + value, 0);
+}
+
+function buildEngagementRate(posts: AnalyticsPost[]) {
+  const reach = sumLatestAnalytics(posts, 'reach');
+  const interactions = sumLatestAnalytics(posts, 'engagement');
+
+  if (!reach || interactions === null) return null;
+  return Number(((interactions / reach) * 100).toFixed(2));
 }
 
 function buildMetric(
@@ -1540,10 +1621,24 @@ function findTopPosts(posts: AnalyticsPost[]) {
     .slice(0, MAX_RECENT_POSTS);
 }
 
+function findLatestPosts(posts: AnalyticsPost[]) {
+  return [...posts]
+    .sort((left, right) => postTimestamp(right) - postTimestamp(left))
+    .slice(0, MAX_RECENT_POSTS);
+}
+
 function postScore(post: AnalyticsPost) {
   const analytics = latestAnalytics(post);
   return (
     analytics?.reach ?? analytics?.impressions ?? analytics?.engagement ?? -1
+  );
+}
+
+function postTimestamp(post: AnalyticsPost) {
+  return (
+    post.publishedAt?.getTime() ??
+    post.scheduledFor?.getTime() ??
+    post.createdAt.getTime()
   );
 }
 
@@ -1695,6 +1790,54 @@ function buildContentCalendar(
 
 function latestAnalytics(post: AnalyticsPost) {
   return post.postAnalytics[0] ?? null;
+}
+
+function inferInstagramMediaType(post: AnalyticsPost) {
+  if (post.postType === 'REEL') return MediaType.VIDEO;
+  if (post.igThumbnailUrl) return MediaType.VIDEO;
+  if (post.igMediaUrl) return MediaType.IMAGE;
+  return null;
+}
+
+function getInstagramMediaUrl(media: InstagramMediaFieldsResponse | null) {
+  return (
+    normalizeOptionalString(media?.media_url) ??
+    findChildPreviewUrl(media, 'media') ??
+    null
+  );
+}
+
+function getInstagramThumbnailUrl(media: InstagramMediaFieldsResponse | null) {
+  return (
+    normalizeOptionalString(media?.thumbnail_url) ??
+    findChildPreviewUrl(media, 'thumbnail') ??
+    findChildPreviewUrl(media, 'media') ??
+    null
+  );
+}
+
+function findChildPreviewUrl(
+  media: InstagramMediaFieldsResponse | null,
+  kind: 'media' | 'thumbnail',
+) {
+  const children = Array.isArray(media?.children?.data)
+    ? media.children.data
+    : [];
+
+  for (const child of children) {
+    const value =
+      kind === 'thumbnail'
+        ? normalizeOptionalString(child.thumbnail_url)
+        : normalizeOptionalString(child.media_url);
+
+    if (value) return value;
+  }
+
+  return null;
+}
+
+function normalizeOptionalString(value: unknown) {
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
 
 function readPostMetadataValues(values: { fieldId: string; value: string }[]) {

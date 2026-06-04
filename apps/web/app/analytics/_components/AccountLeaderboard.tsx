@@ -1,22 +1,19 @@
-import Image from "next/image";
 import Link from "next/link";
+import { AvatarImage } from "@/app/_components/AvatarImage";
 import { formatNumber } from "@/lib/format";
 import type { AccountPerformance, AnalyticsRange } from "./data";
 
 function Avatar({ row }: { row: AccountPerformance }) {
   return (
     <span className="flex size-7 items-center justify-center overflow-hidden rounded-full bg-[#5e6ad2] text-[11px] font-medium text-white">
-      {row.account.avatarUrl ? (
-        <Image
-          src={row.account.avatarUrl}
-          width={28}
-          height={28}
-          alt=""
-          className="size-full object-cover"
-        />
-      ) : (
-        row.account.name.replace(/^@/, "").charAt(0).toUpperCase()
-      )}
+      <AvatarImage
+        src={row.account.avatarUrl}
+        width={28}
+        height={28}
+        alt=""
+        className="size-full object-cover"
+        fallback={row.account.name.replace(/^@/, "").charAt(0).toUpperCase()}
+      />
     </span>
   );
 }
