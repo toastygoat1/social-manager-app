@@ -2,11 +2,14 @@ import Link from "next/link";
 import { Clock3 } from "lucide-react";
 import { AvatarImage } from "@/app/_components/AvatarImage";
 import type { UserProfile } from "@/lib/supabase/user-profile";
+import { ConnectAccountsButton } from "./ConnectAccountsButton";
 import { ContentTable } from "./ContentTable";
 import { EditorialCalendar } from "./EditorialCalendar";
 import type { ContentRow, DashboardData, StatMetric } from "./data";
+import { Instagram } from "./icons";
 
 type ConnectionStatus = {
+  source: "instagram";
   message: string;
   tone: "success" | "danger";
 } | null;
@@ -300,7 +303,7 @@ function QueuePanel({ rows }: { rows: ContentRow[] }) {
   );
 }
 
-function InboxPanel({
+function AccountsPanel({
   accounts,
   connectionStatus,
 }: {
@@ -310,13 +313,8 @@ function InboxPanel({
   return (
     <section className="rounded-[10px] border border-line bg-paper p-[18px]">
       <header className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-ink">Inbox</h2>
-        <Link
-          href="/chat"
-          className="font-mono text-[10px] uppercase tracking-[0.06em] text-muted hover:text-ink"
-        >
-          Open all
-        </Link>
+        <h2 className="text-sm font-semibold text-ink">Accounts</h2>
+        <ConnectAccountsButton />
       </header>
 
       {connectionStatus ? (
@@ -331,6 +329,47 @@ function InboxPanel({
         </p>
       ) : null}
 
+      <ul className="mt-3 space-y-2">
+        {accounts.slice(0, 4).map((account) => (
+          <li
+            key={account.id}
+            className="flex items-center gap-2.5 rounded-lg bg-card px-3 py-2.5"
+          >
+            <AccountMark account={account} compact />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-xs font-semibold text-ink">
+                {account.name}
+              </span>
+              <span className="flex items-center gap-1 text-[11px] text-muted">
+                <Instagram className="size-3" strokeWidth={1.8} />
+                <span className="truncate">{account.platform}</span>
+              </span>
+            </span>
+          </li>
+        ))}
+      </ul>
+      {accounts.length === 0 ? (
+        <p className="mt-6 text-xs text-muted">
+          No Instagram accounts connected yet.
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
+function InboxPanel({ accounts }: { accounts: DashboardData["accounts"] }) {
+  return (
+    <section className="rounded-[10px] border border-line bg-paper p-[18px]">
+      <header className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-ink">Inbox</h2>
+        <Link
+          href="/chat"
+          className="font-mono text-[10px] uppercase tracking-[0.06em] text-muted hover:text-ink"
+        >
+          Open all
+        </Link>
+      </header>
+
       <ul className="mt-3 space-y-3">
         {accounts.slice(0, 3).map((account) => (
           <li key={account.id} className="flex items-start gap-2.5">
@@ -342,7 +381,7 @@ function InboxPanel({
           </li>
         ))}
       </ul>
-      {accounts.length === 0 && !connectionStatus ? (
+      {accounts.length === 0 ? (
         <p className="mt-6 text-xs text-muted">
           Connect an account to receive publishing activity.
         </p>
@@ -371,10 +410,13 @@ export function DashboardWorkspace({
         <div className="grid gap-4 xl:grid-cols-[250px_minmax(360px,1fr)_318px]">
           <FocusCard reminder={data.reminder} />
           <QueuePanel rows={data.contentRows} />
-          <InboxPanel
-            accounts={data.accounts}
-            connectionStatus={connectionStatus}
-          />
+          <div className="grid gap-4">
+            <AccountsPanel
+              accounts={data.accounts}
+              connectionStatus={connectionStatus}
+            />
+            <InboxPanel accounts={data.accounts} />
+          </div>
         </div>
 
         <ContentTable

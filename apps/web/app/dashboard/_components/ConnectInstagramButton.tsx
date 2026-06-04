@@ -36,6 +36,15 @@ type InstagramOAuthMessage = {
   count?: unknown;
 };
 
+type ConnectInstagramButtonProps = {
+  containerClassName?: string;
+  buttonClassName?: string;
+  children?: React.ReactNode;
+  showSuccessMessage?: boolean;
+  title?: string;
+  onOpen?: () => void;
+};
+
 function getErrorMessage(error: unknown) {
   if (error instanceof ApiError) {
     const body = error.body as { message?: string | string[] } | null;
@@ -66,7 +75,14 @@ async function getInstagramAccountCount() {
   return accounts.filter((account) => account.isActive).length;
 }
 
-export function ConnectInstagramButton() {
+export function ConnectInstagramButton({
+  containerClassName,
+  buttonClassName,
+  children,
+  showSuccessMessage = true,
+  title = "Add Instagram account",
+  onOpen,
+}: ConnectInstagramButtonProps) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [step, setStep] = useState<ConnectStep>("requirements");
@@ -95,6 +111,7 @@ export function ConnectInstagramButton() {
   }, []);
 
   function openModal() {
+    onOpen?.();
     setIsOpen(true);
     setStep("requirements");
     setErrorMessage(null);
@@ -290,18 +307,25 @@ export function ConnectInstagramButton() {
   }
 
   return (
-    <div className="flex flex-col items-end gap-1">
+    <div className={containerClassName ?? "flex flex-col items-end gap-1"}>
       <button
         type="button"
         onClick={openModal}
-        title="Add Instagram account"
-        className="inline-flex h-7 items-center gap-1 rounded-lg bg-cta px-3 text-sm font-medium leading-none text-paper transition hover:bg-cta-edge"
+        title={title}
+        className={
+          buttonClassName ??
+          "inline-flex h-7 items-center gap-1 rounded-lg bg-cta px-3 text-sm font-medium leading-none text-paper transition hover:bg-cta-edge"
+        }
       >
-        <Plus className="size-3.5" strokeWidth={2} />
-        <span>Add</span>
+        {children ?? (
+          <>
+            <Plus className="size-3.5" strokeWidth={2} />
+            <span>Add</span>
+          </>
+        )}
       </button>
 
-      {successMessage ? (
+      {showSuccessMessage && successMessage ? (
         <p className="max-w-36 text-right text-[10px] leading-3 text-success">
           {successMessage}
         </p>

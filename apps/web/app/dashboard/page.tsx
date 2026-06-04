@@ -25,6 +25,7 @@ function getInstagramStatusMessage(
   if (status === "connected") {
     const connectedCount = Number(count);
     return {
+      source: "instagram" as const,
       tone: "success" as const,
       message:
         Number.isFinite(connectedCount) && connectedCount > 0
@@ -35,6 +36,7 @@ function getInstagramStatusMessage(
 
   if (status === "error") {
     return {
+      source: "instagram" as const,
       tone: "danger" as const,
       message: message ?? "Instagram connection failed",
     };
@@ -47,7 +49,7 @@ export default async function DashboardPage({
   searchParams,
 }: DashboardPageProps) {
   const params = await searchParams;
-  const instagramStatus = getInstagramStatusMessage(
+  const connectionStatus = getInstagramStatusMessage(
     firstParam(params.instagram),
     firstParam(params.message),
     firstParam(params.count),
@@ -82,7 +84,7 @@ export default async function DashboardPage({
         <DashboardWorkspace
           data={data}
           profile={profile}
-          connectionStatus={instagramStatus}
+          connectionStatus={connectionStatus}
           todayIso={new Date().toISOString()}
         />
       </div>
