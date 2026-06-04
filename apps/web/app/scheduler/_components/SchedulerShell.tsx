@@ -9,23 +9,23 @@ import {
   useState,
 } from "react";
 import { ApiError, apiFetchBrowser } from "@/lib/api/browser-client";
-import { CalendarHeader, type CalendarView } from "./CalendarHeader";
-import { CalendarWorkPanel } from "./CalendarWorkPanel";
+import { SchedulerHeader, type SchedulerView } from "./SchedulerHeader";
+import { SchedulerWorkPanel } from "./SchedulerWorkPanel";
 import { DailyCalendar } from "./DailyCalendar";
 import { ListCalendar } from "./ListCalendar";
 import { MonthlyCalendar } from "./MonthlyCalendar";
 import { PostDetailsModal } from "./PostDetailsModal";
 import {
-  canDragCalendarEvent,
-  type CalendarDragController,
+  canDragSchedulerEvent,
+  type SchedulerDragController,
 } from "./drag";
 import { WeeklyCalendar } from "./WeeklyCalendar";
 import {
-  type CalendarEvent,
-  type CalendarFailedPost,
-  type CalendarWorkItems,
-  type CalendarData,
-  EMPTY_CALENDAR,
+  type SchedulerEvent,
+  type SchedulerFailedPost,
+  type SchedulerWorkItems,
+  type SchedulerData,
+  EMPTY_SCHEDULER,
   EMPTY_WORK_ITEMS,
   formatPeriodLabel,
   rangeForDay,
@@ -36,32 +36,32 @@ import {
 
 type Props = {
   initialReferenceIso: string;
-  initialData: CalendarData;
+  initialData: SchedulerData;
 };
 
-type CalendarNotice = {
+type SchedulerNotice = {
   type: "success" | "error";
   message: string;
 };
 
-export function CalendarShell({ initialReferenceIso, initialData }: Props) {
-  const [view, setView] = useState<CalendarView>("month");
+export function SchedulerShell({ initialReferenceIso, initialData }: Props) {
+  const [view, setView] = useState<SchedulerView>("month");
   const [reference, setReference] = useState<Date>(
     () => new Date(initialReferenceIso),
   );
-  const [data, setData] = useState<CalendarData>(initialData);
+  const [data, setData] = useState<SchedulerData>(initialData);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
-  const [workItems, setWorkItems] = useState<CalendarWorkItems>(EMPTY_WORK_ITEMS);
-  const [failedPosts, setFailedPosts] = useState<CalendarFailedPost[]>([]);
+  const [workItems, setWorkItems] = useState<SchedulerWorkItems>(EMPTY_WORK_ITEMS);
+  const [failedPosts, setFailedPosts] = useState<SchedulerFailedPost[]>([]);
   const [operationsLoading, setOperationsLoading] = useState(false);
-  const [draggingEvent, setDraggingEvent] = useState<CalendarEvent | null>(null);
+  const [draggingEvent, setDraggingEvent] = useState<SchedulerEvent | null>(null);
   const [dropTargetIso, setDropTargetIso] = useState<string | null>(null);
   const [movingEventId, setMovingEventId] = useState<string | null>(null);
-  const [notice, setNotice] = useState<CalendarNotice | null>(null);
+  const [notice, setNotice] = useState<SchedulerNotice | null>(null);
   const skipNextFetchRef = useRef(true);
-  const draggingEventRef = useRef<CalendarEvent | null>(null);
+  const draggingEventRef = useRef<SchedulerEvent | null>(null);
 
   const range = useMemo(
     () => {
@@ -80,18 +80,18 @@ export function CalendarShell({ initialReferenceIso, initialData }: Props) {
         from: range.from.toISOString(),
         to: range.to.toISOString(),
       });
-      const result = await apiFetchBrowser<CalendarData>(
-        `/calendar/events?${params.toString()}`,
+      const result = await apiFetchBrowser<SchedulerData>(
+        `/scheduler/events?${params.toString()}`,
       );
       setData(result);
     } catch {
       if (process.env.NODE_ENV !== "production") {
         console.info(
-          "Calendar events could not be loaded. Make sure the API server is running.",
+          "Scheduler events could not be loaded. Make sure the API server is running.",
         );
       }
-      setData(EMPTY_CALENDAR);
-      setErrorMessage("Could not load calendar events.");
+      setData(EMPTY_SCHEDULER);
+      setErrorMessage("Could not load scheduled posts.");
     } finally {
       setLoading(false);
     }
@@ -101,8 +101,8 @@ export function CalendarShell({ initialReferenceIso, initialData }: Props) {
     setOperationsLoading(true);
     try {
       const [nextWorkItems, nextFailedPosts] = await Promise.all([
-        apiFetchBrowser<CalendarWorkItems>("/calendar/work-items"),
-        apiFetchBrowser<CalendarFailedPost[]>("/calendar/failed-posts"),
+        apiFetchBrowser<SchedulerWorkItems>("/scheduler/work-items"),
+        apiFetchBrowser<SchedulerFailedPost[]>("/scheduler/failed-posts"),
       ]);
       setWorkItems(nextWorkItems);
       setFailedPosts(nextFailedPosts);
@@ -136,9 +136,7 @@ export function CalendarShell({ initialReferenceIso, initialData }: Props) {
     () => toIsoDate(new Date(initialReferenceIso)),
     [initialReferenceIso],
   );
-  const scheduledCount = data.events.filter(
-    (event) => event.source === "scheduled_post",
-  ).length;
+  const scheduledCount = data.events.length;
 
   const shiftReference = (delta: number) => {
     const next = new Date(reference);
@@ -154,21 +152,21 @@ export function CalendarShell({ initialReferenceIso, initialData }: Props) {
 
   const goToday = () => setReference(new Date());
 
-  const openPost = (event: CalendarEvent) => {
+  const openPost = (event: SchedulerEvent) => {
     if (event.source !== "scheduled_post" || !event.id.startsWith("post:")) {
       return;
     }
     setSelectedPostId(event.id.slice("post:".length));
   };
 
-  const setActiveDragEvent = useCallback((event: CalendarEvent | null) => {
+  const setActiveDragEvent = useCallback((event: SchedulerEvent | null) => {
     draggingEventRef.current = event;
     setDraggingEvent(event);
     if (!event) setDropTargetIso(null);
   }, []);
 
   const moveScheduledPost = useCallback(
-    async (event: CalendarEvent, targetIso: string) => {
+    async (event: SchedulerEvent, targetIso: string) => {
       const originalIso = toIsoDate(new Date(event.start));
       if (targetIso === originalIso) {
         setNotice(null);
@@ -189,11 +187,11 @@ export function CalendarShell({ initialReferenceIso, initialData }: Props) {
       setMovingEventId(event.id);
       setNotice(null);
       setData((current) =>
-        moveEventInCalendarData(current, event.id, nextScheduledFor),
+        moveEventInSchedulerData(current, event.id, nextScheduledFor),
       );
 
       try {
-        await apiFetchBrowser(`/calendar/posts/${postId}/scheduled`, {
+        await apiFetchBrowser(`/scheduler/posts/${postId}/scheduled`, {
           method: "PATCH",
           body: {
             scheduledFor: nextScheduledFor.toISOString(),
@@ -219,7 +217,7 @@ export function CalendarShell({ initialReferenceIso, initialData }: Props) {
         setData(previousData);
         setNotice({
           type: "error",
-          message: readCalendarActionError(moveError),
+          message: readSchedulerActionError(moveError),
         });
       } finally {
         setMovingEventId(null);
@@ -229,8 +227,8 @@ export function CalendarShell({ initialReferenceIso, initialData }: Props) {
   );
 
   const handleEventDragStart = useCallback(
-    (event: CalendarEvent, dragEvent: ReactDragEvent<HTMLElement>) => {
-      if (!canDragCalendarEvent(event)) {
+    (event: SchedulerEvent, dragEvent: ReactDragEvent<HTMLElement>) => {
+      if (!canDragSchedulerEvent(event)) {
         dragEvent.preventDefault();
         return;
       }
@@ -238,7 +236,7 @@ export function CalendarShell({ initialReferenceIso, initialData }: Props) {
       dragEvent.stopPropagation();
       dragEvent.dataTransfer.effectAllowed = "move";
       dragEvent.dataTransfer.setData(
-        "application/x-social-manager-calendar-event",
+        "application/x-social-manager-scheduler-event",
         event.id,
       );
       dragEvent.dataTransfer.setData("text/plain", event.title);
@@ -296,7 +294,7 @@ export function CalendarShell({ initialReferenceIso, initialData }: Props) {
     [moveScheduledPost, setActiveDragEvent],
   );
 
-  const dragController = useMemo<CalendarDragController>(
+  const dragController = useMemo<SchedulerDragController>(
     () => ({
       draggingEventId: draggingEvent?.id ?? null,
       dropTargetIso,
@@ -322,8 +320,8 @@ export function CalendarShell({ initialReferenceIso, initialData }: Props) {
   );
 
   return (
-    <div className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden bg-[#fffdf9]">
-      <CalendarHeader
+    <div className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden bg-page transition-colors duration-500">
+      <SchedulerHeader
         view={view}
         onViewChange={setView}
         periodLabel={periodLabel}
@@ -334,7 +332,7 @@ export function CalendarShell({ initialReferenceIso, initialData }: Props) {
         onCreated={refresh}
         referenceIso={reference.toISOString()}
         workflowPanel={
-          <CalendarWorkPanel
+          <SchedulerWorkPanel
             workItems={workItems}
             failedPosts={failedPosts}
             loading={operationsLoading}
@@ -404,7 +402,7 @@ export function CalendarShell({ initialReferenceIso, initialData }: Props) {
           <LegendDot color="bg-[#d05c48]" label="Failed" />
         </div>
         <p>
-          {data.googleConnected ? "Calendar synced" : "Google Calendar not connected"}{" "}
+          Post scheduler{" "}
           <span className="px-2 text-[#d5d0c7]">|</span>
           Auto-publish on - timezone local
         </p>
@@ -435,11 +433,11 @@ function moveDateKeepLocalTime(start: string, targetIso: string) {
   return next;
 }
 
-function moveEventInCalendarData(
-  data: CalendarData,
+function moveEventInSchedulerData(
+  data: SchedulerData,
   eventId: string,
   nextStart: Date,
-): CalendarData {
+): SchedulerData {
   return {
     ...data,
     events: data.events
@@ -455,7 +453,7 @@ function moveEventInCalendarData(
   };
 }
 
-function setDragPreview(event: CalendarEvent, dataTransfer: DataTransfer) {
+function setDragPreview(event: SchedulerEvent, dataTransfer: DataTransfer) {
   if (typeof document === "undefined") return;
 
   const preview = document.createElement("div");
@@ -486,7 +484,7 @@ function setDragPreview(event: CalendarEvent, dataTransfer: DataTransfer) {
   window.setTimeout(() => preview.remove(), 0);
 }
 
-function readCalendarActionError(error: unknown) {
+function readSchedulerActionError(error: unknown) {
   if (error instanceof ApiError) {
     const body = error.body;
     if (body && typeof body === "object" && "message" in body) {

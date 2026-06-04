@@ -58,6 +58,7 @@ Tanpa ini, semua angka Dashboard akan `0` / `—`. Endpoint `/dashboard/overview
    - `pages_show_list`
    - `pages_read_engagement`
    - (Opsional, kalau implement Chat) `instagram_business_manage_messages`
+   - (Opsional, kalau tampilkan komentar post) `instagram_business_manage_comments`
 7. Tukar short-lived token → long-lived token (60 hari):
    ```
    GET https://graph.facebook.com/v21.0/oauth/access_token
@@ -107,7 +108,7 @@ META_INSTAGRAM_APP_ID=
 META_INSTAGRAM_APP_SECRET=
 META_REDIRECT_URI=http://localhost:3000/dashboard/instagram/callback
 META_GRAPH_API_VERSION=v21.0
-META_INSTAGRAM_SCOPES=instagram_business_basic,instagram_business_manage_insights,instagram_business_manage_messages
+META_INSTAGRAM_SCOPES=instagram_business_basic,instagram_business_manage_insights,instagram_business_manage_messages,instagram_business_manage_comments
 META_OAUTH_STATE_SECRET=
 ```
 
@@ -125,7 +126,7 @@ META_OAUTH_STATE_SECRET=
 |---|---|
 | Google Cloud OAuth Client ID | OAuth consent screen |
 | Google Cloud OAuth Client Secret | Token exchange |
-| Refresh token per user (di-encrypt di DB) | Fetch calendar berkala |
+| Refresh token per user (di-encrypt di DB) | Fetch dan create calendar events |
 
 #### Cara mendapatkan
 
@@ -134,7 +135,7 @@ META_OAUTH_STATE_SECRET=
 3. **APIs & Services → Library → Google Calendar API → Enable**.
 4. **APIs & Services → OAuth consent screen**:
    - User type: External (untuk staging) atau Internal (kalau Google Workspace).
-   - Scope: `https://www.googleapis.com/auth/calendar.readonly` (cukup baca event).
+   - Scope: `https://www.googleapis.com/auth/calendar.readonly` dan `https://www.googleapis.com/auth/calendar.events` (baca agenda + create event).
 5. **APIs & Services → Credentials → Create OAuth Client ID**:
    - Application type: **Web application**.
    - Authorized redirect URI: `http://localhost:3001/integrations/google/callback` (dev), tambah production URL nanti.
@@ -156,7 +157,7 @@ Sudah ada di `.env.example`.
 - Tabel `google_integrations` (`user_id`, `refresh_token_encrypted`, `scope`, `connected_at`) di Prisma.
 - Endpoint `GET /integrations/google/auth` → URL Google consent.
 - Endpoint `GET /integrations/google/callback` → tukar code → simpan refresh token.
-- Endpoint `GET /integrations/google/calendar` dan `/calendar/events` untuk event days/detail.
+- Endpoint `GET /integrations/google/calendar`, `GET /integrations/google/calendar/events`, dan `POST /integrations/google/calendar/events` untuk event days/detail/create.
 - `DashboardService.getOverview()` mengisi `calendar` saat Google sudah terhubung.
 
 Jika env Google belum diset atau user belum connect → `calendar: null` → UI render empty state.

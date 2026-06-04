@@ -20,8 +20,8 @@ import {
   User,
   X,
 } from "lucide-react";
-import NextImage from "next/image";
 import { useEffect, useRef, useState } from "react";
+import { AvatarImage } from "@/app/_components/AvatarImage";
 import { ApiError, apiFetchBrowser } from "@/lib/api/browser-client";
 import {
   createMetadataField,
@@ -31,7 +31,7 @@ import {
   type UserMetadataField,
 } from "@/lib/post-metadata";
 import { createClient } from "@/lib/supabase/client";
-import type { CalendarPostType } from "./data";
+import type { SchedulerPostType } from "./data";
 
 export type CreatePostType = "post" | "story" | "reels";
 type ComposePostType = CreatePostType | "carousel";
@@ -97,7 +97,7 @@ const TYPE_LABEL: Record<ComposePostType, string> = {
   carousel: "Carousel",
 };
 
-const TYPE_TO_POST_TYPE: Record<ComposePostType, CalendarPostType> = {
+const TYPE_TO_POST_TYPE: Record<ComposePostType, SchedulerPostType> = {
   post: "FEED",
   story: "STORY",
   reels: "REEL",
@@ -379,17 +379,14 @@ function AccountAvatar({
     <span
       className={`flex shrink-0 items-center justify-center overflow-hidden bg-[#4e8b73] text-[9px] font-semibold uppercase text-white ${className}`}
     >
-      {avatarUrl ? (
-        <NextImage
-          src={avatarUrl}
-          alt=""
-          width={32}
-          height={32}
-          className="size-full object-cover"
-        />
-      ) : (
-        username.slice(0, 2)
-      )}
+      <AvatarImage
+        src={avatarUrl}
+        alt=""
+        width={32}
+        height={32}
+        className="size-full object-cover"
+        fallback={username.slice(0, 2)}
+      />
     </span>
   );
 }
@@ -569,7 +566,7 @@ export function CreatePostModal({
     setAccountsLoading(true);
     Promise.all([
       apiFetchBrowser<InstagramAccountResponse[]>("/instagram/accounts"),
-      apiFetchBrowser<UserMetadataField[]>("/calendar/metadata-fields"),
+      apiFetchBrowser<UserMetadataField[]>("/scheduler/metadata-fields"),
     ])
       .then(([list, fields]) => {
         setAccounts(list);
@@ -738,7 +735,7 @@ export function CreatePostModal({
     setError(null);
     try {
       const savedFields = await apiFetchBrowser<UserMetadataField[]>(
-        "/calendar/metadata-fields",
+        "/scheduler/metadata-fields",
         {
           method: "PATCH",
           body: { fields: metadata },
@@ -884,7 +881,7 @@ export function CreatePostModal({
             accounts.find((account) => account.id === instagramAccountId)
               ?.username ?? "Account";
           try {
-            await apiFetchBrowser("/calendar/events", {
+            await apiFetchBrowser("/scheduler/events", {
               method: "POST",
               body: {
                 instagramAccountId,

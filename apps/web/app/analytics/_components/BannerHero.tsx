@@ -1,4 +1,4 @@
-import Image from "next/image";
+import { AvatarImage } from "@/app/_components/AvatarImage";
 import type { Account } from "@/app/dashboard/_components/data";
 
 type BannerHeroProps = {
@@ -26,17 +26,14 @@ function AccountMark({
         compact ? "size-8 text-[11px]" : "size-9 text-xs"
       }`}
     >
-      {account.avatarUrl ? (
-        <Image
-          src={account.avatarUrl}
-          alt=""
-          width={compact ? 32 : 36}
-          height={compact ? 32 : 36}
-          className="size-full object-cover"
-        />
-      ) : (
-        accountInitial(account)
-      )}
+      <AvatarImage
+        src={account.avatarUrl}
+        alt=""
+        width={compact ? 32 : 36}
+        height={compact ? 32 : 36}
+        className="size-full object-cover"
+        fallback={accountInitial(account)}
+      />
     </span>
   );
 }
@@ -86,9 +83,6 @@ export function BannerHero({
   return (
     <section className="grid gap-7 pb-2 md:grid-cols-[1fr_auto] md:items-end">
       <div>
-        <p className="mb-4 font-mono text-[10px] uppercase tracking-[0.14em] text-muted">
-          Analytics / {rangeDays}-day snapshot
-        </p>
         <h1 className="analytics-serif max-w-4xl text-[clamp(2.9rem,6vw,5rem)] font-normal leading-[0.96] tracking-[-0.04em] text-ink">
           {title}
         </h1>

@@ -2,10 +2,10 @@ import { Loader2 } from "lucide-react";
 import { AgendaEventCard } from "./AgendaEventCard";
 import {
   getDateDropProps,
-  type CalendarDragController,
+  type SchedulerDragController,
 } from "./drag";
 import {
-  type CalendarEvent,
+  type SchedulerEvent,
   toIsoDate,
   WEEK_HOUR_END,
   WEEK_HOUR_START,
@@ -19,10 +19,10 @@ function formatHour(hour: number) {
 
 type Props = {
   reference: Date;
-  events: CalendarEvent[];
+  events: SchedulerEvent[];
   loading: boolean;
-  onOpenPost: (event: CalendarEvent) => void;
-  dragController?: CalendarDragController;
+  onOpenPost: (event: SchedulerEvent) => void;
+  dragController?: SchedulerDragController;
 };
 
 export function DailyCalendar({

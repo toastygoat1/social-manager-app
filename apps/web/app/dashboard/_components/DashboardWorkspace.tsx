@@ -1,11 +1,15 @@
 import Link from "next/link";
 import { Clock3 } from "lucide-react";
+import { AvatarImage } from "@/app/_components/AvatarImage";
 import type { UserProfile } from "@/lib/supabase/user-profile";
+import { ConnectAccountsButton } from "./ConnectAccountsButton";
 import { ContentTable } from "./ContentTable";
 import { EditorialCalendar } from "./EditorialCalendar";
 import type { ContentRow, DashboardData, StatMetric } from "./data";
+import { Instagram } from "./icons";
 
 type ConnectionStatus = {
+  source: "instagram";
   message: string;
   tone: "success" | "danger";
 } | null;
@@ -26,11 +30,11 @@ type MetricCardProps = {
 };
 
 const STATUS_STYLES: Record<string, string> = {
-  published: "bg-[#ecf6f2] text-[#247868]",
-  scheduled: "bg-[#edf2ff] text-[#526ed5]",
-  pending: "bg-[#fff3dd] text-[#9a6815]",
-  draft: "bg-[#f2efe9] text-[#716c63]",
-  failed: "bg-[#feecea] text-[#aa463b]",
+  published: "bg-success/10 text-success",
+  scheduled: "bg-cta/10 text-cta",
+  pending: "bg-[#d4a547]/15 text-[#d4a547]",
+  draft: "bg-card text-muted",
+  failed: "bg-danger/10 text-danger",
 };
 
 function formatCompact(value: number | null) {
@@ -120,25 +124,25 @@ function MetricCard({
   detail,
 }: MetricCardProps) {
   return (
-    <article className="min-w-0 border-b border-[#e8e3db] px-1 py-4 last:border-b-0 lg:border-b-0 lg:border-r lg:px-5 lg:last:border-r-0">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="text-[11px] font-medium text-[#827d75]">{title}</h2>
+    <article className="flex min-w-0 flex-col gap-5 rounded-[10px] border border-line bg-paper p-[18px] transition-colors duration-500">
+      <div className="flex items-start justify-between gap-2">
+        <h2 className="font-mono text-[11px] uppercase tracking-[0.05em] text-muted">
+          {title}
+        </h2>
         {delta ? (
           <span
-            className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
-              positive
-                ? "bg-[#e9f4ef] text-[#287a65]"
-                : "bg-[#fceae5] text-[#ad5144]"
-            }`}
+            className={`font-mono text-[11px] ${positive ? "text-success" : "text-danger"}`}
           >
             {delta}
           </span>
         ) : null}
       </div>
-      <p className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-[#292824]">
+      <p className="font-mono text-[30px] font-medium leading-none text-ink">
         {value}
       </p>
-      <p className="mt-3 text-[10px] text-[#99938a]">{detail}</p>
+      <p className="font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
+        {detail}
+      </p>
     </article>
   );
 }
@@ -150,7 +154,7 @@ function Metrics({ data, today }: { data: DashboardData; today: Date }) {
   return (
     <section
       aria-label="Performance summary"
-      className="mt-2 grid gap-x-0 border-y border-[#e8e3db] sm:grid-cols-2 lg:grid-cols-4"
+      className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
     >
       <MetricCard
         title="Total views"
@@ -180,28 +184,81 @@ function Metrics({ data, today }: { data: DashboardData; today: Date }) {
   );
 }
 
+function AccountMark({
+  account,
+  compact = false,
+}: {
+  account: DashboardData["accounts"][number];
+  compact?: boolean;
+}) {
+  return (
+    <span
+      className={`flex shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-page bg-[#5e6ad2] font-medium text-white ${
+        compact ? "size-8 text-[11px]" : "size-9 text-xs"
+      }`}
+    >
+      <AvatarImage
+        src={account.avatarUrl}
+        alt=""
+        width={compact ? 32 : 36}
+        height={compact ? 32 : 36}
+        className="size-full object-cover"
+        fallback={initials(account.name).slice(0, 2)}
+      />
+    </span>
+  );
+}
+
+function DashboardHero({
+  data,
+  profile,
+  reviewCount,
+}: {
+  data: DashboardData;
+  profile: UserProfile;
+  reviewCount: number;
+}) {
+  return (
+    <section className="pb-2">
+      <div>
+        <h1 className="analytics-serif max-w-4xl text-5xl font-normal leading-none text-ink sm:text-6xl lg:text-7xl">
+          Good morning, {displayName(profile)}.
+        </h1>
+        <p className="mt-4 max-w-2xl text-sm text-muted">
+          {data.contentRows.length} content items tracked across{" "}
+          {data.accounts.length} account
+          {data.accounts.length === 1 ? "" : "s"}.
+          {reviewCount > 0
+            ? ` ${reviewCount} need your review.`
+            : " Your review queue is clear."}
+        </p>
+      </div>
+    </section>
+  );
+}
+
 function FocusCard({ reminder }: { reminder: DashboardData["reminder"] }) {
   return (
-    <article className="rounded-xl border border-[#e3dfd8] bg-[#f7f8fb] p-4">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#99938b]">
+    <article className="rounded-[10px] border border-line bg-paper p-[18px]">
+      <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted">
         Focus today
       </p>
-      <h2 className="mt-3 text-sm font-semibold text-[#2e2c29]">
+      <h2 className="mt-3 text-sm font-semibold text-ink">
         {reminder?.title ?? "Review your publishing plan"}
       </h2>
-      <p className="mt-2 text-xs text-[#756f67]">
+      <p className="mt-2 text-xs text-muted">
         {reminder
           ? "A scheduled reminder is ready for action."
           : "Keep captions, assets, and approvals moving together."}
       </p>
-      <div className="mt-5 flex items-center justify-between text-[11px] text-[#79736a]">
+      <div className="mt-5 flex items-center justify-between gap-3 text-[11px] text-muted">
         <span className="inline-flex items-center gap-1">
           <Clock3 className="size-3" />
           {reminder ? "Today" : "Open schedule"}
         </span>
         <Link
-          href="/calendar"
-          className="rounded-md bg-[#657de8] px-3 py-1.5 font-medium text-white"
+          href="/scheduler"
+          className="rounded-lg bg-cta px-3 py-1.5 font-medium text-white transition hover:bg-cta-edge"
         >
           Open brief
         </Link>
@@ -214,21 +271,23 @@ function QueuePanel({ rows }: { rows: ContentRow[] }) {
   const tasks = getReviewRows(rows).slice(0, 5);
 
   return (
-    <section className="rounded-xl border border-[#e3dfd8] bg-[#fffefa] p-4">
+    <section className="rounded-[10px] border border-line bg-paper p-[18px]">
       <header className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-[#2e2c29]">Your queue</h2>
-        <span className="text-[10px] text-[#908a81]">{tasks.length} items</span>
+        <h2 className="text-sm font-semibold text-ink">Your queue</h2>
+        <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-muted">
+          {tasks.length} items
+        </span>
       </header>
       {tasks.length === 0 ? (
-        <p className="mt-7 text-xs text-[#817c74]">
+        <p className="mt-7 text-xs text-muted">
           Nothing waiting for approval. Your review queue is clear.
         </p>
       ) : (
         <ul className="mt-3 space-y-2.5">
           {tasks.map((row) => (
             <li key={row.id} className="flex items-center gap-2 text-xs">
-              <span className="size-3.5 rounded border border-[#d4cec4] bg-white" />
-              <span className="min-w-0 flex-1 truncate text-[#45413b]">
+              <span className="size-3.5 rounded border border-line bg-card" />
+              <span className="min-w-0 flex-1 truncate text-ink">
                 {row.contents} / {row.account.name}
               </span>
               <span
@@ -244,7 +303,7 @@ function QueuePanel({ rows }: { rows: ContentRow[] }) {
   );
 }
 
-function InboxPanel({
+function AccountsPanel({
   accounts,
   connectionStatus,
 }: {
@@ -252,41 +311,78 @@ function InboxPanel({
   connectionStatus: ConnectionStatus;
 }) {
   return (
-    <section className="rounded-xl border border-[#e3dfd8] bg-[#fffefa] p-4">
+    <section className="rounded-[10px] border border-line bg-paper p-[18px]">
       <header className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-[#2e2c29]">Inbox</h2>
-        <Link href="/chat" className="text-[10px] text-[#817b73] hover:underline">
-          Open all
-        </Link>
+        <h2 className="text-sm font-semibold text-ink">Accounts</h2>
+        <ConnectAccountsButton />
       </header>
 
       {connectionStatus ? (
         <p
           className={`mt-3 rounded-lg px-2.5 py-2 text-[11px] ${
             connectionStatus.tone === "success"
-              ? "bg-[#ecf6f2] text-[#247868]"
-              : "bg-[#feecea] text-[#aa463b]"
+              ? "bg-success/10 text-success"
+              : "bg-danger/10 text-danger"
           }`}
         >
           {connectionStatus.message}
         </p>
       ) : null}
 
+      <ul className="mt-3 space-y-2">
+        {accounts.slice(0, 4).map((account) => (
+          <li
+            key={account.id}
+            className="flex items-center gap-2.5 rounded-lg bg-card px-3 py-2.5"
+          >
+            <AccountMark account={account} compact />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-xs font-semibold text-ink">
+                {account.name}
+              </span>
+              <span className="flex items-center gap-1 text-[11px] text-muted">
+                <Instagram className="size-3" strokeWidth={1.8} />
+                <span className="truncate">{account.platform}</span>
+              </span>
+            </span>
+          </li>
+        ))}
+      </ul>
+      {accounts.length === 0 ? (
+        <p className="mt-6 text-xs text-muted">
+          No Instagram accounts connected yet.
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
+function InboxPanel({ accounts }: { accounts: DashboardData["accounts"] }) {
+  return (
+    <section className="rounded-[10px] border border-line bg-paper p-[18px]">
+      <header className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-ink">Inbox</h2>
+        <Link
+          href="/chat"
+          className="font-mono text-[10px] uppercase tracking-[0.06em] text-muted hover:text-ink"
+        >
+          Open all
+        </Link>
+      </header>
+
       <ul className="mt-3 space-y-3">
         {accounts.slice(0, 3).map((account) => (
           <li key={account.id} className="flex items-start gap-2.5">
-            <span className="flex size-5 items-center justify-center rounded bg-[#edf4ef] text-[9px] font-semibold text-[#50816d]">
-              {initials(account.name).slice(0, 2)}
-            </span>
-            <p className="min-w-0 flex-1 truncate text-[11px] text-[#554f47]">
+            <AccountMark account={account} compact />
+            <p className="min-w-0 flex-1 truncate text-[11px] text-muted">
               <span className="font-medium">{account.name}</span> is connected
               and ready to publish.
             </p>
           </li>
         ))}
       </ul>
-      {accounts.length === 0 && !connectionStatus ? (
-        <p className="mt-6 text-xs text-[#817c74]">
+      {accounts.length === 0 ? (
+        <p className="mt-6 text-xs text-muted">
           Connect an account to receive publishing activity.
         </p>
       ) : null}
@@ -304,36 +400,23 @@ export function DashboardWorkspace({
   const reviewCount = getReviewRows(data.contentRows).length;
 
   return (
-    <div className="min-h-screen bg-[#fafaf8] font-sans text-[#292824]">
-      <main className="mx-auto w-full max-w-[1440px] px-4 pb-8 pt-7 sm:px-6 lg:px-8">
-        <section className="pb-2">
-          <div>
-            <h1 className="text-xl font-semibold tracking-[-0.03em] text-[#272620]">
-              Good morning, {displayName(profile)}.
-            </h1>
-            <p className="mt-1.5 text-xs text-[#777169]">
-              {data.contentRows.length} content items tracked across{" "}
-              {data.accounts.length} client{data.accounts.length === 1 ? "" : "s"}.
-              {reviewCount > 0
-                ? ` ${reviewCount} need your review.`
-                : " Your review queue is clear."}
-            </p>
-          </div>
-        </section>
-
+    <div className="analytics-theme min-h-screen bg-page font-inter text-ink transition-colors duration-500">
+      <main className="mx-auto flex w-full max-w-[1440px] flex-col gap-4 px-5 py-8 sm:px-7 sm:py-9">
+        <DashboardHero data={data} profile={profile} reviewCount={reviewCount} />
         <Metrics data={data} today={today} />
-
-        <div className="mt-4">
+        <div>
           <EditorialCalendar calendar={data.calendar} todayIso={todayIso} />
         </div>
-
-        <div className="mt-4 grid gap-4 xl:grid-cols-[250px_minmax(360px,1fr)_318px]">
+        <div className="grid gap-4 xl:grid-cols-[250px_minmax(360px,1fr)_318px]">
           <FocusCard reminder={data.reminder} />
           <QueuePanel rows={data.contentRows} />
-          <InboxPanel
-            accounts={data.accounts}
-            connectionStatus={connectionStatus}
-          />
+          <div className="grid gap-4">
+            <AccountsPanel
+              accounts={data.accounts}
+              connectionStatus={connectionStatus}
+            />
+            <InboxPanel accounts={data.accounts} />
+          </div>
         </div>
 
         <ContentTable

@@ -1,8 +1,8 @@
 import { GripVertical } from "lucide-react";
-import type { CalendarEvent, EventStatus } from "./data";
+import type { SchedulerEvent, EventStatus } from "./data";
 import {
-  canDragCalendarEvent,
-  type CalendarDragController,
+  canDragSchedulerEvent,
+  type SchedulerDragController,
 } from "./drag";
 
 const STATUS_STYLE: Record<
@@ -39,15 +39,7 @@ const STATUS_STYLE: Record<
   },
 };
 
-const GOOGLE_STYLE = {
-  card: "bg-[#eaf2f1] text-[#385854]",
-  time: "text-[#588e86]",
-  dot: "bg-[#66a89f]",
-  badge: "bg-[#dcebea] text-[#527c76]",
-  label: "Calendar",
-};
-
-export function formatEventTime(event: CalendarEvent) {
+export function formatEventTime(event: SchedulerEvent) {
   if (event.allDay) return "All day";
   return new Date(event.start).toLocaleTimeString("en-US", {
     hour: "numeric",
@@ -61,24 +53,21 @@ export function AgendaEventCard({
   onOpenPost,
   dragController,
 }: {
-  event: CalendarEvent;
+  event: SchedulerEvent;
   compact?: boolean;
-  onOpenPost: (event: CalendarEvent) => void;
-  dragController?: CalendarDragController;
+  onOpenPost: (event: SchedulerEvent) => void;
+  dragController?: SchedulerDragController;
 }) {
-  const style =
-    event.source === "google"
-      ? GOOGLE_STYLE
-      : STATUS_STYLE[event.status ?? "draft"];
-  const canDrag = canDragCalendarEvent(event);
+  const style = STATUS_STYLE[event.status ?? "draft"];
+  const canDrag = canDragSchedulerEvent(event);
   const isDragging = dragController?.draggingEventId === event.id;
   const isMoving = dragController?.movingEventId === event.id;
-  const subtitle =
-    event.source === "google"
-      ? "Synced event"
-      : [event.accountUsername ? `@${event.accountUsername}` : null, event.postType]
-          .filter(Boolean)
-          .join(" - ");
+  const subtitle = [
+    event.accountUsername ? `@${event.accountUsername}` : null,
+    event.postType,
+  ]
+    .filter(Boolean)
+    .join(" - ");
   const content = compact ? (
     <>
       <span className={`shrink-0 font-mono text-[9px] ${style.time}`}>
@@ -121,10 +110,6 @@ export function AgendaEventCard({
   const classes = compact
     ? `group flex min-h-7 w-full items-center gap-1.5 rounded-[4px] px-1.5 ${style.card}`
     : `group flex min-h-[54px] w-full items-center gap-3 rounded-lg px-3 py-2 ${style.card}`;
-
-  if (event.source === "google") {
-    return <div className={classes}>{content}</div>;
-  }
 
   return (
     <button

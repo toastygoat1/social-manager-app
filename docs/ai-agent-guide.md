@@ -31,7 +31,7 @@ Start with [App Handbook](./app-handbook.md) for the full architecture.
 1. Do not hardcode environment-specific URLs, secrets, tokens, bucket names, or
    API credentials in source code.
 2. Do not put dummy production data in components. Use typed empty-state
-   constants such as `EMPTY_DASHBOARD`, `EMPTY_ANALYTICS`, or `EMPTY_CALENDAR`.
+   constants such as `EMPTY_DASHBOARD`, `EMPTY_ANALYTICS`, or `EMPTY_SCHEDULER`.
 3. Do not expose encrypted tokens or private credentials in API responses.
 4. Do not bypass Supabase auth for user-owned data.
 5. Keep edits scoped to the feature being changed.
@@ -277,13 +277,13 @@ Checklist:
 4. Preserve recent-post modal behavior.
 5. Run web checks and focused API tests if backend logic changes.
 
-### Add Or Change Calendar Scheduling
+### Add Or Change Post Scheduler
 
 Start points:
 
-- Web: `apps/web/app/calendar`
-- Web data: `apps/web/lib/calendar-data.ts`
-- API: `apps/api/src/calendar`
+- Web: `apps/web/app/scheduler`
+- Web data: `apps/web/lib/scheduler-data.ts`
+- API: `apps/api/src/scheduler`
 - Publishing: `apps/api/src/publishing`
 - Queue: `apps/api/src/queue`
 - Worker: `apps/worker/src/index.ts`
@@ -294,7 +294,8 @@ Checklist:
 2. Keep media rules consistent by post type.
 3. Keep delayed jobs in sync when scheduling/rescheduling/deleting.
 4. Keep scheduled publishing through the internal API route.
-5. Verify calendar UI, API tests if available, worker typecheck if touched.
+5. Keep Google Calendar data out of scheduler responses; dashboard Google widgets use `integrations/google/*`.
+6. Verify scheduler UI, API tests if available, worker typecheck if touched.
 
 ### Add Or Change Instagram Account Connection
 
@@ -318,7 +319,7 @@ Checklist:
 Start points:
 
 - API: `apps/api/src/media`
-- Calendar create/detail components
+- Scheduler create/detail components
 - Prisma: `MediaAsset`, `PostMedia`
 
 Checklist:

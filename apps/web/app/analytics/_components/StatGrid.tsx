@@ -1,8 +1,20 @@
 import { formatNumber } from "@/lib/format";
 import type { AnalyticsStat } from "./data";
 
+function formatStatValue(stat: AnalyticsStat, value = stat.value) {
+  if (stat.id !== "engagementRate") return formatNumber(value);
+  if (value === null || value === undefined) return formatNumber(value);
+
+  const formatted = value.toLocaleString("id-ID", {
+    maximumFractionDigits: 2,
+    minimumFractionDigits: Number.isInteger(value) ? 0 : 2,
+  });
+
+  return `${formatted}%`;
+}
+
 function Trend({ stat }: { stat: AnalyticsStat }) {
-  if (stat.delta === null || stat.trend === null) {
+  if (stat.delta === null) {
     return (
       <span className="font-mono text-[10px] text-muted">
         NO PREVIOUS DATA
@@ -10,15 +22,20 @@ function Trend({ stat }: { stat: AnalyticsStat }) {
     );
   }
 
-  const isUp = stat.trend === "up";
+  const isUp = stat.trend !== "down";
+  const sign = stat.trend === null ? "" : stat.trend === "down" ? "-" : "+";
 
   return (
     <span
       className={`font-mono text-[11px] ${
-        isUp ? "text-success" : "text-danger"
+        stat.trend === null
+          ? "text-muted"
+          : isUp
+            ? "text-success"
+            : "text-danger"
       }`}
     >
-      {isUp ? "+" : "-"}{formatNumber(stat.delta)} vs previous period
+      {sign}{formatStatValue(stat, stat.delta)} vs previous period
     </span>
   );
 }
@@ -51,7 +68,7 @@ export function StatGrid({
               compact ? "text-[26px]" : "text-[30px]"
             }`}
           >
-            {formatNumber(stat.value)}
+            {formatStatValue(stat)}
           </p>
           <Trend stat={stat} />
         </section>

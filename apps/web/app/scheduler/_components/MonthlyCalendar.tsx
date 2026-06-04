@@ -1,12 +1,12 @@
 import { GripVertical, Loader2 } from "lucide-react";
 import {
-  canDragCalendarEvent,
+  canDragSchedulerEvent,
   getDateDropProps,
-  type CalendarDragController,
+  type SchedulerDragController,
 } from "./drag";
 import {
   buildMonthGrid,
-  type CalendarEvent,
+  type SchedulerEvent,
   type EventStatus,
   type MonthCell,
   MONTH_DAYS,
@@ -39,13 +39,7 @@ const STATUS_STYLE: Record<
   },
 };
 
-const GOOGLE_STYLE = {
-  chip: "bg-[#eaf2f1] text-[#385854]",
-  time: "text-[#588e86]",
-  dot: "bg-[#66a89f]",
-};
-
-function formatTime(event: CalendarEvent): string {
+function formatTime(event: SchedulerEvent): string {
   if (event.allDay) return "ALL";
   return new Date(event.start).toLocaleTimeString("en-US", {
     hour: "numeric",
@@ -58,15 +52,12 @@ function EventChip({
   onOpenPost,
   dragController,
 }: {
-  event: CalendarEvent;
-  onOpenPost: (event: CalendarEvent) => void;
-  dragController?: CalendarDragController;
+  event: SchedulerEvent;
+  onOpenPost: (event: SchedulerEvent) => void;
+  dragController?: SchedulerDragController;
 }) {
-  const style =
-    event.source === "google"
-      ? GOOGLE_STYLE
-      : STATUS_STYLE[event.status ?? "draft"];
-  const canDrag = canDragCalendarEvent(event);
+  const style = STATUS_STYLE[event.status ?? "draft"];
+  const canDrag = canDragSchedulerEvent(event);
   const isDragging = dragController?.draggingEventId === event.id;
   const isMoving = dragController?.movingEventId === event.id;
   const content = (
@@ -87,10 +78,6 @@ function EventChip({
     </>
   );
   const className = `group flex h-5 w-full items-center gap-1.5 rounded-[4px] px-1.5 ${style.chip}`;
-
-  if (event.source === "google") {
-    return <div className={className}>{content}</div>;
-  }
 
   return (
     <button
@@ -125,10 +112,10 @@ function DayCell({
   dragController,
 }: {
   cell: MonthCell;
-  events: CalendarEvent[];
+  events: SchedulerEvent[];
   todayIso: string;
-  onOpenPost: (event: CalendarEvent) => void;
-  dragController?: CalendarDragController;
+  onOpenPost: (event: SchedulerEvent) => void;
+  dragController?: SchedulerDragController;
 }) {
   const isToday = cell.iso === todayIso;
   const isDraggingPost = Boolean(dragController?.draggingEventId);
@@ -185,10 +172,10 @@ function DayCell({
 type Props = {
   reference: Date;
   todayIso: string;
-  events: CalendarEvent[];
+  events: SchedulerEvent[];
   loading: boolean;
-  onOpenPost: (event: CalendarEvent) => void;
-  dragController?: CalendarDragController;
+  onOpenPost: (event: SchedulerEvent) => void;
+  dragController?: SchedulerDragController;
 };
 
 export function MonthlyCalendar({
@@ -200,7 +187,7 @@ export function MonthlyCalendar({
   dragController,
 }: Props) {
   const grid = buildMonthGrid(reference);
-  const eventsByIso = new Map<string, CalendarEvent[]>();
+  const eventsByIso = new Map<string, SchedulerEvent[]>();
   for (const event of events) {
     const iso = toIsoDate(new Date(event.start));
     const list = eventsByIso.get(iso) ?? [];

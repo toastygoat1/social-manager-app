@@ -127,7 +127,7 @@ export default async function AnalyticsPage({
     : [null, null];
 
   return (
-    <div className="flex min-h-screen items-start bg-[#fafaf8] font-sans">
+    <div className="flex min-h-screen items-start bg-page font-sans text-ink transition-colors duration-500">
       <Sidebar
         active="analytics"
         accounts={data.accounts}
@@ -178,7 +178,10 @@ export default async function AnalyticsPage({
                 />
               ) : null}
               <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(340px,1fr)]">
-                <RecentPosts posts={data.recentPosts} />
+                <RecentPosts
+                  posts={data.recentPosts}
+                  latestPosts={data.latestPosts}
+                />
                 <ChannelDistribution items={data.distribution} />
               </div>
               <ContentCalendar calendar={data.contentCalendar} />

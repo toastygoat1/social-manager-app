@@ -17,11 +17,11 @@ import {
 } from "lucide-react";
 import { CreatePostModal, type CreatePostType } from "./CreatePostModal";
 
-export type CalendarView = "month" | "week" | "day" | "list";
+export type SchedulerView = "month" | "week" | "day" | "list";
 
 type Props = {
-  view: CalendarView;
-  onViewChange: (view: CalendarView) => void;
+  view: SchedulerView;
+  onViewChange: (view: SchedulerView) => void;
   periodLabel: string;
   scheduledCount: number;
   onPrev: () => void;
@@ -58,7 +58,7 @@ const CREATE_OPTIONS: {
   },
 ];
 
-export function CalendarHeader({
+export function SchedulerHeader({
   view,
   onViewChange,
   periodLabel,
@@ -82,7 +82,7 @@ export function CalendarHeader({
             Workspace
           </Link>
           <ChevronRight className="size-3 text-[#c3bdb4]" />
-          <span>Calendar</span>
+          <span>Scheduler</span>
           <ChevronRight className="size-3 text-[#c3bdb4]" />
           <span className="truncate">{periodLabel}</span>
         </nav>
@@ -179,7 +179,7 @@ export function CalendarHeader({
         </div>
 
         <div className="flex items-center gap-2">
-          <FilterPill label="All clients" />
+          <FilterPill label="All accounts" />
           <FilterPill label="All networks" />
           <div className="relative">
             <button
