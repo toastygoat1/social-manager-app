@@ -1,6 +1,6 @@
 # AI Module
 
-Last updated: 2026-05-30
+Last updated: 2026-06-04
 
 This document covers everything added and changed when the AI module was built for Social Manager App.
 
@@ -88,6 +88,7 @@ Queue: ai-analysis (BullMQ)
 | `expert/engine.service.ts` | NestJS injectable wrapper around `evaluateRules`. Adds R006 chain detection. |
 | `expert/rules.spec.ts` | 11 unit tests covering all rules and boundary conditions. |
 | `expert/engine.service.spec.ts` | 2 unit tests covering R006 chain detection: fires when R001 + R003 both fire, does not fire when only R001 fires. |
+| `ai.service.chat.spec.ts` | 3 unit tests covering `chat()` working memory: increments `turnCount`, preserves signal state from previous `analyze()`, uses correct accountId/sessionId as Redis key. |
 
 ### scripts/
 
@@ -119,6 +120,12 @@ Queue: ai-analysis (BullMQ)
 ---
 
 ## New database tables
+
+> **Migration:** All three tables are created by the committed migration
+> `<timestamp>_add_ai_module_tables`. Running `prisma:migrate` on a
+> fresh environment will apply this migration automatically — no manual
+> SQL needed. Update `<timestamp>` here once the migration has been generated
+> and committed.
 
 All tables require a migration (`prisma migrate dev`) before use.
 
@@ -433,6 +440,7 @@ sequenceDiagram
     participant AC as AiController
     participant AS as AiService
     participant DB as PostgreSQL
+    participant R as Redis
     participant L2 as Layer2 (gpt-4.1-mini)
 
     C->>AC: POST /ai/chat { accountId, sessionId, message }
@@ -454,6 +462,10 @@ sequenceDiagram
     AS->>DB: chatbot_messages.create (role: user, no tokensUsed)
     AS->>DB: chatbot_messages.create (role: assistant, tokensUsed)
     AS->>DB: chatbot_sessions.update (lastActiveAt = now)
+
+    AS->>R: workingMemory.get(accountId, sessionId)
+    Note over AS: Increment turnCount, preserve lastSignals/lastFiredRules/lastExplanation
+    AS->>R: workingMemory.set(accountId, sessionId, updatedState, TTL 7200s)
 
     AS-->>C: { reply: string, sessionId: string }
 ```
@@ -825,17 +837,23 @@ echo "OPENAI_MODEL_LAYER1=gpt-5.4-mini" >> .env
 echo "OPENAI_MODEL_LAYER2=gpt-4.1-mini" >> .env
 echo "WORKER_AI_SECRET=$(openssl rand -hex 32)" >> .env
 
-# 2. Run database migration (creates ai_knowledge and ai_procedures tables)
+# 2. Run database migration (creates ai_knowledge, ai_procedures,
+#    and ai_batch_reports tables)
 corepack pnpm --filter @social-manager/database prisma:migrate
 
-# 3. Regenerate Prisma client
+# 3. Regenerate Prisma client and verify database package
 corepack pnpm --filter @social-manager/database prisma:generate
+corepack pnpm --filter @social-manager/database typecheck
+corepack pnpm --filter @social-manager/database build
 
 # 4. Smoke test (no server needed, just OPENAI_API_KEY)
 node scripts/test-ai-layers.mjs
 
-# 5. Build everything
+# 5. Build and verify everything
+corepack pnpm --filter api typecheck
+corepack pnpm --filter api lint
 corepack pnpm --filter api build
+corepack pnpm --filter worker typecheck
 corepack pnpm --filter worker build
 ```
 
