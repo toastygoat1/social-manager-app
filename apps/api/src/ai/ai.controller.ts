@@ -4,6 +4,7 @@ import {
   Delete,
   ForbiddenException,
   Get,
+  HttpCode,
   Param,
   Post,
   Put,
@@ -20,6 +21,12 @@ import { CreateSessionDto } from './dto/create-session.dto.js';
 import { UpsertSettingsDto } from './dto/upsert-settings.dto.js';
 import { ResolveOutcomeDto } from './dto/resolve-outcome.dto.js';
 import { QueueAnalysisDto } from './dto/queue-analysis.dto.js';
+import { BatchAnalyzeDto } from './dto/batch-analyze.dto.js';
+import { BatchAiService } from './batch/batch-ai.service.js';
+import type {
+  BatchAnalyzeResponse,
+  BatchStatusResponse,
+} from '@social-manager/types';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 @UseGuards(JwtAuthGuard)
@@ -28,6 +35,7 @@ export class AiController {
   constructor(
     private readonly aiService: AiService,
     private readonly aiQueue: AiQueueService,
+    private readonly batchAi: BatchAiService,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -178,6 +186,31 @@ export class AiController {
     return { resolved: true };
   }
 
+  @Post('batch/analyze')
+  @HttpCode(202)
+  async batchAnalyze(
+    @Request() req: AuthedRequest,
+    @Body() dto: BatchAnalyzeDto,
+  ): Promise<BatchAnalyzeResponse> {
+    return this.batchAi.enqueueBatch(req.user.userId, dto);
+  }
+
+  @Get('batch/account/:accountId')
+  async listBatches(
+    @Request() req: AuthedRequest,
+    @Param('accountId') accountId: string,
+  ): Promise<BatchStatusResponse[]> {
+    return this.batchAi.listBatches(req.user.userId, accountId);
+  }
+
+  @Get('batch/:batchId')
+  async getBatchStatus(
+    @Request() req: AuthedRequest,
+    @Param('batchId') batchId: string,
+  ): Promise<BatchStatusResponse> {
+    return this.batchAi.getBatchStatus(req.user.userId, batchId);
+  }
+
   @Post('analyze/queue')
   async queueAnalysis(
     @Request() req: AuthedRequest,
@@ -197,6 +230,7 @@ export class AiController {
       dto.accountId,
       dto.contentPostId,
       dto.sessionId,
+      dto.batchId,
     );
     return { queued: true };
   }

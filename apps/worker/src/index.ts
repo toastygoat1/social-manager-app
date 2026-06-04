@@ -9,7 +9,8 @@ const AI_ANALYSIS_QUEUE_NAME = 'ai-analysis';
 type AiAnalysisJob = {
   accountId: string;
   contentPostId: string;
-  sessionId: string;
+  sessionId?: string;
+  batchId?: string;
 };
 
 const aiRedisUrl = requiredEnv('REDIS_URL');
@@ -48,10 +49,15 @@ aiWorker.on('error', (error) => {
 });
 
 async function processAiAnalysis(job: Job<AiAnalysisJob>) {
-  const { accountId, contentPostId, sessionId } = job.data;
+  const { accountId, contentPostId, sessionId, batchId } = job.data;
 
-  if (!accountId?.trim() || !contentPostId?.trim() || !sessionId?.trim()) {
+  if (!accountId?.trim() || !contentPostId?.trim()) {
     throw new UnrecoverableError(`Invalid ai-analysis job payload: ${job.id}`);
+  }
+
+  const payload: Record<string, unknown> = { accountId, contentPostId, sessionId };
+  if (batchId) {
+    payload.batchId = batchId;
   }
 
   const response = await fetch(`${aiApiBaseUrl}/internal/ai/analyze`, {
@@ -60,7 +66,7 @@ async function processAiAnalysis(job: Job<AiAnalysisJob>) {
       'Content-Type': 'application/json',
       'x-worker-ai-secret': aiWorkerSecret,
     },
-    body: JSON.stringify({ accountId, contentPostId, sessionId }),
+    body: JSON.stringify(payload),
   });
 
   const body = (await response.json().catch(() => ({}))) as ApiFailure;

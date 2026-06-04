@@ -22,6 +22,7 @@ model User {
   mediaAssets           MediaAsset[]
   googleIntegration     GoogleIntegration?
   contentMetadataFields ContentMetadataField[]
+  aiBatchReports        AiBatchReport[]
 
   @@map("users")
 }
@@ -61,6 +62,7 @@ model InstagramAccount {
   instagramStories     InstagramStory[]
   aiKnowledge          AiKnowledge[]
   aiProcedures         AiProcedure[]
+  aiBatchReports       AiBatchReport[]
   user                 User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   webhookEvents        WebhookEvent[]
 
@@ -409,6 +411,36 @@ enum DmSenderType {
 enum ChatbotMessageRole {
   USER
   ASSISTANT
+}
+
+enum AiBatchStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+
+  @@map("AiBatchStatus")
+}
+
+model AiBatchReport {
+  id             String        @id @default(cuid())
+  accountId      String        @map("account_id")
+  userId         String        @map("user_id")
+  range          String
+  status         AiBatchStatus @default(PENDING)
+  totalPosts     Int           @map("total_posts")
+  completedPosts Int           @default(0) @map("completed_posts")
+  failedPosts    Int           @default(0) @map("failed_posts")
+  summary        String?
+  startedAt      DateTime      @default(now()) @map("started_at")
+  completedAt    DateTime?     @map("completed_at")
+
+  account InstagramAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  user    User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([accountId])
+  @@index([userId])
+  @@map("ai_batch_reports")
 }
 
 model AiKnowledge {

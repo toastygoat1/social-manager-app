@@ -16,6 +16,8 @@ import { Layer1Service } from './layers/layer1.service.js';
 import { Layer2Service } from './layers/layer2.service.js';
 import { ExpertEngineService } from './expert/engine.service.js';
 import { WorkerAiGuard } from './guards/worker-ai.guard.js';
+import { BatchAiService } from './batch/batch-ai.service.js';
+import { BatchSummaryService } from './batch/batch-summary.service.js';
 
 @Module({
   imports: [ConfigModule],
@@ -43,6 +45,8 @@ import { WorkerAiGuard } from './guards/worker-ai.guard.js';
     Layer1Service,
     Layer2Service,
     ExpertEngineService,
+    BatchAiService,
+    BatchSummaryService,
   ],
   exports: [AiQueueService, AiService],
 })

@@ -16,4 +16,8 @@ export class AnalyzeDto {
   @IsString()
   @IsOptional()
   userMessage?: string;
+
+  @IsString()
+  @IsOptional()
+  batchId?: string;
 }

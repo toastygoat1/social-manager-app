@@ -56,7 +56,7 @@ Queue: ai-analysis (BullMQ)
 
 | File | Purpose |
 |---|---|
-| `ai.ts` | Shared TypeScript interfaces: `PostSignals`, `AIAnalysisRequest`, `AIAnalysisResponse`, `FiredRule`, `WorkingMemoryState` |
+| `ai.ts` | Shared TypeScript interfaces: `PostSignals`, `AIAnalysisRequest`, `AIAnalysisResponse`, `FiredRule`, `WorkingMemoryState`, `BatchRange`, `BatchAnalyzeRequest`, `BatchAnalyzeResponse`, `BatchStatusResponse` |
 
 ### apps/api/src/ai/
 
@@ -73,7 +73,11 @@ Queue: ai-analysis (BullMQ)
 | `dto/create-session.dto.ts` | `CreateSessionDto` — accountId, title? |
 | `dto/upsert-settings.dto.ts` | `UpsertSettingsDto` — preferredTone?, customInstructions? (max 2000), preferredLanguage? |
 | `dto/resolve-outcome.dto.ts` | `ResolveOutcomeDto` — outcome, engagementDelta, savesDelta |
-| `dto/queue-analysis.dto.ts` | `QueueAnalysisDto` — accountId, contentPostId, sessionId? |
+| `dto/queue-analysis.dto.ts` | `QueueAnalysisDto` — accountId, contentPostId, sessionId?, batchId? |
+| `dto/batch-analyze.dto.ts` | `BatchAnalyzeDto` — accountId, range (`week`\|`month`\|`year`) |
+| `batch/batch-ai.service.ts` | `enqueueBatch()`, `getBatchStatus()`, `listBatches()`. Verifies account ownership, resolves date window, creates `AiBatchReport`, enqueues one job per post, updates status to PROCESSING. |
+| `batch/batch-summary.service.ts` | `markPostComplete(batchId, failed)` — increments counters atomically; triggers `generate()` when all posts are accounted for. `generate()` collects assistant messages from the batch window, calls Layer 2 with a batch-summary instruction, saves the result to `AiBatchReport.summary`, and marks status COMPLETED. |
+| `batch/batch-ai.service.spec.ts` | 15 unit tests covering `BatchAiService` and `BatchSummaryService`. |
 | `memory/working-memory.service.ts` | Redis-backed working memory. Key: `wm:{accountId}:{sessionId}`. TTL: 7200s. |
 | `memory/episodic-memory.service.ts` | Reads/writes `chatbot_messages` and `chatbot_sessions`. |
 | `memory/semantic-memory.service.ts` | Reads/writes `ai_knowledge`. Upserts by `accountId+category+fact`. |
@@ -83,6 +87,7 @@ Queue: ai-analysis (BullMQ)
 | `expert/rules.ts` | Pure TypeScript function `evaluateRules(signals)`. No NestJS. |
 | `expert/engine.service.ts` | NestJS injectable wrapper around `evaluateRules`. Adds R006 chain detection. |
 | `expert/rules.spec.ts` | 11 unit tests covering all rules and boundary conditions. |
+| `expert/engine.service.spec.ts` | 2 unit tests covering R006 chain detection: fires when R001 + R003 both fire, does not fire when only R001 fires. |
 
 ### scripts/
 
@@ -96,20 +101,26 @@ Queue: ai-analysis (BullMQ)
 
 | File | What changed |
 |---|---|
-| `packages/database/prisma/schema.prisma` | Added `AiKnowledge` and `AiProcedure` models. Added `aiKnowledge` and `aiProcedures` reverse relations to `InstagramAccount`. |
+| `packages/database/prisma/schema.prisma` | Added `AiKnowledge`, `AiProcedure`, `AiBatchReport` models and `AiBatchStatus` enum. Added reverse relations to `InstagramAccount` and `User`. |
 | `packages/types/src/index.ts` | Re-exports all types from `ai.ts`. |
 | `apps/api/src/app.module.ts` | Imports `AiModule`. |
 | `apps/api/src/analytics/analytics.module.ts` | Imports `AiModule` to get `AiQueueService` and `AiService`. |
 | `apps/api/src/analytics/analytics.service.ts` | After a successful `refreshInsights`, enqueues AI analysis jobs (up to 5 posts) and runs `autoResolveOutcomes` for each refreshed account. Both injections are `@Optional()` so analytics still works if AI is disabled. |
 | `apps/api/package.json` | Added `openai` dependency. |
-| `apps/worker/src/index.ts` | Added `ai-analysis` BullMQ worker. Updated shutdown to close both workers. |
+| `apps/api/src/ai/ai.module.ts` | Added `BatchAiService` and `BatchSummaryService` to providers. |
+| `apps/api/src/ai/ai.controller.ts` | Added `POST /ai/batch/analyze`, `GET /ai/batch/:batchId`, `GET /ai/batch/account/:accountId`. Also passes `batchId` through the existing `POST /ai/analyze/queue` handler. |
+| `apps/api/src/ai/ai.service.ts` | Injected `BatchSummaryService` as `@Optional()`. `analyze()` wrapped in try/catch: calls `markPostComplete(false)` on success and `markPostComplete(true)` in the catch block. Core logic extracted to private `runAnalyze()`. `chat()` now updates Redis working memory after each turn (increments `turnCount`, preserves signal state from last `analyze()` call). |
+| `apps/api/src/ai/ai-queue.service.ts` | `enqueueAnalysis()` accepts optional `batchId` and passes it in the job payload. |
+| `apps/api/src/ai/dto/analyze.dto.ts` | Added optional `batchId?`. |
+| `apps/api/src/ai/dto/queue-analysis.dto.ts` | Added optional `batchId?`. |
+| `apps/worker/src/index.ts` | `AiAnalysisJob` type updated: `sessionId` is optional, `batchId` is optional. Validation no longer requires `sessionId`. Job handler conditionally adds `batchId` to the internal API request body. |
 | `.env.example` | Added `OPENAI_API_KEY`, `OPENAI_MODEL_LAYER1`, `OPENAI_MODEL_LAYER2`, `WORKER_AI_SECRET`. |
 
 ---
 
 ## New database tables
 
-Both tables require a migration (`prisma migrate dev`) before use.
+All tables require a migration (`prisma migrate dev`) before use.
 
 ### `ai_knowledge`
 
@@ -140,6 +151,24 @@ Stores recommended strategies and their measured outcomes.
 | `applied_at` | timestamp | When the strategy was recommended |
 | `resolved_at` | timestamp? | When outcome was measured |
 
+### `ai_batch_reports`
+
+Tracks a user-triggered batch analysis of all posts in a date range and stores the combined summary report.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | text (cuid) | PK |
+| `account_id` | text | FK → instagram_accounts |
+| `user_id` | text | FK → users |
+| `range` | text | `week` / `month` / `year` |
+| `status` | AiBatchStatus | `PENDING` → `PROCESSING` → `COMPLETED` / `FAILED` |
+| `total_posts` | int | Number of posts queued |
+| `completed_posts` | int | Posts successfully analyzed (incremented atomically) |
+| `failed_posts` | int | Posts that errored (incremented atomically) |
+| `summary` | text? | Plain-text batch summary written by Layer 2 when all posts finish |
+| `started_at` | timestamp | |
+| `completed_at` | timestamp? | Set when summary is saved |
+
 ---
 
 ## API endpoints
@@ -158,6 +187,9 @@ All public endpoints require a Supabase JWT (`Authorization: Bearer <token>`). A
 | `GET` | `/ai/settings` | JWT | Get the user's AI settings |
 | `PUT` | `/ai/settings` | JWT | Create or update AI settings |
 | `POST` | `/ai/procedures/:procedureId/resolve` | JWT | Manually resolve a procedure outcome |
+| `POST` | `/ai/batch/analyze` | JWT | Enqueue batch analysis for all posts in a date range. Returns **202** with `BatchAnalyzeResponse`. |
+| `GET` | `/ai/batch/:batchId` | JWT | Get status and summary of a batch report |
+| `GET` | `/ai/batch/account/:accountId` | JWT | List last 10 batch reports for an account |
 | `POST` | `/internal/ai/analyze` | Worker secret | Called by BullMQ worker via `x-worker-ai-secret` |
 
 ---
@@ -168,7 +200,7 @@ Rules are evaluated in `expert/rules.ts` as pure TypeScript. The engine adds a c
 
 | Rule | Condition | Conclusion |
 |---|---|---|
-| R001 | `engagementDepth < 0.3` | `UNDERPERFORMING` |
+| R001 | `engagementDepth < 0.03` | `UNDERPERFORMING` |
 | R002 | `savesReachRatio < 0.01` | `LOW_SAVE_VALUE` |
 | R003 | `viralRisk=true AND savesReachRatio < 0.02` | `VIRAL_BUT_HOLLOW` |
 | R004 | `topThemes includes 'Food' AND savesReachRatio < 0.05` | `FOOD_SAVE_UNDERPERFORM` |
@@ -220,6 +252,21 @@ node scripts/test-ai-layers.mjs
 **Unit tests (expert rules):**
 ```bash
 corepack pnpm --filter api test -- rules.spec.ts
+```
+
+**Unit tests (expert engine — R006 chain detection):**
+```bash
+corepack pnpm --filter api test -- engine.service.spec.ts
+```
+
+**Unit tests (batch services):**
+```bash
+corepack pnpm --filter api test -- batch-ai.service.spec.ts
+```
+
+**Unit tests (chat working memory):**
+```bash
+corepack pnpm --filter api test -- ai.service.chat.spec.ts
 ```
 
 **Full API checks:**
@@ -376,6 +423,109 @@ sequenceDiagram
 
 ---
 
+## Chat flow
+
+`POST /ai/chat` is a lighter path than `analyze`. It skips Layer 1 and the expert engine entirely — it calls Layer 2 directly with the user's message appended to memory context.
+
+```mermaid
+sequenceDiagram
+    participant C as Caller (Web)
+    participant AC as AiController
+    participant AS as AiService
+    participant DB as PostgreSQL
+    participant L2 as Layer2 (gpt-4.1-mini)
+
+    C->>AC: POST /ai/chat { accountId, sessionId, message }
+    AC->>DB: verify account ownership
+    AC->>DB: verify session ownership
+    AC->>AS: chat(userId, dto)
+
+    AS->>DB: fetch ai_settings
+    AS->>DB: load last 8 chatbot_messages (episodic)
+    AS->>DB: load ai_knowledge (semantic)
+    AS->>DB: load ai_procedures where outcome IS NOT NULL (procedural)
+
+    Note over AS: Assemble memoryContext string
+    Note over AS: Append user message directly to memoryContext\n(not a separate Layer 1 call)
+
+    AS->>L2: explain(null, [], aiSettings, memoryContext + "\n\nUser message: " + message)
+    L2-->>AS: { explanation: reply, tokensUsed }
+
+    AS->>DB: chatbot_messages.create (role: user, no tokensUsed)
+    AS->>DB: chatbot_messages.create (role: assistant, tokensUsed)
+    AS->>DB: chatbot_sessions.update (lastActiveAt = now)
+
+    AS-->>C: { reply: string, sessionId: string }
+```
+
+**Key differences from `analyze`:**
+- `signals` is `null` — no post metrics, no Layer 1 call
+- `firedRules` is `[]` — no expert engine evaluation
+- The user message is concatenated into the `memoryContext` string passed to Layer 2 (not a separate message field)
+- User-turn `tokensUsed` is saved as `null` (no Layer 1 token count to attribute)
+- Working memory **is** updated — `turnCount` is incremented and `updatedAt` is refreshed, but `lastSignals`, `lastFiredRules`, `lastExplanation`, and `lastContentPostId` are preserved from the previous `analyze()` call unchanged. Chat turns do not overwrite signal state.
+
+---
+
+## Batch analysis flow
+
+`POST /ai/batch/analyze` queues analysis for every published post with analytics in a given date window. Jobs run individually through the existing BullMQ queue and Layer 1 → expert engine → Layer 2 pipeline. When the last job finishes, Layer 2 is called a second time to synthesise all individual explanations into a single batch summary report.
+
+```mermaid
+sequenceDiagram
+    participant C as Caller (Web)
+    participant AC as AiController
+    participant BAS as BatchAiService
+    participant AQS as AiQueueService
+    participant DB as PostgreSQL
+    participant REDIS as Redis Queue
+    participant W as apps/worker
+    participant AS as AiService
+    participant BSS as BatchSummaryService
+    participant L2 as Layer2
+
+    C->>AC: POST /ai/batch/analyze { accountId, range }
+    AC->>BAS: enqueueBatch(userId, dto)
+    BAS->>DB: verify account ownership
+    BAS->>DB: contentPost.findMany (PUBLISHED, publishedAt >= rangeStart, postAnalytics.some)
+    BAS->>DB: aiBatchReport.create { status: PENDING, totalPosts }
+    loop one job per post
+        BAS->>AQS: enqueueAnalysis(accountId, postId, undefined, batchId)
+        AQS->>REDIS: queue.add("run-ai-analysis", { accountId, postId, batchId })
+    end
+    BAS->>DB: aiBatchReport.update { status: PROCESSING }
+    AC-->>C: 202 BatchAnalyzeResponse { batchId, totalPosts, status: "PENDING" }
+
+    Note over REDIS,W: BullMQ processes jobs one by one
+
+    W->>AS: POST /internal/ai/analyze { accountId, postId, batchId }
+    AS->>AS: runAnalyze() — full Layer1 → rules → Layer2 pipeline
+    AS->>BSS: markPostComplete(batchId, false)
+    BSS->>DB: aiBatchReport.update { completedPosts: { increment: 1 } }
+    alt completedPosts + failedPosts === totalPosts
+        BSS->>DB: fetch last N assistant chatbot_messages for account since startedAt
+        BSS->>L2: explain(null, [], aiSettings, batchInstruction + post summaries)
+        L2-->>BSS: { explanation: batchSummary }
+        BSS->>DB: aiBatchReport.update { summary, status: COMPLETED, completedAt }
+    end
+```
+
+**Date windows (computed at runtime from `Date.now()`):**
+
+| Range | Window |
+|---|---|
+| `week` | Last 7 days |
+| `month` | Last 30 days |
+| `year` | Last 365 days |
+
+**Post eligibility filter:** `status = PUBLISHED` AND `publishedAt >= rangeStart` AND `postAnalytics` has at least one row. Posts without any analytics are skipped.
+
+**Batch summary generation:** `BatchSummaryService.generate()` fetches the N most recent assistant `chatbot_messages` for the account created after `report.startedAt` (where N = `totalPosts`). It prepends a fixed batch-summary instruction to the `memoryContext` string and calls `Layer2Service.explain(null, [], aiSettings, memoryContext)`. If generation throws, the batch is marked `FAILED`.
+
+**Polling:** clients poll `GET /ai/batch/:batchId` until `status` is `COMPLETED` or `FAILED`. The `summary` field is populated only when `COMPLETED`.
+
+---
+
 ## Memory system diagram
 
 ```mermaid
@@ -465,7 +615,7 @@ Layer 1 receives raw post metrics and returns structured `PostSignals` as JSON (
 }
 ```
 
-**Key field — `engagementDepth`:** Layer 1 is instructed to output the **raw saves/reach decimal** here (e.g. `0.0085` = 0.85%), not a normalized 0–1 score. Expert rule thresholds (0.01, 0.02, 0.05) operate on this value.
+**Key field — `engagementDepth`:** Layer 1 is instructed to output the **raw saves/reach decimal** here (e.g. `0.0085` = 0.85%), not a normalized 0–1 score. Expert rule thresholds (0.03, 0.01, 0.02, 0.05) operate on this value.
 
 **Category-specific benchmarks in system prompt** (derived from the 500-row portfolio dataset):
 
@@ -536,7 +686,7 @@ flowchart TD
     IN --> R004
     IN --> R005
 
-    R001{engagementDepth < 0.3}
+    R001{engagementDepth < 0.03}
     R002{engagementDepth < 0.01}
     R003{viralRisk=true\nAND depth < 0.02}
     R004{Food in topThemes\nAND depth < 0.05}
@@ -643,9 +793,24 @@ erDiagram
         text custom_instructions
     }
 
+    ai_batch_reports {
+        text id PK
+        text account_id FK
+        text user_id FK
+        text range
+        enum status
+        int total_posts
+        int completed_posts
+        int failed_posts
+        text summary
+        timestamp started_at
+        timestamp completed_at
+    }
+
     instagram_accounts ||--o{ ai_knowledge : "account_id"
     instagram_accounts ||--o{ ai_procedures : "account_id"
     instagram_accounts ||--o{ chatbot_sessions : "instagram_account_id"
+    instagram_accounts ||--o{ ai_batch_reports : "account_id"
     chatbot_sessions ||--o{ chatbot_messages : "session_id"
 ```
 
@@ -702,6 +867,63 @@ Set `OPENAI_MODEL_LAYER1` or `OPENAI_MODEL_LAYER2` in `.env`. No code change nee
 ### Personalize per user
 
 Users call `PUT /ai/settings` with `preferredTone` and `customInstructions`. Both are injected into Layer 1 and Layer 2 system prompts automatically on every analysis.
+
+---
+
+## Implementation notes
+
+Non-obvious behaviors derived from the source code.
+
+### analyze requires a pre-existing session
+
+`POST /ai/analyze` (the public endpoint) verifies session ownership **before** calling `AiService.analyze()`. The session must already exist and belong to the authenticated user. If it doesn't, the controller returns `403`.
+
+`POST /internal/ai/analyze` (worker path) has the opposite behavior: `AiService.analyzeInternal()` auto-creates a new session if none is provided, with title `"Auto Analysis – YYYY-MM-DD"`. The worker always calls it without a `sessionId`.
+
+```
+Public path:  client creates session first → passes sessionId → analyze()
+Worker path:  no sessionId → analyzeInternal() auto-creates session → analyze()
+```
+
+### clearWorkingMemory clears all sessions for an account
+
+`DELETE /ai/memory/:accountId/working` does not clear a single session's working memory. It queries every `chatbot_session` for the account, then calls `workingMemory.clear(accountId, sessionId)` for each one. All Redis keys matching `wm:{accountId}:*` are deleted.
+
+### upsertSettings is not a partial update
+
+`PUT /ai/settings` overwrites `preferredTone` and `preferredLanguage` on every call. Omitting a field sets it to `null` (or `"en"` for language). Always send all fields you want to keep.
+
+### autoResolveOutcomes algorithm
+
+`autoResolveOutcomes(accountId)` is called automatically after each `refreshInsights` run. It:
+
+1. Finds all `ai_procedures` where `resolvedAt IS NULL` for the account
+2. Fetches the 20 most recent `post_analytics` rows across all posts for that account
+3. Compares the **most recent** row (index 0) to the **oldest** of those 20 (last index)
+4. If `engagementDelta >= 0` → outcome `"positive"`, otherwise `"negative"`
+5. Updates all pending procedures with the same delta and marks them resolved
+
+This means all pending procedures for an account get the same outcome in one batch. It is a coarse heuristic — not per-procedure performance tracking.
+
+### Worker error-handling tiers
+
+Jobs failing at `POST /internal/ai/analyze` follow BullMQ retry rules (`attempts: 2`, exponential backoff starting at 10s). The worker escalates some errors to `UnrecoverableError` (no retry):
+
+| Condition | Handling |
+|---|---|
+| Missing `accountId` or `contentPostId` in job payload | `UnrecoverableError` (payload is permanently bad) |
+| API returns 4xx (except 408 and 429) | `UnrecoverableError` (client error, retry won't help) |
+| API returns 408, 429, or 5xx | Retryable `Error` |
+
+`sessionId` is optional in the job payload — a missing `sessionId` is not an error; `analyzeInternal` creates one.
+
+### SemanticMemory upsert de-duplication
+
+`SemanticMemoryService.upsert()` matches on `accountId + category + fact` (exact string match). The Prisma schema has no unique constraint on this triple — de-duplication is handled in application code with a `findFirst` check before `create`. If two concurrent analyses run for the same account, duplicate rows are possible.
+
+### Layer 2 receives null signals during chat
+
+`Layer2Service.explain(null, [], ...)` is valid. The method accepts `PostSignals | null`. When `signals` is `null`, the user content sent to OpenAI is `{"signals":null,"firedRules":[]}`. Layer 2's system prompt does not explicitly call out this case, so the model responds as a general Instagram growth coach using whatever context is in `memoryContext`.
 
 ---
 
