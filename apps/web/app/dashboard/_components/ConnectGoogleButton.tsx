@@ -55,6 +55,7 @@ export function ConnectGoogleButton({
         type="button"
         onClick={handleClick}
         disabled={isPending}
+        aria-busy={isPending}
         className={
           compact
             ? "inline-flex h-8 items-center rounded-lg border border-line bg-card px-3 text-xs font-medium text-ink transition hover:border-cta hover:text-cta disabled:opacity-50"
