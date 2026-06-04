@@ -122,13 +122,10 @@ Queue: ai-analysis (BullMQ)
 
 ## New database tables
 
-> **Migration:** All three tables are created by the committed migration
-> `<timestamp>_add_ai_module_tables`. Running `prisma:migrate` on a
-> fresh environment will apply this migration automatically — no manual
-> SQL needed. Update `<timestamp>` here once the migration has been generated
-> and committed.
-
-All tables require a migration (`prisma migrate dev`) before use.
+> **Migration:** `20260604120000_add_ai_batch_and_story_insights` creates
+> `ai_knowledge`, `ai_procedures`, and `ai_batch_reports`. Running
+> `prisma:migrate` locally or `prisma:migrate:deploy` in production applies it
+> automatically.
 
 ### `ai_knowledge`
 
@@ -194,12 +191,8 @@ The existing `instagram_stories` table gained 10 new columns for Graph API insig
 | `insights_fetched_at` | timestamp? | When insights were last fetched |
 | `insights_error` | text? | Error message if fetch failed |
 
-> **Migration:** The story insights fields are created by the committed
-> migration `<timestamp>_add_story_insights_fields`. Running
-> `prisma:migrate` on a fresh environment will apply this migration
-> automatically — no manual SQL needed.
-> Replace `<timestamp>` with the actual folder name after running the
-> migration (e.g. `20260605120000_add_story_insights_fields`).
+> **Migration:** The story insights fields are created by
+> `20260604120000_add_ai_batch_and_story_insights`.
 
 ---
 
@@ -1023,14 +1016,8 @@ echo "OPENAI_MODEL_LAYER1=gpt-5.4-mini" >> .env
 echo "OPENAI_MODEL_LAYER2=gpt-4.1-mini" >> .env
 echo "WORKER_AI_SECRET=$(openssl rand -hex 32)" >> .env
 
-# 2. Run database migration (creates ai_knowledge, ai_procedures,
-#    and ai_batch_reports tables)
+# 2. Run database migrations
 corepack pnpm --filter @social-manager/database prisma:migrate
-# → enter: add_ai_module_tables
-
-# If deploying story analysis for the first time:
-corepack pnpm --filter @social-manager/database prisma:migrate
-# → enter: add_story_insights_fields
 
 # 3. Regenerate Prisma client and verify database package
 corepack pnpm --filter @social-manager/database prisma:generate

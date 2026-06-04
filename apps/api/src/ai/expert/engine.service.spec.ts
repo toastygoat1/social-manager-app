@@ -59,9 +59,9 @@ describe('ExpertEngineService', () => {
     expect(fired.some((r) => r.ruleId === 'R001')).toBe(true);
     expect(fired.some((r) => r.ruleId === 'R003')).toBe(true);
     expect(fired.some((r) => r.ruleId === 'R006')).toBe(true);
-    expect(
-      fired.find((r) => r.ruleId === 'R006')?.conclusion,
-    ).toBe('CRITICAL_INTERVENTION_NEEDED');
+    expect(fired.find((r) => r.ruleId === 'R006')?.conclusion).toBe(
+      'CRITICAL_INTERVENTION_NEEDED',
+    );
   });
 
   it('R006 does not fire when only R001 fires without R003', () => {

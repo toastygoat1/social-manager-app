@@ -179,9 +179,7 @@ describe('evaluateRules', () => {
   });
 });
 
-function makeStorySignals(
-  overrides: Partial<StorySignals> = {},
-): StorySignals {
+function makeStorySignals(overrides: Partial<StorySignals> = {}): StorySignals {
   return {
     storyId: 'story-1',
     overallSentiment: 'neutral',
@@ -219,7 +217,7 @@ describe('evaluateStoryRules', () => {
   });
 
   it('SR001 does not fire when exitRate <= 0.40', () => {
-    const signals = makeStorySignals({ exitRate: 0.40 });
+    const signals = makeStorySignals({ exitRate: 0.4 });
     const fired = evaluateStoryRules(signals);
     expect(fired.some((r) => r.ruleId === 'SR001')).toBe(false);
   });
@@ -231,7 +229,7 @@ describe('evaluateStoryRules', () => {
   });
 
   it('SR003 fires when tapBackRate > 0.08', () => {
-    const signals = makeStorySignals({ tapBackRate: 0.10 });
+    const signals = makeStorySignals({ tapBackRate: 0.1 });
     const fired = evaluateStoryRules(signals);
     expect(fired.some((r) => r.ruleId === 'SR003')).toBe(true);
   });

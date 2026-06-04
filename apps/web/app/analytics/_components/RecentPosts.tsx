@@ -6,14 +6,17 @@ import {
   Eye,
   Heart,
   ImageIcon,
+  Loader2,
   MessageSquareText,
   Share2,
+  Sparkles,
   TrendingUp,
   Video,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { PostDetailsModal } from "@/app/scheduler/_components/PostDetailsModal";
+import { ApiError, apiFetchBrowser } from "@/lib/api/browser-client";
 import { formatNumber } from "@/lib/format";
 import type { PostStat, RecentPost } from "./data";
 
@@ -110,6 +113,15 @@ function formatTimeAgo(value: string | null) {
   return `${Math.floor(diffMs / day)} days ago`;
 }
 
+function getApiErrorMessage(error: unknown) {
+  if (!(error instanceof ApiError)) return null;
+
+  const body = error.body as { message?: string | string[] } | null;
+  const message = body?.message;
+
+  return Array.isArray(message) ? message[0] : message;
+}
+
 export function RecentPosts({
   posts,
   latestPosts = posts,
@@ -122,8 +134,39 @@ export function RecentPosts({
   const router = useRouter();
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [mode, setMode] = useState<PostListMode>("top");
+  const [queuedPostIds, setQueuedPostIds] = useState<Set<string>>(new Set());
+  const [queueingPostId, setQueueingPostId] = useState<string | null>(null);
+  const [queueMessage, setQueueMessage] = useState<string | null>(null);
   const activeCopy = POST_LIST_COPY[mode];
   const visiblePosts = mode === "latest" ? latestPosts : posts;
+
+  async function queueAnalysis(post: RecentPost) {
+    setQueueingPostId(post.id);
+    setQueueMessage(null);
+
+    try {
+      await apiFetchBrowser<{ queued: true }>("/ai/analyze/queue", {
+        method: "POST",
+        body: {
+          accountId: post.accountId,
+          contentPostId: post.id,
+        },
+      });
+
+      setQueuedPostIds((current) => {
+        const next = new Set(current);
+        next.add(post.id);
+        return next;
+      });
+      setQueueMessage("AI analysis queued");
+    } catch (error) {
+      setQueueMessage(
+        getApiErrorMessage(error) ?? "AI analysis could not be queued.",
+      );
+    } finally {
+      setQueueingPostId(null);
+    }
+  }
 
   return (
     <section
@@ -166,6 +209,11 @@ export function RecentPosts({
           })}
         </div>
       </header>
+      {queueMessage ? (
+        <div className="rounded-lg border border-line bg-card px-3 py-2 text-[12px] text-muted">
+          {queueMessage}
+        </div>
+      ) : null}
       <div
         className={`grid w-full gap-3 ${
           compact
@@ -179,39 +227,63 @@ export function RecentPosts({
           </div>
         ) : (
           visiblePosts.map((post, index) => (
-            <button
-              type="button"
+            <article
               key={post.id}
-              onClick={() => setSelectedPostId(post.id)}
-              className="flex min-w-0 flex-col overflow-hidden rounded-lg border border-line bg-paper text-left transition hover:bg-card focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5e6ad2]"
+              className="flex min-w-0 flex-col overflow-hidden rounded-lg border border-line bg-paper text-left transition hover:bg-card"
             >
-              <div className="relative aspect-[4/3] w-full overflow-hidden bg-card">
-                <MediaPreview post={post} />
-                <span className="analytics-serif absolute left-3 top-3 text-[28px] italic leading-none text-ink">
-                  {String(index + 1).padStart(2, "0")}
-                </span>
-                <span
-                  className="absolute bottom-3 left-3 rounded border border-line bg-page px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.04em] text-ink"
-                >
-                  {post.badge.label}
-                </span>
-              </div>
-              <div className="flex w-full flex-col gap-3 p-3">
-                <div className="flex items-start justify-between gap-2">
-                  <p className="line-clamp-2 min-h-9 text-[12px] leading-[18px] text-ink">
-                    {post.title}
-                  </p>
-                  <span className="shrink-0 font-mono text-[10px] text-muted">
-                    {formatTimeAgo(post.publishedAt)}
+              <button
+                type="button"
+                onClick={() => setSelectedPostId(post.id)}
+                className="flex min-w-0 flex-1 flex-col text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5e6ad2]"
+              >
+                <div className="relative aspect-[4/3] w-full overflow-hidden bg-card">
+                  <MediaPreview post={post} />
+                  <span className="analytics-serif absolute left-3 top-3 text-[28px] italic leading-none text-ink">
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
+                  <span className="absolute bottom-3 left-3 rounded border border-line bg-page px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.04em] text-ink">
+                    {post.badge.label}
                   </span>
                 </div>
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-line pt-3">
-                  {post.stats.map((stat) => (
-                    <StatChip key={stat.icon} stat={stat} />
-                  ))}
+                <div className="flex w-full flex-col gap-3 p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="line-clamp-2 min-h-9 text-[12px] leading-[18px] text-ink">
+                      {post.title}
+                    </p>
+                    <span className="shrink-0 font-mono text-[10px] text-muted">
+                      {formatTimeAgo(post.publishedAt)}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-line pt-3">
+                    {post.stats.map((stat) => (
+                      <StatChip key={stat.icon} stat={stat} />
+                    ))}
+                  </div>
                 </div>
+              </button>
+              <div className="flex items-center justify-between gap-2 border-t border-line px-3 py-2">
+                <span className="truncate text-[11px] text-muted">
+                  {queuedPostIds.has(post.id) ? "Queued" : "Snow AI"}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => void queueAnalysis(post)}
+                  disabled={queueingPostId === post.id}
+                  className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-line bg-card px-2.5 text-[11px] font-medium text-ink transition hover:bg-paper disabled:cursor-not-allowed disabled:opacity-55"
+                  aria-label={`Analyze ${post.title}`}
+                >
+                  {queueingPostId === post.id ? (
+                    <Loader2
+                      className="size-3.5 animate-spin"
+                      strokeWidth={1.8}
+                    />
+                  ) : (
+                    <Sparkles className="size-3.5" strokeWidth={1.8} />
+                  )}
+                  Analyze
+                </button>
               </div>
-            </button>
+            </article>
           ))
         )}
       </div>

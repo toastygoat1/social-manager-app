@@ -1,5 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import type { FiredRule, PostSignals, StorySignals } from '@social-manager/types';
+import type {
+  FiredRule,
+  PostSignals,
+  StorySignals,
+} from '@social-manager/types';
 import { evaluateRules, evaluateStoryRules } from './rules.js';
 
 @Injectable()

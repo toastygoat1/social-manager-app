@@ -15,11 +15,20 @@ function makeDeps() {
     },
     workingMemory: {
       get: jest.fn<
-        (accountId: string, sessionId: string) => Promise<WorkingMemoryState | null>
+        (
+          accountId: string,
+          sessionId: string,
+        ) => Promise<WorkingMemoryState | null>
       >(),
-      set: jest.fn<
-        (accountId: string, sessionId: string, state: WorkingMemoryState) => Promise<void>
-      >().mockResolvedValue(undefined),
+      set: jest
+        .fn<
+          (
+            accountId: string,
+            sessionId: string,
+            state: WorkingMemoryState,
+          ) => Promise<void>
+        >()
+        .mockResolvedValue(undefined),
     },
     episodicMemory: {
       getRecentMessages: jest
@@ -29,7 +38,14 @@ function makeDeps() {
         .fn<(messages: unknown[]) => string>()
         .mockReturnValue(''),
       saveMessage: jest
-        .fn<(sessionId: string, role: string, content: string, tokensUsed?: number) => Promise<void>>()
+        .fn<
+          (
+            sessionId: string,
+            role: string,
+            content: string,
+            tokensUsed?: number,
+          ) => Promise<void>
+        >()
         .mockResolvedValue(undefined),
       updateSessionActivity: jest
         .fn<(sessionId: string) => Promise<void>>()

@@ -2,7 +2,11 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
 import type { AiSettings } from '@social-manager/database';
-import type { PostSignals, StoryMetrics, StorySignals } from '@social-manager/types';
+import type {
+  PostSignals,
+  StoryMetrics,
+  StorySignals,
+} from '@social-manager/types';
 
 const LAYER1_SYSTEM_PROMPT = `You are an Instagram analytics intelligence engine. Your role is to analyze post performance metrics and produce structured signal output.
 
@@ -126,12 +130,22 @@ type PostMetrics = {
 @Injectable()
 export class Layer1Service {
   private readonly logger = new Logger(Layer1Service.name);
-  private readonly client: OpenAI;
+  private client: OpenAI | null = null;
 
-  constructor(private readonly config: ConfigService) {
-    this.client = new OpenAI({
-      apiKey: this.config.getOrThrow<string>('OPENAI_API_KEY'),
-    });
+  constructor(private readonly config: ConfigService) {}
+
+  private getClient(): OpenAI {
+    if (this.client) return this.client;
+
+    const apiKey = this.config.get<string>('OPENAI_API_KEY')?.trim();
+    if (!apiKey) {
+      throw new BadRequestException(
+        'OPENAI_API_KEY is required for AI analysis',
+      );
+    }
+
+    this.client = new OpenAI({ apiKey });
+    return this.client;
   }
 
   async analyze(
@@ -156,9 +170,10 @@ export class Layer1Service {
     }
 
     const systemPrompt = systemParts.join('\n');
+    const client = this.getClient();
 
     try {
-      const response = await this.client.chat.completions.create({
+      const response = await client.chat.completions.create({
         model,
         response_format: { type: 'json_object' },
         temperature: 0.1,
@@ -198,8 +213,10 @@ export class Layer1Service {
       systemParts.push(`\nPreferred tone: ${aiSettings.preferredTone}`);
     }
 
+    const client = this.getClient();
+
     try {
-      const response = await this.client.chat.completions.create({
+      const response = await client.chat.completions.create({
         model,
         response_format: { type: 'json_object' },
         temperature: 0.1,
