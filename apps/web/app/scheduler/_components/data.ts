@@ -41,6 +41,7 @@ export type SchedulerPostDetail = {
   scheduledFor: string | null;
   publishedAt: string | null;
   createdAt: string;
+  permalink: string | null;
   media: {
     id: string;
     fileType: "IMAGE" | "VIDEO";
@@ -50,7 +51,35 @@ export type SchedulerPostDetail = {
     height: number | null;
     durationSeconds: number | null;
     previewUrl: string | null;
+    sourceUrl?: string | null;
+    thumbnailUrl?: string | null;
   }[];
+  analytics: {
+    views: number | null;
+    reach: number | null;
+    likes: number | null;
+    comments: number | null;
+    shares: number | null;
+    saves: number | null;
+    interactions: number | null;
+    fetchedAt: string | null;
+  } | null;
+  comments: {
+    items: {
+      id: string;
+      instagramCommentId: string;
+      parentInstagramCommentId: string | null;
+      username: string | null;
+      text: string | null;
+      likeCount: number | null;
+      hidden: boolean | null;
+      timestamp: string | null;
+      syncedAt: string;
+    }[];
+    syncedAt: string | null;
+    status: "synced" | "cached" | "unavailable" | "not_available";
+    errorMessage: string | null;
+  };
   latestFailure: {
     id: string;
     attemptNumber: number;

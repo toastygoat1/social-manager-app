@@ -123,11 +123,13 @@ model ContentPost {
   igPermalink        String?                    @map("ig_permalink")
   igMediaUrl         String?                    @map("ig_media_url")
   igThumbnailUrl     String?                    @map("ig_thumbnail_url")
+  commentsSyncedAt   DateTime?                  @map("comments_synced_at")
   isAiGenerated      Boolean                    @default(false) @map("is_ai_generated")
   createdAt          DateTime                   @default(now()) @map("created_at")
   updatedAt          DateTime                   @updatedAt @map("updated_at")
   instagramAccount   InstagramAccount           @relation(fields: [instagramAccountId], references: [id], onDelete: Cascade)
   metadataValues     ContentPostMetadataValue[]
+  postComments       PostComment[]
   postAnalytics      PostAnalytics[]
   postMedia          PostMedia[]
   publishAttempts    PublishAttempt[]
@@ -293,6 +295,27 @@ model PostAnalytics {
   @@index([contentPostId])
   @@index([fetchedAt])
   @@map("post_analytics")
+}
+
+model PostComment {
+  id                String      @id @default(uuid())
+  contentPostId     String      @map("content_post_id")
+  igCommentId       String      @map("ig_comment_id")
+  parentIgCommentId String?     @map("parent_ig_comment_id")
+  username          String?
+  text              String?
+  likeCount         Int?        @map("like_count")
+  hidden            Boolean?
+  timestamp         DateTime?
+  syncedAt          DateTime    @default(now()) @map("synced_at")
+  createdAt         DateTime    @default(now()) @map("created_at")
+  updatedAt         DateTime    @updatedAt @map("updated_at")
+  contentPost       ContentPost @relation(fields: [contentPostId], references: [id], onDelete: Cascade)
+
+  @@unique([contentPostId, igCommentId])
+  @@index([contentPostId, timestamp])
+  @@index([parentIgCommentId])
+  @@map("post_comments")
 }
 
 model AnalyticsNote {

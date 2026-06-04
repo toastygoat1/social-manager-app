@@ -106,6 +106,7 @@ const DEFAULT_INSTAGRAM_SCOPES = [
   'instagram_business_content_publish',
   'instagram_business_manage_insights',
   'instagram_business_manage_messages',
+  'instagram_business_manage_comments',
 ];
 const OAUTH_STATE_TTL_MS = 15 * 60 * 1000;
 const DASHBOARD_INSIGHTS_DAYS = 30;
