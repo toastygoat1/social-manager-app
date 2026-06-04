@@ -85,6 +85,21 @@ model InstagramStory {
   expiresAt          DateTime?        @map("expires_at")
   createdAt          DateTime         @default(now()) @map("created_at")
   updatedAt          DateTime         @updatedAt @map("updated_at")
+
+  // Instagram Graph API insights — populated by friend's fetcher service
+  impressions        Int?
+  reach              Int?
+  exits              Int?
+  replies            Int?
+  tapsForward        Int?             @map("taps_forward")
+  tapsBack           Int?             @map("taps_back")
+  profileVisits      Int?             @map("profile_visits")
+  follows            Int?
+
+  // Fetch tracking — used by AI analysis to guard against null metrics
+  insightsFetchedAt  DateTime?        @map("insights_fetched_at")
+  insightsError      String?          @map("insights_error")
+
   instagramAccount   InstagramAccount @relation(fields: [instagramAccountId], references: [id], onDelete: Cascade)
 
   @@index([instagramAccountId])

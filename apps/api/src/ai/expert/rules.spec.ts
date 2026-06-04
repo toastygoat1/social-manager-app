@@ -1,6 +1,6 @@
 import { describe, it, expect } from '@jest/globals';
-import { evaluateRules } from './rules.js';
-import type { PostSignals } from '@social-manager/types';
+import { evaluateRules, evaluateStoryRules } from './rules.js';
+import type { PostSignals, StorySignals } from '@social-manager/types';
 
 function makeSignals(overrides: Partial<PostSignals> = {}): PostSignals {
   return {
@@ -176,5 +176,96 @@ describe('evaluateRules', () => {
     expect(r001!.conclusion).toBe('UNDERPERFORMING');
     expect(r001!.confidence).toBeGreaterThan(0);
     expect(r001!.action).toBeTruthy();
+  });
+});
+
+function makeStorySignals(
+  overrides: Partial<StorySignals> = {},
+): StorySignals {
+  return {
+    storyId: 'story-1',
+    overallSentiment: 'neutral',
+    sentimentScore: 0.5,
+    dominantEmotion: 'curiosity',
+    performanceVerdict: 'average',
+    completionRate: 0.75,
+    exitRate: 0.25,
+    replyRate: 0.01,
+    tapBackRate: 0.04,
+    tapForwardRate: 0.15,
+    profileVisitRate: 0.03,
+    contentInsight: 'Average performance across all metrics.',
+    strategicSignals: {
+      riskLevel: 'low',
+      opportunity: null,
+      urgency: 'low',
+    },
+    bestAction: 'keep posting',
+    confidence: 0.8,
+    ...overrides,
+  };
+}
+
+describe('evaluateStoryRules', () => {
+  it('fires no rules when story metrics are healthy', () => {
+    const signals = makeStorySignals();
+    expect(evaluateStoryRules(signals)).toHaveLength(0);
+  });
+
+  it('SR001 fires when exitRate > 0.40', () => {
+    const signals = makeStorySignals({ exitRate: 0.45 });
+    const fired = evaluateStoryRules(signals);
+    expect(fired.some((r) => r.ruleId === 'SR001')).toBe(true);
+  });
+
+  it('SR001 does not fire when exitRate <= 0.40', () => {
+    const signals = makeStorySignals({ exitRate: 0.40 });
+    const fired = evaluateStoryRules(signals);
+    expect(fired.some((r) => r.ruleId === 'SR001')).toBe(false);
+  });
+
+  it('SR002 fires when tapForwardRate > 0.30', () => {
+    const signals = makeStorySignals({ tapForwardRate: 0.35 });
+    const fired = evaluateStoryRules(signals);
+    expect(fired.some((r) => r.ruleId === 'SR002')).toBe(true);
+  });
+
+  it('SR003 fires when tapBackRate > 0.08', () => {
+    const signals = makeStorySignals({ tapBackRate: 0.10 });
+    const fired = evaluateStoryRules(signals);
+    expect(fired.some((r) => r.ruleId === 'SR003')).toBe(true);
+  });
+
+  it('SR004 fires when replyRate < 0.005', () => {
+    const signals = makeStorySignals({ replyRate: 0.003 });
+    const fired = evaluateStoryRules(signals);
+    expect(fired.some((r) => r.ruleId === 'SR004')).toBe(true);
+  });
+
+  it('SR005 fires when profileVisitRate > 0.05 AND replyRate < 0.005', () => {
+    const signals = makeStorySignals({
+      profileVisitRate: 0.07,
+      replyRate: 0.002,
+    });
+    const fired = evaluateStoryRules(signals);
+    expect(fired.some((r) => r.ruleId === 'SR005')).toBe(true);
+  });
+
+  it('SR005 does not fire when replyRate is healthy', () => {
+    const signals = makeStorySignals({
+      profileVisitRate: 0.07,
+      replyRate: 0.01,
+    });
+    const fired = evaluateStoryRules(signals);
+    expect(fired.some((r) => r.ruleId === 'SR005')).toBe(false);
+  });
+
+  it('returns correct shape for SR001', () => {
+    const signals = makeStorySignals({ exitRate: 0.45 });
+    const sr001 = evaluateStoryRules(signals).find((r) => r.ruleId === 'SR001');
+    expect(sr001).toBeDefined();
+    expect(sr001!.conclusion).toBe('HIGH_EXIT_RATE');
+    expect(sr001!.confidence).toBeGreaterThan(0);
+    expect(sr001!.action).toBeTruthy();
   });
 });

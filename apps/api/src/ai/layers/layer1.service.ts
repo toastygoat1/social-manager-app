@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
 import type { AiSettings } from '@social-manager/database';
-import type { PostSignals } from '@social-manager/types';
+import type { PostSignals, StoryMetrics, StorySignals } from '@social-manager/types';
 
 const LAYER1_SYSTEM_PROMPT = `You are an Instagram analytics intelligence engine. Your role is to analyze post performance metrics and produce structured signal output.
 
@@ -62,6 +62,52 @@ TRAFFIC SOURCE CONTEXT:
 - Home Feed + Hashtags: balanced conversion, ~550 followers gained per post average
 
 You must respond with a valid JSON object matching the PostSignals schema exactly.`;
+
+const LAYER1_STORY_SYSTEM_PROMPT = `You are an Instagram Stories analytics
+intelligence engine. Analyze story performance metrics and produce structured
+signal output as JSON.
+
+STORY PERFORMANCE BENCHMARKS:
+Completion rate (1 - exit rate):
+- Strong: > 0.80 (80% of viewers watch to the end)
+- Average: 0.60–0.80
+- Weak: < 0.60
+
+Exit rate:
+- Healthy: < 0.20
+- Concerning: 0.20–0.40
+- Critical: > 0.40
+
+Tap-back rate (rewatching):
+- Strong resonance: > 0.08
+- Average: 0.03–0.08
+- Low: < 0.03
+
+Tap-forward rate (skipping):
+- Content skipped: > 0.30
+- Average: 0.10–0.30
+- Healthy: < 0.10
+
+Reply rate:
+- Strong: > 0.02
+- Average: 0.005–0.02
+- Weak: < 0.005
+
+Profile visit rate (conversion from story):
+- Strong: > 0.05
+- Average: 0.02–0.05
+- Low: < 0.02
+
+PERFORMANCE VERDICTS:
+- strong: completionRate > 0.80 AND exitRate < 0.20
+- viral: reach significantly above account average AND completionRate > 0.70
+- average: completionRate 0.60–0.80
+- weak: completionRate < 0.60 OR exitRate > 0.40
+
+DOMINANT EMOTIONS: excitement, curiosity, trust, FOMO, inspiration, nostalgia
+
+You must respond with a valid JSON object matching the StorySignals schema.
+All ratio fields must be raw decimals (e.g. 0.82 not 82%).`;
 
 type PostMetrics = {
   postId: string;
@@ -132,6 +178,49 @@ export class Layer1Service {
     } catch (error) {
       this.logger.error(`Layer1 analysis failed: ${(error as Error).message}`);
       throw new BadRequestException('Post signal analysis failed');
+    }
+  }
+
+  async analyzeStory(
+    metrics: StoryMetrics,
+    aiSettings: AiSettings | null,
+  ): Promise<{ signals: StorySignals; tokensUsed: number }> {
+    const model =
+      this.config.get<string>('OPENAI_MODEL_LAYER1') ?? 'gpt-5.4-mini';
+
+    const systemParts = [LAYER1_STORY_SYSTEM_PROMPT];
+    if (aiSettings?.customInstructions) {
+      systemParts.push(
+        `\nUser custom instructions: ${aiSettings.customInstructions}`,
+      );
+    }
+    if (aiSettings?.preferredTone) {
+      systemParts.push(`\nPreferred tone: ${aiSettings.preferredTone}`);
+    }
+
+    try {
+      const response = await this.client.chat.completions.create({
+        model,
+        response_format: { type: 'json_object' },
+        temperature: 0.1,
+        max_completion_tokens: 400,
+        messages: [
+          { role: 'system', content: systemParts.join('\n') },
+          { role: 'user', content: JSON.stringify(metrics) },
+        ],
+      });
+
+      const raw = response.choices[0]?.message?.content;
+      if (!raw) throw new Error('Empty response from Layer1 story analysis');
+
+      const signals = JSON.parse(raw) as StorySignals;
+      const tokensUsed = response.usage?.total_tokens ?? 0;
+      return { signals, tokensUsed };
+    } catch (error) {
+      this.logger.error(
+        `Layer1 story analysis failed: ${(error as Error).message}`,
+      );
+      throw new BadRequestException('Story signal analysis failed');
     }
   }
 }

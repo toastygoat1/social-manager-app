@@ -71,6 +71,65 @@ export interface BatchStatusResponse {
   completedAt: Date | null;
 }
 
+export interface StoryMetrics {
+  storyId: string;
+  mediaType: string | null;
+  mediaProductType: string | null;
+  timestamp: Date | null;
+  impressions: number;
+  reach: number;
+  exits: number;
+  replies: number;
+  tapsForward: number;
+  tapsBack: number;
+  profileVisits: number;
+  follows: number;
+  exitRate: number;
+  completionRate: number;
+  replyRate: number;
+  tapForwardRate: number;
+  tapBackRate: number;
+  profileVisitRate: number;
+  accountUsername: string;
+}
+
+export interface StorySignals {
+  storyId: string;
+  overallSentiment: 'positive' | 'negative' | 'neutral' | 'mixed';
+  sentimentScore: number;
+  dominantEmotion: string;
+  performanceVerdict: 'strong' | 'average' | 'weak' | 'viral';
+  completionRate: number;
+  exitRate: number;
+  replyRate: number;
+  tapBackRate: number;
+  tapForwardRate: number;
+  profileVisitRate: number;
+  contentInsight: string;
+  strategicSignals: {
+    riskLevel: 'low' | 'medium' | 'high';
+    opportunity: string | null;
+    urgency: 'low' | 'medium' | 'high';
+  };
+  bestAction: string;
+  confidence: number;
+}
+
+export interface StoryAnalysisRequest {
+  accountId: string;
+  storyId: string;
+  sessionId: string;
+}
+
+export interface StoryAnalysisResponse {
+  sessionId: string;
+  storyId: string;
+  signals: StorySignals | null;
+  explanation: string;
+  firedRules: FiredRule[];
+  metricsAvailable: boolean;
+}
+
 export interface WorkingMemoryState {
   lastContentPostId?: string;
   lastSignals?: PostSignals;

@@ -1,9 +1,13 @@
 import { Injectable } from '@nestjs/common';
-import type { FiredRule, PostSignals } from '@social-manager/types';
-import { evaluateRules } from './rules.js';
+import type { FiredRule, PostSignals, StorySignals } from '@social-manager/types';
+import { evaluateRules, evaluateStoryRules } from './rules.js';
 
 @Injectable()
 export class ExpertEngineService {
+  runStory(signals: StorySignals): FiredRule[] {
+    return evaluateStoryRules(signals);
+  }
+
   run(signals: PostSignals): FiredRule[] {
     const fired = evaluateRules(signals);
 

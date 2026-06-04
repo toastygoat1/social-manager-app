@@ -1,4 +1,4 @@
-import type { FiredRule, PostSignals } from '@social-manager/types';
+import type { FiredRule, PostSignals, StorySignals } from '@social-manager/types';
 
 export function evaluateRules(signals: PostSignals): FiredRule[] {
   const fired: FiredRule[] = [];
@@ -60,6 +60,67 @@ export function evaluateRules(signals: PostSignals): FiredRule[] {
       confidence: 0.85,
       action:
         'Stabilize content cadence and reduce posting frequency temporarily',
+    });
+  }
+
+  return fired;
+}
+
+export function evaluateStoryRules(signals: StorySignals): FiredRule[] {
+  const fired: FiredRule[] = [];
+
+  // SR001 — high exit rate
+  if (signals.exitRate > 0.40) {
+    fired.push({
+      ruleId: 'SR001',
+      condition: `exitRate (${signals.exitRate.toFixed(4)}) > 0.40`,
+      conclusion: 'HIGH_EXIT_RATE',
+      confidence: 0.90,
+      action: 'Open with a stronger hook — viewers are leaving in the first frame',
+    });
+  }
+
+  // SR002 — content being skipped
+  if (signals.tapForwardRate > 0.30) {
+    fired.push({
+      ruleId: 'SR002',
+      condition: `tapForwardRate (${signals.tapForwardRate.toFixed(4)}) > 0.30`,
+      conclusion: 'CONTENT_SKIPPED',
+      confidence: 0.85,
+      action: 'Shorten story duration or front-load value — audience is tapping past',
+    });
+  }
+
+  // SR003 — strong content resonance (positive rule)
+  if (signals.tapBackRate > 0.08) {
+    fired.push({
+      ruleId: 'SR003',
+      condition: `tapBackRate (${signals.tapBackRate.toFixed(4)}) > 0.08`,
+      conclusion: 'STRONG_RESONANCE',
+      confidence: 0.88,
+      action: 'Replicate this content format — audience is rewatching',
+    });
+  }
+
+  // SR004 — low reply engagement
+  if (signals.replyRate < 0.005) {
+    fired.push({
+      ruleId: 'SR004',
+      condition: `replyRate (${signals.replyRate.toFixed(5)}) < 0.005`,
+      conclusion: 'LOW_REPLY_ENGAGEMENT',
+      confidence: 0.80,
+      action: 'Add a direct question or poll sticker to drive replies',
+    });
+  }
+
+  // SR005 — driving profile visits but not replies (conversion without engagement)
+  if (signals.profileVisitRate > 0.05 && signals.replyRate < 0.005) {
+    fired.push({
+      ruleId: 'SR005',
+      condition: `profileVisitRate (${signals.profileVisitRate.toFixed(4)}) > 0.05 AND replyRate < 0.005`,
+      conclusion: 'PROFILE_TRAFFIC_NO_ENGAGEMENT',
+      confidence: 0.82,
+      action: 'Add a CTA that converts profile visitors — they are curious but not engaging',
     });
   }
 
