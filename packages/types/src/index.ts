@@ -11,6 +11,10 @@ export interface PostSummary {
 export type {
   AIAnalysisRequest,
   AIAnalysisResponse,
+  BatchAnalyzeRequest,
+  BatchAnalyzeResponse,
+  BatchRange,
+  BatchStatusResponse,
   FiredRule,
   PostSignals,
   WorkingMemoryState,

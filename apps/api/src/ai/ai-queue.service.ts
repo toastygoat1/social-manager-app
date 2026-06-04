@@ -14,6 +14,7 @@ type AiAnalysisJob = {
   accountId: string;
   contentPostId: string;
   sessionId?: string;
+  batchId?: string;
 };
 
 @Injectable()
@@ -28,11 +29,12 @@ export class AiQueueService implements OnModuleDestroy {
     accountId: string,
     contentPostId: string,
     sessionId?: string,
+    batchId?: string,
   ): Promise<void> {
     try {
       await this.getQueue().add(
         'run-ai-analysis',
-        { accountId, contentPostId, sessionId },
+        { accountId, contentPostId, sessionId, batchId },
         {
           jobId: `${accountId}:${contentPostId}`,
           attempts: 2,
@@ -58,7 +60,9 @@ export class AiQueueService implements OnModuleDestroy {
 
     const redisUrl = this.config.get<string>('REDIS_URL')?.trim();
     if (!redisUrl) {
-      throw new ServiceUnavailableException('REDIS_URL is required for AI analysis queue');
+      throw new ServiceUnavailableException(
+        'REDIS_URL is required for AI analysis queue',
+      );
     }
 
     this.connection = new Redis(redisUrl, { maxRetriesPerRequest: 1 });

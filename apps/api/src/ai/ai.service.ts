@@ -1,4 +1,9 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  Optional,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type {
   AIAnalysisResponse,
@@ -14,6 +19,7 @@ import { ExpertEngineService } from './expert/engine.service.js';
 import type { AnalyzeDto } from './dto/analyze.dto.js';
 import type { ChatDto } from './dto/chat.dto.js';
 import type { CreateSessionDto } from './dto/create-session.dto.js';
+import { BatchSummaryService } from './batch/batch-summary.service.js';
 
 @Injectable()
 export class AiService {
@@ -28,9 +34,24 @@ export class AiService {
     private readonly layer1: Layer1Service,
     private readonly layer2: Layer2Service,
     private readonly expertEngine: ExpertEngineService,
+    @Optional() private readonly batchSummary: BatchSummaryService | null,
   ) {}
 
   async analyze(userId: string, dto: AnalyzeDto): Promise<AIAnalysisResponse> {
+    try {
+      return await this.runAnalyze(userId, dto);
+    } catch (error) {
+      if (dto.batchId && this.batchSummary) {
+        await this.batchSummary.markPostComplete(dto.batchId, true);
+      }
+      throw error;
+    }
+  }
+
+  private async runAnalyze(
+    userId: string,
+    dto: AnalyzeDto,
+  ): Promise<AIAnalysisResponse> {
     const { accountId, contentPostId, sessionId, userMessage } = dto;
 
     // Fetch post analytics joined to content_posts
@@ -121,6 +142,11 @@ export class AiService {
     );
     await this.episodicMemory.updateSessionActivity(sessionId);
 
+    // If this analysis is part of a batch, mark it complete
+    if (dto.batchId && this.batchSummary) {
+      await this.batchSummary.markPostComplete(dto.batchId, false);
+    }
+
     // Update semantic memory if high-confidence signals detected
     if (signals.confidence > 0.7 && signals.topThemes.length > 0) {
       await this.semanticMemory.upsert(
@@ -188,8 +214,27 @@ export class AiService {
     );
 
     await this.episodicMemory.saveMessage(sessionId, 'user', message);
-    await this.episodicMemory.saveMessage(sessionId, 'assistant', reply, tokensUsed);
+    await this.episodicMemory.saveMessage(
+      sessionId,
+      'assistant',
+      reply,
+      tokensUsed,
+    );
     await this.episodicMemory.updateSessionActivity(sessionId);
+
+    // Update Redis working memory so turnCount stays accurate across chat turns.
+    // Preserves lastSignals/lastFiredRules/lastExplanation from the previous
+    // analyze() call — chat turns do not overwrite signal state.
+    const currentState = await this.workingMemory.get(accountId, sessionId);
+    const updatedState: WorkingMemoryState = {
+      lastContentPostId: currentState?.lastContentPostId,
+      lastSignals: currentState?.lastSignals,
+      lastFiredRules: currentState?.lastFiredRules,
+      lastExplanation: currentState?.lastExplanation,
+      turnCount: (currentState?.turnCount ?? 0) + 1,
+      updatedAt: new Date().toISOString(),
+    };
+    await this.workingMemory.set(accountId, sessionId, updatedState);
 
     return { reply, sessionId };
   }
@@ -286,7 +331,11 @@ export class AiService {
 
   async upsertSettings(
     userId: string,
-    data: { preferredTone?: string; customInstructions?: string; preferredLanguage?: string },
+    data: {
+      preferredTone?: string;
+      customInstructions?: string;
+      preferredLanguage?: string;
+    },
   ) {
     return this.prisma.aiSettings.upsert({
       where: { userId },
@@ -346,13 +395,12 @@ export class AiService {
 
     if (recentAnalytics.length < 2) return;
 
-    const latest = recentAnalytics[0]!;
-    const previous = recentAnalytics[recentAnalytics.length - 1]!;
+    const latest = recentAnalytics[0];
+    const previous = recentAnalytics[recentAnalytics.length - 1];
 
     const engagementDelta =
       (latest.engagement ?? 0) - (previous.engagement ?? 0);
-    const savesDelta =
-      (latest.savesCount ?? 0) - (previous.savesCount ?? 0);
+    const savesDelta = (latest.savesCount ?? 0) - (previous.savesCount ?? 0);
 
     const outcome = engagementDelta >= 0 ? 'positive' : 'negative';
 

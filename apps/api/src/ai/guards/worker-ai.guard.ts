@@ -16,12 +16,12 @@ export class WorkerAiGuard implements CanActivate {
   constructor(private readonly config: ConfigService) {}
 
   canActivate(context: ExecutionContext) {
-    const expectedSecret = this.config
-      .get<string>('WORKER_AI_SECRET')
-      ?.trim();
+    const expectedSecret = this.config.get<string>('WORKER_AI_SECRET')?.trim();
 
     if (!expectedSecret) {
-      throw new ServiceUnavailableException('AI worker secret is not configured');
+      throw new ServiceUnavailableException(
+        'AI worker secret is not configured',
+      );
     }
 
     const request = context.switchToHttp().getRequest<FastifyRequest>();

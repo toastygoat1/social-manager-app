@@ -12,4 +12,8 @@ export class QueueAnalysisDto {
   @IsString()
   @IsOptional()
   sessionId?: string;
+
+  @IsString()
+  @IsOptional()
+  batchId?: string;
 }

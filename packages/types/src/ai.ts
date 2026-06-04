@@ -44,6 +44,33 @@ export interface FiredRule {
   action: string;
 }
 
+export type BatchRange = 'week' | 'month' | 'year';
+
+export interface BatchAnalyzeRequest {
+  accountId: string;
+  range: BatchRange;
+}
+
+export interface BatchAnalyzeResponse {
+  batchId: string;
+  totalPosts: number;
+  range: BatchRange;
+  status: 'PENDING';
+  message: string;
+}
+
+export interface BatchStatusResponse {
+  batchId: string;
+  status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+  range: BatchRange;
+  totalPosts: number;
+  completedPosts: number;
+  failedPosts: number;
+  summary: string | null;
+  startedAt: Date;
+  completedAt: Date | null;
+}
+
 export interface WorkingMemoryState {
   lastContentPostId?: string;
   lastSignals?: PostSignals;

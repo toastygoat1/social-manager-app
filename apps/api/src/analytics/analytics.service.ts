@@ -760,7 +760,9 @@ export class AnalyticsService {
 
     if (result.refreshed > 0) {
       const refreshedPosts = posts.slice(0, 5);
-      const accountIds = [...new Set(refreshedPosts.map((p) => p.instagramAccountId))];
+      const accountIds = [
+        ...new Set(refreshedPosts.map((p) => p.instagramAccountId)),
+      ];
 
       if (this.aiQueue) {
         for (const post of refreshedPosts) {
@@ -770,11 +772,13 @@ export class AnalyticsService {
 
       if (this.aiService) {
         for (const accountId of accountIds) {
-          void this.aiService.autoResolveOutcomes(accountId).catch((err: unknown) => {
-            this.logger.warn(
-              `Auto-resolve outcomes failed for account ${accountId}: ${(err as Error).message}`,
-            );
-          });
+          void this.aiService
+            .autoResolveOutcomes(accountId)
+            .catch((err: unknown) => {
+              this.logger.warn(
+                `Auto-resolve outcomes failed for account ${accountId}: ${(err as Error).message}`,
+              );
+            });
         }
       }
     }
