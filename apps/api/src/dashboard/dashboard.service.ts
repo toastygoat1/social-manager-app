@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { PostStatus } from '@social-manager/database';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
   GoogleService,
@@ -39,6 +40,22 @@ type AccountDto = {
 
 type ChartBar = { label: string; value: number; color: string };
 type MetadataFieldDto = { id: string; label: string; sortOrder: number };
+type ActivityKind =
+  | 'account_connected'
+  | 'account_disconnected'
+  | 'post_scheduled'
+  | 'post_published'
+  | 'post_pending'
+  | 'post_draft';
+type ActivityTone = 'success' | 'danger' | 'info' | 'warning' | 'muted';
+type ActivityRow = {
+  id: string;
+  kind: ActivityKind;
+  title: string;
+  detail: string;
+  occurredAt: string;
+  tone: ActivityTone;
+};
 const CHART_COLORS = [
   'var(--chart-1)',
   'var(--chart-2)',
@@ -78,6 +95,7 @@ type DashboardOverview = {
   accounts: AccountDto[];
   metadataFields: MetadataFieldDto[];
   contentRows: ContentRow[];
+  activityRows: ActivityRow[];
 };
 
 @Injectable()
@@ -118,6 +136,7 @@ export class DashboardService {
       orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
       select: { id: true, label: true, sortOrder: true },
     });
+    const activityRows = await this.listActivity(userId);
 
     if (accountIds.length === 0) {
       return {
@@ -130,6 +149,7 @@ export class DashboardService {
         accounts: [],
         metadataFields,
         contentRows: [],
+        activityRows,
       };
     }
 
@@ -234,7 +254,131 @@ export class DashboardService {
       accounts,
       metadataFields,
       contentRows,
+      activityRows,
     };
+  }
+
+  async listActivity(userId: string): Promise<ActivityRow[]> {
+    const [accounts, posts] = await Promise.all([
+      this.prisma.instagramAccount.findMany({
+        where: { userId },
+        orderBy: { updatedAt: 'desc' },
+        take: 12,
+        select: {
+          id: true,
+          username: true,
+          displayName: true,
+          isActive: true,
+          connectedAt: true,
+          disconnectedAt: true,
+          updatedAt: true,
+        },
+      }),
+      this.prisma.contentPost.findMany({
+        where: { instagramAccount: { userId } },
+        orderBy: { updatedAt: 'desc' },
+        take: 20,
+        select: {
+          id: true,
+          title: true,
+          caption: true,
+          postType: true,
+          status: true,
+          scheduledFor: true,
+          publishedAt: true,
+          createdAt: true,
+          updatedAt: true,
+          instagramAccount: {
+            select: {
+              username: true,
+              displayName: true,
+            },
+          },
+        },
+      }),
+    ]);
+
+    const accountActivity = accounts.map<ActivityRow>((account) => {
+      const name = account.displayName?.trim() || `@${account.username}`;
+      if (!account.isActive && account.disconnectedAt) {
+        return {
+          id: `account-disconnected:${account.id}`,
+          kind: 'account_disconnected',
+          title: 'Account disconnected',
+          detail: name,
+          occurredAt: account.disconnectedAt.toISOString(),
+          tone: 'danger',
+        };
+      }
+
+      return {
+        id: `account-connected:${account.id}`,
+        kind: 'account_connected',
+        title: 'Account connected',
+        detail: name,
+        occurredAt: account.connectedAt.toISOString(),
+        tone: 'success',
+      };
+    });
+
+    const postActivity = posts.map<ActivityRow>((post) => {
+      const label = post.title ?? post.caption?.slice(0, 60) ?? 'Untitled post';
+      const accountName =
+        post.instagramAccount.displayName?.trim() ||
+        `@${post.instagramAccount.username}`;
+
+      if (post.status === PostStatus.PUBLISHED) {
+        return {
+          id: `post-published:${post.id}`,
+          kind: 'post_published',
+          title: 'Post published',
+          detail: `${label} / ${accountName}`,
+          occurredAt: (post.publishedAt ?? post.updatedAt).toISOString(),
+          tone: 'success',
+        };
+      }
+
+      if (post.status === PostStatus.READY) {
+        return {
+          id: `post-scheduled:${post.id}`,
+          kind: 'post_scheduled',
+          title: 'Post scheduled',
+          detail: `${label} / ${accountName} / ${formatActivityDate(
+            post.scheduledFor,
+          )}`,
+          occurredAt: post.updatedAt.toISOString(),
+          tone: 'info',
+        };
+      }
+
+      if (post.status === PostStatus.PENDING) {
+        return {
+          id: `post-pending:${post.id}`,
+          kind: 'post_pending',
+          title: 'Post awaiting approval',
+          detail: `${label} / ${accountName}`,
+          occurredAt: post.updatedAt.toISOString(),
+          tone: 'warning',
+        };
+      }
+
+      return {
+        id: `post-draft:${post.id}`,
+        kind: 'post_draft',
+        title: 'Draft updated',
+        detail: `${label} / ${accountName}`,
+        occurredAt: (post.updatedAt ?? post.createdAt).toISOString(),
+        tone: 'muted',
+      };
+    });
+
+    return [...accountActivity, ...postActivity]
+      .sort(
+        (left, right) =>
+          new Date(right.occurredAt).getTime() -
+          new Date(left.occurredAt).getTime(),
+      )
+      .slice(0, 12);
   }
 
   private async buildCalendar(userId: string): Promise<CalendarMonth | null> {
@@ -347,6 +491,16 @@ function readPostMetadataValues(
     metadata[item.fieldId] = item.value;
   }
   return metadata;
+}
+
+function formatActivityDate(value: Date | null) {
+  if (!value) return 'No date';
+  return value.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
 }
 
 function buildUploadChart(publishedAtList: (Date | null)[]): ChartBar[] {

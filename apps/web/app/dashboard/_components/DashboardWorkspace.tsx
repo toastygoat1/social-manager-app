@@ -5,6 +5,7 @@ import type { UserProfile } from "@/lib/supabase/user-profile";
 import { ConnectAccountsButton } from "./ConnectAccountsButton";
 import { ContentTable } from "./ContentTable";
 import { EditorialCalendar } from "./EditorialCalendar";
+import { LiveActivityPanel } from "./LiveActivityPanel";
 import type { ContentRow, DashboardData, StatMetric } from "./data";
 import { Instagram } from "./icons";
 
@@ -357,39 +358,6 @@ function AccountsPanel({
   );
 }
 
-function InboxPanel({ accounts }: { accounts: DashboardData["accounts"] }) {
-  return (
-    <section className="rounded-[10px] border border-line bg-paper p-[18px]">
-      <header className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-ink">Inbox</h2>
-        <Link
-          href="/chat"
-          className="font-mono text-[10px] uppercase tracking-[0.06em] text-muted hover:text-ink"
-        >
-          Open all
-        </Link>
-      </header>
-
-      <ul className="mt-3 space-y-3">
-        {accounts.slice(0, 3).map((account) => (
-          <li key={account.id} className="flex items-start gap-2.5">
-            <AccountMark account={account} compact />
-            <p className="min-w-0 flex-1 truncate text-[11px] text-muted">
-              <span className="font-medium">{account.name}</span> is connected
-              and ready to publish.
-            </p>
-          </li>
-        ))}
-      </ul>
-      {accounts.length === 0 ? (
-        <p className="mt-6 text-xs text-muted">
-          Connect an account to receive publishing activity.
-        </p>
-      ) : null}
-    </section>
-  );
-}
-
 export function DashboardWorkspace({
   data,
   profile,
@@ -415,7 +383,7 @@ export function DashboardWorkspace({
               accounts={data.accounts}
               connectionStatus={connectionStatus}
             />
-            <InboxPanel accounts={data.accounts} />
+            <LiveActivityPanel initialRows={data.activityRows} />
           </div>
         </div>
 
