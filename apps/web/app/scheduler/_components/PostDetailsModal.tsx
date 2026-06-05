@@ -499,8 +499,11 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
     : (post?.media ?? []);
   const metadataEntries =
     post?.metadataFields
-      .map((field) => [field.label, post.metadata[field.id]] as const)
-      .filter(([, value]) => Boolean(value)) ?? [];
+      .map((field) => ({
+        id: field.id,
+        label: field.label,
+        value: post.metadata[field.id] ?? "",
+      })) ?? [];
   const analyticsUpdatedAt = post?.analytics
     ? formatFetchedAt(post.analytics.fetchedAt)
     : null;
@@ -848,18 +851,22 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
                     </h3>
                     {metadataEntries.length ? (
                       <div className="mt-3 flex flex-wrap gap-2">
-                        {metadataEntries.map(([key, value]) => (
+                        {metadataEntries.map(({ id, label, value }) => (
                           <span
-                            key={key}
+                            key={id}
                             className="max-w-full rounded-lg border border-line bg-paper px-2.5 py-1 text-xs text-ink"
                           >
-                            <span className="font-semibold">{key}</span>:{" "}
-                            {value}
+                            <span className="font-semibold">{label}</span>:{" "}
+                            <span className={value ? undefined : "text-muted"}>
+                              {value || "-"}
+                            </span>
                           </span>
                         ))}
                       </div>
                     ) : (
-                      <p className="mt-2 text-sm text-muted">No metadata</p>
+                      <p className="mt-2 text-sm text-muted">
+                        No metadata fields
+                      </p>
                     )}
                   </div>
                 </>
