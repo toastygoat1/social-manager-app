@@ -27,7 +27,20 @@ import type { CreateSessionDto } from './dto/create-session.dto.js';
 import type { AnalyzeStoryDto } from './dto/analyze-story.dto.js';
 import { BatchSummaryService } from './batch/batch-summary.service.js';
 
-const CHAT_ANALYTICS_POST_LIMIT = 15;
+const GLOBAL_CHAT_ACCOUNT_SCOPE = 'all-accounts';
+const CHAT_ANALYTICS_POST_LIMIT = 8;
+
+type ChatAccountContext = {
+  id: string;
+  username: string;
+  displayName: string | null;
+};
+
+type ChatAccountScope = {
+  accounts: ChatAccountContext[];
+  mode: 'all' | 'single';
+  scopeKey: string;
+};
 
 @Injectable()
 export class AiService {
@@ -195,6 +208,13 @@ export class AiService {
     dto: ChatDto,
   ): Promise<{ reply: string; sessionId: string }> {
     const { accountId, sessionId, message } = dto;
+    const accountScope = await this.resolveChatAccountScope(
+      userId,
+      accountId,
+      message,
+    );
+    const specificAccountId =
+      accountScope.mode === 'single' ? accountScope.scopeKey : null;
 
     const aiSettings = await this.prisma.aiSettings.findUnique({
       where: { userId },
@@ -204,13 +224,18 @@ export class AiService {
       sessionId,
       8,
     );
-    const knowledge = await this.semanticMemory.getForAccount(accountId);
-    const procedures = await this.proceduralMemory.getSuccessful(accountId);
-    const currentState = await this.workingMemory.get(accountId, sessionId);
-    const accountAnalyticsContext = await this.buildAccountAnalyticsContext(
-      userId,
-      accountId,
+    const [knowledge, procedures] = specificAccountId
+      ? await Promise.all([
+          this.semanticMemory.getForAccount(specificAccountId),
+          this.proceduralMemory.getSuccessful(specificAccountId),
+        ])
+      : [[], []];
+    const currentState = await this.workingMemory.get(
+      accountScope.scopeKey,
+      sessionId,
     );
+    const accountAnalyticsContext =
+      await this.buildAccountAnalyticsContext(accountScope);
 
     const memoryParts: string[] = [];
     if (accountAnalyticsContext) memoryParts.push(accountAnalyticsContext);
@@ -273,116 +298,156 @@ export class AiService {
       turnCount: (currentState?.turnCount ?? 0) + 1,
       updatedAt: new Date().toISOString(),
     };
-    await this.workingMemory.set(accountId, sessionId, updatedState);
+    await this.workingMemory.set(
+      accountScope.scopeKey,
+      sessionId,
+      updatedState,
+    );
 
     return { reply, sessionId };
   }
 
-  private async buildAccountAnalyticsContext(
+  private async resolveChatAccountScope(
     userId: string,
-    accountId: string,
+    requestedAccountId: string | undefined,
+    message: string,
+  ): Promise<ChatAccountScope> {
+    const accounts = await this.prisma.instagramAccount.findMany({
+      where: { userId, isActive: true },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, username: true, displayName: true },
+    });
+
+    const mentionedAccount = findMentionedAccount(accounts, message);
+    if (mentionedAccount) {
+      return {
+        accounts: [mentionedAccount],
+        mode: 'single',
+        scopeKey: mentionedAccount.id,
+      };
+    }
+
+    const requestedAccount = requestedAccountId
+      ? accounts.find((account) => account.id === requestedAccountId)
+      : null;
+    if (requestedAccount) {
+      return {
+        accounts: [requestedAccount],
+        mode: 'single',
+        scopeKey: requestedAccount.id,
+      };
+    }
+    if (requestedAccountId) {
+      return {
+        accounts: [],
+        mode: 'single',
+        scopeKey: requestedAccountId,
+      };
+    }
+
+    return {
+      accounts,
+      mode: 'all',
+      scopeKey: GLOBAL_CHAT_ACCOUNT_SCOPE,
+    };
+  }
+
+  private async buildAccountAnalyticsContext(
+    scope: ChatAccountScope,
   ): Promise<string> {
     try {
-      const [account, snapshot, posts] = await Promise.all([
-        this.prisma.instagramAccount.findFirst({
-          where: { id: accountId, userId },
-          select: { username: true, displayName: true },
-        }),
-        this.prisma.analyticsSnapshot.findFirst({
-          where: { instagramAccountId: accountId },
-          orderBy: { snapshotDate: 'desc' },
-          select: {
-            snapshotDate: true,
-            followersCount: true,
-            followingCount: true,
-            mediaCount: true,
-            reach: true,
-            impressions: true,
-            profileViews: true,
-          },
-        }),
-        this.prisma.contentPost.findMany({
-          where: {
-            instagramAccountId: accountId,
-            status: PostStatus.PUBLISHED,
-            postAnalytics: { some: {} },
-          },
-          orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }],
-          take: CHAT_ANALYTICS_POST_LIMIT,
-          select: {
-            id: true,
-            title: true,
-            caption: true,
-            postType: true,
-            publishedAt: true,
-            igPermalink: true,
-            postAnalytics: {
-              orderBy: { fetchedAt: 'desc' },
-              take: 1,
-              select: {
-                fetchedAt: true,
-                likeCount: true,
-                commentsCount: true,
-                sharesCount: true,
-                savesCount: true,
-                reach: true,
-                impressions: true,
-                engagement: true,
-              },
-            },
-          },
-        }),
-      ]);
-
-      if (!account) return '';
+      if (scope.accounts.length === 0) return '';
 
       const lines = [
         'Current account analytics context from database (authoritative; use this over older chat messages):',
-        `Account: ${
-          account.displayName?.trim() || `@${account.username}`
-        } (@${account.username})`,
+        scope.mode === 'single'
+          ? `Scope: focused account ${formatAccountName(scope.accounts[0])}.`
+          : `Scope: all connected accounts (${scope.accounts.length} accounts). If the user asks without naming an account, compare across all accounts. If the user names an account, use only that account.`,
       ];
 
-      if (snapshot) {
-        lines.push(
-          `Latest account snapshot ${formatDate(
-            snapshot.snapshotDate,
-          )}: followers=${snapshot.followersCount}, following=${
-            snapshot.followingCount
-          }, media=${snapshot.mediaCount}, reach=${formatMetric(
-            snapshot.reach,
-          )}, views=${formatMetric(
-            snapshot.impressions,
-          )}, profileViews=${formatMetric(snapshot.profileViews)}.`,
-        );
-      }
+      const accountContexts = await Promise.all(
+        scope.accounts.map(async (account) => {
+          const [snapshot, posts] = await Promise.all([
+            this.prisma.analyticsSnapshot.findFirst({
+              where: { instagramAccountId: account.id },
+              orderBy: { snapshotDate: 'desc' },
+              select: {
+                snapshotDate: true,
+                followersCount: true,
+                followingCount: true,
+                mediaCount: true,
+                reach: true,
+                impressions: true,
+                profileViews: true,
+              },
+            }),
+            this.prisma.contentPost.findMany({
+              where: {
+                instagramAccountId: account.id,
+                status: PostStatus.PUBLISHED,
+                postAnalytics: { some: {} },
+              },
+              orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }],
+              take: CHAT_ANALYTICS_POST_LIMIT,
+              select: {
+                id: true,
+                title: true,
+                caption: true,
+                postType: true,
+                publishedAt: true,
+                igPermalink: true,
+                postAnalytics: {
+                  orderBy: { fetchedAt: 'desc' },
+                  take: 1,
+                  select: {
+                    fetchedAt: true,
+                    likeCount: true,
+                    commentsCount: true,
+                    sharesCount: true,
+                    savesCount: true,
+                    reach: true,
+                    impressions: true,
+                    engagement: true,
+                  },
+                },
+              },
+            }),
+          ]);
 
-      const rows = posts
-        .map((post) => {
-          const analytics = post.postAnalytics[0] ?? null;
-          if (!analytics) return null;
+          const rows = posts
+            .map((post) => {
+              const analytics = post.postAnalytics[0] ?? null;
+              if (!analytics) return null;
 
-          return {
-            id: post.id,
-            label: labelPost(post.title, post.caption, post.id),
-            postType: post.postType,
-            publishedAt: post.publishedAt,
-            permalink: post.igPermalink,
-            fetchedAt: analytics.fetchedAt,
-            likeCount: analytics.likeCount,
-            commentsCount: analytics.commentsCount,
-            sharesCount: analytics.sharesCount,
-            savesCount: analytics.savesCount,
-            reach: analytics.reach,
-            impressions: analytics.impressions,
-            engagement: analytics.engagement,
-          };
-        })
-        .filter((row): row is NonNullable<typeof row> => row !== null);
+              return {
+                accountId: account.id,
+                accountName: formatAccountName(account),
+                id: post.id,
+                label: labelPost(post.title, post.caption, post.id),
+                postType: post.postType,
+                publishedAt: post.publishedAt,
+                permalink: post.igPermalink,
+                fetchedAt: analytics.fetchedAt,
+                likeCount: analytics.likeCount,
+                commentsCount: analytics.commentsCount,
+                sharesCount: analytics.sharesCount,
+                savesCount: analytics.savesCount,
+                reach: analytics.reach,
+                impressions: analytics.impressions,
+                engagement: analytics.engagement,
+              };
+            })
+            .filter((row): row is NonNullable<typeof row> => row !== null);
+
+          return { account, snapshot, rows };
+        }),
+      );
+
+      const rows = accountContexts.flatMap((context) => context.rows);
 
       if (rows.length === 0) {
         lines.push(
-          'No published posts with stored post analytics are available for this selected account yet.',
+          'No published posts with stored post analytics are available for the current scope yet.',
         );
         return lines.join('\n');
       }
@@ -395,15 +460,39 @@ export class AiService {
         lines.push(`${index + 1}. ${formatPostAnalyticsLine(post)}`);
       });
 
-      lines.push('Recent post analytics:');
-      rows.slice(0, 8).forEach((post, index) => {
-        lines.push(`${index + 1}. ${formatPostAnalyticsLine(post)}`);
-      });
+      for (const context of accountContexts) {
+        lines.push(`Account ${formatAccountName(context.account)}:`);
+        if (context.snapshot) {
+          lines.push(
+            `Latest snapshot ${formatDate(
+              context.snapshot.snapshotDate,
+            )}: followers=${context.snapshot.followersCount}, following=${
+              context.snapshot.followingCount
+            }, media=${context.snapshot.mediaCount}, reach=${formatMetric(
+              context.snapshot.reach,
+            )}, views=${formatMetric(
+              context.snapshot.impressions,
+            )}, profileViews=${formatMetric(context.snapshot.profileViews)}.`,
+          );
+        }
+
+        if (context.rows.length === 0) {
+          lines.push('No recent published posts with stored post analytics.');
+          continue;
+        }
+
+        context.rows
+          .sort(compareTopPost)
+          .slice(0, scope.mode === 'single' ? 5 : 3)
+          .forEach((post, index) => {
+            lines.push(`${index + 1}. ${formatPostAnalyticsLine(post)}`);
+          });
+      }
 
       return lines.join('\n');
     } catch (error) {
       this.logger.warn(
-        `Could not build chat analytics context for account ${accountId}: ${
+        `Could not build chat analytics context for ${scope.scopeKey}: ${
           (error as Error).message
         }`,
       );
@@ -411,9 +500,12 @@ export class AiService {
     }
   }
 
-  async getSessions(userId: string, accountId: string) {
+  async getSessions(userId: string, accountId?: string) {
     return this.prisma.chatbotSession.findMany({
-      where: { userId, instagramAccountId: accountId },
+      where: {
+        userId,
+        instagramAccountId: accountId ?? null,
+      },
       orderBy: { lastActiveAt: 'desc' },
       take: 20,
       select: {
@@ -444,7 +536,7 @@ export class AiService {
     return this.prisma.chatbotSession.create({
       data: {
         userId,
-        instagramAccountId: dto.accountId,
+        instagramAccountId: dto.accountId ?? null,
         title: dto.title ?? null,
       },
     });
@@ -725,6 +817,8 @@ export class AiService {
 }
 
 type ChatPostAnalyticsRow = {
+  accountId: string;
+  accountName: string;
   id: string;
   label: string;
   postType: string;
@@ -759,7 +853,7 @@ function score(value: number | null) {
 function formatPostAnalyticsLine(post: ChatPostAnalyticsRow) {
   const permalink = post.permalink ? `, permalink=${post.permalink}` : '';
 
-  return `${post.label} (${post.postType}, published=${formatDate(
+  return `${post.accountName} — ${post.label} (${post.postType}, published=${formatDate(
     post.publishedAt,
   )}, analyticsFetched=${formatDate(post.fetchedAt)}): reach=${formatMetric(
     post.reach,
@@ -794,4 +888,51 @@ function formatPercent(numerator: number | null, denominator: number | null) {
 
 function formatDate(value: Date | null) {
   return value?.toISOString().slice(0, 10) ?? 'unknown';
+}
+
+function findMentionedAccount(accounts: ChatAccountContext[], message: string) {
+  const messageRaw = message.toLowerCase();
+  const messageCompact = compactText(message);
+
+  const matches = accounts
+    .map((account) => {
+      const username = account.username.toLowerCase();
+      const usernameCompact = compactText(account.username);
+      const displayNameCompact = account.displayName
+        ? compactText(account.displayName)
+        : '';
+
+      const candidates = [
+        messageRaw.includes(`@${username}`) ? username.length + 2 : 0,
+        messageRaw.includes(username) ? username.length : 0,
+        usernameCompact.length > 2 && messageCompact.includes(usernameCompact)
+          ? usernameCompact.length
+          : 0,
+        displayNameCompact.length > 2 &&
+        messageCompact.includes(displayNameCompact)
+          ? displayNameCompact.length
+          : 0,
+      ];
+
+      return { account, score: Math.max(...candidates) };
+    })
+    .filter((match) => match.score > 0)
+    .sort((left, right) => right.score - left.score);
+
+  return matches[0]?.account ?? null;
+}
+
+function formatAccountName(account: ChatAccountContext | undefined) {
+  if (!account) return 'unknown account';
+  return `${account.displayName?.trim() || `@${account.username}`} (@${
+    account.username
+  })`;
+}
+
+function compactText(value: string) {
+  return value
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '');
 }

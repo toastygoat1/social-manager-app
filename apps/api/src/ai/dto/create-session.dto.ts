@@ -1,9 +1,9 @@
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsOptional, IsString } from 'class-validator';
 
 export class CreateSessionDto {
   @IsString()
-  @IsNotEmpty()
-  accountId!: string;
+  @IsOptional()
+  accountId?: string;
 
   @IsString()
   @IsOptional()

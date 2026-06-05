@@ -2,7 +2,6 @@
 
 import {
   Bot,
-  ChevronDown,
   Clock3,
   Loader2,
   MessageSquarePlus,
@@ -10,7 +9,6 @@ import {
   Sparkles,
 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { AvatarImage } from "@/app/_components/AvatarImage";
 import type { Account } from "@/app/dashboard/_components/data";
 import { ApiError, apiFetchBrowser } from "@/lib/api/browser-client";
 
@@ -71,15 +69,7 @@ function getSessionTitle(session: AiSession) {
   return session.title?.trim() || "New conversation";
 }
 
-function getAccountLabel(account: Account | undefined) {
-  if (!account) return "Select account";
-  return account.displayName?.trim() || account.name || `@${account.username}`;
-}
-
 export function SnowAiChat({ accounts }: SnowAiChatProps) {
-  const [selectedAccountId, setSelectedAccountId] = useState(
-    accounts[0]?.id ?? "",
-  );
   const [sessions, setSessions] = useState<AiSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<AiMessage[]>([]);
@@ -90,10 +80,6 @@ export function SnowAiChat({ accounts }: SnowAiChatProps) {
   const [error, setError] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
 
-  const selectedAccount = useMemo(
-    () => accounts.find((account) => account.id === selectedAccountId),
-    [accounts, selectedAccountId],
-  );
   const activeSession = useMemo(
     () => sessions.find((session) => session.id === activeSessionId),
     [activeSessionId, sessions],
@@ -107,7 +93,7 @@ export function SnowAiChat({ accounts }: SnowAiChatProps) {
     let cancelled = false;
 
     async function loadSessions() {
-      if (!selectedAccountId) {
+      if (accounts.length === 0) {
         setSessions([]);
         setActiveSessionId(null);
         setMessages([]);
@@ -117,9 +103,7 @@ export function SnowAiChat({ accounts }: SnowAiChatProps) {
       setIsLoadingSessions(true);
       setError(null);
       try {
-        const nextSessions = await apiFetchBrowser<AiSession[]>(
-          `/ai/sessions/${selectedAccountId}`,
-        );
+        const nextSessions = await apiFetchBrowser<AiSession[]>("/ai/sessions");
         if (cancelled) return;
         setSessions(nextSessions);
         setActiveSessionId(nextSessions[0]?.id ?? null);
@@ -140,7 +124,7 @@ export function SnowAiChat({ accounts }: SnowAiChatProps) {
     return () => {
       cancelled = true;
     };
-  }, [selectedAccountId]);
+  }, [accounts.length]);
 
   useEffect(() => {
     let cancelled = false;
@@ -190,7 +174,6 @@ export function SnowAiChat({ accounts }: SnowAiChatProps) {
     const session = await apiFetchBrowser<AiSession>("/ai/sessions", {
       method: "POST",
       body: {
-        accountId: selectedAccountId,
         title,
       },
     });
@@ -204,7 +187,7 @@ export function SnowAiChat({ accounts }: SnowAiChatProps) {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const message = input.trim();
-    if (!message || !selectedAccountId || isSending) return;
+    if (!message || isSending) return;
 
     setIsSending(true);
     setError(null);
@@ -231,7 +214,6 @@ export function SnowAiChat({ accounts }: SnowAiChatProps) {
       const response = await apiFetchBrowser<ChatResponse>("/ai/chat", {
         method: "POST",
         body: {
-          accountId: selectedAccountId,
           sessionId,
           message,
         },
@@ -288,29 +270,11 @@ export function SnowAiChat({ accounts }: SnowAiChatProps) {
       <section className="mx-auto grid h-full w-full max-w-[1180px] min-w-0 overflow-hidden rounded-xl border border-[#ded8ce] bg-[#fbfaf7] lg:grid-cols-[280px_minmax(0,1fr)]">
         <aside className="hidden min-h-0 border-r border-[#e7e3db] bg-[#f4f2ed] lg:flex lg:flex-col">
           <div className="border-b border-[#e7e3db] p-4">
-            <div className="relative">
-              <select
-                value={selectedAccountId}
-                onChange={(event) => setSelectedAccountId(event.target.value)}
-                className="h-10 w-full appearance-none rounded-lg border border-[#ded8ce] bg-[#fbfaf7] px-3 pr-9 text-[13px] font-medium text-[#1d1b18] outline-none transition focus:border-[#1d1b18]"
-                aria-label="Instagram account"
-              >
-                {accounts.map((account) => (
-                  <option key={account.id} value={account.id}>
-                    {getAccountLabel(account)}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown
-                className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-[#756f66]"
-                strokeWidth={1.8}
-              />
-            </div>
             <button
               type="button"
               onClick={startNewChat}
-              className="mt-3 inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg bg-[#1d1b18] px-3 text-[13px] font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={!selectedAccountId || isSending}
+              className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg bg-[#1d1b18] px-3 text-[13px] font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={isSending}
             >
               <MessageSquarePlus className="size-4" strokeWidth={1.8} />
               New chat
@@ -361,20 +325,7 @@ export function SnowAiChat({ accounts }: SnowAiChatProps) {
           <header className="flex min-h-[72px] flex-wrap items-center justify-between gap-3 border-b border-[#e7e3db] px-4 py-3 sm:px-5">
             <div className="flex min-w-0 items-center gap-3">
               <span className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#1d1b18] text-sm font-semibold text-white">
-                {selectedAccount ? (
-                  <AvatarImage
-                    src={selectedAccount.avatarUrl}
-                    alt={getAccountLabel(selectedAccount)}
-                    width={40}
-                    height={40}
-                    className="size-10 rounded-full object-cover"
-                    fallback={
-                      selectedAccount.username?.charAt(0).toUpperCase() ?? "I"
-                    }
-                  />
-                ) : (
-                  <Bot className="size-5" strokeWidth={1.8} />
-                )}
+                <Bot className="size-5" strokeWidth={1.8} />
               </span>
               <div className="min-w-0">
                 <h1 className="truncate text-[16px] font-semibold leading-6 text-[#1d1b18]">
@@ -385,31 +336,13 @@ export function SnowAiChat({ accounts }: SnowAiChatProps) {
                   <span className="truncate">
                     {activeSession
                       ? getSessionTitle(activeSession)
-                      : getAccountLabel(selectedAccount)}
+                      : "All connected accounts"}
                   </span>
                 </div>
               </div>
             </div>
 
             <div className="flex min-w-0 items-center gap-2">
-              <div className="relative lg:hidden">
-                <select
-                  value={selectedAccountId}
-                  onChange={(event) => setSelectedAccountId(event.target.value)}
-                  className="h-9 w-[180px] appearance-none rounded-lg border border-[#ded8ce] bg-[#fbfaf7] px-3 pr-8 text-[13px] font-medium text-[#1d1b18] outline-none"
-                  aria-label="Instagram account"
-                >
-                  {accounts.map((account) => (
-                    <option key={account.id} value={account.id}>
-                      {getAccountLabel(account)}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown
-                  className="pointer-events-none absolute right-2.5 top-1/2 size-4 -translate-y-1/2 text-[#756f66]"
-                  strokeWidth={1.8}
-                />
-              </div>
               <button
                 type="button"
                 onClick={startNewChat}
@@ -520,14 +453,14 @@ export function SnowAiChat({ accounts }: SnowAiChatProps) {
                 }}
                 placeholder="Message Snow AI..."
                 className="max-h-32 min-h-10 flex-1 resize-none bg-transparent py-2 text-[14px] leading-6 text-[#1d1b18] outline-none placeholder:text-[#9b958b]"
-                disabled={!selectedAccountId || isSending}
+                disabled={isSending}
               />
               <button
                 type="submit"
                 className="mb-1 flex size-8 shrink-0 items-center justify-center rounded-md bg-[#1d1b18] text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-45"
                 aria-label="Send message"
                 title="Send message"
-                disabled={!input.trim() || !selectedAccountId || isSending}
+                disabled={!input.trim() || isSending}
               >
                 {isSending ? (
                   <Loader2 className="size-4 animate-spin" strokeWidth={1.8} />

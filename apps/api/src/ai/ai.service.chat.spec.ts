@@ -13,7 +13,7 @@ function makeDeps() {
           .mockResolvedValue(null),
       },
       instagramAccount: {
-        findFirst: jest.fn<(args: unknown) => Promise<unknown>>(),
+        findMany: jest.fn<(args: unknown) => Promise<unknown[]>>(),
       },
       analyticsSnapshot: {
         findFirst: jest.fn<(args: unknown) => Promise<unknown>>(),
@@ -134,7 +134,7 @@ describe('AiService.chat()', () => {
 
   beforeEach(() => {
     deps = makeDeps();
-    deps.prisma.instagramAccount.findFirst.mockResolvedValue(null);
+    deps.prisma.instagramAccount.findMany.mockResolvedValue([]);
     deps.prisma.analyticsSnapshot.findFirst.mockResolvedValue(null);
     deps.prisma.contentPost.findMany.mockResolvedValue([]);
     service = new AiService(
@@ -242,10 +242,13 @@ describe('AiService.chat()', () => {
 
   it('injects current account analytics context from the database', async () => {
     deps.workingMemory.get.mockResolvedValue(null);
-    deps.prisma.instagramAccount.findFirst.mockResolvedValue({
-      username: 'maulana_gian',
-      displayName: 'Maulana Gian',
-    });
+    deps.prisma.instagramAccount.findMany.mockResolvedValue([
+      {
+        id: ACCOUNT_ID,
+        username: 'maulana_gian',
+        displayName: 'Maulana Gian',
+      },
+    ]);
     deps.prisma.analyticsSnapshot.findFirst.mockResolvedValue({
       snapshotDate: new Date('2026-06-05T00:00:00Z'),
       followersCount: 1200,
@@ -289,6 +292,7 @@ describe('AiService.chat()', () => {
     expect(memoryContext).toContain(
       'Current account analytics context from database',
     );
+    expect(memoryContext).toContain('Scope: focused account');
     expect(memoryContext).toContain('Best reel');
     expect(memoryContext).toContain('reach=1000');
     expect(memoryContext).toContain('saves/reach=3.00%');
@@ -299,5 +303,103 @@ describe('AiService.chat()', () => {
         }),
       }),
     );
+  });
+
+  it('uses all connected accounts by default and narrows when the message names one', async () => {
+    deps.workingMemory.get.mockResolvedValue(null);
+    deps.prisma.instagramAccount.findMany.mockResolvedValue([
+      {
+        id: ACCOUNT_ID,
+        username: 'maulana_gian',
+        displayName: 'Maulana Gian',
+      },
+      {
+        id: 'account-2',
+        username: 'second_brand',
+        displayName: 'Second Brand',
+      },
+    ]);
+    deps.prisma.analyticsSnapshot.findFirst.mockResolvedValue({
+      snapshotDate: new Date('2026-06-05T00:00:00Z'),
+      followersCount: 1200,
+      followingCount: 180,
+      mediaCount: 45,
+      reach: 900,
+      impressions: 1400,
+      profileViews: 70,
+    });
+    deps.prisma.contentPost.findMany.mockResolvedValue([
+      {
+        id: 'post-top',
+        title: 'Best reel',
+        caption: null,
+        postType: 'REEL',
+        publishedAt: new Date('2026-06-04T10:00:00Z'),
+        igPermalink: null,
+        postAnalytics: [
+          {
+            fetchedAt: new Date('2026-06-05T08:00:00Z'),
+            likeCount: 80,
+            commentsCount: 12,
+            sharesCount: 9,
+            savesCount: 30,
+            reach: 1000,
+            impressions: 1500,
+            engagement: 131,
+          },
+        ],
+      },
+    ]);
+
+    await service.chat(USER_ID, {
+      sessionId: SESSION_ID,
+      message: 'top post untuk Maulana Gian',
+    });
+
+    const memoryContext = deps.layer2.chat.mock.calls[0]?.[2] ?? '';
+
+    expect(deps.workingMemory.get).toHaveBeenCalledWith(ACCOUNT_ID, SESSION_ID);
+    expect(memoryContext).toContain('Scope: focused account');
+    expect(memoryContext).toContain('Maulana Gian');
+    expect(deps.prisma.contentPost.findMany).toHaveBeenCalledTimes(1);
+    expect(deps.prisma.contentPost.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          instagramAccountId: ACCOUNT_ID,
+        }),
+      }),
+    );
+  });
+
+  it('uses a global working memory key when no account is named', async () => {
+    deps.workingMemory.get.mockResolvedValue(null);
+    deps.prisma.instagramAccount.findMany.mockResolvedValue([
+      {
+        id: ACCOUNT_ID,
+        username: 'maulana_gian',
+        displayName: 'Maulana Gian',
+      },
+      {
+        id: 'account-2',
+        username: 'second_brand',
+        displayName: 'Second Brand',
+      },
+    ]);
+    deps.prisma.analyticsSnapshot.findFirst.mockResolvedValue(null);
+    deps.prisma.contentPost.findMany.mockResolvedValue([]);
+
+    await service.chat(USER_ID, {
+      sessionId: SESSION_ID,
+      message: 'berikan aku top post',
+    });
+
+    const memoryContext = deps.layer2.chat.mock.calls[0]?.[2] ?? '';
+
+    expect(deps.workingMemory.get).toHaveBeenCalledWith(
+      'all-accounts',
+      SESSION_ID,
+    );
+    expect(memoryContext).toContain('Scope: all connected accounts');
+    expect(deps.prisma.contentPost.findMany).toHaveBeenCalledTimes(2);
   });
 });
