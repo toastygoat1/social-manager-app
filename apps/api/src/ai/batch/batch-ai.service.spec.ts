@@ -42,9 +42,9 @@ function makeAiQueue() {
           contentPostId: string,
           sessionId?: string,
           batchId?: string,
-        ) => Promise<void>
+        ) => Promise<boolean>
       >()
-      .mockResolvedValue(undefined),
+      .mockResolvedValue(true),
   };
 }
 

@@ -15,6 +15,10 @@ class InternalAnalyzeDto {
   @IsString()
   @IsOptional()
   sessionId?: string;
+
+  @IsString()
+  @IsOptional()
+  batchId?: string;
 }
 
 @UseGuards(WorkerAiGuard)
@@ -28,6 +32,7 @@ export class InternalAiController {
       body.accountId,
       body.contentPostId,
       body.sessionId,
+      body.batchId,
     );
   }
 }

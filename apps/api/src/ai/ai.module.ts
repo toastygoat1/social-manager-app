@@ -18,6 +18,7 @@ import { ExpertEngineService } from './expert/engine.service.js';
 import { WorkerAiGuard } from './guards/worker-ai.guard.js';
 import { BatchAiService } from './batch/batch-ai.service.js';
 import { BatchSummaryService } from './batch/batch-summary.service.js';
+import { AiAutoAnalysisService } from './auto-analysis.service.js';
 
 @Module({
   imports: [ConfigModule],
@@ -47,7 +48,8 @@ import { BatchSummaryService } from './batch/batch-summary.service.js';
     ExpertEngineService,
     BatchAiService,
     BatchSummaryService,
+    AiAutoAnalysisService,
   ],
-  exports: [AiQueueService, AiService],
+  exports: [AiQueueService, AiService, AiAutoAnalysisService],
 })
 export class AiModule {}
