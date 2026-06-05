@@ -804,6 +804,19 @@ export class SchedulerService {
     return this.getPostDetail(userId, contentPostId);
   }
 
+  async updatePostMetadata(
+    userId: string,
+    contentPostId: string,
+    metadata: PostMetadataInput[],
+  ): Promise<SchedulerPostDetail> {
+    const post = await this.getOwnedPost(userId, contentPostId);
+    await this.prisma.$transaction(async (tx) => {
+      await this.syncPostMetadataValues(tx, userId, post.id, metadata);
+    });
+
+    return this.getPostDetail(userId, contentPostId);
+  }
+
   async retryFailedPost(
     userId: string,
     contentPostId: string,
