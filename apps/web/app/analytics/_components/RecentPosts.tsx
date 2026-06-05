@@ -6,17 +6,14 @@ import {
   Eye,
   Heart,
   ImageIcon,
-  Loader2,
   MessageSquareText,
   Share2,
-  Sparkles,
   TrendingUp,
   Video,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { PostDetailsModal } from "@/app/scheduler/_components/PostDetailsModal";
-import { ApiError, apiFetchBrowser } from "@/lib/api/browser-client";
 import { formatNumber } from "@/lib/format";
 import type { PostStat, RecentPost } from "./data";
 
@@ -113,15 +110,6 @@ function formatTimeAgo(value: string | null) {
   return `${Math.floor(diffMs / day)} days ago`;
 }
 
-function getApiErrorMessage(error: unknown) {
-  if (!(error instanceof ApiError)) return null;
-
-  const body = error.body as { message?: string | string[] } | null;
-  const message = body?.message;
-
-  return Array.isArray(message) ? message[0] : message;
-}
-
 export function RecentPosts({
   posts,
   latestPosts = posts,
@@ -134,39 +122,8 @@ export function RecentPosts({
   const router = useRouter();
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [mode, setMode] = useState<PostListMode>("top");
-  const [queuedPostIds, setQueuedPostIds] = useState<Set<string>>(new Set());
-  const [queueingPostId, setQueueingPostId] = useState<string | null>(null);
-  const [queueMessage, setQueueMessage] = useState<string | null>(null);
   const activeCopy = POST_LIST_COPY[mode];
   const visiblePosts = mode === "latest" ? latestPosts : posts;
-
-  async function queueAnalysis(post: RecentPost) {
-    setQueueingPostId(post.id);
-    setQueueMessage(null);
-
-    try {
-      await apiFetchBrowser<{ queued: true }>("/ai/analyze/queue", {
-        method: "POST",
-        body: {
-          accountId: post.accountId,
-          contentPostId: post.id,
-        },
-      });
-
-      setQueuedPostIds((current) => {
-        const next = new Set(current);
-        next.add(post.id);
-        return next;
-      });
-      setQueueMessage("AI analysis queued");
-    } catch (error) {
-      setQueueMessage(
-        getApiErrorMessage(error) ?? "AI analysis could not be queued.",
-      );
-    } finally {
-      setQueueingPostId(null);
-    }
-  }
 
   return (
     <section
@@ -176,9 +133,7 @@ export function RecentPosts({
     >
       <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <h2 className="text-sm font-semibold text-ink">
-            {activeCopy.title}
-          </h2>
+          <h2 className="text-sm font-semibold text-ink">{activeCopy.title}</h2>
           <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
             {activeCopy.description}
           </p>
@@ -209,16 +164,9 @@ export function RecentPosts({
           })}
         </div>
       </header>
-      {queueMessage ? (
-        <div className="rounded-lg border border-line bg-card px-3 py-2 text-[12px] text-muted">
-          {queueMessage}
-        </div>
-      ) : null}
       <div
         className={`grid w-full gap-3 ${
-          compact
-            ? "grid-cols-1"
-            : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+          compact ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
         }`}
       >
         {visiblePosts.length === 0 ? (
@@ -261,28 +209,6 @@ export function RecentPosts({
                   </div>
                 </div>
               </button>
-              <div className="flex items-center justify-between gap-2 border-t border-line px-3 py-2">
-                <span className="truncate text-[11px] text-muted">
-                  {queuedPostIds.has(post.id) ? "Queued" : "Snow AI"}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => void queueAnalysis(post)}
-                  disabled={queueingPostId === post.id}
-                  className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-line bg-card px-2.5 text-[11px] font-medium text-ink transition hover:bg-paper disabled:cursor-not-allowed disabled:opacity-55"
-                  aria-label={`Analyze ${post.title}`}
-                >
-                  {queueingPostId === post.id ? (
-                    <Loader2
-                      className="size-3.5 animate-spin"
-                      strokeWidth={1.8}
-                    />
-                  ) : (
-                    <Sparkles className="size-3.5" strokeWidth={1.8} />
-                  )}
-                  Analyze
-                </button>
-              </div>
             </article>
           ))
         )}

@@ -2,7 +2,6 @@ import Link from "next/link";
 import { Columns2, LayoutDashboard } from "lucide-react";
 import { AvatarImage } from "@/app/_components/AvatarImage";
 import type { Account } from "@/app/dashboard/_components/data";
-import { BatchAnalyzeButton } from "./BatchAnalyzeButton";
 import { RefreshInsightsButton } from "./RefreshInsightsButton";
 import type { AnalyticsRange } from "./data";
 
@@ -150,11 +149,6 @@ export function AccountsTopCard({
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
-          <BatchAnalyzeButton
-            selectedAccountId={selectedAccountId}
-            range={range}
-            disabled={accounts.length === 0 || isCompareMode}
-          />
           <RefreshInsightsButton
             selectedAccountId={selectedAccountId}
             range={range}
@@ -180,7 +174,9 @@ export function AccountsTopCard({
               <Link
                 href={compareModeHref}
                 className={`flex h-8 items-center gap-1.5 px-3 text-xs transition ${
-                  isCompareMode ? "bg-card text-ink" : "text-muted hover:text-ink"
+                  isCompareMode
+                    ? "bg-card text-ink"
+                    : "text-muted hover:text-ink"
                 }`}
               >
                 <Columns2 className="size-3.5" strokeWidth={1.7} />
