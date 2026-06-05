@@ -9,6 +9,7 @@ import {
   Post,
   Put,
   Request,
+  ServiceUnavailableException,
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
@@ -236,12 +237,18 @@ export class AiController {
       throw new ForbiddenException('Account not found or access denied');
     }
 
-    await this.aiQueue.enqueueAnalysis(
+    const queued = await this.aiQueue.enqueueAnalysis(
       dto.accountId,
       dto.contentPostId,
       dto.sessionId,
       dto.batchId,
     );
+    if (!queued) {
+      throw new ServiceUnavailableException(
+        'AI analysis queue is unavailable. Check Redis and try again.',
+      );
+    }
+
     return { queued: true };
   }
 }

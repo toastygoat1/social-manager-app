@@ -30,23 +30,27 @@ export class AiQueueService implements OnModuleDestroy {
     contentPostId: string,
     sessionId?: string,
     batchId?: string,
-  ): Promise<void> {
+  ): Promise<boolean> {
     try {
       await this.getQueue().add(
         'run-ai-analysis',
         { accountId, contentPostId, sessionId, batchId },
         {
-          jobId: `${accountId}:${contentPostId}`,
+          jobId: batchId
+            ? `${accountId}:${contentPostId}:${batchId}`
+            : `${accountId}:${contentPostId}:single`,
           attempts: 2,
           backoff: { type: 'exponential', delay: 10_000 },
           removeOnComplete: { age: 60 * 60 * 24 },
           removeOnFail: { age: 60 * 60 * 24 * 7 },
         },
       );
+      return true;
     } catch (error) {
       this.logger.error(
         `Failed to enqueue AI analysis for post ${contentPostId}: ${(error as Error).message}`,
       );
+      return false;
     }
   }
 

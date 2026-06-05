@@ -129,33 +129,38 @@ model MediaAsset {
 }
 
 model ContentPost {
-  id                 String                     @id @default(uuid())
-  instagramAccountId String                     @map("instagram_account_id")
-  title              String?
-  caption            String?
-  postType           PostType                   @map("post_type")
-  status             PostStatus                 @default(DRAFT)
-  scheduledFor       DateTime?                  @map("scheduled_for")
-  publishedAt        DateTime?                  @map("published_at")
-  igMediaId          String?                    @map("ig_media_id")
-  igMediaContainerId String?                    @map("ig_media_container_id")
-  igPermalink        String?                    @map("ig_permalink")
-  igMediaUrl         String?                    @map("ig_media_url")
-  igThumbnailUrl     String?                    @map("ig_thumbnail_url")
-  commentsSyncedAt   DateTime?                  @map("comments_synced_at")
-  isAiGenerated      Boolean                    @default(false) @map("is_ai_generated")
-  createdAt          DateTime                   @default(now()) @map("created_at")
-  updatedAt          DateTime                   @updatedAt @map("updated_at")
-  instagramAccount   InstagramAccount           @relation(fields: [instagramAccountId], references: [id], onDelete: Cascade)
-  metadataValues     ContentPostMetadataValue[]
-  postComments       PostComment[]
-  postAnalytics      PostAnalytics[]
-  postMedia          PostMedia[]
-  publishAttempts    PublishAttempt[]
+  id                        String                     @id @default(uuid())
+  instagramAccountId        String                     @map("instagram_account_id")
+  title                     String?
+  caption                   String?
+  postType                  PostType                   @map("post_type")
+  status                    PostStatus                 @default(DRAFT)
+  scheduledFor              DateTime?                  @map("scheduled_for")
+  publishedAt               DateTime?                  @map("published_at")
+  igMediaId                 String?                    @map("ig_media_id")
+  igMediaContainerId        String?                    @map("ig_media_container_id")
+  igPermalink               String?                    @map("ig_permalink")
+  igMediaUrl                String?                    @map("ig_media_url")
+  igThumbnailUrl            String?                    @map("ig_thumbnail_url")
+  commentsSyncedAt          DateTime?                  @map("comments_synced_at")
+  aiAnalysisQueuedAt        DateTime?                  @map("ai_analysis_queued_at")
+  aiAnalyzedAt              DateTime?                  @map("ai_analyzed_at")
+  aiAnalysisSourceFetchedAt DateTime?                  @map("ai_analysis_source_fetched_at")
+  isAiGenerated             Boolean                    @default(false) @map("is_ai_generated")
+  createdAt                 DateTime                   @default(now()) @map("created_at")
+  updatedAt                 DateTime                   @updatedAt @map("updated_at")
+  instagramAccount          InstagramAccount           @relation(fields: [instagramAccountId], references: [id], onDelete: Cascade)
+  metadataValues            ContentPostMetadataValue[]
+  postComments              PostComment[]
+  postAnalytics             PostAnalytics[]
+  postMedia                 PostMedia[]
+  publishAttempts           PublishAttempt[]
 
   @@index([instagramAccountId])
   @@index([status])
   @@index([scheduledFor])
+  @@index([aiAnalysisQueuedAt])
+  @@index([aiAnalysisSourceFetchedAt])
   @@index([instagramAccountId, status, scheduledFor])
   @@map("content_posts")
 }

@@ -14,8 +14,8 @@ import {
 } from '@social-manager/database';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MediaService } from '../media/media.service.js';
-import { AiQueueService } from '../ai/ai-queue.service.js';
 import { AiService } from '../ai/ai.service.js';
+import { AiAutoAnalysisService } from '../ai/auto-analysis.service.js';
 import { decryptSecret } from '../common/crypto.util.js';
 import { CreateAnalyticsNoteDto } from './dto/create-analytics-note.dto.js';
 import { UpdateAnalyticsNoteDto } from './dto/update-analytics-note.dto.js';
@@ -416,7 +416,7 @@ export class AnalyticsService {
     private readonly prisma: PrismaService,
     private readonly media: MediaService,
     private readonly config: ConfigService,
-    @Optional() private readonly aiQueue: AiQueueService | null,
+    @Optional() private readonly aiAutoAnalysis: AiAutoAnalysisService | null,
     @Optional() private readonly aiService: AiService | null,
   ) {}
 
@@ -752,6 +752,12 @@ export class AnalyticsService {
           },
         });
         await this.updatePostInstagramPreview(post.id, metrics);
+        this.aiAutoAnalysis?.queueForFreshAnalyticsInBackground({
+          accountId: post.instagramAccountId,
+          contentPostId: post.id,
+          fetchedAt,
+          metrics,
+        });
 
         result.refreshed += 1;
       } catch (error) {
@@ -780,16 +786,7 @@ export class AnalyticsService {
     }
 
     if (result.refreshed > 0) {
-      const refreshedPosts = posts.slice(0, 5);
-      const accountIds = [
-        ...new Set(refreshedPosts.map((p) => p.instagramAccountId)),
-      ];
-
-      if (this.aiQueue) {
-        for (const post of refreshedPosts) {
-          void this.aiQueue.enqueueAnalysis(post.instagramAccountId, post.id);
-        }
-      }
+      const accountIds = [...new Set(posts.map((p) => p.instagramAccountId))];
 
       if (this.aiService) {
         for (const accountId of accountIds) {

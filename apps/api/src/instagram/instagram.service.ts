@@ -6,6 +6,7 @@ import {
   InternalServerErrorException,
   Logger,
   NotFoundException,
+  Optional,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -25,6 +26,7 @@ import { AddInstagramAccountDto } from './dto/add-instagram-account.dto.js';
 import { CompleteInstagramOAuthDto } from './dto/complete-instagram-oauth.dto.js';
 import { SendDmMessageDto } from './dto/send-dm-message.dto.js';
 import { decryptSecret, encryptSecret } from '../common/crypto.util.js';
+import { AiAutoAnalysisService } from '../ai/auto-analysis.service.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import type {
   InstagramWebhookMessagingEvent,
@@ -322,6 +324,7 @@ export class InstagramService {
   constructor(
     private prisma: PrismaService,
     private config: ConfigService,
+    @Optional() private readonly aiAutoAnalysis: AiAutoAnalysisService | null,
   ) {}
 
   async addAccount(user: AuthUser, data: AddInstagramAccountDto) {
@@ -1435,6 +1438,12 @@ export class InstagramService {
                   impressions: metrics.impressions,
                   engagement: metrics.engagement,
                 },
+              });
+              this.aiAutoAnalysis?.queueForFreshAnalyticsInBackground({
+                accountId: account.id,
+                contentPostId: post.id,
+                fetchedAt,
+                metrics,
               });
               result.analyticsCreated += 1;
             } else {

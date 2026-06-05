@@ -3,6 +3,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { AiBatchStatus, PostStatus } from '@social-manager/database';
 import type {
@@ -72,18 +73,40 @@ export class BatchAiService {
       },
     });
 
+    let queuedPosts = 0;
+    let failedPosts = 0;
+
     for (const post of posts) {
-      await this.aiQueue.enqueueAnalysis(
+      const queued = await this.aiQueue.enqueueAnalysis(
         post.instagramAccountId,
         post.id,
         undefined,
         report.id,
       );
+      if (queued) {
+        queuedPosts += 1;
+      } else {
+        failedPosts += 1;
+      }
+    }
+
+    if (queuedPosts === 0) {
+      await this.prisma.aiBatchReport.update({
+        where: { id: report.id },
+        data: {
+          status: AiBatchStatus.FAILED,
+          failedPosts,
+          completedAt: new Date(),
+        },
+      });
+      throw new ServiceUnavailableException(
+        'AI analysis queue is unavailable. Check Redis and try again.',
+      );
     }
 
     await this.prisma.aiBatchReport.update({
       where: { id: report.id },
-      data: { status: AiBatchStatus.PROCESSING },
+      data: { status: AiBatchStatus.PROCESSING, failedPosts },
     });
 
     return {
@@ -91,7 +114,10 @@ export class BatchAiService {
       totalPosts: posts.length,
       range,
       status: 'PENDING',
-      message: `${posts.length} posts queued for analysis`,
+      message:
+        failedPosts > 0
+          ? `${queuedPosts} posts queued for analysis, ${failedPosts} failed to queue`
+          : `${queuedPosts} posts queued for analysis`,
     };
   }
 

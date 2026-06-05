@@ -147,6 +147,8 @@ export class AiService {
     );
     await this.episodicMemory.updateSessionActivity(sessionId);
 
+    await this.markPostAiAnalyzed(contentPostId, analytics?.fetchedAt ?? null);
+
     // If this analysis is part of a batch, mark it complete
     if (dto.batchId && this.batchSummary) {
       await this.batchSummary.markPostComplete(dto.batchId, false);
@@ -327,6 +329,7 @@ export class AiService {
     accountId: string,
     contentPostId: string,
     providedSessionId?: string,
+    batchId?: string,
   ): Promise<AIAnalysisResponse> {
     const account = await this.prisma.instagramAccount.findUnique({
       where: { id: accountId },
@@ -351,7 +354,35 @@ export class AiService {
       sessionId = session.id;
     }
 
-    return this.analyze(userId, { accountId, contentPostId, sessionId });
+    return this.analyze(userId, {
+      accountId,
+      contentPostId,
+      sessionId,
+      batchId,
+    });
+  }
+
+  private async markPostAiAnalyzed(
+    contentPostId: string,
+    sourceFetchedAt: Date | null,
+  ): Promise<void> {
+    try {
+      await this.prisma.contentPost.update({
+        where: { id: contentPostId },
+        data: {
+          aiAnalyzedAt: new Date(),
+          ...(sourceFetchedAt
+            ? { aiAnalysisSourceFetchedAt: sourceFetchedAt }
+            : {}),
+        },
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Could not mark AI analysis complete for post ${contentPostId}: ${
+          (error as Error).message
+        }`,
+      );
+    }
   }
 
   async getSettings(userId: string) {
