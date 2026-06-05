@@ -71,6 +71,25 @@ export type MetadataFieldDefinition = {
   sortOrder: number;
 };
 
+export type ActivityKind =
+  | "account_connected"
+  | "account_disconnected"
+  | "post_scheduled"
+  | "post_published"
+  | "post_pending"
+  | "post_draft";
+
+export type ActivityTone = "success" | "danger" | "info" | "warning" | "muted";
+
+export type ActivityRow = {
+  id: string;
+  kind: ActivityKind;
+  title: string;
+  detail: string;
+  occurredAt: string;
+  tone: ActivityTone;
+};
+
 export type DashboardData = {
   totalAccounts: number | null;
   views: StatMetric;
@@ -81,6 +100,7 @@ export type DashboardData = {
   accounts: Account[];
   metadataFields: MetadataFieldDefinition[];
   contentRows: ContentRow[];
+  activityRows: ActivityRow[];
 };
 
 export const EMPTY_DASHBOARD: DashboardData = {
@@ -93,4 +113,5 @@ export const EMPTY_DASHBOARD: DashboardData = {
   accounts: [],
   metadataFields: [],
   contentRows: [],
+  activityRows: [],
 };
