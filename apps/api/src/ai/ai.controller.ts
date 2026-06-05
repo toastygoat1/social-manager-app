@@ -69,12 +69,14 @@ export class AiController {
   async chat(@Request() req: AuthedRequest, @Body() dto: ChatDto) {
     const userId = req.user.userId;
 
-    const account = await this.prisma.instagramAccount.findUnique({
-      where: { id: dto.accountId },
-      select: { userId: true },
-    });
-    if (!account || account.userId !== userId) {
-      throw new ForbiddenException('Account not found or access denied');
+    if (dto.accountId) {
+      const account = await this.prisma.instagramAccount.findUnique({
+        where: { id: dto.accountId },
+        select: { userId: true },
+      });
+      if (!account || account.userId !== userId) {
+        throw new ForbiddenException('Account not found or access denied');
+      }
     }
 
     const session = await this.prisma.chatbotSession.findUnique({
@@ -86,6 +88,11 @@ export class AiController {
     }
 
     return this.aiService.chat(userId, dto);
+  }
+
+  @Get('sessions')
+  async getGlobalSessions(@Request() req: AuthedRequest) {
+    return this.aiService.getSessions(req.user.userId);
   }
 
   @Get('sessions/:accountId')
@@ -131,12 +138,14 @@ export class AiController {
   ) {
     const userId = req.user.userId;
 
-    const account = await this.prisma.instagramAccount.findUnique({
-      where: { id: dto.accountId },
-      select: { userId: true },
-    });
-    if (!account || account.userId !== userId) {
-      throw new ForbiddenException('Account not found or access denied');
+    if (dto.accountId) {
+      const account = await this.prisma.instagramAccount.findUnique({
+        where: { id: dto.accountId },
+        select: { userId: true },
+      });
+      if (!account || account.userId !== userId) {
+        throw new ForbiddenException('Account not found or access denied');
+      }
     }
 
     return this.aiService.createSession(userId, dto);
