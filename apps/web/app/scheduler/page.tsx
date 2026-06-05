@@ -31,7 +31,7 @@ export default async function SchedulerPage() {
   const initialData = await getSchedulerData(from, to);
 
   return (
-    <div className="flex min-h-screen items-start bg-page font-sans text-ink transition-colors duration-500">
+    <div className="adaptive-content-colors flex min-h-screen items-start bg-page font-sans text-ink transition-colors duration-500">
       <Sidebar active="scheduling" profile={getUserProfile(user)} />
       <SchedulerShell
         initialReferenceIso={now.toISOString()}

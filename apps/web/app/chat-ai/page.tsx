@@ -63,7 +63,7 @@ export default async function ChatAiPage() {
   ]);
 
   return (
-    <div className="flex h-screen items-start overflow-hidden bg-page font-sans text-ink transition-colors duration-500">
+    <div className="adaptive-content-colors flex h-screen items-start overflow-hidden bg-page font-sans text-ink transition-colors duration-500">
       <Sidebar active="snow-ai" accounts={accounts} profile={profile} />
       <SnowAiChat accounts={accounts} />
     </div>
