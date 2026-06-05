@@ -849,25 +849,24 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
                     <h3 className="text-sm font-semibold text-ink">
                       Metadata
                     </h3>
-                    {metadataEntries.length ? (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {metadataEntries.map(({ id, label, value }) => (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {(metadataEntries.length
+                        ? metadataEntries
+                        : [{ id: "empty", label: "", value: "" }]
+                      ).map(({ id, label, value }) => (
                           <span
                             key={id}
-                            className="max-w-full rounded-lg border border-line bg-paper px-2.5 py-1 text-xs text-ink"
+                            className="min-h-7 max-w-full rounded-lg border border-line bg-paper px-2.5 py-1 text-xs text-ink"
                           >
-                            <span className="font-semibold">{label}</span>:{" "}
-                            <span className={value ? undefined : "text-muted"}>
-                              {value || "-"}
-                            </span>
+                            {label ? (
+                              <>
+                                <span className="font-semibold">{label}</span>:{" "}
+                              </>
+                            ) : null}
+                            <span>{value}</span>
                           </span>
                         ))}
-                      </div>
-                    ) : (
-                      <p className="mt-2 text-sm text-muted">
-                        No metadata fields
-                      </p>
-                    )}
+                    </div>
                   </div>
                 </>
               )}
