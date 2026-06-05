@@ -1,6 +1,6 @@
 "use client";
 
-import type { ComponentType, SVGProps } from "react";
+import type { ComponentType, MouseEvent, SVGProps } from "react";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import {
   BarChart3,
@@ -61,6 +61,12 @@ type BackfillResponse = {
   updated: number;
   analyticsCreated: number;
   failed: number;
+};
+
+type ViewTransitionDocument = Document & {
+  startViewTransition?: (callback: () => void) => {
+    finished: Promise<void>;
+  };
 };
 
 type SidebarPanelProps = {
@@ -493,6 +499,12 @@ function applyDocumentTheme(theme: ThemeMode) {
   document.documentElement.style.colorScheme = theme;
 }
 
+function commitDocumentTheme(theme: ThemeMode) {
+  writeAppThemeCookie(theme);
+  applyDocumentTheme(theme);
+  window.dispatchEvent(new Event(APP_THEME_EVENT));
+}
+
 function subscribeToAppThemePreference(onStoreChange: () => void) {
   window.addEventListener(APP_THEME_EVENT, onStoreChange);
 
@@ -535,12 +547,40 @@ export function SidebarPanel({
     window.dispatchEvent(new Event(SIDEBAR_COLLAPSED_EVENT));
   }
 
-  function toggleTheme() {
+  function toggleTheme(event: MouseEvent<HTMLButtonElement>) {
     const nextTheme = isDarkTheme ? "light" : "dark";
+    const transitionDocument = document as ViewTransitionDocument;
+    const reduceMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
 
-    writeAppThemeCookie(nextTheme);
-    applyDocumentTheme(nextTheme);
-    window.dispatchEvent(new Event(APP_THEME_EVENT));
+    if (!transitionDocument.startViewTransition || reduceMotion) {
+      commitDocumentTheme(nextTheme);
+      return;
+    }
+
+    const origin =
+      event.currentTarget.querySelector<HTMLElement>(
+        "[data-theme-toggle-origin]",
+      ) ?? event.currentTarget;
+    const { left, top, width, height } = origin.getBoundingClientRect();
+    const root = document.documentElement;
+
+    root.style.setProperty("--theme-transition-x", `${left + width / 2}px`);
+    root.style.setProperty("--theme-transition-y", `${top + height / 2}px`);
+    root.classList.add("theme-circle-transition");
+
+    const transition = transitionDocument.startViewTransition(() => {
+      commitDocumentTheme(nextTheme);
+    });
+
+    void transition.finished
+      .catch(() => undefined)
+      .finally(() => {
+        root.classList.remove("theme-circle-transition");
+        root.style.removeProperty("--theme-transition-x");
+        root.style.removeProperty("--theme-transition-y");
+      });
   }
 
   return (
@@ -743,6 +783,7 @@ export function SidebarPanel({
         }`}
       >
         <span
+          data-theme-toggle-origin
           className={`relative grid shrink-0 place-items-center overflow-hidden transition-colors duration-200 ${
             isCollapsed
               ? "size-8 rounded-[5px] group-hover:bg-[var(--sidebar-hover-strong)]"
