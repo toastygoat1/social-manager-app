@@ -13,6 +13,7 @@ import type {
   StoryMetrics,
   WorkingMemoryState,
 } from '@social-manager/types';
+import { PostStatus } from '@social-manager/database';
 import { WorkingMemoryService } from './memory/working-memory.service.js';
 import { EpisodicMemoryService } from './memory/episodic-memory.service.js';
 import { SemanticMemoryService } from './memory/semantic-memory.service.js';
@@ -25,6 +26,8 @@ import type { ChatDto } from './dto/chat.dto.js';
 import type { CreateSessionDto } from './dto/create-session.dto.js';
 import type { AnalyzeStoryDto } from './dto/analyze-story.dto.js';
 import { BatchSummaryService } from './batch/batch-summary.service.js';
+
+const CHAT_ANALYTICS_POST_LIMIT = 15;
 
 @Injectable()
 export class AiService {
@@ -204,8 +207,13 @@ export class AiService {
     const knowledge = await this.semanticMemory.getForAccount(accountId);
     const procedures = await this.proceduralMemory.getSuccessful(accountId);
     const currentState = await this.workingMemory.get(accountId, sessionId);
+    const accountAnalyticsContext = await this.buildAccountAnalyticsContext(
+      userId,
+      accountId,
+    );
 
     const memoryParts: string[] = [];
+    if (accountAnalyticsContext) memoryParts.push(accountAnalyticsContext);
     const episodicCtx = this.episodicMemory.buildContextString(recentMessages);
     if (episodicCtx) memoryParts.push(episodicCtx);
     const semanticCtx = this.semanticMemory.buildContextString(knowledge);
@@ -268,6 +276,139 @@ export class AiService {
     await this.workingMemory.set(accountId, sessionId, updatedState);
 
     return { reply, sessionId };
+  }
+
+  private async buildAccountAnalyticsContext(
+    userId: string,
+    accountId: string,
+  ): Promise<string> {
+    try {
+      const [account, snapshot, posts] = await Promise.all([
+        this.prisma.instagramAccount.findFirst({
+          where: { id: accountId, userId },
+          select: { username: true, displayName: true },
+        }),
+        this.prisma.analyticsSnapshot.findFirst({
+          where: { instagramAccountId: accountId },
+          orderBy: { snapshotDate: 'desc' },
+          select: {
+            snapshotDate: true,
+            followersCount: true,
+            followingCount: true,
+            mediaCount: true,
+            reach: true,
+            impressions: true,
+            profileViews: true,
+          },
+        }),
+        this.prisma.contentPost.findMany({
+          where: {
+            instagramAccountId: accountId,
+            status: PostStatus.PUBLISHED,
+            postAnalytics: { some: {} },
+          },
+          orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }],
+          take: CHAT_ANALYTICS_POST_LIMIT,
+          select: {
+            id: true,
+            title: true,
+            caption: true,
+            postType: true,
+            publishedAt: true,
+            igPermalink: true,
+            postAnalytics: {
+              orderBy: { fetchedAt: 'desc' },
+              take: 1,
+              select: {
+                fetchedAt: true,
+                likeCount: true,
+                commentsCount: true,
+                sharesCount: true,
+                savesCount: true,
+                reach: true,
+                impressions: true,
+                engagement: true,
+              },
+            },
+          },
+        }),
+      ]);
+
+      if (!account) return '';
+
+      const lines = [
+        'Current account analytics context from database (authoritative; use this over older chat messages):',
+        `Account: ${
+          account.displayName?.trim() || `@${account.username}`
+        } (@${account.username})`,
+      ];
+
+      if (snapshot) {
+        lines.push(
+          `Latest account snapshot ${formatDate(
+            snapshot.snapshotDate,
+          )}: followers=${snapshot.followersCount}, following=${
+            snapshot.followingCount
+          }, media=${snapshot.mediaCount}, reach=${formatMetric(
+            snapshot.reach,
+          )}, views=${formatMetric(
+            snapshot.impressions,
+          )}, profileViews=${formatMetric(snapshot.profileViews)}.`,
+        );
+      }
+
+      const rows = posts
+        .map((post) => {
+          const analytics = post.postAnalytics[0] ?? null;
+          if (!analytics) return null;
+
+          return {
+            id: post.id,
+            label: labelPost(post.title, post.caption, post.id),
+            postType: post.postType,
+            publishedAt: post.publishedAt,
+            permalink: post.igPermalink,
+            fetchedAt: analytics.fetchedAt,
+            likeCount: analytics.likeCount,
+            commentsCount: analytics.commentsCount,
+            sharesCount: analytics.sharesCount,
+            savesCount: analytics.savesCount,
+            reach: analytics.reach,
+            impressions: analytics.impressions,
+            engagement: analytics.engagement,
+          };
+        })
+        .filter((row): row is NonNullable<typeof row> => row !== null);
+
+      if (rows.length === 0) {
+        lines.push(
+          'No published posts with stored post analytics are available for this selected account yet.',
+        );
+        return lines.join('\n');
+      }
+
+      const topPosts = [...rows].sort(compareTopPost).slice(0, 5);
+      lines.push(
+        `Top posts by reach then views (${rows.length} recent posts with analytics considered):`,
+      );
+      topPosts.forEach((post, index) => {
+        lines.push(`${index + 1}. ${formatPostAnalyticsLine(post)}`);
+      });
+
+      lines.push('Recent post analytics:');
+      rows.slice(0, 8).forEach((post, index) => {
+        lines.push(`${index + 1}. ${formatPostAnalyticsLine(post)}`);
+      });
+
+      return lines.join('\n');
+    } catch (error) {
+      this.logger.warn(
+        `Could not build chat analytics context for account ${accountId}: ${
+          (error as Error).message
+        }`,
+      );
+      return '';
+    }
   }
 
   async getSessions(userId: string, accountId: string) {
@@ -581,4 +722,76 @@ export class AiService {
       metricsAvailable: true,
     };
   }
+}
+
+type ChatPostAnalyticsRow = {
+  id: string;
+  label: string;
+  postType: string;
+  publishedAt: Date | null;
+  permalink: string | null;
+  fetchedAt: Date;
+  likeCount: number | null;
+  commentsCount: number | null;
+  sharesCount: number | null;
+  savesCount: number | null;
+  reach: number | null;
+  impressions: number | null;
+  engagement: number | null;
+};
+
+function compareTopPost(
+  left: ChatPostAnalyticsRow,
+  right: ChatPostAnalyticsRow,
+) {
+  return (
+    score(right.reach) - score(left.reach) ||
+    score(right.impressions) - score(left.impressions) ||
+    score(right.engagement) - score(left.engagement) ||
+    score(right.savesCount) - score(left.savesCount)
+  );
+}
+
+function score(value: number | null) {
+  return value ?? -1;
+}
+
+function formatPostAnalyticsLine(post: ChatPostAnalyticsRow) {
+  const permalink = post.permalink ? `, permalink=${post.permalink}` : '';
+
+  return `${post.label} (${post.postType}, published=${formatDate(
+    post.publishedAt,
+  )}, analyticsFetched=${formatDate(post.fetchedAt)}): reach=${formatMetric(
+    post.reach,
+  )}, views=${formatMetric(post.impressions)}, engagement=${formatMetric(
+    post.engagement,
+  )}, likes=${formatMetric(post.likeCount)}, comments=${formatMetric(
+    post.commentsCount,
+  )}, shares=${formatMetric(post.sharesCount)}, saves=${formatMetric(
+    post.savesCount,
+  )}, saves/reach=${formatPercent(
+    post.savesCount,
+    post.reach,
+  )}, engagement/reach=${formatPercent(post.engagement, post.reach)}${permalink}`;
+}
+
+function labelPost(title: string | null, caption: string | null, id: string) {
+  const value = title?.trim() || caption?.trim() || `Post ${id}`;
+  return value.length > 80 ? `${value.slice(0, 77)}...` : value;
+}
+
+function formatMetric(value: number | null) {
+  return value === null ? 'unknown' : String(value);
+}
+
+function formatPercent(numerator: number | null, denominator: number | null) {
+  if (numerator === null || denominator === null || denominator <= 0) {
+    return 'unknown';
+  }
+
+  return `${((numerator / denominator) * 100).toFixed(2)}%`;
+}
+
+function formatDate(value: Date | null) {
+  return value?.toISOString().slice(0, 10) ?? 'unknown';
 }
