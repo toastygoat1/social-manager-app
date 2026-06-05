@@ -5,8 +5,10 @@ import type {
   ContentRow,
   MetadataFieldDefinition,
 } from "@/app/dashboard/_components/data";
+import { PostDetailsModal } from "@/app/scheduler/_components/PostDetailsModal";
 import { formatNumber } from "@/lib/format";
 import { ImageIcon, Play, X } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 
 type ContentMediaItem = {
@@ -89,7 +91,9 @@ export function ContentRowsTable({
   rows,
   metadataFields,
 }: ContentRowsTableProps) {
+  const router = useRouter();
   const [previewRow, setPreviewRow] = useState<PreviewRow | null>(null);
+  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const totalWidth = getTotalWidth(metadataFields);
 
   return (
@@ -142,6 +146,7 @@ export function ContentRowsTable({
               key={row.id}
               row={row}
               metadataFields={metadataFields}
+              onOpenDetails={setSelectedPostId}
               onPreview={setPreviewRow}
             />
           ))
@@ -153,6 +158,11 @@ export function ContentRowsTable({
           onClose={() => setPreviewRow(null)}
         />
       ) : null}
+      <PostDetailsModal
+        postId={selectedPostId}
+        onClose={() => setSelectedPostId(null)}
+        onChanged={() => router.refresh()}
+      />
     </section>
   );
 }
@@ -181,17 +191,32 @@ function StatusPill({ status }: { status: string }) {
 function Row({
   row,
   metadataFields,
+  onOpenDetails,
   onPreview,
 }: {
   row: ContentRowsTableRow;
   metadataFields: MetadataFieldDefinition[];
+  onOpenDetails: (postId: string) => void;
   onPreview: (row: PreviewRow) => void;
 }) {
   const mediaItems = row.mediaItems ?? [];
   const hasMedia = mediaItems.length > 0;
 
   return (
-    <div className="flex h-[54px] items-center border-b border-line transition hover:bg-card">
+    <div
+      role="button"
+      tabIndex={0}
+      aria-label={`Open details for ${row.contents}`}
+      onClick={() => onOpenDetails(row.id)}
+      onKeyDown={(event) => {
+        if (event.currentTarget !== event.target) return;
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onOpenDetails(row.id);
+        }
+      }}
+      className="flex h-[54px] cursor-pointer items-center border-b border-line transition hover:bg-card focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#5e6ad2]"
+    >
       <Cell width={265}>
         <span className="truncate text-[12px] font-medium text-ink">
           {row.contents}
@@ -241,7 +266,11 @@ function Row({
         {hasMedia ? (
           <button
             type="button"
-            onClick={() => onPreview({ ...row, mediaItems })}
+            onClick={(event) => {
+              event.stopPropagation();
+              onPreview({ ...row, mediaItems });
+            }}
+            onKeyDown={(event) => event.stopPropagation()}
             className="flex max-w-full items-center gap-1.5 rounded-md border border-line bg-paper px-2 py-1 text-[11px] text-ink transition hover:bg-card"
           >
             {mediaItems[0].kind === "VIDEO" ? (
