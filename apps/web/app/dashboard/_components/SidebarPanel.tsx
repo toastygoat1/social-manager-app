@@ -80,7 +80,7 @@ const NAV_ITEMS: NavItem[] = [
     href: "/scheduler",
   },
   { key: "analytics", label: "Insights", Icon: BarChart3, href: "/analytics" },
-  { key: "chat", label: "Inbox", Icon: Inbox, href: "/chat", badge: "24" },
+  { key: "chat", label: "Inbox", Icon: Inbox, href: "/chat" },
   { key: "snow-ai", label: "Snow AI", Icon: Sparkles, href: "/chat-ai" },
 ];
 
