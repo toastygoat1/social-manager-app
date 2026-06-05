@@ -169,3 +169,309 @@ body {
 .schedule-datetime-input::-webkit-calendar-picker-indicator {
   display: none;
 }
+
+/* Keeps legacy fixed-color scheduler/Snow AI surfaces connected to the app theme. */
+.adaptive-content-colors {
+  color: var(--text);
+}
+
+.adaptive-content-colors :is(
+  .bg-white,
+  .bg-\[\#fbfaf7\],
+  .bg-\[\#fffdf9\],
+  .bg-\[\#fffdfa\]
+) {
+  background-color: var(--bg-light);
+}
+
+.adaptive-content-colors :is(
+  .bg-\[\#f4f2ed\],
+  .bg-\[\#f8f6f1\],
+  .bg-\[\#fcfbf8\],
+  .bg-\[\#f7f5ef\],
+  .bg-\[\#f7f5f0\],
+  .bg-\[\#f3f0ea\],
+  .bg-\[\#f4f1eb\],
+  .bg-\[\#f0ece4\],
+  .bg-\[\#ece7dd\],
+  .bg-\[\#f5f1e9\],
+  .bg-\[\#f1eee8\],
+  .bg-\[\#e8e2d9\],
+  .bg-\[\#495057\]
+) {
+  background-color: var(--bg);
+}
+
+.adaptive-content-colors :is(
+  .hover\:bg-\[\#ece7dd\],
+  .hover\:bg-\[\#f0ece4\],
+  .hover\:bg-\[\#f3f0ea\],
+  .hover\:bg-\[\#f4f1eb\],
+  .hover\:bg-\[\#f7f5ef\],
+  .hover\:bg-\[\#f7f5f0\],
+  .hover\:bg-\[\#fcfbf8\]
+):hover {
+  background-color: var(--bg);
+}
+
+.adaptive-content-colors :is(
+  .bg-\[\#141310\],
+  .bg-\[\#17141d\],
+  .bg-\[\#171510\],
+  .bg-\[\#181610\]\/80,
+  .bg-\[\#1d1b18\]
+) {
+  background-color: var(--text);
+  color: var(--bg-light);
+}
+
+.adaptive-content-colors :is(
+  .border-\[\#bfcaef\],
+  .border-\[\#d9d3c8\],
+  .border-\[\#dcd6cb\],
+  .border-\[\#ddd7cd\],
+  .border-\[\#ded8ce\],
+  .border-\[\#e4ded4\],
+  .border-\[\#e4dfd6\],
+  .border-\[\#e7e1d6\],
+  .border-\[\#e7e3db\],
+  .border-\[\#e8e3da\],
+  .border-\[\#e9e4da\],
+  .border-\[\#ece7de\],
+  .border-\[\#eee9df\],
+  .border-red-200
+) {
+  border-color: var(--border);
+}
+
+.adaptive-content-colors :is(
+  .text-\[\#171510\],
+  .text-\[\#1d1b18\],
+  .text-\[\#27231c\],
+  .text-\[\#27231d\],
+  .text-\[\#28241d\],
+  .text-\[\#302b23\],
+  .text-\[\#423c35\],
+  .text-\[\#4d473f\],
+  .text-\[\#4e4840\],
+  .text-\[\#514b42\]
+) {
+  color: var(--text);
+}
+
+.adaptive-content-colors :is(
+  .hover\:text-\[\#1d1b18\]
+):hover {
+  color: var(--text);
+}
+
+.adaptive-content-colors :is(
+  .text-\[\#534e47\],
+  .text-\[\#544e46\],
+  .text-\[\#544f48\],
+  .text-\[\#5f594f\],
+  .text-\[\#615a50\],
+  .text-\[\#625b52\],
+  .text-\[\#635e57\],
+  .text-\[\#686158\],
+  .text-\[\#6d665d\],
+  .text-\[\#6e685f\],
+  .text-\[\#716b61\],
+  .text-\[\#736c62\],
+  .text-\[\#756e63\],
+  .text-\[\#756e64\],
+  .text-\[\#766f66\],
+  .text-\[\#777167\],
+  .text-\[\#777169\],
+  .text-\[\#797268\],
+  .text-\[\#7c766c\],
+  .text-\[\#817a70\],
+  .text-\[\#817b70\],
+  .text-\[\#827a71\],
+  .text-\[\#837c73\],
+  .text-\[\#857e74\],
+  .text-\[\#858076\],
+  .text-\[\#898278\],
+  .text-\[\#8a8379\],
+  .text-\[\#8a847a\],
+  .text-\[\#8e887d\],
+  .text-\[\#938d83\],
+  .text-\[\#968f84\],
+  .text-\[\#9a9388\],
+  .text-\[\#9a948b\],
+  .text-\[\#9b958b\],
+  .text-\[\#a29a8f\],
+  .text-\[\#a49e94\],
+  .text-\[\#ada79e\],
+  .text-\[\#c3bdb4\],
+  .text-\[\#d5d0c7\]
+) {
+  color: var(--text-muted);
+}
+
+.adaptive-content-colors :is(
+  .placeholder\:text-\[\#938d83\],
+  .placeholder\:text-\[\#9a9388\],
+  .placeholder\:text-\[\#9b958b\]
+)::placeholder {
+  color: var(--text-muted);
+  opacity: 1;
+}
+
+.adaptive-content-colors :is(.read-only\:bg-\[\#f7f5ef\]):read-only {
+  background-color: var(--bg);
+}
+
+.adaptive-content-colors :is(.read-only\:text-\[\#716b61\]):read-only {
+  color: var(--text-muted);
+}
+
+.adaptive-content-colors :is(
+  .bg-\[\#dbd6cd\],
+  .bg-\[\#ded9cf\]
+) {
+  background-color: var(--border);
+}
+
+.adaptive-content-colors :is(
+  .bg-\[\#e7f0e9\],
+  .bg-\[\#d7e6dc\],
+  .bg-\[\#f1faf4\]
+) {
+  background-color: color-mix(in srgb, var(--success) 16%, var(--bg-light));
+}
+
+.adaptive-content-colors :is(
+  .bg-\[\#edf0ff\],
+  .bg-\[\#dfe5ff\],
+  .bg-\[\#e7edff\],
+  .bg-\[\#e6f7fa\],
+  .bg-\[\#eef2ff\],
+  .bg-\[\#f4f6ff\],
+  .bg-\[\#f5f7ff\]
+) {
+  background-color: color-mix(in srgb, var(--cta) 16%, var(--bg-light));
+}
+
+.adaptive-content-colors :is(
+  .bg-\[\#fbf1dc\],
+  .bg-\[\#f5e5be\],
+  .bg-\[\#fff8e8\]
+) {
+  background-color: color-mix(in srgb, var(--chart-4) 18%, var(--bg-light));
+}
+
+.adaptive-content-colors :is(
+  .bg-\[\#fff7ed\],
+  .bg-red-50
+) {
+  background-color: color-mix(in srgb, var(--danger) 12%, var(--bg-light));
+}
+
+.adaptive-content-colors :is(
+  .bg-\[\#f0efec\],
+  .bg-\[\#e2dfd9\]
+) {
+  background-color: var(--bg);
+}
+
+.adaptive-content-colors :is(
+  .text-\[\#2c6848\],
+  .text-\[\#2f6544\],
+  .text-\[\#334f41\],
+  .text-\[\#446455\],
+  .text-\[\#568164\],
+  .text-\[\#5f8270\]
+) {
+  color: var(--success);
+}
+
+.adaptive-content-colors :is(
+  .text-\[\#104e61\],
+  .text-\[\#1d6b81\],
+  .text-\[\#26386f\],
+  .text-\[\#354579\],
+  .text-\[\#4f69ca\],
+  .text-\[\#506bc8\],
+  .text-\[\#526fe6\],
+  .text-\[\#637bce\]
+) {
+  color: var(--cta-border);
+}
+
+.adaptive-content-colors :is(
+  .text-\[\#674d23\],
+  .text-\[\#7a4a00\],
+  .text-\[\#85602b\],
+  .text-\[\#a57630\],
+  .text-\[\#a67832\]
+) {
+  color: var(--chart-4);
+}
+
+.adaptive-content-colors :is(
+  .text-\[\#8a3b12\],
+  .text-\[\#b73333\]
+) {
+  color: var(--danger);
+}
+
+.adaptive-content-colors :is(
+  .bg-\[\#4e8b73\],
+  .bg-\[\#6b917e\],
+  .bg-\[\#6e9d76\]
+) {
+  background-color: var(--success);
+}
+
+.adaptive-content-colors :is(
+  .bg-\[\#607ffc\],
+  .bg-\[\#6682fa\],
+  .bg-\[\#78dbe8\]
+) {
+  background-color: var(--cta);
+}
+
+.adaptive-content-colors :is(.bg-\[\#c79545\]) {
+  background-color: var(--chart-4);
+}
+
+.adaptive-content-colors :is(
+  .bg-\[\#8c8982\],
+  .bg-\[\#a9afbb\]
+) {
+  background-color: var(--text-muted);
+}
+
+.adaptive-content-colors :is(.bg-\[\#d05c48\]) {
+  background-color: var(--danger);
+}
+
+.adaptive-content-colors :is(
+  .ring-\[\#607ffc\],
+  .ring-\[\#6682fa\]
+) {
+  --tw-ring-color: var(--cta);
+}
+
+.adaptive-content-colors :is(
+  .outline-\[\#dfe5ff\],
+  .outline-\[\#607ffc\]
+) {
+  outline-color: var(--cta);
+}
+
+.adaptive-content-colors :is(
+  .border-\[\#6682fa\],
+  .border-\[\#bfdfca\]
+) {
+  border-color: var(--cta-border);
+}
+
+.adaptive-content-colors :is(.border-\[\#f7c852\]) {
+  border-color: var(--chart-4);
+}
+
+.adaptive-content-colors :is(.accent-\[\#1d6b81\]) {
+  accent-color: var(--cta);
+}
