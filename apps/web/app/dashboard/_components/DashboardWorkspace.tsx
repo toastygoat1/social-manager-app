@@ -1,13 +1,12 @@
 import Link from "next/link";
 import { Clock3 } from "lucide-react";
-import { AvatarImage } from "@/app/_components/AvatarImage";
 import type { UserProfile } from "@/lib/supabase/user-profile";
+import { AccountChip } from "./AccountChip";
 import { ConnectAccountsButton } from "./ConnectAccountsButton";
 import { ContentTable } from "./ContentTable";
 import { EditorialCalendar } from "./EditorialCalendar";
 import { LiveActivityPanel } from "./LiveActivityPanel";
 import type { ContentRow, DashboardData, StatMetric } from "./data";
-import { Instagram } from "./icons";
 
 type ConnectionStatus = {
   source: "instagram";
@@ -74,16 +73,6 @@ function rowDate(row: ContentRow) {
 
 function displayName(profile: UserProfile) {
   return profile.name?.trim() || profile.email?.split("@")[0] || "there";
-}
-
-function initials(label: string) {
-  return label
-    .replace(/^@/, "")
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part.charAt(0))
-    .join("")
-    .toUpperCase();
 }
 
 function formatDelta(metric: StatMetric) {
@@ -182,31 +171,6 @@ function Metrics({ data, today }: { data: DashboardData; today: Date }) {
         detail="From scheduled content"
       />
     </section>
-  );
-}
-
-function AccountMark({
-  account,
-  compact = false,
-}: {
-  account: DashboardData["accounts"][number];
-  compact?: boolean;
-}) {
-  return (
-    <span
-      className={`flex shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-page bg-[#5e6ad2] font-medium text-white ${
-        compact ? "size-8 text-[11px]" : "size-9 text-xs"
-      }`}
-    >
-      <AvatarImage
-        src={account.avatarUrl}
-        alt=""
-        width={compact ? 32 : 36}
-        height={compact ? 32 : 36}
-        className="size-full object-cover"
-        fallback={initials(account.name).slice(0, 2)}
-      />
-    </span>
   );
 }
 
@@ -332,20 +296,14 @@ function AccountsPanel({
 
       <ul className="mt-3 space-y-2">
         {accounts.slice(0, 4).map((account) => (
-          <li
-            key={account.id}
-            className="flex items-center gap-2.5 rounded-lg bg-card px-3 py-2.5"
-          >
-            <AccountMark account={account} compact />
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-xs font-semibold text-ink">
-                {account.name}
-              </span>
-              <span className="flex items-center gap-1 text-[11px] text-muted">
-                <Instagram className="size-3" strokeWidth={1.8} />
-                <span className="truncate">{account.platform}</span>
-              </span>
-            </span>
+          <li key={account.id}>
+            <AccountChip
+              accountId={account.id}
+              name={account.name}
+              platform={account.platform}
+              avatarUrl={account.avatarUrl}
+              className="w-full !bg-card"
+            />
           </li>
         ))}
       </ul>

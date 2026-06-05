@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { LoaderCircle, Trash2 } from "lucide-react";
+import { Link2Off, LoaderCircle } from "lucide-react";
 import { AvatarImage } from "@/app/_components/AvatarImage";
 import { ApiError, apiFetchBrowser } from "@/lib/api/browser-client";
 import { Instagram } from "./icons";
@@ -26,23 +26,23 @@ function getApiErrorMessage(error: unknown) {
   return Array.isArray(message) ? message[0] : message;
 }
 
-function getRemoveErrorMessage(error: unknown) {
+function getDisconnectErrorMessage(error: unknown) {
   if (error instanceof ApiError) {
     if (error.status === 401) {
-      return "Please sign in again before removing this account.";
+      return "Please sign in again before disconnecting this account.";
     }
 
     if (error.status === 404) {
-      return "This Instagram account is already removed or no longer available.";
+      return "This Instagram account is already disconnected or no longer available.";
     }
 
     return (
       getApiErrorMessage(error) ??
-      `Instagram account could not be removed. API returned ${error.status}.`
+      `Instagram account could not be disconnected. API returned ${error.status}.`
     );
   }
 
-  return "Instagram account could not be removed. Please try again after the API finishes redeploying.";
+  return "Instagram account could not be disconnected. Please try again after the API finishes redeploying.";
 }
 
 function getFallbackInitial(name: string) {
@@ -57,15 +57,15 @@ export function AccountChip({
   className,
 }: AccountChipProps) {
   const router = useRouter();
-  const [isRemoving, setIsRemoving] = useState(false);
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
 
-  async function removeAccount() {
+  async function disconnectAccount() {
     if (!accountId) return;
 
-    const confirmed = window.confirm(`Remove ${name} from this workspace?`);
+    const confirmed = window.confirm(`Disconnect ${name} from this workspace?`);
     if (!confirmed) return;
 
-    setIsRemoving(true);
+    setIsDisconnecting(true);
 
     try {
       await apiFetchBrowser(
@@ -76,8 +76,8 @@ export function AccountChip({
       );
       router.refresh();
     } catch (error) {
-      setIsRemoving(false);
-      window.alert(getRemoveErrorMessage(error));
+      setIsDisconnecting(false);
+      window.alert(getDisconnectErrorMessage(error));
     }
   }
 
@@ -107,16 +107,16 @@ export function AccountChip({
       {accountId ? (
         <button
           type="button"
-          onClick={removeAccount}
-          disabled={isRemoving}
-          title="Remove account"
-          aria-label={`Remove ${name}`}
+          onClick={disconnectAccount}
+          disabled={isDisconnecting}
+          title="Disconnect account"
+          aria-label={`Disconnect ${name}`}
           className="flex size-7 shrink-0 items-center justify-center rounded-lg text-muted transition hover:bg-red-50 hover:text-danger disabled:pointer-events-none disabled:opacity-60"
         >
-          {isRemoving ? (
+          {isDisconnecting ? (
             <LoaderCircle className="size-3.5 animate-spin" strokeWidth={2} />
           ) : (
-            <Trash2 className="size-3.5" strokeWidth={2} />
+            <Link2Off className="size-3.5" strokeWidth={2} />
           )}
         </button>
       ) : null}
