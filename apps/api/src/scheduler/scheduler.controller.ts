@@ -21,6 +21,7 @@ import { CreateEventDto } from './dto/create-event.dto.js';
 import { UpdateDraftDto } from './dto/update-draft.dto.js';
 import { UpdateScheduledPostDto } from './dto/update-scheduled-post.dto.js';
 import { SaveMetadataFieldsDto } from './dto/save-metadata-fields.dto.js';
+import { UpdatePostMetadataDto } from './dto/update-post-metadata.dto.js';
 
 @UseGuards(JwtAuthGuard)
 @Controller('scheduler')
@@ -112,6 +113,19 @@ export class SchedulerController {
       req.user.userId,
       contentPostId,
       body,
+    );
+  }
+
+  @Patch('posts/:contentPostId/metadata')
+  updatePostMetadata(
+    @Request() req: AuthedRequest,
+    @Param('contentPostId', new ParseUUIDPipe()) contentPostId: string,
+    @Body() body: UpdatePostMetadataDto,
+  ) {
+    return this.schedulerService.updatePostMetadata(
+      req.user.userId,
+      contentPostId,
+      body.metadata,
     );
   }
 
