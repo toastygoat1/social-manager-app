@@ -1,11 +1,10 @@
-import Link from "next/link";
-import { Clock3 } from "lucide-react";
 import type { UserProfile } from "@/lib/supabase/user-profile";
 import { AccountChip } from "./AccountChip";
 import { ConnectAccountsButton } from "./ConnectAccountsButton";
 import { ContentTable } from "./ContentTable";
 import { EditorialCalendar } from "./EditorialCalendar";
 import { LiveActivityPanel } from "./LiveActivityPanel";
+import { WorkplaceTaskBoard } from "./WorkplaceTaskBoard";
 import type { ContentRow, DashboardData, StatMetric } from "./data";
 
 type ConnectionStatus = {
@@ -29,14 +28,6 @@ type MetricCardProps = {
   detail: string;
 };
 
-const STATUS_STYLES: Record<string, string> = {
-  published: "bg-success/10 text-success",
-  scheduled: "bg-cta/10 text-cta",
-  pending: "bg-[#d4a547]/15 text-[#d4a547]",
-  draft: "bg-card text-muted",
-  failed: "bg-danger/10 text-danger",
-};
-
 function formatCompact(value: number | null) {
   if (value === null) return "-";
   return new Intl.NumberFormat("en-US", {
@@ -55,15 +46,6 @@ function formatPercent(value: number | null) {
 
 function normalizeStatus(status: string) {
   return status.toLowerCase();
-}
-
-function statusClass(status: string) {
-  return STATUS_STYLES[normalizeStatus(status)] ?? STATUS_STYLES.draft;
-}
-
-function statusLabel(status: string) {
-  const normalized = normalizeStatus(status);
-  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
 }
 
 function rowDate(row: ContentRow) {
@@ -195,75 +177,9 @@ function DashboardHero({
           {data.accounts.length === 1 ? "" : "s"}.
           {reviewCount > 0
             ? ` ${reviewCount} need your review.`
-            : " Your review queue is clear."}
+            : " Content reviews are clear."}
         </p>
       </div>
-    </section>
-  );
-}
-
-function FocusCard({ reminder }: { reminder: DashboardData["reminder"] }) {
-  return (
-    <article className="rounded-[10px] border border-line bg-paper p-[18px]">
-      <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted">
-        Focus today
-      </p>
-      <h2 className="mt-3 text-sm font-semibold text-ink">
-        {reminder?.title ?? "Review your publishing plan"}
-      </h2>
-      <p className="mt-2 text-xs text-muted">
-        {reminder
-          ? "A scheduled reminder is ready for action."
-          : "Keep captions, assets, and approvals moving together."}
-      </p>
-      <div className="mt-5 flex items-center justify-between gap-3 text-[11px] text-muted">
-        <span className="inline-flex items-center gap-1">
-          <Clock3 className="size-3" />
-          {reminder ? "Today" : "Open schedule"}
-        </span>
-        <Link
-          href="/scheduler"
-          className="rounded-lg bg-cta px-3 py-1.5 font-medium text-white transition hover:bg-cta-edge"
-        >
-          Open brief
-        </Link>
-      </div>
-    </article>
-  );
-}
-
-function QueuePanel({ rows }: { rows: ContentRow[] }) {
-  const tasks = getReviewRows(rows).slice(0, 5);
-
-  return (
-    <section className="rounded-[10px] border border-line bg-paper p-[18px]">
-      <header className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-ink">Your queue</h2>
-        <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-muted">
-          {tasks.length} items
-        </span>
-      </header>
-      {tasks.length === 0 ? (
-        <p className="mt-7 text-xs text-muted">
-          Nothing waiting for approval. Your review queue is clear.
-        </p>
-      ) : (
-        <ul className="mt-3 space-y-2.5">
-          {tasks.map((row) => (
-            <li key={row.id} className="flex items-center gap-2 text-xs">
-              <span className="size-3.5 rounded border border-line bg-card" />
-              <span className="min-w-0 flex-1 truncate text-ink">
-                {row.contents} / {row.account.name}
-              </span>
-              <span
-                className={`rounded-full px-2 py-0.5 text-[9px] ${statusClass(row.status)}`}
-              >
-                {statusLabel(row.status)}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
     </section>
   );
 }
@@ -333,9 +249,8 @@ export function DashboardWorkspace({
         <div>
           <EditorialCalendar calendar={data.calendar} todayIso={todayIso} />
         </div>
-        <div className="grid gap-4 xl:grid-cols-[250px_minmax(360px,1fr)_318px]">
-          <FocusCard reminder={data.reminder} />
-          <QueuePanel rows={data.contentRows} />
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_318px]">
+          <WorkplaceTaskBoard accounts={data.accounts} />
           <div className="grid gap-4">
             <AccountsPanel
               accounts={data.accounts}
