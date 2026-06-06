@@ -15,6 +15,7 @@ import { ChannelDistribution } from "./_components/ChannelDistribution";
 import { ContentCalendar } from "./_components/ContentCalendar";
 import { AnalyticsContentTable } from "./_components/AnalyticsContentTable";
 import { AnalyticsCompareView } from "./_components/AnalyticsCompareView";
+import { NotesBoard } from "./_components/NotesBoard";
 import { Recommendations } from "./_components/Recommendations";
 import type { AnalyticsRange } from "./_components/data";
 
@@ -189,8 +190,8 @@ export default async function AnalyticsPage({
                 rows={data.contentRows}
                 metadataFields={data.metadataFields}
               />
-              <Recommendations
-                recommendations={data.recommendations}
+              <Recommendations recommendations={data.recommendations} />
+              <NotesBoard
                 notes={data.notes}
                 accounts={data.accounts}
                 selectedAccountId={data.selectedAccountId}
