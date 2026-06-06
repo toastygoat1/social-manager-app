@@ -1,8 +1,7 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { CheckCircle2, Clock3, Columns2, TriangleAlert } from "lucide-react";
-import { AccountChip } from "./AccountChip";
 import type { Account } from "./data";
 
 type TaskUrgency = "High" | "Medium" | "Low";
@@ -32,7 +31,12 @@ type WorkplaceTaskBoardProps = {
   accounts: Account[];
 };
 
-const WORKSPACES: Workspace[] = [
+type EditableTaskField = Exclude<keyof WorkplaceTask, "id">;
+
+const STORAGE_KEY = "social-manager-workplace-tasks";
+const BRAND_OPTIONS_ID = "workplace-brand-options";
+
+const INITIAL_WORKSPACES: Workspace[] = [
   {
     id: "daily-ops",
     name: "Daily Ops",
@@ -173,6 +177,11 @@ const TASK_COLUMNS = [
   { label: "Input From", width: 135 },
 ];
 
+const TASK_TABLE_WIDTH = TASK_COLUMNS.reduce(
+  (sum, column) => sum + column.width,
+  0,
+);
+
 const URGENCY_STYLES: Record<TaskUrgency, string> = {
   High: "bg-danger/10 text-danger",
   Medium: "bg-[#d4a547]/15 text-[#98640d]",
@@ -186,23 +195,19 @@ const STATUS_STYLES: Record<TaskStatus, string> = {
   Done: "bg-success/10 text-success",
 };
 
-function normalizeName(value: string) {
-  return value
-    .replace(/^@/, "")
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, " ");
-}
+const URGENCY_OPTIONS: TaskUrgency[] = ["High", "Medium", "Low"];
+const STATUS_OPTIONS: TaskStatus[] = [
+  "Not started",
+  "In progress",
+  "Review",
+  "Done",
+];
 
-function findAccount(accounts: Account[], brand: string) {
-  const normalizedBrand = normalizeName(brand);
+const inputClassName =
+  "w-full rounded-md border border-transparent bg-transparent px-2 py-1.5 text-xs text-ink outline-none transition placeholder:text-muted hover:border-line hover:bg-paper focus:border-cta focus:bg-paper focus:ring-2 focus:ring-cta/15";
 
-  return accounts.find((account) =>
-    [account.name, account.displayName, account.username]
-      .filter(Boolean)
-      .some((value) => normalizeName(String(value)) === normalizedBrand),
-  );
-}
+const mutedInputClassName =
+  "w-full rounded-md border border-transparent bg-transparent px-2 py-1.5 text-xs text-muted outline-none transition placeholder:text-muted hover:border-line hover:bg-paper focus:border-cta focus:bg-paper focus:text-ink focus:ring-2 focus:ring-cta/15";
 
 function TaskCell({
   width,
@@ -215,7 +220,7 @@ function TaskCell({
 }) {
   return (
     <div
-      className={`flex min-h-[76px] shrink-0 items-start px-3 py-3 ${className}`}
+      className={`flex min-h-[92px] shrink-0 items-start px-3 py-3 ${className}`}
       style={{ width }}
     >
       {children}
@@ -223,117 +228,266 @@ function TaskCell({
   );
 }
 
-function Pill({
-  children,
-  className,
+function TextInput({
+  value,
+  onChange,
+  ariaLabel,
+  className = inputClassName,
+  list,
 }: {
-  children: ReactNode;
-  className: string;
+  value: string;
+  onChange: (value: string) => void;
+  ariaLabel: string;
+  className?: string;
+  list?: string;
 }) {
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2 py-1 font-mono text-[10px] ${className}`}
-    >
-      <span className="size-1.5 rounded-full bg-current" />
-      {children}
-    </span>
+    <input
+      aria-label={ariaLabel}
+      className={className}
+      list={list}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+    />
   );
 }
 
-function BrandCell({ brand, accounts }: { brand: string; accounts: Account[] }) {
-  const account = findAccount(accounts, brand);
-
-  if (account) {
-    return (
-      <AccountChip
-        name={account.name}
-        platform={account.platform}
-        avatarUrl={account.avatarUrl}
-        className="h-10 w-full !bg-card px-3"
-      />
-    );
-  }
-
+function TextAreaInput({
+  value,
+  onChange,
+  ariaLabel,
+  className = inputClassName,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  ariaLabel: string;
+  className?: string;
+}) {
   return (
-    <span className="inline-flex max-w-full items-center rounded-lg border border-line bg-card px-2.5 py-1.5 text-xs font-medium text-ink">
-      <span className="truncate">{brand}</span>
-    </span>
+    <textarea
+      aria-label={ariaLabel}
+      className={`${className} h-16 resize-none leading-5`}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+    />
+  );
+}
+
+function SelectInput<T extends string>({
+  value,
+  options,
+  onChange,
+  ariaLabel,
+  className,
+}: {
+  value: T;
+  options: T[];
+  onChange: (value: T) => void;
+  ariaLabel: string;
+  className: string;
+}) {
+  return (
+    <select
+      aria-label={ariaLabel}
+      value={value}
+      onChange={(event) => onChange(event.target.value as T)}
+      className={`w-full rounded-full border border-transparent px-2 py-1 font-mono text-[10px] outline-none transition hover:border-line focus:border-cta focus:ring-2 focus:ring-cta/15 ${className}`}
+    >
+      {options.map((option) => (
+        <option key={option} value={option}>
+          {option}
+        </option>
+      ))}
+    </select>
   );
 }
 
 function TaskRow({
   task,
-  accounts,
+  workspaceId,
+  onUpdate,
 }: {
   task: WorkplaceTask;
-  accounts: Account[];
+  workspaceId: string;
+  onUpdate: <K extends EditableTaskField>(
+    workspaceId: string,
+    taskId: string,
+    field: K,
+    value: WorkplaceTask[K],
+  ) => void;
 }) {
   return (
-    <div className="flex border-b border-line transition hover:bg-card/70">
+    <div
+      className="flex border-b border-line transition hover:bg-card/70"
+      style={{ width: TASK_TABLE_WIDTH }}
+    >
       <TaskCell width={230} className="items-center">
-        <span className="text-xs font-semibold leading-5 text-ink">
-          {task.taskName}
-        </span>
+        <TextInput
+          ariaLabel="Task name"
+          value={task.taskName}
+          onChange={(value) => onUpdate(workspaceId, task.id, "taskName", value)}
+          className={`${inputClassName} font-semibold leading-5`}
+        />
       </TaskCell>
       <TaskCell width={150} className="items-center">
-        <span className="text-xs text-muted">{task.assignee}</span>
+        <TextInput
+          ariaLabel="Assignee"
+          value={task.assignee}
+          onChange={(value) => onUpdate(workspaceId, task.id, "assignee", value)}
+          className={mutedInputClassName}
+        />
       </TaskCell>
       <TaskCell width={115} className="items-center">
-        <Pill className={URGENCY_STYLES[task.urgency]}>
-          {task.urgency}
-        </Pill>
+        <SelectInput
+          ariaLabel="Urgency"
+          value={task.urgency}
+          options={URGENCY_OPTIONS}
+          onChange={(value) => onUpdate(workspaceId, task.id, "urgency", value)}
+          className={URGENCY_STYLES[task.urgency]}
+        />
       </TaskCell>
       <TaskCell width={190} className="items-center">
-        <BrandCell brand={task.brand} accounts={accounts} />
+        <TextInput
+          ariaLabel="Brand account"
+          value={task.brand}
+          onChange={(value) => onUpdate(workspaceId, task.id, "brand", value)}
+          list={BRAND_OPTIONS_ID}
+        />
       </TaskCell>
       <TaskCell width={135} className="items-center">
-        <Pill className={STATUS_STYLES[task.status]}>{task.status}</Pill>
+        <SelectInput
+          ariaLabel="Status"
+          value={task.status}
+          options={STATUS_OPTIONS}
+          onChange={(value) => onUpdate(workspaceId, task.id, "status", value)}
+          className={STATUS_STYLES[task.status]}
+        />
       </TaskCell>
       <TaskCell width={130} className="items-center">
-        <span className="inline-flex items-center gap-1.5 font-mono text-[11px] text-muted">
+        <span className="flex w-full items-center gap-1.5 text-muted">
           <Clock3 className="size-3.5 shrink-0" strokeWidth={1.8} />
-          {task.deadline}
+          <TextInput
+            ariaLabel="Deadline"
+            value={task.deadline}
+            onChange={(value) =>
+              onUpdate(workspaceId, task.id, "deadline", value)
+            }
+            className="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-1 py-1.5 font-mono text-[11px] text-muted outline-none transition hover:border-line hover:bg-paper focus:border-cta focus:bg-paper focus:text-ink focus:ring-2 focus:ring-cta/15"
+          />
         </span>
       </TaskCell>
       <TaskCell width={320}>
-        <span className="max-h-[3.75rem] overflow-hidden text-xs leading-5 text-ink">
-          {task.briefExecution}
-        </span>
+        <TextAreaInput
+          ariaLabel="Brief execution"
+          value={task.briefExecution}
+          onChange={(value) =>
+            onUpdate(workspaceId, task.id, "briefExecution", value)
+          }
+        />
       </TaskCell>
       <TaskCell width={285}>
-        <span className="max-h-[3.75rem] overflow-hidden text-xs leading-5 text-muted">
-          {task.notes}
-        </span>
+        <TextAreaInput
+          ariaLabel="Notes"
+          value={task.notes}
+          onChange={(value) => onUpdate(workspaceId, task.id, "notes", value)}
+          className={mutedInputClassName}
+        />
       </TaskCell>
       <TaskCell width={135} className="items-center">
-        <span className="rounded-lg bg-card px-2.5 py-1.5 font-mono text-[10px] text-muted">
-          {task.inputFrom}
-        </span>
+        <TextInput
+          ariaLabel="Input from"
+          value={task.inputFrom}
+          onChange={(value) => onUpdate(workspaceId, task.id, "inputFrom", value)}
+          className="w-full rounded-lg border border-transparent bg-card px-2.5 py-1.5 font-mono text-[10px] text-muted outline-none transition hover:border-line focus:border-cta focus:text-ink focus:ring-2 focus:ring-cta/15"
+        />
       </TaskCell>
     </div>
   );
 }
 
 export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
+  const [workspaces, setWorkspaces] = useState<Workspace[]>(INITIAL_WORKSPACES);
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState(
-    WORKSPACES[0].id,
+    INITIAL_WORKSPACES[0].id,
   );
+  const [hasLoadedStoredWorkspaces, setHasLoadedStoredWorkspaces] =
+    useState(false);
   const selectedWorkspace =
-    WORKSPACES.find((workspace) => workspace.id === selectedWorkspaceId) ??
-    WORKSPACES[0];
+    workspaces.find((workspace) => workspace.id === selectedWorkspaceId) ??
+    workspaces[0] ??
+    INITIAL_WORKSPACES[0];
+
+  useEffect(() => {
+    try {
+      const storedWorkspaces = window.localStorage.getItem(STORAGE_KEY);
+      if (storedWorkspaces) {
+        const parsedWorkspaces = JSON.parse(storedWorkspaces);
+        if (Array.isArray(parsedWorkspaces) && parsedWorkspaces.length > 0) {
+          setWorkspaces(parsedWorkspaces);
+        }
+      }
+    } catch {
+      window.localStorage.removeItem(STORAGE_KEY);
+    } finally {
+      setHasLoadedStoredWorkspaces(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!hasLoadedStoredWorkspaces) return;
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(workspaces));
+  }, [hasLoadedStoredWorkspaces, workspaces]);
 
   const boardStats = useMemo(() => {
-    const tasks = WORKSPACES.flatMap((workspace) => workspace.tasks);
+    const tasks = workspaces.flatMap((workspace) => workspace.tasks);
 
     return {
       totalTasks: tasks.length,
       urgentTasks: tasks.filter((task) => task.urgency === "High").length,
       completedTasks: tasks.filter((task) => task.status === "Done").length,
     };
-  }, []);
+  }, [workspaces]);
+
+  const brandOptions = useMemo(() => {
+    const accountNames = accounts.flatMap((account) =>
+      [account.name, account.displayName, account.username]
+        .filter(Boolean)
+        .map(String),
+    );
+    const taskBrands = workspaces.flatMap((workspace) =>
+      workspace.tasks.map((task) => task.brand),
+    );
+
+    return Array.from(new Set([...accountNames, ...taskBrands, "All Accounts"]));
+  }, [accounts, workspaces]);
+
+  function updateTask<K extends EditableTaskField>(
+    workspaceId: string,
+    taskId: string,
+    field: K,
+    value: WorkplaceTask[K],
+  ) {
+    setWorkspaces((currentWorkspaces) =>
+      currentWorkspaces.map((workspace) =>
+        workspace.id === workspaceId
+          ? {
+              ...workspace,
+              tasks: workspace.tasks.map((task) =>
+                task.id === taskId ? { ...task, [field]: value } : task,
+              ),
+            }
+          : workspace,
+      ),
+    );
+  }
 
   return (
     <section className="flex min-w-0 flex-col gap-5 overflow-hidden rounded-[10px] border border-line bg-paper p-[18px]">
+      <datalist id={BRAND_OPTIONS_ID}>
+        {brandOptions.map((brand) => (
+          <option key={brand} value={brand} />
+        ))}
+      </datalist>
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
@@ -343,7 +497,7 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
             <div>
               <h2 className="text-sm font-semibold text-ink">Workplace</h2>
               <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
-                {WORKSPACES.length} workspaces / Claude intake table
+                {workspaces.length} workspaces / Claude intake table
               </p>
             </div>
           </div>
@@ -366,7 +520,7 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
         role="tablist"
         aria-label="Workspaces"
       >
-        {WORKSPACES.map((workspace) => {
+        {workspaces.map((workspace) => {
           const selected = workspace.id === selectedWorkspace.id;
 
           return (
@@ -399,7 +553,10 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
       </div>
 
       <div className="flex min-w-0 flex-col overflow-x-auto">
-        <div className="flex h-9 items-center border-b border-line">
+        <div
+          className="flex h-9 items-center border-b border-line"
+          style={{ width: TASK_TABLE_WIDTH }}
+        >
           {TASK_COLUMNS.map((column) => (
             <div
               key={column.label}
@@ -413,7 +570,12 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
           ))}
         </div>
         {selectedWorkspace.tasks.map((task) => (
-          <TaskRow key={task.id} task={task} accounts={accounts} />
+          <TaskRow
+            key={task.id}
+            task={task}
+            workspaceId={selectedWorkspace.id}
+            onUpdate={updateTask}
+          />
         ))}
       </div>
     </section>
