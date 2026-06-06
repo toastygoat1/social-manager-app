@@ -287,6 +287,16 @@ function getBackfillSuccessMessage(result: BackfillResponse) {
   return `Backfill complete: ${parts.join(", ")}.`;
 }
 
+function getInsightsHref(accountId?: string | null) {
+  if (!accountId) {
+    return "/analytics";
+  }
+
+  const params = new URLSearchParams({ accountId });
+
+  return `/analytics?${params.toString()}`;
+}
+
 function AccountAvatar({
   account,
   index,
@@ -360,37 +370,45 @@ function AccountRow({
       className={`group flex min-h-8 w-full items-center transition-[gap,padding,background-color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
         isCollapsed
           ? "justify-center gap-0 px-0 py-0"
-          : "min-h-8 gap-2 rounded-md px-2 py-1.5 hover:bg-[var(--sidebar-hover)]"
+          : "min-h-8 gap-1 rounded-md px-2 py-1.5 hover:bg-[var(--sidebar-hover)]"
       }`}
     >
-      <span
-        className={`grid shrink-0 place-items-center transition-colors duration-200 ${
-          isCollapsed
-            ? "size-8 rounded-[5px] group-hover:bg-[var(--sidebar-hover-strong)]"
-            : ""
+      <Link
+        href={getInsightsHref(account.id)}
+        aria-label={`View insights for ${account.name}`}
+        className={`flex min-w-0 flex-1 items-center transition-[gap] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+          isCollapsed ? "justify-center gap-0" : "gap-2"
         }`}
       >
-        <AccountAvatar account={account} index={index} />
-      </span>
-      <span
-        className={`min-w-0 flex-1 overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-300 ease-out ${
-          isCollapsed ? "max-w-0 opacity-0" : "max-w-[142px] opacity-100"
-        }`}
-      >
-        <span className="block truncate text-[12.5px] font-medium leading-4 text-[var(--sidebar-text)]">
-          {accountTitle}
+        <span
+          className={`grid shrink-0 place-items-center transition-colors duration-200 ${
+            isCollapsed
+              ? "size-8 rounded-[5px] group-hover:bg-[var(--sidebar-hover-strong)]"
+              : ""
+          }`}
+        >
+          <AccountAvatar account={account} index={index} />
         </span>
-        <span className="block truncate text-[10.5px] leading-4 text-[var(--sidebar-dim)]">
-          {accountHandle}
+        <span
+          className={`min-w-0 flex-1 overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-300 ease-out ${
+            isCollapsed ? "max-w-0 opacity-0" : "max-w-[142px] opacity-100"
+          }`}
+        >
+          <span className="block truncate text-[12.5px] font-medium leading-4 text-[var(--sidebar-text)]">
+            {accountTitle}
+          </span>
+          <span className="block truncate text-[10.5px] leading-4 text-[var(--sidebar-dim)]">
+            {accountHandle}
+          </span>
         </span>
-      </span>
-      <span
-        className={`shrink-0 overflow-hidden whitespace-nowrap font-mono text-[9.5px] font-semibold text-[var(--sidebar-dim)] transition-[max-width,opacity] duration-300 ease-out ${
-          isCollapsed ? "max-w-0 opacity-0" : "max-w-[18px] opacity-100"
-        }`}
-      >
-        {getPlatformCode(account.platform)}
-      </span>
+        <span
+          className={`shrink-0 overflow-hidden whitespace-nowrap font-mono text-[9.5px] font-semibold text-[var(--sidebar-dim)] transition-[max-width,opacity] duration-300 ease-out ${
+            isCollapsed ? "max-w-0 opacity-0" : "max-w-[18px] opacity-100"
+          }`}
+        >
+          {getPlatformCode(account.platform)}
+        </span>
+      </Link>
       <span
         className={`grid shrink-0 overflow-hidden transition-[width,opacity] duration-300 ease-out ${
           isCollapsed ? "w-0 opacity-0" : "w-6 opacity-100"
@@ -681,7 +699,8 @@ export function SidebarPanel({
           <span>{accounts.length}</span>
         </div>
 
-        <div
+        <Link
+          href={getInsightsHref()}
           title={isCollapsed ? "All accounts" : undefined}
           className={`group flex min-h-8 w-full items-center transition-[gap,padding,background-color,box-shadow] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
             isCollapsed
@@ -712,7 +731,7 @@ export function SidebarPanel({
               {accounts.length} connected
             </span>
           </span>
-        </div>
+        </Link>
 
         {accounts.length === 0 && !isCollapsed ? (
           <p className="px-2 py-3 text-[12.5px] leading-5 text-[var(--sidebar-dim)]">
