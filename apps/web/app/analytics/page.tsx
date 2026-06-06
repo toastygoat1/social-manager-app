@@ -192,6 +192,7 @@ export default async function AnalyticsPage({
               <Recommendations
                 recommendations={data.recommendations}
                 notes={data.notes}
+                accounts={data.accounts}
                 selectedAccountId={data.selectedAccountId}
               />
             </>
