@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { CheckCircle2, Clock3, Columns2, TriangleAlert } from "lucide-react";
+import {
+  CheckCircle2,
+  Clock3,
+  Columns2,
+  Pencil,
+  TriangleAlert,
+} from "lucide-react";
 import type { Account } from "./data";
 
 type TaskUrgency = "High" | "Medium" | "Low";
@@ -12,7 +18,7 @@ type WorkplaceTask = {
   taskName: string;
   assignee: string;
   urgency: TaskUrgency;
-  brand: string;
+  accountId: string | null;
   status: TaskStatus;
   deadline: string;
   briefExecution: string;
@@ -34,7 +40,6 @@ type WorkplaceTaskBoardProps = {
 type EditableTaskField = Exclude<keyof WorkplaceTask, "id">;
 
 const STORAGE_KEY = "social-manager-workplace-tasks";
-const BRAND_OPTIONS_ID = "workplace-brand-options";
 
 const INITIAL_WORKSPACES: Workspace[] = [
   {
@@ -47,9 +52,9 @@ const INITIAL_WORKSPACES: Workspace[] = [
         taskName: "Recheck semua merch Cenklik Coffee",
         assignee: "Fata (Owner)",
         urgency: "High",
-        brand: "Cenklik Coffee",
+        accountId: null,
         status: "Not started",
-        deadline: "5 Jun 2026",
+        deadline: "2026-06-05T17:00",
         briefExecution:
           "Recheck seluruh item merch Cenklik Coffee: cek desain, kualitas, dan kelengkapan.",
         notes:
@@ -61,9 +66,9 @@ const INITIAL_WORKSPACES: Workspace[] = [
         taskName: "Finalisasi brief story weekend",
         assignee: "Nadia",
         urgency: "Medium",
-        brand: "Kopi Rute",
+        accountId: null,
         status: "In progress",
-        deadline: "7 Jun 2026",
+        deadline: "2026-06-07T10:00",
         briefExecution:
           "Susun angle story, CTA, dan urutan frame untuk promo weekend.",
         notes: "Pastikan tidak bentrok dengan campaign payday.",
@@ -74,9 +79,9 @@ const INITIAL_WORKSPACES: Workspace[] = [
         taskName: "Audit folder footage reels",
         assignee: "Bima",
         urgency: "Low",
-        brand: "All Accounts",
+        accountId: null,
         status: "Review",
-        deadline: "8 Jun 2026",
+        deadline: "2026-06-08T15:30",
         briefExecution:
           "Rapikan footage mentah, tandai yang siap edit, dan pisahkan aset yang perlu reshoot.",
         notes: "Tambahkan label lokasi dan tanggal shooting.",
@@ -94,9 +99,9 @@ const INITIAL_WORKSPACES: Workspace[] = [
         taskName: "Draft caption product bundling",
         assignee: "Rani",
         urgency: "Medium",
-        brand: "Maison Roti",
+        accountId: null,
         status: "Review",
-        deadline: "9 Jun 2026",
+        deadline: "2026-06-09T11:00",
         briefExecution:
           "Buat 3 opsi caption bundling dengan tone hangat dan CTA pemesanan.",
         notes: "Client minta wording tidak terlalu hard selling.",
@@ -107,9 +112,9 @@ const INITIAL_WORKSPACES: Workspace[] = [
         taskName: "Shoot list promo payday",
         assignee: "Dimas",
         urgency: "High",
-        brand: "Urban Barbers",
+        accountId: null,
         status: "In progress",
-        deadline: "6 Jun 2026",
+        deadline: "2026-06-06T16:00",
         briefExecution:
           "Siapkan shot list before-after, detail tools, dan ambience waiting area.",
         notes: "Prioritaskan reels vertical 9:16.",
@@ -120,9 +125,9 @@ const INITIAL_WORKSPACES: Workspace[] = [
         taskName: "QA scheduled posts minggu ini",
         assignee: "Fata",
         urgency: "Medium",
-        brand: "All Accounts",
+        accountId: null,
         status: "Done",
-        deadline: "6 Jun 2026",
+        deadline: "2026-06-06T18:00",
         briefExecution:
           "Cek caption, asset, tanggal publish, account tag, dan approval status.",
         notes: "Semua post approved perlu masuk scheduler.",
@@ -140,9 +145,9 @@ const INITIAL_WORKSPACES: Workspace[] = [
         taskName: "Update menu seasonal di brief Juni",
         assignee: "Alya",
         urgency: "High",
-        brand: "Cenklik Coffee",
+        accountId: null,
         status: "Not started",
-        deadline: "10 Jun 2026",
+        deadline: "2026-06-10T13:00",
         briefExecution:
           "Masukkan menu seasonal terbaru ke brief konten dan tandai item prioritas.",
         notes: "Tunggu foto menu final dari client.",
@@ -153,9 +158,9 @@ const INITIAL_WORKSPACES: Workspace[] = [
         taskName: "Rangkum feedback reels opening",
         assignee: "Nadia",
         urgency: "Medium",
-        brand: "Maison Roti",
+        accountId: null,
         status: "Review",
-        deadline: "11 Jun 2026",
+        deadline: "2026-06-11T14:00",
         briefExecution:
           "Gabungkan feedback client, tandai revisi copy, dan susun next action untuk editor.",
         notes: "Pisahkan feedback minor dan wajib revisi.",
@@ -169,9 +174,9 @@ const TASK_COLUMNS = [
   { label: "Task Name", width: 230 },
   { label: "Assignee", width: 150 },
   { label: "Urgency", width: 115 },
-  { label: "Brand (Account)", width: 190 },
+  { label: "Account", width: 210 },
   { label: "Status", width: 135 },
-  { label: "Deadline", width: 130 },
+  { label: "Deadline", width: 190 },
   { label: "Brief Execution", width: 320 },
   { label: "Notes", width: 285 },
   { label: "Input From", width: 135 },
@@ -209,6 +214,111 @@ const inputClassName =
 const mutedInputClassName =
   "w-full rounded-md border border-transparent bg-transparent px-2 py-1.5 text-xs text-muted outline-none transition placeholder:text-muted hover:border-line hover:bg-paper focus:border-cta focus:bg-paper focus:text-ink focus:ring-2 focus:ring-cta/15";
 
+const selectClassName =
+  "w-full rounded-md border border-line bg-paper px-2 py-1.5 text-xs text-ink outline-none transition focus:border-cta focus:ring-2 focus:ring-cta/15 disabled:bg-card disabled:text-muted";
+
+function getAccountLabel(account: Account) {
+  return (
+    account.displayName?.trim() ||
+    account.name ||
+    (account.username ? `@${account.username}` : "Instagram account")
+  );
+}
+
+function normalizeName(value: string) {
+  return value
+    .replace(/^@/, "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+}
+
+function findAccountByLabel(accounts: Account[], label: string | undefined) {
+  if (!label) return null;
+  const normalizedLabel = normalizeName(label);
+
+  return (
+    accounts.find((account) =>
+      [account.id, account.name, account.displayName, account.username]
+        .filter(Boolean)
+        .some((value) => normalizeName(String(value)) === normalizedLabel),
+    ) ?? null
+  );
+}
+
+function normalizeDeadline(value: unknown) {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    return "2026-06-05T17:00";
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(value)) {
+    return value.slice(0, 16);
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "2026-06-05T17:00";
+
+  const year = parsed.getFullYear();
+  const month = String(parsed.getMonth() + 1).padStart(2, "0");
+  const day = String(parsed.getDate()).padStart(2, "0");
+  const hours = String(parsed.getHours()).padStart(2, "0");
+  const minutes = String(parsed.getMinutes()).padStart(2, "0");
+
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+function normalizeStoredWorkspaces(value: unknown, accounts: Account[]) {
+  if (!Array.isArray(value) || value.length === 0) return null;
+
+  return value.map((workspace, workspaceIndex) => {
+    const storedWorkspace =
+      typeof workspace === "object" && workspace !== null
+        ? (workspace as Partial<Workspace> & { tasks?: unknown })
+        : {};
+    const fallbackWorkspace =
+      INITIAL_WORKSPACES[workspaceIndex] ?? INITIAL_WORKSPACES[0];
+    const storedTasks = Array.isArray(storedWorkspace.tasks)
+      ? storedWorkspace.tasks
+      : fallbackWorkspace.tasks;
+
+    return {
+      id: storedWorkspace.id ?? fallbackWorkspace.id,
+      name: storedWorkspace.name ?? fallbackWorkspace.name,
+      owner: storedWorkspace.owner ?? fallbackWorkspace.owner,
+      tasks: storedTasks.map((task, taskIndex) => {
+        const storedTask =
+          typeof task === "object" && task !== null
+            ? (task as Partial<WorkplaceTask> & { brand?: string })
+            : {};
+        const fallbackTask =
+          fallbackWorkspace.tasks[taskIndex] ?? fallbackWorkspace.tasks[0];
+        const matchedAccount = findAccountByLabel(
+          accounts,
+          storedTask.accountId ?? storedTask.brand,
+        );
+
+        return {
+          id: storedTask.id ?? fallbackTask.id,
+          taskName: storedTask.taskName ?? fallbackTask.taskName,
+          assignee: storedTask.assignee ?? fallbackTask.assignee,
+          urgency: URGENCY_OPTIONS.includes(storedTask.urgency as TaskUrgency)
+            ? (storedTask.urgency as TaskUrgency)
+            : fallbackTask.urgency,
+          accountId: matchedAccount?.id ?? null,
+          status: STATUS_OPTIONS.includes(storedTask.status as TaskStatus)
+            ? (storedTask.status as TaskStatus)
+            : fallbackTask.status,
+          deadline: normalizeDeadline(storedTask.deadline),
+          briefExecution:
+            storedTask.briefExecution ?? fallbackTask.briefExecution,
+          notes: storedTask.notes ?? fallbackTask.notes,
+          inputFrom: storedTask.inputFrom ?? fallbackTask.inputFrom,
+        };
+      }),
+    };
+  });
+}
+
 function TaskCell({
   width,
   children,
@@ -228,48 +338,86 @@ function TaskCell({
   );
 }
 
-function TextInput({
+function EditableTextCell({
   value,
   onChange,
   ariaLabel,
-  className = inputClassName,
-  list,
+  multiline = false,
+  muted = false,
+  strong = false,
 }: {
   value: string;
   onChange: (value: string) => void;
   ariaLabel: string;
-  className?: string;
-  list?: string;
+  multiline?: boolean;
+  muted?: boolean;
+  strong?: boolean;
 }) {
-  return (
-    <input
-      aria-label={ariaLabel}
-      className={className}
-      list={list}
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-    />
-  );
-}
+  const [isEditing, setIsEditing] = useState(false);
+  const displayValue = value.trim() || "Empty";
+  const fieldClassName = `${muted ? mutedInputClassName : inputClassName} ${
+    strong ? "font-semibold leading-5" : ""
+  }`;
 
-function TextAreaInput({
-  value,
-  onChange,
-  ariaLabel,
-  className = inputClassName,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  ariaLabel: string;
-  className?: string;
-}) {
+  if (isEditing) {
+    if (multiline) {
+      return (
+        <textarea
+          aria-label={ariaLabel}
+          autoFocus
+          className={`${fieldClassName} h-16 resize-none leading-5`}
+          value={value}
+          onBlur={() => setIsEditing(false)}
+          onChange={(event) => onChange(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") setIsEditing(false);
+            if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+              setIsEditing(false);
+            }
+          }}
+        />
+      );
+    }
+
+    return (
+      <input
+        aria-label={ariaLabel}
+        autoFocus
+        className={fieldClassName}
+        value={value}
+        onBlur={() => setIsEditing(false)}
+        onChange={(event) => onChange(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Escape" || event.key === "Enter") {
+            setIsEditing(false);
+          }
+        }}
+      />
+    );
+  }
+
   return (
-    <textarea
-      aria-label={ariaLabel}
-      className={`${className} h-16 resize-none leading-5`}
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-    />
+    <div className="group/cell relative flex min-h-9 w-full items-center rounded-md px-2 py-1.5 transition hover:bg-card focus-within:bg-card">
+      <span
+        className={`min-w-0 pr-8 text-xs leading-5 ${
+          multiline ? "max-h-[3.75rem] overflow-hidden" : "truncate"
+        } ${strong ? "font-semibold text-ink" : muted ? "text-muted" : "text-ink"}`}
+        title={value}
+      >
+        {displayValue}
+      </span>
+      <button
+        type="button"
+        onClick={() => setIsEditing(true)}
+        aria-label={`Edit ${ariaLabel.toLowerCase()}`}
+        title={`Edit ${ariaLabel.toLowerCase()}`}
+        className={`absolute right-1 flex size-7 items-center justify-center rounded-md text-muted opacity-0 transition hover:bg-paper hover:text-ink group-hover/cell:opacity-100 group-focus-within/cell:opacity-100 ${
+          multiline ? "top-1" : "top-1/2 -translate-y-1/2"
+        }`}
+      >
+        <Pencil className="size-3.5" strokeWidth={1.8} />
+      </button>
+    </div>
   );
 }
 
@@ -302,12 +450,70 @@ function SelectInput<T extends string>({
   );
 }
 
+function AccountSelect({
+  accountId,
+  accounts,
+  onChange,
+}: {
+  accountId: string | null;
+  accounts: Account[];
+  onChange: (accountId: string | null) => void;
+}) {
+  const selectedAccountId = accounts.some((account) => account.id === accountId)
+    ? accountId
+    : "";
+
+  return (
+    <select
+      aria-label="Account"
+      value={selectedAccountId ?? ""}
+      disabled={accounts.length === 0}
+      onChange={(event) => onChange(event.target.value || null)}
+      className={selectClassName}
+    >
+      {accounts.length === 0 ? (
+        <option value="">No connected accounts</option>
+      ) : (
+        <option value="">Select account</option>
+      )}
+      {accounts.map((account) => (
+        <option key={account.id} value={account.id}>
+          {getAccountLabel(account)}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+function DateTimeInput({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <span className="flex w-full items-center gap-1.5 text-muted">
+      <Clock3 className="size-3.5 shrink-0" strokeWidth={1.8} />
+      <input
+        aria-label="Deadline"
+        type="datetime-local"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="min-w-0 flex-1 rounded-md border border-line bg-paper px-2 py-1.5 font-mono text-[11px] text-ink outline-none transition focus:border-cta focus:ring-2 focus:ring-cta/15"
+      />
+    </span>
+  );
+}
+
 function TaskRow({
   task,
+  accounts,
   workspaceId,
   onUpdate,
 }: {
   task: WorkplaceTask;
+  accounts: Account[];
   workspaceId: string;
   onUpdate: <K extends EditableTaskField>(
     workspaceId: string,
@@ -322,19 +528,19 @@ function TaskRow({
       style={{ width: TASK_TABLE_WIDTH }}
     >
       <TaskCell width={230} className="items-center">
-        <TextInput
+        <EditableTextCell
           ariaLabel="Task name"
           value={task.taskName}
           onChange={(value) => onUpdate(workspaceId, task.id, "taskName", value)}
-          className={`${inputClassName} font-semibold leading-5`}
+          strong
         />
       </TaskCell>
       <TaskCell width={150} className="items-center">
-        <TextInput
+        <EditableTextCell
           ariaLabel="Assignee"
           value={task.assignee}
           onChange={(value) => onUpdate(workspaceId, task.id, "assignee", value)}
-          className={mutedInputClassName}
+          muted
         />
       </TaskCell>
       <TaskCell width={115} className="items-center">
@@ -346,12 +552,11 @@ function TaskRow({
           className={URGENCY_STYLES[task.urgency]}
         />
       </TaskCell>
-      <TaskCell width={190} className="items-center">
-        <TextInput
-          ariaLabel="Brand account"
-          value={task.brand}
-          onChange={(value) => onUpdate(workspaceId, task.id, "brand", value)}
-          list={BRAND_OPTIONS_ID}
+      <TaskCell width={210} className="items-center">
+        <AccountSelect
+          accountId={task.accountId}
+          accounts={accounts}
+          onChange={(value) => onUpdate(workspaceId, task.id, "accountId", value)}
         />
       </TaskCell>
       <TaskCell width={135} className="items-center">
@@ -363,42 +568,37 @@ function TaskRow({
           className={STATUS_STYLES[task.status]}
         />
       </TaskCell>
-      <TaskCell width={130} className="items-center">
-        <span className="flex w-full items-center gap-1.5 text-muted">
-          <Clock3 className="size-3.5 shrink-0" strokeWidth={1.8} />
-          <TextInput
-            ariaLabel="Deadline"
-            value={task.deadline}
-            onChange={(value) =>
-              onUpdate(workspaceId, task.id, "deadline", value)
-            }
-            className="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-1 py-1.5 font-mono text-[11px] text-muted outline-none transition hover:border-line hover:bg-paper focus:border-cta focus:bg-paper focus:text-ink focus:ring-2 focus:ring-cta/15"
-          />
-        </span>
+      <TaskCell width={190} className="items-center">
+        <DateTimeInput
+          value={task.deadline}
+          onChange={(value) => onUpdate(workspaceId, task.id, "deadline", value)}
+        />
       </TaskCell>
       <TaskCell width={320}>
-        <TextAreaInput
+        <EditableTextCell
           ariaLabel="Brief execution"
           value={task.briefExecution}
           onChange={(value) =>
             onUpdate(workspaceId, task.id, "briefExecution", value)
           }
+          multiline
         />
       </TaskCell>
       <TaskCell width={285}>
-        <TextAreaInput
+        <EditableTextCell
           ariaLabel="Notes"
           value={task.notes}
           onChange={(value) => onUpdate(workspaceId, task.id, "notes", value)}
-          className={mutedInputClassName}
+          multiline
+          muted
         />
       </TaskCell>
       <TaskCell width={135} className="items-center">
-        <TextInput
+        <EditableTextCell
           ariaLabel="Input from"
           value={task.inputFrom}
           onChange={(value) => onUpdate(workspaceId, task.id, "inputFrom", value)}
-          className="w-full rounded-lg border border-transparent bg-card px-2.5 py-1.5 font-mono text-[10px] text-muted outline-none transition hover:border-line focus:border-cta focus:text-ink focus:ring-2 focus:ring-cta/15"
+          muted
         />
       </TaskCell>
     </div>
@@ -422,16 +622,18 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
       const storedWorkspaces = window.localStorage.getItem(STORAGE_KEY);
       if (storedWorkspaces) {
         const parsedWorkspaces = JSON.parse(storedWorkspaces);
-        if (Array.isArray(parsedWorkspaces) && parsedWorkspaces.length > 0) {
-          setWorkspaces(parsedWorkspaces);
-        }
+        const normalizedWorkspaces = normalizeStoredWorkspaces(
+          parsedWorkspaces,
+          accounts,
+        );
+        if (normalizedWorkspaces) setWorkspaces(normalizedWorkspaces);
       }
     } catch {
       window.localStorage.removeItem(STORAGE_KEY);
     } finally {
       setHasLoadedStoredWorkspaces(true);
     }
-  }, []);
+  }, [accounts]);
 
   useEffect(() => {
     if (!hasLoadedStoredWorkspaces) return;
@@ -447,19 +649,6 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
       completedTasks: tasks.filter((task) => task.status === "Done").length,
     };
   }, [workspaces]);
-
-  const brandOptions = useMemo(() => {
-    const accountNames = accounts.flatMap((account) =>
-      [account.name, account.displayName, account.username]
-        .filter(Boolean)
-        .map(String),
-    );
-    const taskBrands = workspaces.flatMap((workspace) =>
-      workspace.tasks.map((task) => task.brand),
-    );
-
-    return Array.from(new Set([...accountNames, ...taskBrands, "All Accounts"]));
-  }, [accounts, workspaces]);
 
   function updateTask<K extends EditableTaskField>(
     workspaceId: string,
@@ -483,11 +672,6 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
 
   return (
     <section className="flex min-w-0 flex-col gap-5 overflow-hidden rounded-[10px] border border-line bg-paper p-[18px]">
-      <datalist id={BRAND_OPTIONS_ID}>
-        {brandOptions.map((brand) => (
-          <option key={brand} value={brand} />
-        ))}
-      </datalist>
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
@@ -573,6 +757,7 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
           <TaskRow
             key={task.id}
             task={task}
+            accounts={accounts}
             workspaceId={selectedWorkspace.id}
             onUpdate={updateTask}
           />
