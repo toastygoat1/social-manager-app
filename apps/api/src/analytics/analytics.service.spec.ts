@@ -547,6 +547,52 @@ describe('AnalyticsService', () => {
     });
   });
 
+  it('updates an analytics note account attachment', async () => {
+    const createdAt = new Date('2026-05-23T10:00:00Z');
+    const updatedAt = new Date('2026-05-23T10:05:00Z');
+    prisma.analyticsNote.findFirst.mockResolvedValue({ id: 'note-1' });
+    prisma.instagramAccount.findFirst.mockResolvedValue({ id: 'account-2' });
+    prisma.analyticsNote.update.mockResolvedValue({
+      id: 'note-1',
+      instagramAccountId: 'account-2',
+      body: 'Move this note to account two.',
+      createdAt,
+      updatedAt,
+    });
+
+    const note = await service.updateNote('user-1', 'note-1', {
+      accountId: ' account-2 ',
+      body: '  Move this note to account two.  ',
+    });
+
+    expect(prisma.analyticsNote.findFirst).toHaveBeenCalledWith({
+      where: { id: 'note-1', userId: 'user-1' },
+      select: { id: true },
+    });
+    expect(prisma.instagramAccount.findFirst).toHaveBeenCalledWith({
+      where: { id: 'account-2', userId: 'user-1', isActive: true },
+      select: { id: true },
+    });
+    expect(prisma.analyticsNote.update).toHaveBeenCalledWith({
+      where: { id: 'note-1' },
+      data: {
+        body: 'Move this note to account two.',
+        instagramAccountId: 'account-2',
+      },
+      select: expect.objectContaining({
+        id: true,
+        body: true,
+      }),
+    });
+    expect(note).toEqual({
+      id: 'note-1',
+      accountId: 'account-2',
+      body: 'Move this note to account two.',
+      createdAt: '2026-05-23T10:00:00.000Z',
+      updatedAt: '2026-05-23T10:05:00.000Z',
+    });
+  });
+
   it('fetches fresh Instagram insights and stores a post analytics snapshot', async () => {
     prisma.instagramAccount.findMany.mockResolvedValue([
       {

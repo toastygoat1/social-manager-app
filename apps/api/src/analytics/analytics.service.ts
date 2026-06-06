@@ -583,11 +583,20 @@ export class AnalyticsService {
     data: UpdateAnalyticsNoteDto,
   ) {
     const body = normalizeNoteBody(data.body);
+    const accountId =
+      data.accountId === undefined ? undefined : data.accountId.trim() || null;
     await this.ensureOwnedNote(userId, noteId);
+
+    if (accountId) {
+      await this.ensureOwnedAccount(userId, accountId);
+    }
 
     const note = await this.prisma.analyticsNote.update({
       where: { id: noteId },
-      data: { body },
+      data: {
+        body,
+        ...(accountId !== undefined ? { instagramAccountId: accountId } : {}),
+      },
       select: ANALYTICS_NOTE_SELECT,
     });
 
