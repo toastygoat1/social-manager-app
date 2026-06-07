@@ -11,7 +11,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import type { AuthUser } from '../auth/auth.types.js';
 
 const DEFAULT_MEDIA_BUCKET = 'media-assets';
-const MAX_FILE_SIZE = 100 * 1024 * 1024;
+const MAX_FILE_SIZE = 300 * 1024 * 1024;
 const SIGNED_PREVIEW_URL_TTL_SECONDS = 60 * 60;
 
 type MediaUploadInput = {

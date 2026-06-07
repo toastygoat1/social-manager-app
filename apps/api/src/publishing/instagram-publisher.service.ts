@@ -17,15 +17,13 @@ import {
 } from '@social-manager/database';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { decryptSecret } from '../common/crypto.util.js';
+import { validateInstagramMediaForPublishing } from '../common/instagram-media-rules.js';
 
 const DEFAULT_GRAPH_API_VERSION = 'v21.0';
 const DEFAULT_MEDIA_BUCKET = 'media-assets';
 const SIGNED_MEDIA_URL_TTL_SECONDS = 60 * 60;
 const CONTAINER_POLL_ATTEMPTS = 12;
 const CONTAINER_POLL_DELAY_MS = 5_000;
-const FEED_IMAGE_MIN_ASPECT = 4 / 5;
-const FEED_IMAGE_MAX_ASPECT = 1.91;
-
 const PUBLISHABLE_POST_INCLUDE = {
   instagramAccount: {
     select: {
@@ -459,63 +457,10 @@ export class InstagramPublisherService {
       throw new BadRequestException('Add media before posting now');
     }
 
-    if (post.postType === PostType.CAROUSEL) {
-      if (post.postMedia.length < 2) {
-        throw new BadRequestException('Carousel posts need at least 2 files');
-      }
-      this.validateImageAspectRatios(post);
-      return;
-    }
-
-    if (post.postMedia.length > 1) {
-      throw new BadRequestException('Use a carousel for multiple files');
-    }
-
-    const onlyMedia = post.postMedia[0]?.mediaAsset;
-    if (!onlyMedia) {
-      throw new BadRequestException('Add media before posting now');
-    }
-    if (
-      post.postType === PostType.FEED &&
-      onlyMedia.fileType !== MediaType.IMAGE
-    ) {
-      throw new BadRequestException('Feed posts require an image upload');
-    }
-    if (
-      post.postType === PostType.REEL &&
-      onlyMedia.fileType !== MediaType.VIDEO
-    ) {
-      throw new BadRequestException('Reels require a video upload');
-    }
-
-    this.validateImageAspectRatios(post);
-  }
-
-  private validateImageAspectRatios(post: PublishablePost) {
-    if (
-      post.postType !== PostType.FEED &&
-      post.postType !== PostType.CAROUSEL
-    ) {
-      return;
-    }
-
-    const unsupportedImage = post.postMedia.find(({ mediaAsset }) => {
-      if (
-        mediaAsset.fileType !== MediaType.IMAGE ||
-        !mediaAsset.width ||
-        !mediaAsset.height
-      ) {
-        return false;
-      }
-      const aspect = mediaAsset.width / mediaAsset.height;
-      return aspect < FEED_IMAGE_MIN_ASPECT || aspect > FEED_IMAGE_MAX_ASPECT;
-    });
-
-    if (unsupportedImage) {
-      throw new BadRequestException(
-        'Instagram feed images must be between 4:5 and 1.91:1',
-      );
-    }
+    validateInstagramMediaForPublishing(
+      post.postType,
+      post.postMedia.map((item) => item.mediaAsset),
+    );
   }
 
   private async requestGraphPost<T extends GraphApiError>(

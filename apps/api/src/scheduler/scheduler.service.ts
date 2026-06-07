@@ -20,6 +20,10 @@ import { InstagramPublisherService } from '../publishing/instagram-publisher.ser
 import { PublishQueueService } from '../queue/publish-queue.service.js';
 import { MediaService } from '../media/media.service.js';
 import { decryptSecret } from '../common/crypto.util.js';
+import {
+  validateInstagramMediaForPostType,
+  validateInstagramMediaForPublishing,
+} from '../common/instagram-media-rules.js';
 import type { UpdateDraftAction } from './dto/update-draft.dto.js';
 import type { PostMetadataDto } from './dto/post-metadata.dto.js';
 
@@ -27,8 +31,6 @@ export type SchedulerEventSource = 'scheduled_post';
 type CreateEventAction = 'SCHEDULE' | 'POST_NOW' | 'DRAFT';
 export type PostMetadata = Record<string, string>;
 type PostMetadataInput = PostMetadataDto;
-const FEED_IMAGE_MIN_ASPECT = 4 / 5;
-const FEED_IMAGE_MAX_ASPECT = 1.91;
 const MAX_METADATA_FIELDS = 12;
 const MAX_METADATA_KEY_LENGTH = 40;
 const MAX_METADATA_VALUE_LENGTH = 160;
@@ -400,7 +402,15 @@ export class SchedulerService {
     const mediaAssets = mediaAssetIds.length
       ? await this.prisma.mediaAsset.findMany({
           where: { id: { in: mediaAssetIds }, userId },
-          select: { id: true, fileType: true, width: true, height: true },
+          select: {
+            id: true,
+            fileType: true,
+            mimeType: true,
+            fileSize: true,
+            width: true,
+            height: true,
+            durationSeconds: true,
+          },
         })
       : [];
 
@@ -409,11 +419,11 @@ export class SchedulerService {
         'One or more media assets are not available',
       );
     }
-    validateMediaForPostType(input.postType, mediaAssets);
+    validateInstagramMediaForPostType(input.postType, mediaAssets);
     const publishWhenScheduled =
       action === 'SCHEDULE' && status === PostStatus.READY && !!scheduledFor;
     if (action === 'POST_NOW' || action === 'SCHEDULE') {
-      validateMediaForPublishing(input.postType, mediaAssets);
+      validateInstagramMediaForPublishing(input.postType, mediaAssets);
     }
     if (publishWhenScheduled) {
       await this.publishQueue.ensureAvailable();
@@ -591,7 +601,7 @@ export class SchedulerService {
       throw new BadRequestException('This post is not awaiting approval');
     }
 
-    validateMediaForPublishing(
+    validateInstagramMediaForPublishing(
       post.postType,
       post.postMedia.map((item) => item.mediaAsset),
     );
@@ -648,7 +658,15 @@ export class SchedulerService {
     const mediaAssets = input.mediaAssetIds
       ? await this.prisma.mediaAsset.findMany({
           where: { id: { in: mediaAssetIds }, userId },
-          select: { id: true, fileType: true, width: true, height: true },
+          select: {
+            id: true,
+            fileType: true,
+            mimeType: true,
+            fileSize: true,
+            width: true,
+            height: true,
+            durationSeconds: true,
+          },
         })
       : post.postMedia.map((item) => item.mediaAsset);
 
@@ -657,9 +675,9 @@ export class SchedulerService {
         'One or more media assets are not available',
       );
     }
-    validateMediaForPostType(post.postType, mediaAssets);
+    validateInstagramMediaForPostType(post.postType, mediaAssets);
     if (action === 'SCHEDULE') {
-      validateMediaForPublishing(post.postType, mediaAssets);
+      validateInstagramMediaForPublishing(post.postType, mediaAssets);
     }
     if (publishWhenScheduled) {
       await this.publishQueue.ensureAvailable();
@@ -840,7 +858,7 @@ export class SchedulerService {
       throw new BadRequestException('This post is not due for publishing yet');
     }
 
-    validateMediaForPublishing(
+    validateInstagramMediaForPublishing(
       post.postType,
       post.postMedia.map((item) => item.mediaAsset),
     );
@@ -1533,52 +1551,4 @@ function resolveCreateAction(
     scheduledFor,
     status: input.requiresApproval ? PostStatus.PENDING : PostStatus.READY,
   };
-}
-
-function validateMediaForPostType(
-  postType: PostType,
-  mediaAssets: { fileType: MediaType }[],
-) {
-  if (mediaAssets.length === 0) return;
-  if (postType === 'REEL' && mediaAssets.some((m) => m.fileType !== 'VIDEO')) {
-    throw new BadRequestException('Reels require a video upload');
-  }
-  if (postType !== 'CAROUSEL' && mediaAssets.length > 1) {
-    throw new BadRequestException('Only carousel posts can use multiple files');
-  }
-}
-
-function validateMediaForPublishing(
-  postType: PostType,
-  mediaAssets: {
-    fileType: MediaType;
-    width?: number | null;
-    height?: number | null;
-  }[],
-) {
-  if (mediaAssets.length === 0) {
-    throw new BadRequestException('Add media before publishing');
-  }
-  if (postType === 'CAROUSEL' && mediaAssets.length < 2) {
-    throw new BadRequestException('Carousel posts need at least 2 files');
-  }
-  if (postType === 'FEED' && mediaAssets[0]?.fileType !== 'IMAGE') {
-    throw new BadRequestException('Feed posts require an image upload');
-  }
-
-  if (postType === 'FEED' || postType === 'CAROUSEL') {
-    const unsupportedImage = mediaAssets.find((asset) => {
-      if (asset.fileType !== 'IMAGE' || !asset.width || !asset.height) {
-        return false;
-      }
-      const aspect = asset.width / asset.height;
-      return aspect < FEED_IMAGE_MIN_ASPECT || aspect > FEED_IMAGE_MAX_ASPECT;
-    });
-
-    if (unsupportedImage) {
-      throw new BadRequestException(
-        'Instagram feed images must be between 4:5 and 1.91:1',
-      );
-    }
-  }
 }
