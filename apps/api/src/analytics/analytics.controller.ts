@@ -14,14 +14,8 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import type { AuthedRequest } from '../auth/auth.types.js';
 import { AnalyticsService } from './analytics.service.js';
 import { CreateAnalyticsNoteDto } from './dto/create-analytics-note.dto.js';
+import { RefreshInsightsDto } from './dto/refresh-insights.dto.js';
 import { UpdateAnalyticsNoteDto } from './dto/update-analytics-note.dto.js';
-
-type RefreshInsightsBody = {
-  accountId?: string;
-  range?: string;
-  startDate?: string;
-  endDate?: string;
-};
 
 @UseGuards(JwtAuthGuard)
 @Controller('analytics')
@@ -47,7 +41,7 @@ export class AnalyticsController {
   @Post('insights/refresh')
   refreshInsights(
     @Request() req: AuthedRequest,
-    @Body() body: RefreshInsightsBody,
+    @Body() body: RefreshInsightsDto,
   ) {
     return this.analyticsService.refreshInsights(req.user.userId, {
       accountId: body?.accountId,

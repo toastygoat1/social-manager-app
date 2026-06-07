@@ -238,13 +238,7 @@ export class AiController {
   ) {
     const userId = req.user.userId;
 
-    const account = await this.prisma.instagramAccount.findUnique({
-      where: { id: dto.accountId },
-      select: { userId: true },
-    });
-    if (!account || account.userId !== userId) {
-      throw new ForbiddenException('Account not found or access denied');
-    }
+    await this.ensureQueueAnalysisResourcesOwned(userId, dto);
 
     const queued = await this.aiQueue.enqueueAnalysis(
       dto.accountId,
@@ -259,5 +253,61 @@ export class AiController {
     }
 
     return { queued: true };
+  }
+
+  private async ensureQueueAnalysisResourcesOwned(
+    userId: string,
+    dto: QueueAnalysisDto,
+  ): Promise<void> {
+    const account = await this.prisma.instagramAccount.findUnique({
+      where: { id: dto.accountId },
+      select: { userId: true },
+    });
+    if (!account || account.userId !== userId) {
+      throw new ForbiddenException('Account not found or access denied');
+    }
+
+    const post = await this.prisma.contentPost.findFirst({
+      where: {
+        id: dto.contentPostId,
+        instagramAccountId: dto.accountId,
+        instagramAccount: { userId },
+      },
+      select: { id: true },
+    });
+    if (!post) {
+      throw new ForbiddenException('Post not found or access denied');
+    }
+
+    if (dto.sessionId) {
+      const session = await this.prisma.chatbotSession.findFirst({
+        where: {
+          id: dto.sessionId,
+          userId,
+          OR: [
+            { instagramAccountId: dto.accountId },
+            { instagramAccountId: null },
+          ],
+        },
+        select: { id: true },
+      });
+      if (!session) {
+        throw new ForbiddenException('Session not found or access denied');
+      }
+    }
+
+    if (dto.batchId) {
+      const batch = await this.prisma.aiBatchReport.findFirst({
+        where: {
+          id: dto.batchId,
+          userId,
+          accountId: dto.accountId,
+        },
+        select: { id: true },
+      });
+      if (!batch) {
+        throw new ForbiddenException('Batch not found or access denied');
+      }
+    }
   }
 }

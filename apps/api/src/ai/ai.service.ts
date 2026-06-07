@@ -574,6 +574,13 @@ export class AiService {
 
     const userId = account.userId;
 
+    await this.ensureInternalAnalysisContextOwned(
+      userId,
+      accountId,
+      providedSessionId,
+      batchId,
+    );
+
     let sessionId = providedSessionId;
     if (!sessionId) {
       const today = new Date().toISOString().slice(0, 10);
@@ -593,6 +600,37 @@ export class AiService {
       sessionId,
       batchId,
     });
+  }
+
+  private async ensureInternalAnalysisContextOwned(
+    userId: string,
+    accountId: string,
+    sessionId?: string,
+    batchId?: string,
+  ): Promise<void> {
+    if (sessionId) {
+      const session = await this.prisma.chatbotSession.findFirst({
+        where: {
+          id: sessionId,
+          userId,
+          OR: [{ instagramAccountId: accountId }, { instagramAccountId: null }],
+        },
+        select: { id: true },
+      });
+      if (!session) {
+        throw new ForbiddenException('Session not found or access denied');
+      }
+    }
+
+    if (batchId) {
+      const batch = await this.prisma.aiBatchReport.findFirst({
+        where: { id: batchId, userId, accountId },
+        select: { id: true },
+      });
+      if (!batch) {
+        throw new ForbiddenException('Batch not found or access denied');
+      }
+    }
   }
 
   private async markPostAiAnalyzed(

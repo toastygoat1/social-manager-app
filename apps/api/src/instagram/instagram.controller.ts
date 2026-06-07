@@ -15,6 +15,7 @@ import {
 import { InstagramService } from './instagram.service.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { AddInstagramAccountDto } from './dto/add-instagram-account.dto.js';
+import { BackfillInstagramAccountDto } from './dto/backfill-instagram-account.dto.js';
 import { CompleteInstagramOAuthDto } from './dto/complete-instagram-oauth.dto.js';
 import { SendDmMessageDto } from './dto/send-dm-message.dto.js';
 import type { AuthedRequest } from '../auth/auth.types.js';
@@ -23,10 +24,6 @@ import type { InstagramWebhookPayload } from './instagram-webhook.types.js';
 interface InstagramWebhookRequest {
   rawBody?: Buffer;
 }
-
-type InstagramBackfillBody = {
-  limit?: number | null;
-};
 
 @Controller('instagram')
 export class InstagramController {
@@ -78,7 +75,7 @@ export class InstagramController {
   backfillAccountMedia(
     @Request() req: AuthedRequest,
     @Param('accountId') accountId: string,
-    @Body() body: InstagramBackfillBody,
+    @Body() body: BackfillInstagramAccountDto,
   ) {
     return this.instagramService.backfillAccountMedia(
       req.user.userId,
