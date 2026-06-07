@@ -5,10 +5,12 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { randomUUID } from 'node:crypto';
 import { Queue } from 'bullmq';
 import { Redis } from 'ioredis';
 
 const AI_ANALYSIS_QUEUE_NAME = 'ai-analysis';
+const AI_ANALYSIS_JOB_NAME = 'run-ai-analysis';
 
 type AiAnalysisJob = {
   accountId: string;
@@ -31,20 +33,27 @@ export class AiQueueService implements OnModuleDestroy {
     sessionId?: string,
     batchId?: string,
   ): Promise<boolean> {
+    const jobData = { accountId, contentPostId, sessionId, batchId };
+    const deduplicationId = buildAnalysisDeduplicationId(jobData);
+
     try {
-      await this.getQueue().add(
-        'run-ai-analysis',
-        { accountId, contentPostId, sessionId, batchId },
-        {
-          jobId: batchId
-            ? `${accountId}:${contentPostId}:${batchId}`
-            : `${accountId}:${contentPostId}:single`,
-          attempts: 2,
-          backoff: { type: 'exponential', delay: 10_000 },
-          removeOnComplete: { age: 60 * 60 * 24 },
-          removeOnFail: { age: 60 * 60 * 24 * 7 },
-        },
-      );
+      const queue = this.getQueue();
+      const existingJobId = await queue.getDeduplicationJobId(deduplicationId);
+      if (existingJobId) {
+        this.logger.debug(
+          `AI analysis already queued for post ${contentPostId} (${deduplicationId}) as job ${existingJobId}`,
+        );
+        return true;
+      }
+
+      await queue.add(AI_ANALYSIS_JOB_NAME, jobData, {
+        jobId: `${deduplicationId}|${randomUUID()}`,
+        deduplication: { id: deduplicationId },
+        attempts: 2,
+        backoff: { type: 'exponential', delay: 10_000 },
+        removeOnComplete: { age: 60 * 60 * 24 },
+        removeOnFail: { age: 60 * 60 * 24 * 7 },
+      });
       return true;
     } catch (error) {
       this.logger.error(
@@ -79,4 +88,14 @@ export class AiQueueService implements OnModuleDestroy {
 
     return this.queue;
   }
+}
+
+function buildAnalysisDeduplicationId(job: AiAnalysisJob) {
+  const scope = job.batchId
+    ? `batch-${job.batchId}`
+    : job.sessionId
+      ? `session-${job.sessionId}`
+      : 'auto';
+
+  return ['ai-analysis', job.accountId, job.contentPostId, scope].join('|');
 }
