@@ -1,12 +1,17 @@
-import { IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+} from 'class-validator';
 
 export class ChatDto {
-  @IsString()
   @IsOptional()
+  @IsUUID('4')
   accountId?: string;
 
-  @IsString()
-  @IsNotEmpty()
+  @IsUUID('4')
   sessionId!: string;
 
   @IsString()

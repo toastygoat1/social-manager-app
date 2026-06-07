@@ -10,21 +10,6 @@ const SESSION_ID = '33333333-3333-4333-8333-333333333333';
 const BATCH_ID = 'clxqueuebatch000000000000000';
 
 function makeDeps() {
-  const prisma = {
-    instagramAccount: {
-      findUnique:
-        jest.fn<(args: unknown) => Promise<{ userId: string } | null>>(),
-    },
-    contentPost: {
-      findFirst: jest.fn<(args: unknown) => Promise<{ id: string } | null>>(),
-    },
-    chatbotSession: {
-      findFirst: jest.fn<(args: unknown) => Promise<{ id: string } | null>>(),
-    },
-    aiBatchReport: {
-      findFirst: jest.fn<(args: unknown) => Promise<{ id: string } | null>>(),
-    },
-  };
   const aiQueue = {
     enqueueAnalysis:
       jest.fn<
@@ -36,8 +21,12 @@ function makeDeps() {
         ) => Promise<boolean>
       >(),
   };
+  const access = {
+    ensureQueueAnalysisResources:
+      jest.fn<(userId: string, resources: unknown) => Promise<void>>(),
+  };
 
-  return { prisma, aiQueue };
+  return { aiQueue, access };
 }
 
 describe('AiController.queueAnalysis()', () => {
@@ -47,52 +36,33 @@ describe('AiController.queueAnalysis()', () => {
 
   beforeEach(() => {
     deps = makeDeps();
-    deps.prisma.instagramAccount.findUnique.mockResolvedValue({
-      userId: USER_ID,
-    });
-    deps.prisma.contentPost.findFirst.mockResolvedValue({ id: POST_ID });
-    deps.prisma.chatbotSession.findFirst.mockResolvedValue({ id: SESSION_ID });
-    deps.prisma.aiBatchReport.findFirst.mockResolvedValue({ id: BATCH_ID });
+    deps.access.ensureQueueAnalysisResources.mockResolvedValue(undefined);
     deps.aiQueue.enqueueAnalysis.mockResolvedValue(true);
 
     controller = new AiController(
       {} as never,
       deps.aiQueue as never,
       {} as never,
-      deps.prisma as never,
+      deps.access as never,
     );
   });
 
-  it('validates ownership for every queued resource before enqueueing', async () => {
+  it('checks resource access before enqueueing analysis', async () => {
+    const dto = {
+      accountId: ACCOUNT_ID,
+      contentPostId: POST_ID,
+      sessionId: SESSION_ID,
+      batchId: BATCH_ID,
+    };
+
     await expect(
-      controller.queueAnalysis(req as AuthedRequest, {
-        accountId: ACCOUNT_ID,
-        contentPostId: POST_ID,
-        sessionId: SESSION_ID,
-        batchId: BATCH_ID,
-      }),
+      controller.queueAnalysis(req as AuthedRequest, dto),
     ).resolves.toEqual({ queued: true });
 
-    expect(deps.prisma.contentPost.findFirst).toHaveBeenCalledWith({
-      where: {
-        id: POST_ID,
-        instagramAccountId: ACCOUNT_ID,
-        instagramAccount: { userId: USER_ID },
-      },
-      select: { id: true },
-    });
-    expect(deps.prisma.chatbotSession.findFirst).toHaveBeenCalledWith({
-      where: {
-        id: SESSION_ID,
-        userId: USER_ID,
-        OR: [{ instagramAccountId: ACCOUNT_ID }, { instagramAccountId: null }],
-      },
-      select: { id: true },
-    });
-    expect(deps.prisma.aiBatchReport.findFirst).toHaveBeenCalledWith({
-      where: { id: BATCH_ID, userId: USER_ID, accountId: ACCOUNT_ID },
-      select: { id: true },
-    });
+    expect(deps.access.ensureQueueAnalysisResources).toHaveBeenCalledWith(
+      USER_ID,
+      dto,
+    );
     expect(deps.aiQueue.enqueueAnalysis).toHaveBeenCalledWith(
       ACCOUNT_ID,
       POST_ID,
@@ -101,41 +71,15 @@ describe('AiController.queueAnalysis()', () => {
     );
   });
 
-  it('does not enqueue a post outside the owned account', async () => {
-    deps.prisma.contentPost.findFirst.mockResolvedValue(null);
+  it('does not enqueue when resource access fails', async () => {
+    deps.access.ensureQueueAnalysisResources.mockRejectedValue(
+      new ForbiddenException('Post not found or access denied'),
+    );
 
     await expect(
       controller.queueAnalysis(req as AuthedRequest, {
         accountId: ACCOUNT_ID,
         contentPostId: POST_ID,
-      }),
-    ).rejects.toThrow(ForbiddenException);
-
-    expect(deps.aiQueue.enqueueAnalysis).not.toHaveBeenCalled();
-  });
-
-  it('does not enqueue with a session outside the user or account scope', async () => {
-    deps.prisma.chatbotSession.findFirst.mockResolvedValue(null);
-
-    await expect(
-      controller.queueAnalysis(req as AuthedRequest, {
-        accountId: ACCOUNT_ID,
-        contentPostId: POST_ID,
-        sessionId: SESSION_ID,
-      }),
-    ).rejects.toThrow(ForbiddenException);
-
-    expect(deps.aiQueue.enqueueAnalysis).not.toHaveBeenCalled();
-  });
-
-  it('does not enqueue with a batch outside the user or account scope', async () => {
-    deps.prisma.aiBatchReport.findFirst.mockResolvedValue(null);
-
-    await expect(
-      controller.queueAnalysis(req as AuthedRequest, {
-        accountId: ACCOUNT_ID,
-        contentPostId: POST_ID,
-        batchId: BATCH_ID,
       }),
     ).rejects.toThrow(ForbiddenException);
 

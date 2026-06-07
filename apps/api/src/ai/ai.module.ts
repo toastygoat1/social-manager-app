@@ -19,6 +19,7 @@ import { WorkerAiGuard } from './guards/worker-ai.guard.js';
 import { BatchAiService } from './batch/batch-ai.service.js';
 import { BatchSummaryService } from './batch/batch-summary.service.js';
 import { AiAutoAnalysisService } from './auto-analysis.service.js';
+import { ResourceAccessService } from '../common/resource-access.service.js';
 
 @Module({
   imports: [ConfigModule],
@@ -49,6 +50,7 @@ import { AiAutoAnalysisService } from './auto-analysis.service.js';
     BatchAiService,
     BatchSummaryService,
     AiAutoAnalysisService,
+    ResourceAccessService,
   ],
   exports: [AiQueueService, AiService, AiAutoAnalysisService],
 })

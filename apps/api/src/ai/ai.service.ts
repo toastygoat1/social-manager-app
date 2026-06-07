@@ -26,6 +26,7 @@ import type { ChatDto } from './dto/chat.dto.js';
 import type { CreateSessionDto } from './dto/create-session.dto.js';
 import type { AnalyzeStoryDto } from './dto/analyze-story.dto.js';
 import { BatchSummaryService } from './batch/batch-summary.service.js';
+import { ResourceAccessService } from '../common/resource-access.service.js';
 
 const GLOBAL_CHAT_ACCOUNT_SCOPE = 'all-accounts';
 const CHAT_ANALYTICS_POST_LIMIT = 8;
@@ -55,6 +56,7 @@ export class AiService {
     private readonly layer1: Layer1Service,
     private readonly layer2: Layer2Service,
     private readonly expertEngine: ExpertEngineService,
+    private readonly access: ResourceAccessService,
     @Optional() private readonly batchSummary: BatchSummaryService | null,
   ) {}
 
@@ -77,7 +79,11 @@ export class AiService {
 
     // Fetch post analytics joined to content_posts
     const post = await this.prisma.contentPost.findFirst({
-      where: { id: contentPostId, instagramAccountId: accountId },
+      where: {
+        id: contentPostId,
+        instagramAccountId: accountId,
+        instagramAccount: { userId },
+      },
       include: {
         postAnalytics: { orderBy: { fetchedAt: 'desc' }, take: 1 },
         instagramAccount: { select: { username: true } },
@@ -574,12 +580,16 @@ export class AiService {
 
     const userId = account.userId;
 
-    await this.ensureInternalAnalysisContextOwned(
-      userId,
-      accountId,
-      providedSessionId,
-      batchId,
-    );
+    if (providedSessionId) {
+      await this.access.ensureOwnedChatbotSession(userId, providedSessionId, {
+        accountId,
+        allowGlobal: true,
+      });
+    }
+
+    if (batchId) {
+      await this.access.ensureOwnedAiBatch(userId, batchId, accountId);
+    }
 
     let sessionId = providedSessionId;
     if (!sessionId) {
@@ -600,37 +610,6 @@ export class AiService {
       sessionId,
       batchId,
     });
-  }
-
-  private async ensureInternalAnalysisContextOwned(
-    userId: string,
-    accountId: string,
-    sessionId?: string,
-    batchId?: string,
-  ): Promise<void> {
-    if (sessionId) {
-      const session = await this.prisma.chatbotSession.findFirst({
-        where: {
-          id: sessionId,
-          userId,
-          OR: [{ instagramAccountId: accountId }, { instagramAccountId: null }],
-        },
-        select: { id: true },
-      });
-      if (!session) {
-        throw new ForbiddenException('Session not found or access denied');
-      }
-    }
-
-    if (batchId) {
-      const batch = await this.prisma.aiBatchReport.findFirst({
-        where: { id: batchId, userId, accountId },
-        select: { id: true },
-      });
-      if (!batch) {
-        throw new ForbiddenException('Batch not found or access denied');
-      }
-    }
   }
 
   private async markPostAiAnalyzed(
@@ -757,9 +736,18 @@ export class AiService {
     });
     if (!account) throw new ForbiddenException('Account not found');
 
+    await this.access.ensureOwnedChatbotSession(userId, sessionId, {
+      accountId,
+      allowGlobal: true,
+    });
+
     // Fetch the story
     const story = await this.prisma.instagramStory.findFirst({
-      where: { id: storyId, instagramAccountId: accountId },
+      where: {
+        id: storyId,
+        instagramAccountId: accountId,
+        instagramAccount: { userId },
+      },
     });
     if (!story) throw new NotFoundException('Story not found');
 
