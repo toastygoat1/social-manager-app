@@ -32,6 +32,13 @@ import {
 } from "@/lib/post-metadata";
 import { createClient } from "@/lib/supabase/client";
 import type { SchedulerPostDetail, EventStatus } from "./data";
+import {
+  buildInstagramMediaIssues,
+  firstBlockingInstagramIssue,
+  INSTAGRAM_VIDEO_MAX_SIZE,
+  type InstagramMediaIssue,
+  type InstagramRuleMediaItem,
+} from "./instagram-media-rules";
 
 type Props = {
   postId: string | null;
@@ -62,10 +69,6 @@ type MediaUploadUrlResponse = {
 type MediaAssetsResponse = {
   assets: { id: string }[];
 };
-
-const MAX_MEDIA_SIZE = 100 * 1024 * 1024;
-const FEED_IMAGE_MIN_ASPECT = 4 / 5;
-const FEED_IMAGE_MAX_ASPECT = 1.91;
 
 const STATUS_STYLE: Record<
   EventStatus,
@@ -154,6 +157,7 @@ function mediaLimit(postType: SchedulerPostDetail["postType"]) {
 function mediaAccept(postType: SchedulerPostDetail["postType"]) {
   if (postType === "REEL") return "video/*";
   if (postType === "STORY") return "image/*,video/*";
+  if (postType === "CAROUSEL") return "image/*,video/*";
   return "image/*";
 }
 
@@ -220,11 +224,11 @@ function validateDraftFiles(
 ) {
   if (totalCount > mediaLimit(postType)) {
     return postType === "CAROUSEL"
-      ? "Carousel posts can contain up to 10 images."
+      ? "Carousel posts can contain up to 10 media files."
       : "This post type supports one media file.";
   }
-  if (files.some((file) => file.size > MAX_MEDIA_SIZE)) {
-    return "Each media file must be 100 MB or smaller.";
+  if (files.some((file) => file.size > INSTAGRAM_VIDEO_MAX_SIZE)) {
+    return "Each media file must be 300 MB or smaller.";
   }
   if (
     files.some(
@@ -235,10 +239,10 @@ function validateDraftFiles(
     return "Only image and video files are supported.";
   }
   if (
-    (postType === "FEED" || postType === "CAROUSEL") &&
+    postType === "FEED" &&
     files.some((file) => !file.type.startsWith("image/"))
   ) {
-    return "Feed posts and carousels support images only.";
+    return "Feed posts support images only.";
   }
   if (
     postType === "REEL" &&
@@ -247,6 +251,43 @@ function validateDraftFiles(
     return "Reels require a video file.";
   }
   return null;
+}
+
+function buildDetailMediaIssues(
+  postType: SchedulerPostDetail["postType"],
+  items: (SchedulerPostDetail["media"][number] | DraftUpload)[],
+  options: { forPublish?: boolean } = {},
+) {
+  return buildInstagramMediaIssues(
+    postType,
+    items.map(detailMediaToRuleItem),
+    options,
+  );
+}
+
+function validateDetailMediaForPublish(
+  postType: SchedulerPostDetail["postType"],
+  items: (SchedulerPostDetail["media"][number] | DraftUpload)[],
+) {
+  return firstBlockingInstagramIssue(
+    postType,
+    items.map(detailMediaToRuleItem),
+    { forPublish: true },
+  )?.message ?? null;
+}
+
+function detailMediaToRuleItem(
+  item: SchedulerPostDetail["media"][number] | DraftUpload,
+): InstagramRuleMediaItem {
+  return {
+    id: item.id,
+    fileType: item.fileType,
+    mimeType: item.mimeType,
+    fileSize: item.fileSize,
+    width: item.width,
+    height: item.height,
+    durationSeconds: item.durationSeconds,
+  };
 }
 
 function readErrorMessage(error: unknown) {
@@ -266,6 +307,34 @@ function DetailRow({ label, value }: { label: string; value: string }) {
     <div className="flex items-start justify-between gap-4 border-b border-line py-2 text-sm last:border-b-0">
       <span className="text-muted">{label}</span>
       <span className="text-right font-medium text-ink">{value}</span>
+    </div>
+  );
+}
+
+function MediaIssueList({ issues }: { issues: InstagramMediaIssue[] }) {
+  if (!issues.length) return null;
+
+  return (
+    <div className="mt-3 rounded-lg border border-line bg-card p-3 text-xs">
+      <p className="mb-1 font-mono text-[10px] uppercase tracking-[0.05em] text-muted">
+        Instagram media checks
+      </p>
+      <div className="flex flex-col gap-1.5">
+        {issues.slice(0, 4).map((issue) => (
+          <p
+            key={issue.key}
+            className={`flex items-start gap-2 leading-5 ${
+              issue.severity === "error" ? "text-danger" : "text-[#a57630]"
+            }`}
+          >
+            <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
+            <span>{issue.message}</span>
+          </p>
+        ))}
+        {issues.length > 4 ? (
+          <p className="text-muted">+{issues.length - 4} more checks</p>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -439,6 +508,14 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
     }
     let scheduleIso: string | undefined;
     if (action === "SCHEDULE") {
+      const mediaError = validateDetailMediaForPublish(
+        post.postType,
+        shownMedia,
+      );
+      if (mediaError) {
+        setError(mediaError);
+        return;
+      }
       const date = new Date(scheduledFor);
       if (Number.isNaN(date.getTime()) || date <= new Date()) {
         setError("Pick a future schedule time.");
@@ -497,6 +574,7 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
   const shownMedia = isDraft
     ? [...attachedMedia, ...draftUploads]
     : (post?.media ?? []);
+  const mediaIssues = post ? buildDetailMediaIssues(post.postType, shownMedia) : [];
   const analyticsUpdatedAt = post?.analytics
     ? formatFetchedAt(post.analytics.fetchedAt)
     : null;
@@ -546,23 +624,6 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
 
     try {
       const prepared = await Promise.all(nextFiles.map(buildDraftUpload));
-      const invalidImage = prepared.find((item) => {
-        if (
-          (post.postType !== "FEED" && post.postType !== "CAROUSEL") ||
-          item.fileType !== "IMAGE" ||
-          !item.width ||
-          !item.height
-        ) {
-          return false;
-        }
-        const aspect = item.width / item.height;
-        return aspect < FEED_IMAGE_MIN_ASPECT || aspect > FEED_IMAGE_MAX_ASPECT;
-      });
-      if (invalidImage) {
-        prepared.forEach((item) => URL.revokeObjectURL(item.previewUrl));
-        setError("Feed images must be between 4:5 and 1.91:1.");
-        return;
-      }
       setDraftUploads((current) => [...current, ...prepared]);
     } catch {
       setError("Could not read media details.");
@@ -972,6 +1033,7 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
                     />
                   </label>
                 ) : null}
+                <MediaIssueList issues={mediaIssues} />
               </div>
             </section>
 

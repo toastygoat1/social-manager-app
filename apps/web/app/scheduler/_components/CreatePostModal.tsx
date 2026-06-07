@@ -32,6 +32,17 @@ import {
 } from "@/lib/post-metadata";
 import { createClient } from "@/lib/supabase/client";
 import type { SchedulerPostType } from "./data";
+import {
+  buildInstagramMediaIssues,
+  FEED_IMAGE_MAX_ASPECT,
+  FEED_IMAGE_MIN_ASPECT,
+  firstBlockingInstagramIssue,
+  INSTAGRAM_FEED_IMAGE_MAX_WIDTH,
+  INSTAGRAM_IMAGE_MAX_SIZE,
+  INSTAGRAM_VIDEO_MAX_SIZE,
+  type InstagramMediaIssue,
+  type InstagramRuleMediaItem,
+} from "./instagram-media-rules";
 
 export type CreatePostType = "post" | "story" | "reels";
 type ComposePostType = CreatePostType | "carousel";
@@ -104,10 +115,6 @@ const TYPE_TO_POST_TYPE: Record<ComposePostType, SchedulerPostType> = {
   carousel: "CAROUSEL",
 };
 
-const MAX_MEDIA_SIZE = 100 * 1024 * 1024;
-const FEED_IMAGE_MIN_ASPECT = 4 / 5;
-const FEED_IMAGE_MAX_ASPECT = 1.91;
-
 const ACTION_TO_API: Record<SubmitAction, "SCHEDULE" | "POST_NOW" | "DRAFT"> = {
   schedule: "SCHEDULE",
   "post-now": "POST_NOW",
@@ -146,7 +153,8 @@ function mediaLimitForType(type: ComposePostType) {
 }
 
 function acceptForType(type: ComposePostType) {
-  if (type === "post" || type === "carousel") return "image/*";
+  if (type === "post") return "image/*";
+  if (type === "carousel") return "image/*,video/*";
   return type === "reels" ? "video/*" : "image/*,video/*";
 }
 
@@ -157,17 +165,17 @@ function validateMediaFiles(type: ComposePostType, files: File[]) {
       ? "Posts and carousels can include up to 10 files"
       : "Stories and reels can include 1 file";
   }
-  if (files.some((file) => file.size > MAX_MEDIA_SIZE)) {
-    return "Each media file must be 100 MB or smaller";
+  if (files.some((file) => file.size > INSTAGRAM_VIDEO_MAX_SIZE)) {
+    return "Each media file must be 300 MB or smaller";
   }
   if (files.some((file) => !file.type.startsWith("image/") && !file.type.startsWith("video/"))) {
     return "Only image and video files are supported";
   }
   if (
-    (type === "post" || type === "carousel") &&
+    type === "post" &&
     files.some((file) => file.type.startsWith("video/"))
   ) {
-    return "Posts and carousels support images only. Use reels for videos";
+    return "Posts support images only. Use reels for single videos or carousel for mixed media";
   }
   if (type === "reels" && files.some((file) => !file.type.startsWith("video/"))) {
     return "Reels require a video file";
@@ -252,24 +260,39 @@ async function cropFeedImageIfNeeded(
   if (item.kind !== "image" || !item.width || !item.height) return item;
 
   const aspect = item.width / item.height;
-  if (aspect >= FEED_IMAGE_MIN_ASPECT && aspect <= FEED_IMAGE_MAX_ASPECT) {
+  const needsAspectCrop =
+    aspect < FEED_IMAGE_MIN_ASPECT || aspect > FEED_IMAGE_MAX_ASPECT;
+  const needsJpeg =
+    item.file.type !== "image/jpeg" && item.file.type !== "image/jpg";
+  const needsDownscale =
+    item.width > INSTAGRAM_FEED_IMAGE_MAX_WIDTH ||
+    item.file.size > INSTAGRAM_IMAGE_MAX_SIZE;
+
+  if (!needsAspectCrop && !needsJpeg && !needsDownscale) {
     return item;
   }
 
   const image = await loadImage(item.previewUrl);
-  const targetAspect =
-    aspect < FEED_IMAGE_MIN_ASPECT
+  const targetAspect = needsAspectCrop
+    ? aspect < FEED_IMAGE_MIN_ASPECT
       ? FEED_IMAGE_MIN_ASPECT
-      : FEED_IMAGE_MAX_ASPECT;
+      : FEED_IMAGE_MAX_ASPECT
+    : aspect;
   const sourceWidth =
     aspect > targetAspect ? item.height * targetAspect : item.width;
   const sourceHeight =
     aspect > targetAspect ? item.height : item.width / targetAspect;
   const sourceX = (item.width - sourceWidth) / 2;
   const sourceY = (item.height - sourceHeight) / 2;
+  const outputScale = Math.min(
+    1,
+    INSTAGRAM_FEED_IMAGE_MAX_WIDTH / sourceWidth,
+  );
+  const outputWidth = Math.max(1, Math.round(sourceWidth * outputScale));
+  const outputHeight = Math.max(1, Math.round(sourceHeight * outputScale));
   const canvas = document.createElement("canvas");
-  canvas.width = Math.round(sourceWidth);
-  canvas.height = Math.round(sourceHeight);
+  canvas.width = outputWidth;
+  canvas.height = outputHeight;
   const ctx = canvas.getContext("2d");
 
   if (!ctx) throw new Error("Could not crop image");
@@ -294,8 +317,8 @@ async function cropFeedImageIfNeeded(
     lastModified: Date.now(),
   });
 
-  if (croppedFile.size > MAX_MEDIA_SIZE) {
-    throw new Error("Cropped image is too large");
+  if (croppedFile.size > INSTAGRAM_IMAGE_MAX_SIZE) {
+    throw new Error("Instagram images must be 8 MB or smaller");
   }
 
   URL.revokeObjectURL(item.previewUrl);
@@ -327,18 +350,35 @@ function toCroppedFileName(name: string) {
   return `${withoutExtension}-instagram-crop.jpg`;
 }
 
-function validateSelectedMedia(type: ComposePostType, items: SelectedMedia[]) {
-  if (type !== "post" && type !== "carousel") return null;
+function validateSelectedMediaForPublish(
+  type: ComposePostType,
+  items: SelectedMedia[],
+) {
+  return firstBlockingInstagramIssue(
+    type,
+    selectedMediaToRuleItems(items),
+    { autoCarouselPost: true, forPublish: true },
+  )?.message ?? null;
+}
 
-  const unsupported = items.find((item) => {
-    if (item.kind !== "image" || !item.width || !item.height) return false;
-    const aspect = item.width / item.height;
-    return aspect < FEED_IMAGE_MIN_ASPECT || aspect > FEED_IMAGE_MAX_ASPECT;
+function buildSelectedMediaIssues(type: ComposePostType, items: SelectedMedia[]) {
+  return buildInstagramMediaIssues(type, selectedMediaToRuleItems(items), {
+    autoCarouselPost: true,
   });
+}
 
-  if (!unsupported?.width || !unsupported.height) return null;
-
-  return `Instagram feed images must be between 4:5 and 1.91:1. This image is ${unsupported.width}x${unsupported.height}; crop it to square, 4:5, or 1.91:1.`;
+function selectedMediaToRuleItems(
+  items: SelectedMedia[],
+): InstagramRuleMediaItem[] {
+  return items.map((item) => ({
+    id: item.id,
+    fileType: item.kind === "image" ? "IMAGE" : "VIDEO",
+    mimeType: item.file.type,
+    fileSize: item.file.size,
+    width: item.width,
+    height: item.height,
+    durationSeconds: item.durationSeconds,
+  }));
 }
 
 function revokePreviewUrls(items: SelectedMedia[]) {
@@ -438,6 +478,46 @@ function MediaTile({
       >
         <Trash2 className="size-3" strokeWidth={2} />
       </button>
+    </div>
+  );
+}
+
+function MediaIssueList({
+  issues,
+  compact = false,
+}: {
+  issues: InstagramMediaIssue[];
+  compact?: boolean;
+}) {
+  if (!issues.length) return null;
+
+  return (
+    <div
+      className={
+        compact
+          ? "mt-2 text-[10px]"
+          : "mt-2 rounded-md border border-[#e7e1d6] bg-paper p-3 text-[10px]"
+      }
+    >
+      <p className="mb-1 font-semibold uppercase tracking-wide text-[#817a70]">
+        Instagram media checks
+      </p>
+      <div className="flex flex-col gap-1">
+        {issues.slice(0, 4).map((issue) => (
+          <p
+            key={issue.key}
+            className={`flex items-start gap-2 leading-4 ${
+              issue.severity === "error" ? "text-[#b73333]" : "text-[#a57630]"
+            }`}
+          >
+            <CircleAlert className="mt-0.5 size-3 shrink-0" />
+            <span>{issue.message}</span>
+          </p>
+        ))}
+        {issues.length > 4 ? (
+          <p className="text-[#817a70]">+{issues.length - 4} more checks</p>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -630,16 +710,14 @@ export function CreatePostModal({
     try {
       const preparedMedia = await prepareMediaForType(composeType, nextMedia);
       const allMedia = [...media, ...preparedMedia];
-      const dimensionError = validateSelectedMedia(composeType, allMedia);
-      if (dimensionError) {
-        revokePreviewUrls(preparedMedia);
-        setError(dimensionError);
-        return;
-      }
       setMedia(allMedia);
-    } catch {
+    } catch (mediaError) {
       revokePreviewUrls(nextMedia);
-      setError("Could not read media dimensions");
+      setError(
+        mediaError instanceof Error
+          ? mediaError.message
+          : "Could not read media dimensions",
+      );
     }
   };
 
@@ -836,7 +914,10 @@ export function CreatePostModal({
       setError("Could not read media dimensions");
       return;
     }
-    const mediaValidationError = validateSelectedMedia(composeType, mediaForSubmit);
+    const mediaValidationError =
+      action === "draft"
+        ? null
+        : validateSelectedMediaForPublish(composeType, mediaForSubmit);
     if (mediaValidationError) {
       setError(mediaValidationError);
       return;
@@ -946,6 +1027,11 @@ export function CreatePostModal({
 
   const minScheduledFor = toLocalDatetimeInputValue(new Date().toISOString());
   const previewMedia = media[0] ?? null;
+  const mediaIssues = buildSelectedMediaIssues(composeType, media);
+  const mediaErrorCount = mediaIssues.filter(
+    (issue) => issue.severity === "error",
+  ).length;
+  const mediaWarningCount = mediaIssues.length - mediaErrorCount;
   const submitButtonLabel = submittingAction
     ? SUBMITTING_LABEL[submittingAction]
     : primaryAction === "post-now"
@@ -1171,6 +1257,7 @@ export function CreatePostModal({
                   </label>
                 ) : null}
               </div>
+              <MediaIssueList issues={mediaIssues} />
             </section>
 
             <section>
@@ -1416,10 +1503,29 @@ export function CreatePostModal({
                 {hasBlockingPreviewError ? <CircleAlert className="size-3" /> : <Check className="size-3" />}
                 {hasBlockingPreviewError ? "No accounts selected" : "Account selected"}
               </p>
-              <p className={`mt-1 flex items-center gap-2 ${media.length ? "text-[#568164]" : "text-[#a57630]"}`}>
-                {media.length ? <Check className="size-3" /> : <CircleAlert className="size-3" />}
-                {media.length ? "Media ready for preview" : "Add media before publishing"}
+              <p
+                className={`mt-1 flex items-center gap-2 ${
+                  mediaErrorCount
+                    ? "text-[#b73333]"
+                    : media.length
+                      ? "text-[#568164]"
+                      : "text-[#a57630]"
+                }`}
+              >
+                {media.length && !mediaErrorCount ? (
+                  <Check className="size-3" />
+                ) : (
+                  <CircleAlert className="size-3" />
+                )}
+                {mediaErrorCount
+                  ? `${mediaErrorCount} media rule issue${mediaErrorCount === 1 ? "" : "s"}`
+                  : media.length
+                    ? mediaWarningCount
+                      ? `${mediaWarningCount} media recommendation${mediaWarningCount === 1 ? "" : "s"}`
+                      : "Media ready for preview"
+                    : "Add media before publishing"}
               </p>
+              <MediaIssueList issues={mediaIssues} compact />
               <p className={`mt-1 flex items-center gap-2 ${hasTitleAndCaption ? "text-[#568164]" : "text-[#a57630]"}`}>
                 {hasTitleAndCaption ? <Check className="size-3" /> : <CircleAlert className="size-3" />}
                 {hasTitleAndCaption ? "Title and caption added" : contentPrompt}
