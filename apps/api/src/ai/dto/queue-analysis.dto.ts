@@ -1,19 +1,25 @@
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+} from 'class-validator';
 
 export class QueueAnalysisDto {
-  @IsString()
-  @IsNotEmpty()
+  @IsUUID('4')
   accountId!: string;
 
-  @IsString()
-  @IsNotEmpty()
+  @IsUUID('4')
   contentPostId!: string;
 
-  @IsString()
   @IsOptional()
+  @IsUUID('4')
   sessionId?: string;
 
   @IsString()
+  @IsNotEmpty()
   @IsOptional()
+  @MaxLength(64)
   batchId?: string;
 }
