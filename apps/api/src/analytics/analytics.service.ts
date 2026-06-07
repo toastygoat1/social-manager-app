@@ -280,6 +280,7 @@ const ACCOUNT_TONES: AccountTone[] = ['blue', 'cyan', 'pink', 'yellow'];
 const DEFAULT_RANGE_DAYS = 30;
 const DEFAULT_GRAPH_API_VERSION = 'v21.0';
 const ALLOWED_RANGE_DAYS = new Set([7, 30, 90]);
+const MAX_CUSTOM_RANGE_DAYS = 366;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MAX_RANGE_POSTS = 500;
 const MAX_RECENT_POSTS = 5;
@@ -422,12 +423,16 @@ export class AnalyticsService {
 
   async getOverview(
     userId: string,
-    options: { accountId?: string; range?: string } = {},
+    options: {
+      accountId?: string;
+      range?: string;
+      startDate?: string;
+      endDate?: string;
+    } = {},
   ): Promise<AnalyticsOverview> {
-    const rangeDays = parseRangeDays(options.range);
     const now = new Date();
-    const currentStart = new Date(now.getTime() - rangeDays * DAY_MS);
-    const previousStart = new Date(currentStart.getTime() - rangeDays * DAY_MS);
+    const period = resolveAnalyticsPeriod(options, now);
+    const { currentEnd, currentStart, previousStart, rangeDays } = period;
 
     const accountRecords = await this.prisma.instagramAccount.findMany({
       where: { userId, isActive: true },
@@ -492,7 +497,12 @@ export class AnalyticsService {
       contentTablePosts,
       snapshots,
     ] = await Promise.all([
-      this.findPublishedPosts(accountIds, currentStart, now, MAX_RANGE_POSTS),
+      this.findPublishedPosts(
+        accountIds,
+        currentStart,
+        currentEnd,
+        MAX_RANGE_POSTS,
+      ),
       this.findPublishedPosts(
         accountIds,
         previousStart,
@@ -509,7 +519,7 @@ export class AnalyticsService {
       this.prisma.analyticsSnapshot.findMany({
         where: {
           instagramAccountId: { in: accountIds },
-          snapshotDate: { gte: previousStart, lte: now },
+          snapshotDate: { gte: previousStart, lte: currentEnd },
         },
         orderBy: { snapshotDate: 'asc' },
         select: ANALYTICS_SNAPSHOT_SELECT,
@@ -653,11 +663,15 @@ export class AnalyticsService {
 
   async refreshInsights(
     userId: string,
-    options: { accountId?: string; range?: string } = {},
+    options: {
+      accountId?: string;
+      range?: string;
+      startDate?: string;
+      endDate?: string;
+    } = {},
   ): Promise<RefreshInsightsResult> {
-    const rangeDays = parseRangeDays(options.range);
     const now = new Date();
-    const currentStart = new Date(now.getTime() - rangeDays * DAY_MS);
+    const { currentEnd, currentStart } = resolveAnalyticsPeriod(options, now);
 
     const accountRecords = await this.prisma.instagramAccount.findMany({
       where: {
@@ -696,7 +710,7 @@ export class AnalyticsService {
         instagramAccountId: { in: accountRecords.map((account) => account.id) },
         status: PostStatus.PUBLISHED,
         igMediaId: { not: null },
-        publishedAt: { gte: currentStart, lt: now },
+        publishedAt: { gte: currentStart, lt: currentEnd },
       },
       orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }],
       take: MAX_REFRESH_POSTS,
@@ -1266,14 +1280,135 @@ export class AnalyticsService {
   }
 }
 
-function parseRangeDays(range: string | undefined): number {
+type AnalyticsPeriodOptions = {
+  range?: string;
+  startDate?: string;
+  endDate?: string;
+};
+
+function resolveAnalyticsPeriod(
+  options: AnalyticsPeriodOptions,
+  now: Date,
+): {
+  currentStart: Date;
+  currentEnd: Date;
+  previousStart: Date;
+  rangeDays: number;
+} {
+  const range = options.range?.trim().toLowerCase();
+  const customRange = parseCustomDateRange(options.startDate, options.endDate);
+
+  if (range === 'custom' || customRange) {
+    if (!customRange) {
+      throw new BadRequestException(
+        'startDate and endDate are required for a custom range.',
+      );
+    }
+
+    return buildAnalyticsPeriod(customRange.start, customRange.end);
+  }
+
+  if (range === 'month') {
+    return buildAnalyticsPeriod(
+      new Date(now.getFullYear(), now.getMonth(), 1),
+      now,
+    );
+  }
+
+  if (range === 'year') {
+    return buildAnalyticsPeriod(new Date(now.getFullYear(), 0, 1), now);
+  }
+
+  const rangeDays = parseRollingRangeDays(range);
+  const currentStart = new Date(now.getTime() - rangeDays * DAY_MS);
+  const previousStart = new Date(currentStart.getTime() - rangeDays * DAY_MS);
+
+  return {
+    currentStart,
+    currentEnd: now,
+    previousStart,
+    rangeDays,
+  };
+}
+
+function buildAnalyticsPeriod(currentStart: Date, currentEnd: Date) {
+  const rangeDays = Math.max(
+    1,
+    Math.ceil((currentEnd.getTime() - currentStart.getTime()) / DAY_MS),
+  );
+
+  if (rangeDays > MAX_CUSTOM_RANGE_DAYS) {
+    throw new BadRequestException(
+      `Custom range cannot be longer than ${MAX_CUSTOM_RANGE_DAYS} days.`,
+    );
+  }
+
+  return {
+    currentStart,
+    currentEnd,
+    previousStart: new Date(currentStart.getTime() - rangeDays * DAY_MS),
+    rangeDays,
+  };
+}
+
+function parseCustomDateRange(startDate?: string, endDate?: string) {
+  if (!startDate && !endDate) return null;
+  if (!startDate || !endDate) {
+    throw new BadRequestException(
+      'startDate and endDate are required for a custom range.',
+    );
+  }
+
+  const start = parseDateInput(startDate, 'startDate');
+  const endDay = parseDateInput(endDate, 'endDate');
+
+  if (start.getTime() > endDay.getTime()) {
+    throw new BadRequestException('startDate must be before endDate.');
+  }
+
+  return {
+    start,
+    end: new Date(
+      endDay.getFullYear(),
+      endDay.getMonth(),
+      endDay.getDate() + 1,
+    ),
+  };
+}
+
+function parseDateInput(value: string, fieldName: 'startDate' | 'endDate') {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+
+  if (!match) {
+    throw new BadRequestException(`${fieldName} must use YYYY-MM-DD format.`);
+  }
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(year, month - 1, day);
+
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    throw new BadRequestException(`${fieldName} must be a valid date.`);
+  }
+
+  return date;
+}
+
+function parseRollingRangeDays(range: string | undefined): number {
   if (!range) return DEFAULT_RANGE_DAYS;
 
   const normalized = range.trim().toLowerCase().replace(/d$/, '');
   const parsed = Number(normalized);
 
   if (!ALLOWED_RANGE_DAYS.has(parsed)) {
-    throw new BadRequestException('range must be one of 7d, 30d, or 90d.');
+    throw new BadRequestException(
+      'range must be one of 7d, 30d, 90d, month, year, or custom.',
+    );
   }
 
   return parsed;

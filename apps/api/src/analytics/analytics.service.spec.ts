@@ -459,6 +459,78 @@ describe('AnalyticsService', () => {
     ]);
   });
 
+  it('filters overview data to the current month preset', async () => {
+    prisma.instagramAccount.findMany.mockResolvedValue([
+      {
+        id: 'account-1',
+        username: 'ambacafe',
+        displayName: null,
+        accountType: 'BUSINESS',
+        avatarUrl: null,
+      },
+    ]);
+    prisma.contentPost.findMany.mockResolvedValue([]);
+    prisma.analyticsSnapshot.findMany.mockResolvedValue([]);
+
+    const overview = await service.getOverview('user-1', { range: 'month' });
+    const currentQuery = prisma.contentPost.findMany.mock.calls[0]?.[0] as {
+      where: { publishedAt: { gte: Date; lt: Date } };
+    };
+
+    expect(overview.rangeDays).toBe(23);
+    expect(currentQuery.where.publishedAt).toEqual({
+      gte: new Date(2026, 4, 1),
+      lt: new Date('2026-05-23T10:00:00Z'),
+    });
+  });
+
+  it('filters overview data to a custom inclusive date range', async () => {
+    prisma.instagramAccount.findMany.mockResolvedValue([
+      {
+        id: 'account-1',
+        username: 'ambacafe',
+        displayName: null,
+        accountType: 'BUSINESS',
+        avatarUrl: null,
+      },
+    ]);
+    prisma.contentPost.findMany.mockResolvedValue([]);
+    prisma.analyticsSnapshot.findMany.mockResolvedValue([]);
+
+    const overview = await service.getOverview('user-1', {
+      range: 'custom',
+      startDate: '2026-05-10',
+      endDate: '2026-05-12',
+    });
+    const currentQuery = prisma.contentPost.findMany.mock.calls[0]?.[0] as {
+      where: { publishedAt: { gte: Date; lt: Date } };
+    };
+    const previousQuery = prisma.contentPost.findMany.mock.calls[1]?.[0] as {
+      where: { publishedAt: { gte: Date; lt: Date } };
+    };
+
+    expect(overview.rangeDays).toBe(3);
+    expect(currentQuery.where.publishedAt).toEqual({
+      gte: new Date(2026, 4, 10),
+      lt: new Date(2026, 4, 13),
+    });
+    expect(previousQuery.where.publishedAt).toEqual({
+      gte: new Date(2026, 4, 7),
+      lt: new Date(2026, 4, 10),
+    });
+  });
+
+  it('rejects custom ranges where the start date is after the end date', async () => {
+    await expect(
+      service.getOverview('user-1', {
+        range: 'custom',
+        startDate: '2026-05-12',
+        endDate: '2026-05-10',
+      }),
+    ).rejects.toThrow('startDate must be before endDate.');
+    expect(prisma.instagramAccount.findMany).not.toHaveBeenCalled();
+  });
+
   it('uses stored Instagram media previews for imported posts without local media', async () => {
     const importedPost = makePost({
       id: 'post-imported',

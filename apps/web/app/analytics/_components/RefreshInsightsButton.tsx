@@ -4,11 +4,11 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, LoaderCircle, RefreshCw, TriangleAlert } from "lucide-react";
 import { ApiError, apiFetchBrowser } from "@/lib/api/browser-client";
-import type { AnalyticsRange } from "./data";
+import type { AnalyticsTimeFilter } from "./data";
 
 type RefreshInsightsButtonProps = {
   selectedAccountId: string | null;
-  range: AnalyticsRange;
+  timeFilter: AnalyticsTimeFilter;
   lastUpdatedAt: string | null;
   disabled?: boolean;
 };
@@ -73,7 +73,7 @@ function buildSuccessMessage(result: RefreshInsightsResponse) {
 
 export function RefreshInsightsButton({
   selectedAccountId,
-  range,
+  timeFilter,
   lastUpdatedAt,
   disabled,
 }: RefreshInsightsButtonProps) {
@@ -98,7 +98,11 @@ export function RefreshInsightsButton({
           method: "POST",
           body: {
             accountId: selectedAccountId ?? undefined,
-            range,
+            range: timeFilter.range,
+            startDate:
+              timeFilter.range === "custom" ? timeFilter.startDate : undefined,
+            endDate:
+              timeFilter.range === "custom" ? timeFilter.endDate : undefined,
           },
         },
       );

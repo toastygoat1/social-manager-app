@@ -17,7 +17,10 @@ import { AnalyticsContentTable } from "./_components/AnalyticsContentTable";
 import { AnalyticsCompareView } from "./_components/AnalyticsCompareView";
 import { NotesBoard } from "./_components/NotesBoard";
 import { Recommendations } from "./_components/Recommendations";
-import type { AnalyticsRange } from "./_components/data";
+import {
+  analyticsTimeFilterLabel,
+  resolveAnalyticsTimeFilter,
+} from "./_components/time-filter";
 
 type AnalyticsPageProps = {
   searchParams: Promise<{
@@ -25,18 +28,14 @@ type AnalyticsPageProps = {
     compareLeft?: string | string[];
     compareRight?: string | string[];
     range?: string | string[];
+    startDate?: string | string[];
+    endDate?: string | string[];
     view?: string | string[];
   }>;
 };
 
-const ANALYTICS_RANGES = new Set(["7d", "30d", "90d"]);
-
 function firstParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
-}
-
-function getAnalyticsRange(value: string | undefined): AnalyticsRange {
-  return ANALYTICS_RANGES.has(value ?? "") ? (value as AnalyticsRange) : "30d";
 }
 
 function getOwnedAccountId(
@@ -77,7 +76,12 @@ export default async function AnalyticsPage({
   const isCompareMode =
     firstParam(params.view) === "compare" ||
     Boolean(requestedCompareLeftId || requestedCompareRightId);
-  const selectedRange = getAnalyticsRange(firstParam(params.range));
+  const selectedTimeFilter = resolveAnalyticsTimeFilter(
+    firstParam(params.range),
+    firstParam(params.startDate),
+    firstParam(params.endDate),
+  );
+  const selectedRangeLabel = analyticsTimeFilterLabel(selectedTimeFilter);
 
   const hasSupabaseEnv = Boolean(
     process.env.NEXT_PUBLIC_SUPABASE_URL &&
@@ -100,7 +104,7 @@ export default async function AnalyticsPage({
 
   const data = await getAnalyticsData({
     accountId: isCompareMode ? undefined : selectedAccountId,
-    range: selectedRange,
+    timeFilter: selectedTimeFilter,
   });
   const [compareLeftAccountId, compareRightAccountId] = isCompareMode
     ? getCompareAccountIds(
@@ -115,13 +119,13 @@ export default async function AnalyticsPage({
         compareLeftAccountId
           ? getAnalyticsData({
               accountId: compareLeftAccountId,
-              range: selectedRange,
+              timeFilter: selectedTimeFilter,
             })
           : Promise.resolve(null),
         compareRightAccountId
           ? getAnalyticsData({
               accountId: compareRightAccountId,
-              range: selectedRange,
+              timeFilter: selectedTimeFilter,
             })
           : Promise.resolve(null),
       ])
@@ -140,13 +144,15 @@ export default async function AnalyticsPage({
             accounts={data.accounts}
             selectedAccountId={data.selectedAccountId}
             rangeDays={data.rangeDays}
+            rangeLabel={selectedRangeLabel}
             compareMode={isCompareMode}
           />
           <div className="sticky top-3 z-20">
             <AccountsTopCard
               accounts={data.accounts}
               selectedAccountId={data.selectedAccountId}
-              range={`${data.rangeDays}d` as AnalyticsRange}
+              timeFilter={selectedTimeFilter}
+              rangeLabel={selectedRangeLabel}
               lastUpdatedAt={data.lastUpdatedAt}
               isCompareMode={isCompareMode}
               compareAccountIds={[compareLeftAccountId, compareRightAccountId]}
@@ -157,7 +163,8 @@ export default async function AnalyticsPage({
               accounts={data.accounts}
               leftAccountId={compareLeftAccountId}
               leftData={compareLeftData}
-              range={`${data.rangeDays}d` as AnalyticsRange}
+              timeFilter={selectedTimeFilter}
+              rangeLabel={selectedRangeLabel}
               rightAccountId={compareRightAccountId}
               rightData={compareRightData}
             />
@@ -168,6 +175,7 @@ export default async function AnalyticsPage({
                 <PerformanceTrend
                   points={data.performanceSeries}
                   rangeDays={data.rangeDays}
+                  rangeLabel={selectedRangeLabel}
                 />
                 <BestTimeCard insight={data.bestTime} />
               </div>
@@ -175,7 +183,7 @@ export default async function AnalyticsPage({
               {data.leaderboard.length > 1 ? (
                 <AccountLeaderboard
                   rows={data.leaderboard}
-                  range={`${data.rangeDays}d` as AnalyticsRange}
+                  timeFilter={selectedTimeFilter}
                 />
               ) : null}
               <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(340px,1fr)]">

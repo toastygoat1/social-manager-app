@@ -1,30 +1,29 @@
 import Link from "next/link";
-import { Columns2, LayoutDashboard } from "lucide-react";
+import { CalendarDays, Columns2, LayoutDashboard } from "lucide-react";
 import { AvatarImage } from "@/app/_components/AvatarImage";
 import type { Account } from "@/app/dashboard/_components/data";
 import { RefreshInsightsButton } from "./RefreshInsightsButton";
-import type { AnalyticsRange } from "./data";
+import type { AnalyticsTimeFilter } from "./data";
+import {
+  ANALYTICS_RANGE_PRESETS,
+  createAnalyticsSearchParams,
+} from "./time-filter";
 
 type AccountsTopCardProps = {
   accounts: Account[];
   selectedAccountId: string | null;
-  range: AnalyticsRange;
+  timeFilter: AnalyticsTimeFilter;
+  rangeLabel: string;
   lastUpdatedAt: string | null;
   isCompareMode?: boolean;
   compareAccountIds?: [string | null, string | null];
 };
 
-const RANGES: { label: string; value: AnalyticsRange }[] = [
-  { label: "7D", value: "7d" },
-  { label: "30D", value: "30d" },
-  { label: "90D", value: "90d" },
-];
-
 type AnalyticsHrefOptions = {
   accountId?: string | null;
   compareLeft?: string | null;
   compareRight?: string | null;
-  range: AnalyticsRange;
+  timeFilter: AnalyticsTimeFilter;
   view?: "single" | "compare";
 };
 
@@ -32,10 +31,10 @@ function analyticsHref({
   accountId,
   compareLeft,
   compareRight,
-  range,
+  timeFilter,
   view = "single",
 }: AnalyticsHrefOptions) {
-  const params = new URLSearchParams({ range });
+  const params = createAnalyticsSearchParams(timeFilter);
 
   if (view === "compare") {
     params.set("view", "compare");
@@ -84,15 +83,15 @@ function Avatar({ account }: { account: Account }) {
 function AccountChip({
   account,
   active,
-  range,
+  timeFilter,
 }: {
   account: Account;
   active: boolean;
-  range: AnalyticsRange;
+  timeFilter: AnalyticsTimeFilter;
 }) {
   return (
     <Link
-      href={analyticsHref({ accountId: account.id, range })}
+      href={analyticsHref({ accountId: account.id, timeFilter })}
       className={`flex shrink-0 items-center gap-2 rounded-full border px-2.5 py-1.5 text-xs transition ${
         active
           ? "border-[#d8d6cf] bg-card text-ink"
@@ -108,7 +107,8 @@ function AccountChip({
 export function AccountsTopCard({
   accounts,
   selectedAccountId,
-  range,
+  timeFilter,
+  rangeLabel,
   lastUpdatedAt,
   isCompareMode = false,
   compareAccountIds = [null, null],
@@ -123,7 +123,7 @@ export function AccountsTopCard({
   const compareModeHref = analyticsHref({
     compareLeft,
     compareRight,
-    range,
+    timeFilter,
     view: "compare",
   });
 
@@ -151,13 +151,13 @@ export function AccountsTopCard({
         <div className="flex flex-wrap items-center gap-2.5">
           <RefreshInsightsButton
             selectedAccountId={selectedAccountId}
-            range={range}
+            timeFilter={timeFilter}
             lastUpdatedAt={lastUpdatedAt}
             disabled={accounts.length === 0}
           />
           <div className="flex overflow-hidden rounded-lg border border-line bg-paper">
             <Link
-              href={analyticsHref({ accountId: selectedAccountId, range })}
+              href={analyticsHref({ accountId: selectedAccountId, timeFilter })}
               className={`flex h-8 items-center gap-1.5 border-r border-line px-3 text-xs transition ${
                 isCompareMode ? "text-muted hover:text-ink" : "bg-card text-ink"
               }`}
@@ -185,7 +185,7 @@ export function AccountsTopCard({
             )}
           </div>
           <div className="flex overflow-hidden rounded-lg border border-line bg-paper">
-            {RANGES.map((item, index) => (
+            {ANALYTICS_RANGE_PRESETS.map((item, index) => (
               <Link
                 key={item.value}
                 href={
@@ -193,18 +193,20 @@ export function AccountsTopCard({
                     ? analyticsHref({
                         compareLeft,
                         compareRight,
-                        range: item.value,
+                        timeFilter: { range: item.value },
                         view: "compare",
                       })
                     : analyticsHref({
                         accountId: selectedAccountId,
-                        range: item.value,
+                        timeFilter: { range: item.value },
                       })
                 }
                 className={`flex h-8 min-w-11 items-center justify-center px-3 font-mono text-[11px] transition ${
-                  index < RANGES.length - 1 ? "border-r border-line" : ""
+                  index < ANALYTICS_RANGE_PRESETS.length - 1
+                    ? "border-r border-line"
+                    : ""
                 } ${
-                  range === item.value
+                  timeFilter.range === item.value
                     ? "bg-card text-ink"
                     : "text-muted hover:text-ink"
                 }`}
@@ -213,12 +215,86 @@ export function AccountsTopCard({
               </Link>
             ))}
           </div>
+          <form
+            action="/analytics"
+            className={`flex flex-wrap items-center gap-2 rounded-lg border p-1.5 ${
+              timeFilter.range === "custom"
+                ? "border-[#d8d6cf] bg-card"
+                : "border-line bg-paper"
+            }`}
+          >
+            <input type="hidden" name="range" value="custom" />
+            {isCompareMode ? (
+              <>
+                <input type="hidden" name="view" value="compare" />
+                {compareLeft ? (
+                  <input
+                    type="hidden"
+                    name="compareLeft"
+                    value={compareLeft}
+                  />
+                ) : null}
+                {compareRight ? (
+                  <input
+                    type="hidden"
+                    name="compareRight"
+                    value={compareRight}
+                  />
+                ) : null}
+              </>
+            ) : selectedAccountId ? (
+              <input
+                type="hidden"
+                name="accountId"
+                value={selectedAccountId}
+              />
+            ) : null}
+            <label className="flex h-8 items-center gap-1.5 rounded-md border border-line bg-paper px-2">
+              <span className="font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
+                From
+              </span>
+              <input
+                type="date"
+                name="startDate"
+                required
+                defaultValue={
+                  timeFilter.range === "custom" ? timeFilter.startDate : ""
+                }
+                className="h-7 w-[8.7rem] bg-transparent font-mono text-[11px] text-ink outline-none"
+              />
+            </label>
+            <label className="flex h-8 items-center gap-1.5 rounded-md border border-line bg-paper px-2">
+              <span className="font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
+                To
+              </span>
+              <input
+                type="date"
+                name="endDate"
+                required
+                defaultValue={
+                  timeFilter.range === "custom" ? timeFilter.endDate : ""
+                }
+                className="h-7 w-[8.7rem] bg-transparent font-mono text-[11px] text-ink outline-none"
+              />
+            </label>
+            <button
+              type="submit"
+              title="Apply custom range"
+              aria-label="Apply custom range"
+              className="flex size-8 items-center justify-center rounded-md border border-line bg-paper text-muted transition hover:bg-card hover:text-ink"
+            >
+              <CalendarDays className="size-3.5" strokeWidth={1.8} />
+            </button>
+          </form>
         </div>
+      </div>
+      <div className="border-t border-line pt-3 font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
+        {rangeLabel}
       </div>
       {accounts.length > 0 ? (
         <div className="flex items-center gap-2 overflow-x-auto border-t border-line pt-3">
           <Link
-            href={analyticsHref({ accountId: null, range })}
+            href={analyticsHref({ accountId: null, timeFilter })}
             className={`flex shrink-0 items-center rounded-full border px-3 py-2 text-xs transition ${
               !selectedAccountId && !isCompareMode
                 ? "border-[#d8d6cf] bg-card text-ink"
@@ -236,7 +312,7 @@ export function AccountsTopCard({
                   ? compareLeft === account.id || compareRight === account.id
                   : selectedAccountId === account.id
               }
-              range={range}
+              timeFilter={timeFilter}
             />
           ))}
         </div>

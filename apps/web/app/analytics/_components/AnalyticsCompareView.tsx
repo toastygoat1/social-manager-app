@@ -5,13 +5,14 @@ import { CompareAccountPicker } from "./CompareAccountPicker";
 import { PerformanceTrend } from "./PerformanceTrend";
 import { RecentPosts } from "./RecentPosts";
 import { StatGrid } from "./StatGrid";
-import type { AnalyticsData, AnalyticsRange } from "./data";
+import type { AnalyticsData, AnalyticsTimeFilter } from "./data";
 
 type AnalyticsCompareViewProps = {
   accounts: Account[];
   leftAccountId: string | null;
   leftData: AnalyticsData | null;
-  range: AnalyticsRange;
+  timeFilter: AnalyticsTimeFilter;
+  rangeLabel: string;
   rightAccountId: string | null;
   rightData: AnalyticsData | null;
 };
@@ -20,6 +21,7 @@ type CompareColumnProps = {
   marker: string;
   accountId: string | null;
   data: AnalyticsData | null;
+  rangeLabel: string;
 };
 
 function EmptyCompareColumn() {
@@ -33,7 +35,12 @@ function EmptyCompareColumn() {
   );
 }
 
-function CompareColumn({ marker, accountId, data }: CompareColumnProps) {
+function CompareColumn({
+  marker,
+  accountId,
+  data,
+  rangeLabel,
+}: CompareColumnProps) {
   if (!accountId || !data) return <EmptyCompareColumn />;
 
   return (
@@ -46,6 +53,7 @@ function CompareColumn({ marker, accountId, data }: CompareColumnProps) {
           accounts={data.accounts}
           selectedAccountId={accountId}
           rangeDays={data.rangeDays}
+          rangeLabel={rangeLabel}
           compact
         />
       </div>
@@ -53,6 +61,7 @@ function CompareColumn({ marker, accountId, data }: CompareColumnProps) {
       <PerformanceTrend
         points={data.performanceSeries}
         rangeDays={data.rangeDays}
+        rangeLabel={rangeLabel}
         compact
       />
       <ChannelDistribution items={data.distribution} compact />
@@ -69,7 +78,8 @@ export function AnalyticsCompareView({
   accounts,
   leftAccountId,
   leftData,
-  range,
+  timeFilter,
+  rangeLabel,
   rightAccountId,
   rightData,
 }: AnalyticsCompareViewProps) {
@@ -78,7 +88,7 @@ export function AnalyticsCompareView({
       <CompareAccountPicker
         accounts={accounts}
         leftAccountId={leftAccountId}
-        range={range}
+        timeFilter={timeFilter}
         rightAccountId={rightAccountId}
       />
       {accounts.length < 2 ? (
@@ -90,7 +100,7 @@ export function AnalyticsCompareView({
           <header>
             <h2 className="text-sm font-semibold text-ink">Account comparison</h2>
             <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
-              Side by side / matched metrics / {range.replace("d", "")} days
+              Side by side / matched metrics / {rangeLabel}
             </p>
           </header>
           <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-2">
@@ -98,11 +108,13 @@ export function AnalyticsCompareView({
               marker="A"
               accountId={leftAccountId}
               data={leftData}
+              rangeLabel={rangeLabel}
             />
             <CompareColumn
               marker="B"
               accountId={rightAccountId}
               data={rightData}
+              rangeLabel={rangeLabel}
             />
           </div>
         </section>

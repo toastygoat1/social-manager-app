@@ -3,21 +3,23 @@
 import { ArrowLeftRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { Account } from "@/app/dashboard/_components/data";
-import type { AnalyticsRange } from "./data";
+import type { AnalyticsTimeFilter } from "./data";
+import { createAnalyticsSearchParams } from "./time-filter";
 
 type CompareAccountPickerProps = {
   accounts: Account[];
   leftAccountId: string | null;
   rightAccountId: string | null;
-  range: AnalyticsRange;
+  timeFilter: AnalyticsTimeFilter;
 };
 
 function compareHref(
-  range: AnalyticsRange,
+  timeFilter: AnalyticsTimeFilter,
   leftAccountId: string | null,
   rightAccountId: string | null,
 ) {
-  const params = new URLSearchParams({ range, view: "compare" });
+  const params = createAnalyticsSearchParams(timeFilter);
+  params.set("view", "compare");
 
   if (leftAccountId) params.set("compareLeft", leftAccountId);
   if (rightAccountId) params.set("compareRight", rightAccountId);
@@ -33,7 +35,7 @@ export function CompareAccountPicker({
   accounts,
   leftAccountId,
   rightAccountId,
-  range,
+  timeFilter,
 }: CompareAccountPickerProps) {
   const router = useRouter();
 
@@ -41,7 +43,7 @@ export function CompareAccountPicker({
     nextLeftAccountId: string | null,
     nextRightAccountId: string | null,
   ) {
-    router.push(compareHref(range, nextLeftAccountId, nextRightAccountId));
+    router.push(compareHref(timeFilter, nextLeftAccountId, nextRightAccountId));
   }
 
   function updateLeftAccount(value: string) {
@@ -69,7 +71,7 @@ export function CompareAccountPicker({
       <div className="flex min-w-0 flex-col">
         <p className="text-sm font-semibold text-ink">Comparing</p>
         <span className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
-          Select two accounts / {range.replace("d", "")}-day analytics
+          Select two accounts / matched analytics
         </span>
       </div>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">

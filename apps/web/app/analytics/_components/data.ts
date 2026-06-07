@@ -14,7 +14,13 @@ export type AnalyticsStatId =
   | "comments"
   | "saves"
   | "shares";
-export type AnalyticsRange = "7d" | "30d" | "90d";
+export type AnalyticsPresetRange = "7d" | "30d" | "90d" | "month" | "year";
+export type AnalyticsRange = AnalyticsPresetRange | "custom";
+export type AnalyticsTimeFilter = {
+  range: AnalyticsRange;
+  startDate?: string;
+  endDate?: string;
+};
 
 export type AnalyticsStat = {
   id: AnalyticsStatId;

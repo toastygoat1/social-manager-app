@@ -22,10 +22,12 @@ function getInitialMetric(points: PerformancePoint[]) {
 export function PerformanceTrend({
   points,
   rangeDays,
+  rangeLabel,
   compact = false,
 }: {
   points: PerformancePoint[];
   rangeDays: number;
+  rangeLabel?: string;
   compact?: boolean;
 }) {
   const [metric, setMetric] = useState<PerformanceMetric>(() =>
@@ -61,7 +63,7 @@ export function PerformanceTrend({
         <div>
           <h2 className="text-sm font-semibold text-ink">Performance</h2>
           <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
-            Published-content totals / last {rangeDays} days
+            Published-content totals / {rangeLabel ?? `last ${rangeDays} days`}
           </p>
         </div>
         {points.length > 0 ? (

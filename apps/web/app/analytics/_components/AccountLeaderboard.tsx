@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { AvatarImage } from "@/app/_components/AvatarImage";
 import { formatNumber } from "@/lib/format";
-import type { AccountPerformance, AnalyticsRange } from "./data";
+import type { AccountPerformance, AnalyticsTimeFilter } from "./data";
+import { createAnalyticsSearchParams } from "./time-filter";
 
 function Avatar({ row }: { row: AccountPerformance }) {
   return (
@@ -20,10 +21,10 @@ function Avatar({ row }: { row: AccountPerformance }) {
 
 export function AccountLeaderboard({
   rows,
-  range,
+  timeFilter,
 }: {
   rows: AccountPerformance[];
-  range: AnalyticsRange;
+  timeFilter: AnalyticsTimeFilter;
 }) {
   return (
     <section className="flex min-w-0 flex-col gap-5 rounded-[10px] border border-line bg-paper p-[18px]">
@@ -54,7 +55,7 @@ export function AccountLeaderboard({
                 </td>
                 <td className="px-3 py-3">
                   <Link
-                    href={`/analytics?accountId=${encodeURIComponent(row.account.id)}&range=${range}`}
+                    href={accountHref(row.account.id, timeFilter)}
                     className="flex items-center gap-2.5 text-ink"
                   >
                     <Avatar row={row} />
@@ -84,4 +85,11 @@ export function AccountLeaderboard({
       </div>
     </section>
   );
+}
+
+function accountHref(accountId: string, timeFilter: AnalyticsTimeFilter) {
+  const params = createAnalyticsSearchParams(timeFilter);
+  params.set("accountId", accountId);
+
+  return `/analytics?${params.toString()}`;
 }

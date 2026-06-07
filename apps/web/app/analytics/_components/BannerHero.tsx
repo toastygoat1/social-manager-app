@@ -5,6 +5,7 @@ type BannerHeroProps = {
   accounts: Account[];
   selectedAccountId: string | null;
   rangeDays: number;
+  rangeLabel?: string;
   compareMode?: boolean;
   compact?: boolean;
 };
@@ -42,12 +43,14 @@ export function BannerHero({
   accounts,
   selectedAccountId,
   rangeDays,
+  rangeLabel,
   compareMode = false,
   compact = false,
 }: BannerHeroProps) {
   const selectedAccount =
     accounts.find((account) => account.id === selectedAccountId) ?? null;
   const shownAccounts = selectedAccount ? [selectedAccount] : accounts.slice(0, 4);
+  const periodLabel = rangeLabel ?? `${rangeDays}-day`;
 
   if (compact) {
     return (
@@ -59,7 +62,7 @@ export function BannerHero({
               {selectedAccount?.name ?? "Select account"}
             </p>
             <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.06em] text-muted">
-              {rangeDays}-day snapshot
+              {periodLabel} snapshot
             </p>
           </div>
         </div>
@@ -75,9 +78,9 @@ export function BannerHero({
   const subtitle = compareMode
     ? "Set accounts side by side. Find the signal."
     : selectedAccount
-      ? `${selectedAccount.platform} / ${rangeDays}-day performance`
+      ? `${selectedAccount.platform} / ${periodLabel} performance`
       : accounts.length > 0
-        ? `${accounts.length} Instagram accounts / last ${rangeDays} days`
+        ? `${accounts.length} Instagram accounts / ${periodLabel}`
         : "Connect an Instagram account to start tracking performance.";
 
   return (
