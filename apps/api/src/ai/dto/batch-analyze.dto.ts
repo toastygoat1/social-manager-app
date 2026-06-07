@@ -1,9 +1,8 @@
-import { IsIn, IsNotEmpty, IsString } from 'class-validator';
+import { IsIn, IsUUID } from 'class-validator';
 import type { BatchRange } from '@social-manager/types';
 
 export class BatchAnalyzeDto {
-  @IsString()
-  @IsNotEmpty()
+  @IsUUID('4')
   accountId!: string;
 
   @IsIn(['week', 'month', 'year'])

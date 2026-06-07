@@ -146,6 +146,7 @@ describe('AiService.chat()', () => {
       deps.layer1 as never,
       deps.layer2 as never,
       deps.expertEngine as never,
+      {} as never,
       deps.batchSummary,
     );
   });

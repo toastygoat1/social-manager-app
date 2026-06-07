@@ -14,6 +14,7 @@ import type {
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { AiQueueService } from '../ai-queue.service.js';
 import type { BatchAnalyzeDto } from '../dto/batch-analyze.dto.js';
+import { ResourceAccessService } from '../../common/resource-access.service.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -28,6 +29,7 @@ export class BatchAiService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly aiQueue: AiQueueService,
+    private readonly access: ResourceAccessService,
   ) {}
 
   async enqueueBatch(
@@ -36,13 +38,7 @@ export class BatchAiService {
   ): Promise<BatchAnalyzeResponse> {
     const { accountId, range } = dto;
 
-    const account = await this.prisma.instagramAccount.findUnique({
-      where: { id: accountId },
-      select: { userId: true },
-    });
-    if (!account || account.userId !== userId) {
-      throw new ForbiddenException('Account not found or access denied');
-    }
+    await this.access.ensureOwnedInstagramAccount(userId, accountId);
 
     const rangeStart = new Date(Date.now() - rangeStartMs(range));
 

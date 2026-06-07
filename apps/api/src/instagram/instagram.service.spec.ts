@@ -67,9 +67,19 @@ describe('InstagramService', () => {
     get: jest.Mock<(key: string) => string | undefined>;
   };
   const originalEncryptionKey = process.env.ENCRYPTION_KEY;
+  const hadNativeFetch = 'fetch' in globalThis;
+  const originalFetch = globalThis.fetch;
 
   beforeEach(async () => {
     process.env.ENCRYPTION_KEY = 'a'.repeat(64);
+    if (!hadNativeFetch) {
+      Object.defineProperty(globalThis, 'fetch', {
+        configurable: true,
+        writable: true,
+        value: jest.fn(),
+      });
+    }
+
     prisma = {
       user: {
         upsert: jest.fn<PrismaFn>(),
@@ -1190,6 +1200,11 @@ describe('InstagramService', () => {
 
   afterEach(() => {
     jest.restoreAllMocks();
+    if (hadNativeFetch) {
+      globalThis.fetch = originalFetch;
+    } else {
+      delete (globalThis as { fetch?: typeof fetch }).fetch;
+    }
     process.env.ENCRYPTION_KEY = originalEncryptionKey;
   });
 });

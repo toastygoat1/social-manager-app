@@ -12,9 +12,6 @@ import { BatchSummaryService } from './batch-summary.service.js';
 
 function makePrisma() {
   return {
-    instagramAccount: {
-      findUnique: jest.fn(),
-    },
     contentPost: {
       findMany: jest.fn(),
     },
@@ -45,6 +42,14 @@ function makeAiQueue() {
         ) => Promise<boolean>
       >()
       .mockResolvedValue(true),
+  };
+}
+
+function makeAccess() {
+  return {
+    ensureOwnedInstagramAccount: jest
+      .fn<(userId: string, accountId: string) => Promise<void>>()
+      .mockResolvedValue(undefined),
   };
 }
 
@@ -82,21 +87,27 @@ const SAMPLE_REPORT = {
 describe('BatchAiService', () => {
   let prisma: ReturnType<typeof makePrisma>;
   let aiQueue: ReturnType<typeof makeAiQueue>;
+  let access: ReturnType<typeof makeAccess>;
   let service: BatchAiService;
 
   beforeEach(() => {
     prisma = makePrisma();
     aiQueue = makeAiQueue();
-    service = new BatchAiService(prisma as never, aiQueue as never);
+    access = makeAccess();
+    service = new BatchAiService(
+      prisma as never,
+      aiQueue as never,
+      access as never,
+    );
   });
 
   // enqueueBatch ──────────────────────────────────────────────────────────────
 
   describe('enqueueBatch', () => {
     it('throws ForbiddenException when account does not belong to user', async () => {
-      prisma.instagramAccount.findUnique.mockResolvedValue({
-        userId: 'other-user',
-      } as never);
+      access.ensureOwnedInstagramAccount.mockRejectedValue(
+        new ForbiddenException('Account not found or access denied'),
+      );
 
       await expect(
         service.enqueueBatch(USER_ID, { accountId: ACCOUNT_ID, range: 'week' }),
@@ -104,7 +115,9 @@ describe('BatchAiService', () => {
     });
 
     it('throws ForbiddenException when account is not found', async () => {
-      prisma.instagramAccount.findUnique.mockResolvedValue(null as never);
+      access.ensureOwnedInstagramAccount.mockRejectedValue(
+        new ForbiddenException('Account not found or access denied'),
+      );
 
       await expect(
         service.enqueueBatch(USER_ID, { accountId: ACCOUNT_ID, range: 'week' }),
@@ -112,9 +125,6 @@ describe('BatchAiService', () => {
     });
 
     it('throws BadRequestException when no posts found in range', async () => {
-      prisma.instagramAccount.findUnique.mockResolvedValue({
-        userId: USER_ID,
-      } as never);
       prisma.contentPost.findMany.mockResolvedValue([] as never);
 
       await expect(
@@ -128,9 +138,6 @@ describe('BatchAiService', () => {
         { id: 'p2', instagramAccountId: ACCOUNT_ID },
         { id: 'p3', instagramAccountId: ACCOUNT_ID },
       ];
-      prisma.instagramAccount.findUnique.mockResolvedValue({
-        userId: USER_ID,
-      } as never);
       prisma.contentPost.findMany.mockResolvedValue(posts as never);
       prisma.aiBatchReport.create.mockResolvedValue({
         id: BATCH_ID,
@@ -154,9 +161,6 @@ describe('BatchAiService', () => {
         { id: 'p1', instagramAccountId: ACCOUNT_ID },
         { id: 'p2', instagramAccountId: ACCOUNT_ID },
       ];
-      prisma.instagramAccount.findUnique.mockResolvedValue({
-        userId: USER_ID,
-      } as never);
       prisma.contentPost.findMany.mockResolvedValue(posts as never);
       prisma.aiBatchReport.create.mockResolvedValue({
         id: BATCH_ID,
@@ -179,9 +183,6 @@ describe('BatchAiService', () => {
     });
 
     it('queries posts using the correct date window for each range', async () => {
-      prisma.instagramAccount.findUnique.mockResolvedValue({
-        userId: USER_ID,
-      } as never);
       prisma.contentPost.findMany.mockResolvedValue([] as never);
 
       for (const range of ['week', 'month', 'year'] as const) {
