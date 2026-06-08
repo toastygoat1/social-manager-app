@@ -368,7 +368,7 @@ function AccountRow({
       title={isCollapsed ? `${accountTitle} ${accountHandle}` : undefined}
       className={`group flex min-h-8 w-full items-center transition-[gap,padding,background-color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
         isCollapsed
-          ? "justify-center gap-0 px-0 py-0"
+          ? "gap-0 rounded-md px-1 py-0"
           : "gap-1 rounded-md px-1 py-0 hover:bg-[var(--sidebar-hover)]"
       }`}
     >
@@ -376,7 +376,7 @@ function AccountRow({
         href={getInsightsHref(account.id)}
         aria-label={`View insights for ${account.name}`}
         className={`flex min-w-0 flex-1 items-center transition-[gap] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-          isCollapsed ? "justify-center gap-0" : "gap-1"
+          isCollapsed ? "gap-0" : "gap-1"
         }`}
       >
         <span
@@ -602,15 +602,15 @@ export function SidebarPanel({
     <aside
       data-theme={theme}
       className={`app-shell-sidebar flex shrink-0 flex-col gap-[18px] overflow-y-auto pb-3 pt-3.5 font-inter text-[var(--sidebar-text)] transition-[width,padding,background-color,border-color,color,box-shadow] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
-        isCollapsed ? "w-16 px-2" : "w-[232px] px-3"
+        isCollapsed ? "w-16 px-3" : "w-[232px] px-3"
       }`}
     >
       <header
         className={`flex h-[33px] items-center pb-1 transition-[gap,padding] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-          isCollapsed ? "justify-center gap-0 px-0" : "gap-3 px-1.5"
+          isCollapsed ? "gap-0 px-1" : "gap-3 px-1"
         }`}
       >
-        <span className="flex shrink-0 items-center justify-center text-[var(--sidebar-accent)] transition-colors duration-500">
+        <span className="grid size-8 shrink-0 place-items-center text-[var(--sidebar-accent)] transition-colors duration-500">
           <SnowflakeLogo className="h-[33px] w-[31px]" />
         </span>
         <span
@@ -636,7 +636,7 @@ export function SidebarPanel({
               title={isCollapsed ? label : undefined}
               className={`group relative flex min-h-8 w-full items-center rounded-md text-[12.5px] leading-4 transition-[gap,padding,background-color,color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
                 isCollapsed
-                  ? "justify-center gap-0 px-0 py-0"
+                  ? "gap-0 px-1 py-0"
                   : "gap-1 px-1 py-0"
               } ${
                 isActive
@@ -692,9 +692,7 @@ export function SidebarPanel({
       <section aria-label="Accounts" className="flex flex-col gap-3">
         <div
           aria-hidden="true"
-          className={`sidebar-dash-rule transition-[width,margin] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-            isCollapsed ? "mx-auto w-10" : "mx-1"
-          }`}
+          className="sidebar-dash-rule w-full transition-[width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
         />
 
         {accounts.length === 0 && !isCollapsed ? (
@@ -761,16 +759,16 @@ export function SidebarPanel({
         }
         className={`group mt-auto flex min-h-8 w-full items-center text-[12.5px] text-[var(--sidebar-muted)] transition-[gap,padding,background-color,color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:text-[var(--sidebar-text)] ${
           isCollapsed
-            ? "justify-center gap-0 px-0 py-0"
-            : "gap-2 rounded-md px-2 py-1.5 hover:bg-[var(--sidebar-hover)]"
+            ? "gap-0 px-1 py-0"
+            : "gap-1 rounded-md px-1 py-0 hover:bg-[var(--sidebar-hover)]"
         }`}
       >
         <span
           data-theme-toggle-origin
-          className={`relative grid shrink-0 place-items-center overflow-hidden transition-colors duration-200 ${
+          className={`relative grid size-8 shrink-0 place-items-center overflow-hidden rounded-[5px] transition-colors duration-200 ${
             isCollapsed
-              ? "size-8 rounded-[5px] group-hover:bg-[var(--sidebar-hover-strong)]"
-              : "size-[22px]"
+              ? "group-hover:bg-[var(--sidebar-hover-strong)]"
+              : ""
           }`}
         >
           <Sun
@@ -824,14 +822,14 @@ export function SidebarPanel({
         title={isCollapsed ? "Expand sidebar" : undefined}
         className={`group flex min-h-8 w-full items-center text-[12.5px] text-[var(--sidebar-muted)] transition-[gap,padding,background-color,color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:text-[var(--sidebar-text)] ${
           isCollapsed
-            ? "justify-center gap-0 px-0 py-0"
-            : "gap-2 rounded-md px-2 py-1.5 hover:bg-[var(--sidebar-hover)]"
+            ? "gap-0 px-1 py-0"
+            : "gap-1 rounded-md px-1 py-0 hover:bg-[var(--sidebar-hover)]"
         }`}
       >
         <span
-          className={`grid shrink-0 place-items-center transition-colors duration-200 ${
+          className={`grid size-8 shrink-0 place-items-center rounded-[5px] transition-colors duration-200 ${
             isCollapsed
-              ? "size-8 rounded-[5px] group-hover:bg-[var(--sidebar-hover-strong)]"
+              ? "group-hover:bg-[var(--sidebar-hover-strong)]"
               : ""
           }`}
         >
@@ -852,10 +850,12 @@ export function SidebarPanel({
 
       <footer
         className={`sidebar-dash-rule-top flex items-center pb-1 pt-3 transition-[gap,padding] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-          isCollapsed ? "justify-center gap-0 px-0" : "gap-2 px-1.5"
+          isCollapsed ? "gap-0 px-1" : "gap-1 px-1"
         }`}
       >
-        <ProfileAvatar profile={profile} />
+        <span className="grid size-8 shrink-0 place-items-center">
+          <ProfileAvatar profile={profile} />
+        </span>
         <span
           className={`min-w-0 flex-1 overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-300 ease-out ${
             isCollapsed ? "max-w-0 opacity-0" : "max-w-[140px] opacity-100"
