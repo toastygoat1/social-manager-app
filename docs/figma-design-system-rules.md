@@ -2,7 +2,10 @@
 
 Rules for translating Figma designs into this codebase via the Figma MCP server. Read before any Figma → code work.
 
-> **State of the design system:** early stage. No component library, no icon system, no Storybook, no token transformation pipeline. Tailwind v4 utilities + a single CSS theme block in `globals.css`. Most rules below describe the *intended* placement when those layers are introduced.
+> **State of the design system:** early stage but active. There is no app-wide
+> component package and no Storybook, but route-level component directories are
+> established and `lucide-react` is the current icon library. Tailwind v4
+> utilities and CSS variables in `globals.css` are the styling foundation.
 
 ---
 
@@ -12,7 +15,9 @@ Rules for translating Figma designs into this codebase via the Figma MCP server.
 
 Single source of truth: `apps/web/app/globals.css`.
 
-Tokens declared as CSS custom properties inside `:root`, then re-exported to Tailwind via the v4 `@theme inline` block.
+Tokens are declared as CSS custom properties inside `:root`, dark-mode
+overrides live under `:root[data-theme="dark"]`, and Tailwind receives semantic
+utilities through the v4 `@theme inline` block.
 
 ```css
 /* apps/web/app/globals.css */
@@ -30,11 +35,9 @@ Tokens declared as CSS custom properties inside `:root`, then re-exported to Tai
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+:root[data-theme="dark"] {
+  --background: #10110f;
+  --foreground: #f4efe6;
 }
 ```
 
@@ -42,7 +45,8 @@ Tokens declared as CSS custom properties inside `:root`, then re-exported to Tai
 
 - **Colors:** raw hex on `:root`, mapped through `@theme inline` as `--color-*` so Tailwind generates utility classes (`bg-background`, `text-foreground`).
 - **Fonts:** injected as CSS vars by `next/font/google` in `layout.tsx`, then mapped to `--font-sans` / `--font-mono`.
-- **Spacing/radius/shadow:** **no project-defined tokens yet.** Code uses Tailwind's default scale (`p-8`, `rounded-2xl`, `shadow-sm`).
+- **Spacing/radius/shadow:** no project-defined scale yet. Code uses Tailwind's
+  default scale plus local route-specific utilities.
 
 ### Token transformation
 
@@ -52,7 +56,8 @@ None. No Style Dictionary, no Tokens Studio, no codegen. Tailwind v4 reads `@the
 
 1. Map Figma color variables to entries in `@theme inline`. Use semantic names (`--color-surface`, `--color-border-subtle`), not hex names (`--color-zinc-100`).
 2. If a Figma token is one-off (used in one place), inline a Tailwind utility instead of polluting `globals.css`.
-3. Dark mode pairs go in the `@media (prefers-color-scheme: dark)` block — don't add a `class="dark"` strategy unless explicitly requested.
+3. Dark mode pairs go under `:root[data-theme="dark"]`. Do not add a separate
+   `class="dark"` strategy unless explicitly requested.
 4. Spacing/radius from Figma → prefer Tailwind defaults (`p-4`, `rounded-xl`). Add custom `--spacing-*` tokens only if the design uses a non-standard scale repeatedly.
 
 ---
@@ -61,15 +66,19 @@ None. No Style Dictionary, no Tokens Studio, no codegen. Tailwind v4 reads `@the
 
 ### Current state
 
-**No shared component library exists.** All UI lives inline in route files (`apps/web/app/page.tsx`, `apps/web/app/dashboard/page.tsx`). No `components/` directory.
+**No app-wide component library exists.** UI is organized mostly by route under
+`apps/web/app/<route>/_components`, with a few shared app-level components under
+`apps/web/app/_components`. The dashboard component folder still contains some
+shared layout pieces used by other pages.
 
 ### Where new components MUST go
 
 When extracting a Figma component:
 
 ```txt
-apps/web/app/_components/   # route-private, default location
-apps/web/components/        # only if reused across multiple routes
+apps/web/app/<route>/_components/  # route-private default
+apps/web/app/_components/          # shared across App Router routes
+apps/web/components/               # only if a future app-wide library is needed
 ```
 
 Do **not** create a separate UI package (`packages/ui`) yet — too early.
@@ -150,7 +159,8 @@ Source: `apps/web/CLAUDE.md` and `apps/web/AGENTS.md` enforce this.
 
 ### Storage
 
-Static assets in `apps/web/public/`. Currently only stock SVGs (`file.svg`, `globe.svg`, `next.svg`, `vercel.svg`, `window.svg`) — these are scaffold leftovers, not used in design.
+Static assets live in `apps/web/public/` and checked-in app imagery can also
+live under `apps/web/assets/` when imported by components.
 
 ### Reference rules
 
@@ -172,11 +182,13 @@ None configured. Next.js Image Optimization handles its own CDN-like caching lay
 
 ### Current state
 
-**No icon library installed.** `public/*.svg` are scaffold artifacts, not an icon set.
+`lucide-react` is installed and widely used. Prefer it for common UI symbols.
+Custom project-specific icons currently exist in files such as
+`apps/web/app/dashboard/_components/icons.tsx`.
 
 ### Rules when adding icons from Figma
 
-1. **Preferred:** install `lucide-react` (matches the modern, line-based aesthetic of the existing UI). Import per-icon:
+1. **Preferred:** use `lucide-react`. Import per-icon:
    ```tsx
    import { LogOut, Mail } from "lucide-react";
    <LogOut className="h-4 w-4" />
@@ -216,7 +228,9 @@ body {
 }
 ```
 
-Note: `body` declares `font-family: Arial` directly — this overrides the Geist font vars set on `<html>`. If matching Figma typography, fix this by switching `body` to `font-sans` (Tailwind utility) or `font-family: var(--font-sans)`.
+The global `body` uses `var(--font-sans), Arial, Helvetica, sans-serif`.
+Route-level surfaces may also use `font-inter`, `font-mono`, or explicit
+feature typography utilities.
 
 ### Responsive design
 
@@ -232,7 +246,9 @@ Default breakpoints: `sm` 640, `md` 768, `lg` 1024, `xl` 1280, `2xl` 1536. Mobil
 
 - `flex flex-col`, `flex flex-1 items-center justify-center` for centering
 - `min-h-full` on `<body>`, `h-full` on `<html>` for full-viewport pages
-- `rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm` is the established **card** pattern — reuse for Figma card components
+- Current surfaces use semantic tokens such as `bg-page`, `bg-card`, `bg-paper`,
+  `text-ink`, `text-muted`, and `border-line`. Prefer those before adding
+  fixed hex values.
 
 ### Color palette currently in use
 
@@ -317,8 +333,10 @@ When implementing a Figma node in this repo:
 4. Map Figma spacing → Tailwind utilities. Only add `--spacing-*` tokens for non-standard repeated values.
 5. Compose with existing card/button patterns from `app/page.tsx` and `app/dashboard/page.tsx` for visual consistency.
 6. Place new components per **§2 Component Library** rules.
-7. Icons per **§5 Icon System** rules — install `lucide-react` if not already, otherwise hand-roll SVG components in `components/icons/`.
-8. Verify dark mode: every color used must have a counterpart in the `prefers-color-scheme: dark` block, OR use semantic tokens that already adapt.
+7. Icons per **§5 Icon System** rules — use `lucide-react` when possible,
+   otherwise hand-roll SVG components near the feature that owns them.
+8. Verify dark mode: every color used must have a counterpart under
+   `:root[data-theme="dark"]`, OR use semantic tokens that already adapt.
 9. Run `pnpm --filter web typecheck` and `pnpm --filter web lint` before declaring done.
 10. Test in browser at `http://localhost:3000` (`pnpm --filter web dev`).
 

@@ -1,5 +1,11 @@
 # Dashboard — Setup, API Keys, and Outstanding Work
 
+> **Historical note:** This file was written during the dashboard integration
+> work on 2026-05-20. Some implementation details are now stale, including
+> Instagram connect UI status and worker scope. Prefer
+> [App Handbook](./app-handbook.md) and [AI Agent Guide](./ai-agent-guide.md)
+> for current architecture, routes, and agent instructions.
+
 > Branch: `integrated-dashboard`
 > Tanggal dokumen: 2026-05-20
 > Scope: bagian Dashboard saja (`apps/web/app/dashboard/`). Lihat `docs/interface-todo.md` untuk halaman lain.

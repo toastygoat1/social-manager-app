@@ -39,6 +39,7 @@ DATABASE_URL=
 DIRECT_URL=
 REDIS_URL=<Render Key Value Internal URL>
 WORKER_PUBLISH_SECRET=<same strong random value as worker>
+WORKER_AI_SECRET=<same strong random value as worker>
 PUBLISH_JOB_ATTEMPTS=3
 PUBLISH_JOB_BACKOFF_MS=30000
 SUPABASE_URL=
@@ -56,6 +57,9 @@ META_OAUTH_STATE_SECRET=
 GOOGLE_OAUTH_CLIENT_ID=
 GOOGLE_OAUTH_CLIENT_SECRET=
 GOOGLE_OAUTH_REDIRECT_URI=https://your-api-service.onrender.com/integrations/google/callback
+OPENAI_API_KEY=
+OPENAI_MODEL_LAYER1=gpt-5.4-mini
+OPENAI_MODEL_LAYER2=gpt-4.1-mini
 ```
 
 After deploy, copy the API URL, for example:
@@ -134,12 +138,14 @@ NODE_ENV=production
 REDIS_URL=<Render Key Value Internal URL>
 API_BASE_URL=https://your-api-service.onrender.com
 WORKER_PUBLISH_SECRET=<same strong random value as API>
+WORKER_AI_SECRET=<same strong random value as API>
 PUBLISH_WORKER_CONCURRENCY=1
 PUBLISH_REQUEST_TIMEOUT_MS=180000
 ```
 
-The worker has no need for database, Supabase, Meta, or encryption secrets. It
-only delivers due BullMQ jobs to the API's guarded publish route.
+The worker has no need for database, Supabase, Meta, OpenAI, or encryption
+secrets. It delivers due BullMQ jobs to the API's guarded publish and AI
+analysis routes.
 
 ## 4. Meta dashboard
 

@@ -1,5 +1,11 @@
 # Interface TODO — Dashboard, Scheduler, Analytics, Chat, Chat-AI
 
+> **Historical note:** This is a 2026-05-20 implementation snapshot. Many TODOs
+> in this file are now complete, especially dashboard, scheduler, analytics,
+> Instagram messages, and Snow AI work. Do not use this as a current backlog
+> without checking source code first. Prefer [App Handbook](./app-handbook.md)
+> and [AI Agent Guide](./ai-agent-guide.md).
+
 > Branch: `integrated-dashboard`
 > Tanggal: 2026-05-20
 > Goal: setiap interface menunggu data API asli. Tidak ada data hardcoded di komponen — selalu fallback ke empty state (pola yang dipakai di Dashboard).

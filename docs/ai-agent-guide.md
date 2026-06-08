@@ -5,6 +5,8 @@ description: Skill-style guide for AI agents and new developers working in this 
 
 # AI Agent Guide
 
+Last updated: 2026-06-08
+
 Use this document when an AI agent or new developer needs to modify Social
 Manager App. It is written like a project skill: read the relevant section
 before changing code, then verify with the listed checks.
@@ -17,14 +19,16 @@ This is a pnpm/Turbo monorepo:
 apps/
   web/       Next.js 16 App Router UI
   api/       NestJS 11 Fastify API
-  worker/    BullMQ scheduled publish worker
+  worker/    BullMQ scheduled publish and AI analysis worker
 packages/
   database/  Prisma schema, migrations, generated client export
   types/     shared app-level TypeScript types
   config/    shared TypeScript config
 ```
 
-Start with [App Handbook](./app-handbook.md) for the full architecture.
+Start with [App Handbook](./app-handbook.md) for the full architecture. If an
+older feature note conflicts with this guide or the handbook, trust the source
+code and update the stale doc.
 
 ## Global Rules
 
@@ -205,12 +209,15 @@ corepack pnpm --filter @social-manager/database build
 
 ## Worker Skill
 
-Trigger this section for scheduled publish jobs or BullMQ changes.
+Trigger this section for scheduled publish jobs, queued AI analysis, or BullMQ
+changes.
 
 ### Current Worker
 
-`apps/worker/src/index.ts` consumes `publish-scheduled-post` jobs from the
-`content-publishing` queue. It calls:
+`apps/worker/src/index.ts` currently consumes two queues.
+
+Publishing jobs consume `publish-scheduled-post` from the `content-publishing`
+queue and call:
 
 ```txt
 POST /internal/publishing/scheduled/:contentPostId
@@ -221,11 +228,23 @@ with:
 - `x-worker-publish-secret`
 - `x-job-reference`
 
+AI jobs consume `ai-analysis` from the `ai-analysis` queue and call:
+
+```txt
+POST /internal/ai/analyze
+```
+
+with:
+
+- `x-worker-ai-secret`
+
 ### Rules
 
 - Keep Instagram publishing logic in the API service, not in the worker.
+- Keep AI analysis logic in the API service, not in the worker.
 - Worker should orchestrate and retry, not duplicate business rules.
 - Keep `WORKER_PUBLISH_SECRET` aligned between API and worker.
+- Keep `WORKER_AI_SECRET` aligned between API and worker.
 
 ### Verification
 
@@ -264,7 +283,8 @@ Start points:
 Important behavior:
 
 - `accountId` filters analytics to one account.
-- `range` supports `7d`, `30d`, and `90d`.
+- `range` supports `7d`, `30d`, `90d`, `month`, `year`, and `custom` with
+  `startDate`/`endDate`.
 - Compare mode uses `view=compare`, `compareLeft`, and `compareRight`.
 - Refresh uses `POST /analytics/insights/refresh`.
 - Notes use `/analytics/notes`.
@@ -329,6 +349,41 @@ Checklist:
 3. Do not expose storage service credentials.
 4. Generate signed preview URLs server-side when rendering private media.
 
+### Add Or Change Instagram Messages
+
+Start points:
+
+- Web: `apps/web/app/chat`, especially `InstagramMessagesClient`
+- API: `apps/api/src/instagram`
+- Prisma: `DmConversation`, `DmMessage`, `InstagramAccount`
+
+Checklist:
+
+1. Keep conversation and message queries scoped by authenticated `userId`.
+2. Preserve `accountId` and `conversationId` URL query behavior.
+3. Use `apiFetchBrowser` for client-side inbox refresh and message sends.
+4. Keep Meta messaging permission and review-state limitations visible in docs
+   or UI copy when behavior depends on external access.
+
+### Add Or Change Snow AI
+
+Start points:
+
+- Web: `apps/web/app/chat-ai`
+- API: `apps/api/src/ai`
+- Types: `packages/types/src/ai.ts`
+- Worker: `apps/worker/src/index.ts` for queued analysis
+
+Checklist:
+
+1. Keep public AI routes guarded by `JwtAuthGuard`.
+2. Keep internal analysis guarded by `WorkerAiGuard` and `WORKER_AI_SECRET`.
+3. Verify resource ownership with `ResourceAccessService` before analysis,
+   session, account, post, story, or batch operations.
+4. Keep model names configurable through `OPENAI_MODEL_LAYER1` and
+   `OPENAI_MODEL_LAYER2`.
+5. Run focused specs for changed AI services where available.
+
 ## Common Pitfalls
 
 | Pitfall | Fix |
@@ -341,6 +396,7 @@ Checklist:
 | Schema changed but Prisma not generated | Run database `prisma:generate`. |
 | Scheduled post changed but job not updated | Check `apps/api/src/queue` integration. |
 | Missing auth guard | Add `@UseGuards(JwtAuthGuard)` to protected API controllers. |
+| Historical doc says a feature is missing | Check source first; many old TODOs are intentionally preserved only as history. |
 
 ## Pull Request / Handoff Checklist
 

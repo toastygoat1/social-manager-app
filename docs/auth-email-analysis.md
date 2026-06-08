@@ -1,5 +1,11 @@
 # Analisis Sistem Authentication Email — Social Manager App
 
+> **Historical note:** This is an early auth analysis from before the NestJS API
+> auth integration landed. The API now has Supabase JWT validation and guarded
+> controllers. Prefer [App Handbook](./app-handbook.md),
+> [AI Agent Guide](./ai-agent-guide.md), and the source code for current auth
+> behavior.
+
 > Branch: `feat/web-supabase-email-auth`
 > Tanggal analisis: 2026-05-02
 

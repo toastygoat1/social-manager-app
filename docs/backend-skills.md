@@ -1,6 +1,9 @@
 # API — NestJS Backend (`apps/api`)
 
-> Skill file for Claude. Read this before writing any backend code for this project.
+> **Supplemental current note:** Prefer
+> [AI Agent Guide](./ai-agent-guide.md) and
+> [App Handbook](./app-handbook.md) first. This file keeps backend-specific
+> conventions and examples, but it is not the complete route map.
 
 ---
 
@@ -58,6 +61,10 @@ src/
   common/
     crypto.util.ts          ← AES-256-GCM encrypt/decrypt for Instagram access tokens
 ```
+
+Other current modules include `dashboard`, `analytics`, `scheduler`, `media`,
+`publishing`, `queue`, `integrations/google`, and `ai`. Check
+`docs/app-handbook.md` for the current endpoint map before adding routes.
 
 ---
 
@@ -306,7 +313,9 @@ scheduled-publish route so Instagram publishing behavior remains in one
 service. Worker also uses `"type": "module"` and the same `.js` extension
 rule applies for internal imports.
 
-Required worker env: `REDIS_URL`, `API_BASE_URL`, `WORKER_PUBLISH_SECRET`.
+The worker consumes both scheduled publishing jobs and queued AI analysis jobs.
+Required worker env: `REDIS_URL`, `API_BASE_URL`, `WORKER_PUBLISH_SECRET`, and
+`WORKER_AI_SECRET`.
 Optional controls: `PUBLISH_WORKER_CONCURRENCY`, `PUBLISH_REQUEST_TIMEOUT_MS`.
 
 Dev: `pnpm dev` (runs `tsx watch src/index.ts`)
