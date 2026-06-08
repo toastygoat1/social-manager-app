@@ -1,6 +1,6 @@
 # Social Manager App Handbook
 
-Last updated: 2026-06-02
+Last updated: 2026-06-08
 
 This is the current onboarding document for humans and AI agents working on
 Social Manager App. It describes what the app does, where code lives, how data
@@ -17,9 +17,9 @@ The current product surface includes:
 | Dashboard | Account overview, connected Instagram accounts, upload stats, content rows, and Google Calendar summary. |
 | Scheduler | Schedule posts, create drafts, upload media, approve posts, retry failed publishes, inspect post details. |
 | Analytics | Account-filtered Instagram analytics, manual insight refresh, media previews, notes, recent post details, and side-by-side account comparison. |
-| Messages | Instagram DM conversation surface backed by the Instagram API module. |
-| Chat AI | Shell for future AI assistant workflows. |
-| Worker | BullMQ worker that publishes scheduled posts by calling the guarded API route. |
+| Messages | Instagram DM inbox and reply surface backed by the Instagram API module. |
+| Chat AI | Snow AI chat with sessions, account context, and API-backed responses. |
+| Worker | BullMQ worker for scheduled publishing and queued AI analysis jobs. |
 
 ## Architecture
 
@@ -33,6 +33,7 @@ flowchart LR
   API --> Storage["Supabase Storage"]
   API --> Meta["Instagram Graph API"]
   API --> Google["Google Calendar API"]
+  API --> OpenAI["OpenAI API"]
   API --> Redis["Redis / BullMQ"]
   Redis --> Worker["apps/worker"]
   Worker --> API
@@ -44,7 +45,7 @@ flowchart LR
 |---|---|
 | `apps/web` | UI, auth-gated pages, server-side data fetches, client mutations. |
 | `apps/api` | Protected REST API, business rules, Prisma access, external API integrations. |
-| `apps/worker` | Background scheduled publishing jobs. |
+| `apps/worker` | Background scheduled publishing and AI analysis jobs. |
 | `packages/database` | Prisma schema, migrations, generated Prisma client export. |
 | `packages/types` | Shared TypeScript types that are not Prisma-specific. |
 | `packages/config` | Shared TypeScript config. |
@@ -57,7 +58,7 @@ flowchart LR
 - Node.js from `.node-version`
 - Corepack with pnpm
 - PostgreSQL connection through Supabase
-- Redis for scheduled publishing
+- Redis for scheduled publishing and queued AI analysis
 - Supabase project for Auth, Postgres, and Storage
 
 ### Environment
@@ -69,10 +70,11 @@ Important groups:
 | Group | Variables |
 |---|---|
 | Web | `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `NEXT_PUBLIC_SITE_URL` |
-| API | `PORT`, `WEB_ORIGIN`, `DATABASE_URL`, `DIRECT_URL`, `SUPABASE_*`, `ENCRYPTION_KEY` |
-| Instagram | `META_INSTAGRAM_APP_ID`, `META_INSTAGRAM_APP_SECRET`, `META_REDIRECT_URI`, `META_GRAPH_API_VERSION`, `META_INSTAGRAM_SCOPES`, `META_OAUTH_STATE_SECRET` |
+| API | `PORT`, `WEB_ORIGIN`, `DATABASE_URL`, `DIRECT_URL`, `REDIS_URL`, `SUPABASE_*`, `ENCRYPTION_KEY`, `PUBLISH_JOB_ATTEMPTS`, `PUBLISH_JOB_BACKOFF_MS` |
+| Instagram | `META_APP_ID`, `META_APP_SECRET`, `META_WEBHOOK_VERIFY_TOKEN`, `INSTAGRAM_GRAPH_API_BASE_URL`, `INSTAGRAM_GRAPH_API_VERSION`, `META_INSTAGRAM_APP_ID`, `META_INSTAGRAM_APP_SECRET`, `META_REDIRECT_URI`, `META_GRAPH_API_VERSION`, `META_INSTAGRAM_SCOPES`, `META_OAUTH_STATE_SECRET`, `META_INSTAGRAM_BACKFILL_MEDIA_LIMIT` |
 | Google | `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `GOOGLE_OAUTH_REDIRECT_URI` |
-| Queue/Worker | `REDIS_URL`, `WORKER_PUBLISH_SECRET`, `API_BASE_URL`, `PUBLISH_WORKER_CONCURRENCY`, `PUBLISH_REQUEST_TIMEOUT_MS` |
+| Queue/Worker | `REDIS_URL`, `WORKER_PUBLISH_SECRET`, `WORKER_AI_SECRET`, `API_BASE_URL`, `PUBLISH_WORKER_CONCURRENCY`, `PUBLISH_REQUEST_TIMEOUT_MS` |
+| AI | `OPENAI_API_KEY`, `OPENAI_MODEL_LAYER1`, `OPENAI_MODEL_LAYER2`, `WORKER_AI_SECRET` |
 
 Notes:
 
@@ -212,6 +214,7 @@ Presentation components receive data by prop and render empty states for
 | Dashboard | `dashboard/*` | Dashboard aggregate endpoint. |
 | Analytics | `analytics/*` | Analytics overview, insight refresh, analytics notes. |
 | Scheduler | `scheduler/*` | Post event feed and post workflow routes. |
+| AI | `ai/*` | Snow AI chat, analysis, memory, settings, and batch reports. |
 | Media | `media/*` | Signed upload URLs and media asset records. |
 | Publishing | `publishing/*` | Instagram publishing and worker-triggered scheduled publishes. |
 | Queue | `queue/*` | BullMQ job creation, replacement, and removal. |
@@ -226,22 +229,26 @@ All routes below are relative to `NEXT_PUBLIC_API_URL`.
 |---|---|---|
 | Health | `GET /` | Basic API check. |
 | Auth | `GET /auth/me`, `POST /auth/sync` | Protected by Supabase JWT guard where appropriate. |
-| Dashboard | `GET /dashboard/overview` | Authenticated dashboard payload. |
-| Instagram accounts | `GET /instagram/accounts`, `POST /instagram/accounts`, `DELETE /instagram/accounts/:accountId` | Account CRUD and avatar data. |
+| Dashboard | `GET /dashboard/overview`, `GET /dashboard/activity` | Authenticated dashboard payload and live activity list. |
+| Instagram accounts | `GET /instagram/accounts`, `POST /instagram/accounts`, `DELETE /instagram/accounts/:accountId`, `POST /instagram/accounts/:accountId/backfill` | Account CRUD, avatar data, and historical media backfill. |
 | Instagram OAuth | `GET /instagram/oauth/url`, `POST /instagram/oauth/callback` | Connect Instagram through Meta login. |
 | Instagram summary | `GET /instagram/analytics/summary` | Dashboard-oriented Instagram summary. |
 | Instagram DMs | `GET /instagram/dm/conversations`, `GET /instagram/dm/conversations/:conversationId`, `POST /instagram/dm/conversations/:conversationId/messages` | DM surfaces. |
-| Instagram webhooks | `GET /instagram/webhooks`, `POST /instagram/webhooks` | Meta webhook verification and ingestion. |
+| Instagram webhooks | `GET /instagram/webhooks`, `POST /instagram/webhooks` | Public Meta webhook verification and ingestion. |
 | Scheduler | `GET /scheduler/events`, `POST /scheduler/events` | Date-range post event feed and create flow. |
-| Scheduler work | `GET /scheduler/work-items`, `GET /scheduler/failed-posts` | Approval/draft/failure panels. |
+| Scheduler work | `GET /scheduler/work-items`, `GET /scheduler/failed-posts`, `GET /scheduler/metadata-fields`, `PATCH /scheduler/metadata-fields` | Approval/draft/failure panels and user metadata definitions. |
 | Scheduler post detail | `GET /scheduler/posts/:contentPostId` | Post modal detail. |
-| Scheduler post mutation | `PATCH /scheduler/posts/:contentPostId/draft`, `PATCH /scheduler/posts/:contentPostId/scheduled`, `POST /scheduler/posts/:contentPostId/approve`, `POST /scheduler/posts/:contentPostId/retry`, `DELETE /scheduler/posts/:contentPostId` | Draft, schedule, approve, retry, delete. |
+| Scheduler post mutation | `PATCH /scheduler/posts/:contentPostId/draft`, `PATCH /scheduler/posts/:contentPostId/scheduled`, `PATCH /scheduler/posts/:contentPostId/metadata`, `POST /scheduler/posts/:contentPostId/approve`, `POST /scheduler/posts/:contentPostId/retry`, `DELETE /scheduler/posts/:contentPostId` | Draft, schedule, metadata, approve, retry, delete. |
 | Media | `POST /media/upload-urls`, `POST /media/assets` | Supabase Storage upload flow. |
 | Analytics | `GET /analytics/overview` | Supports `accountId` and `range`. |
 | Analytics refresh | `POST /analytics/insights/refresh` | Fetches current Instagram insight snapshots. |
 | Analytics notes | `POST /analytics/notes`, `PATCH /analytics/notes/:noteId`, `DELETE /analytics/notes/:noteId` | Notes are user-owned and optionally account-scoped. |
 | Google | `GET /integrations/google/auth`, `GET /integrations/google/callback`, `POST /integrations/google/link`, `GET /integrations/google/calendar`, `GET /integrations/google/calendar/events`, `POST /integrations/google/calendar/events`, `GET /integrations/google/status`, `DELETE /integrations/google` | Google Calendar integration. |
 | Worker publish | `POST /internal/publishing/scheduled/:contentPostId` | Guarded by `WORKER_PUBLISH_SECRET`; called by worker. |
+| AI analysis/chat | `POST /ai/analyze`, `POST /ai/chat`, `GET /ai/sessions`, `GET /ai/sessions/:accountId`, `GET /ai/sessions/:sessionId/messages`, `POST /ai/sessions` | Authenticated Snow AI analysis, chat, and session routes. |
+| AI settings/memory | `GET /ai/settings`, `PUT /ai/settings`, `DELETE /ai/memory/:accountId/working`, `POST /ai/procedures/:procedureId/resolve` | User AI preferences, working-memory reset, and procedure outcome tracking. |
+| AI story/batch | `POST /ai/analyze/story`, `POST /ai/batch/analyze`, `GET /ai/batch/:batchId`, `GET /ai/batch/account/:accountId`, `POST /ai/analyze/queue` | Story analysis and async/batch post analysis. |
+| Worker AI | `POST /internal/ai/analyze` | Guarded by `WORKER_AI_SECRET`; called by worker. |
 
 ## Data Model
 
@@ -264,7 +271,8 @@ The Prisma schema is in `packages/database/prisma/schema.prisma`.
 | `InstagramStory` | Instagram story tracking. |
 | `DmConversation`, `DmMessage` | Instagram DM data. |
 | `WebhookEvent` | Raw/processed webhook tracking. |
-| `AiSettings`, `ChatbotSession`, `ChatbotMessage` | AI/chatbot storage. |
+| `AiSettings`, `ChatbotSession`, `ChatbotMessage` | AI/chatbot settings, sessions, and messages. |
+| `AiKnowledge`, `AiProcedure`, `AiBatchReport` | AI semantic/procedural memory and batch report state. |
 
 ### Important Enums
 
@@ -280,6 +288,7 @@ The Prisma schema is in `packages/database/prisma/schema.prisma`.
 | `WebhookProcessingStatus` | `RECEIVED`, `PROCESSED`, `FAILED` |
 | `DmSenderType` | `USER`, `PARTICIPANT` |
 | `ChatbotMessageRole` | `USER`, `ASSISTANT` |
+| `AiBatchStatus` | `PENDING`, `PROCESSING`, `COMPLETED`, `FAILED` |
 
 ## Feature Data Flows
 
@@ -348,6 +357,25 @@ Compare mode:
 - The UI renders the normal analytics sections in two side-by-side compact
   columns.
 
+### Snow AI Chat And Analysis
+
+Chat:
+
+1. Web loads active Instagram accounts and renders `SnowAiChat`.
+2. Client fetches `GET /ai/sessions`.
+3. New conversations call `POST /ai/sessions`.
+4. Messages call `POST /ai/chat`.
+5. API injects current account analytics context, memory, and user AI settings.
+6. API stores user/assistant messages in `chatbot_messages`.
+
+Queued analysis:
+
+1. Analytics refresh can enqueue AI jobs through `AiQueueService`.
+2. Worker consumes `ai-analysis` jobs from Redis.
+3. Worker calls `POST /internal/ai/analyze` with `x-worker-ai-secret`.
+4. API runs Layer 1, expert rules, Layer 2, memory updates, and optional batch
+   completion.
+
 ## Verification
 
 Use focused checks for the area you change.
@@ -390,6 +418,8 @@ corepack pnpm --filter @social-manager/database build
 - Web runs `next start -H 0.0.0.0`.
 - API runs `node dist/main` after building the database package.
 - Worker runs `node dist/index.js`.
+- Worker requires both `WORKER_PUBLISH_SECRET` and `WORKER_AI_SECRET` when both
+  queues are enabled.
 - `infra/docker` contains Dockerfiles and Compose files.
 - Render-specific notes live in `docs/render-deploy.md`.
 
@@ -397,10 +427,10 @@ corepack pnpm --filter @social-manager/database build
 
 | Area | Notes |
 |---|---|
-| Chat AI | UI shell exists; provider integration and persistence need further work. |
+| Chat AI | API-backed chat exists; streaming UX, richer tools, and advanced automations are future work. |
 | Instagram permissions | Real publishing, insights, and DM access depend on Meta app scopes and review state. |
 | Google Calendar | Dashboard widgets and `integrations/google/*` own Google Calendar data; the scheduler is posts-only. |
-| Background processing | Scheduled publishing requires Redis, worker, and matching `WORKER_PUBLISH_SECRET`. |
+| Background processing | Scheduled publishing and AI analysis require Redis, worker, and matching worker secrets. |
 | Historical docs | Some older docs describe TODOs that have since been implemented. Prefer this handbook first. |
 
 ## Where To Change Things
@@ -415,5 +445,6 @@ corepack pnpm --filter @social-manager/database build
 | Instagram connection | `apps/api/src/instagram`, `apps/web/app/dashboard/instagram/callback` |
 | Media upload | `apps/api/src/media`, scheduler create/detail components |
 | Auth | `apps/web/lib/supabase`, `apps/web/app/auth`, `apps/api/src/auth` |
+| Snow AI | `apps/web/app/chat-ai`, `apps/api/src/ai`, `packages/types/src/ai.ts` |
 | Prisma schema | `packages/database/prisma/schema.prisma` |
 | Worker jobs | `apps/worker/src/index.ts` and API queue/publishing modules |

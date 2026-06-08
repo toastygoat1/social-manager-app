@@ -12,6 +12,12 @@ description: >
 
 # Social Manager App — Web Frontend Skill
 
+> **Superseded:** This was an early frontend skill draft. It still contains
+> useful background, but several examples are stale, including the dashboard
+> placeholder note and old `lib/api/fetch.ts` suggestion. Prefer
+> [AI Agent Guide](./ai-agent-guide.md), [App Handbook](./app-handbook.md), and
+> [API Helpers](./api-helpers.md) for current frontend instructions.
+
 ## Stack di `apps/web`
 
 | Layer | Detail |

@@ -1,3 +1,12 @@
+# Popup Login Requirement Note
+
+> **Implementation note:** This original requirement is implemented in
+> `apps/web/app/auth/google-sign-in-button.tsx` and
+> `apps/web/app/auth/popup-complete/page.tsx`. Instagram account connection uses
+> a similar popup/postMessage pattern in
+> `apps/web/app/dashboard/_components/ConnectInstagramButton.tsx` and
+> `apps/web/app/dashboard/instagram/callback/route.ts`.
+
 Implement Google OAuth login using POPUP WINDOW flow (NOT redirect flow).
 
 Requirements:
