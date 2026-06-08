@@ -320,7 +320,7 @@ export function SchedulerShell({ initialReferenceIso, initialData }: Props) {
   );
 
   return (
-    <div className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden bg-page transition-colors duration-500">
+    <div className="app-shell-panel flex min-w-0 flex-1 flex-col overflow-hidden bg-paper transition-colors duration-500">
       <SchedulerHeader
         view={view}
         onViewChange={setView}

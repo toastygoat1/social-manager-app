@@ -242,7 +242,7 @@ export function DashboardWorkspace({
   const reviewCount = getReviewRows(data.contentRows).length;
 
   return (
-    <div className="analytics-theme min-h-screen bg-page font-inter text-ink transition-colors duration-500">
+    <div className="analytics-theme app-shell-fill bg-paper font-inter text-ink transition-colors duration-500">
       <main className="mx-auto flex w-full max-w-[1440px] flex-col gap-4 px-5 py-8 sm:px-7 sm:py-9">
         <DashboardHero data={data} profile={profile} reviewCount={reviewCount} />
         <Metrics data={data} today={today} />
