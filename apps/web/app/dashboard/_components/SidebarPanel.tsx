@@ -545,15 +545,24 @@ export function SidebarPanel({
     () => readAppThemeCookie() ?? initialTheme,
     () => initialTheme,
   );
+  const [selectedNavKey, setSelectedNavKey] = useState<SidebarKey>(active);
   const visibleAccounts = accounts.slice(0, VISIBLE_ACCOUNT_COUNT);
   const additionalAccounts = accounts.slice(VISIBLE_ACCOUNT_COUNT);
   const profileName = getProfileName(profile);
   const profileDetail = getProfileDetail(profile);
   const isDarkTheme = theme === "dark";
+  const activeNavIndex = Math.max(
+    0,
+    NAV_ITEMS.findIndex((item) => item.key === selectedNavKey),
+  );
 
   useEffect(() => {
     applyDocumentTheme(theme);
   }, [theme]);
+
+  useEffect(() => {
+    setSelectedNavKey(active);
+  }, [active]);
 
   function toggleSidebar() {
     const nextCollapsed = !isCollapsed;
@@ -624,49 +633,49 @@ export function SidebarPanel({
         </span>
       </header>
 
-      <nav aria-label="Primary" className="mt-2 flex flex-col gap-1">
+      <nav aria-label="Primary" className="relative mt-2 flex flex-col gap-1">
+        <span
+          aria-hidden="true"
+          className="absolute left-[3px] top-0 z-0 size-8 rounded-[7px] bg-[var(--sidebar-accent)] transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
+          style={{
+            boxShadow:
+              "0 8px 18px color-mix(in srgb, var(--sidebar-accent) 28%, transparent)",
+            transform: `translateY(${activeNavIndex * 36}px)`,
+          }}
+        />
         {NAV_ITEMS.map(({ key, label, Icon, href, badge }) => {
-          const isActive = key === active;
+          const isActive = key === selectedNavKey;
 
           return (
             <Link
               key={key}
               href={href}
-              aria-current={isActive ? "page" : undefined}
+              aria-current={key === active ? "page" : undefined}
+              onClick={() => setSelectedNavKey(key)}
               title={isCollapsed ? label : undefined}
-              className={`group relative flex min-h-8 w-full items-center rounded-md text-[12.5px] leading-4 transition-[gap,padding,background-color,color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+              className={`group relative z-10 flex min-h-8 w-full items-center rounded-md text-[12.5px] leading-4 transition-[gap,padding,background-color,color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
                 isCollapsed
                   ? "gap-1 px-[3px] py-0"
                   : "gap-1 px-[3px] py-0"
               } ${
                 isActive
-                  ? `${
-                      isCollapsed ? "" : "bg-[var(--sidebar-hover)]"
-                    } font-medium text-[var(--sidebar-text)]`
+                  ? "font-medium text-[var(--sidebar-text)]"
                   : `text-[var(--sidebar-muted)] ${
                       isCollapsed ? "" : "hover:bg-[var(--sidebar-hover)]"
                     } hover:text-[var(--sidebar-text)]`
               }`}
             >
-              {isActive ? (
-                <span
-                  aria-hidden="true"
-                  className="absolute left-[-12px] top-1/2 h-6 w-[2px] -translate-y-1/2 rounded-full bg-[var(--sidebar-accent)] transition-[height,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
-                />
-              ) : null}
               <span
                 className={`relative grid size-8 shrink-0 place-items-center rounded-[5px] transition-colors duration-200 ${
-                  isCollapsed
-                    ? `${
-                        isActive
-                          ? "bg-[var(--sidebar-hover-strong)]"
-                          : "group-hover:bg-[var(--sidebar-hover-strong)]"
-                      }`
+                  !isActive && isCollapsed
+                    ? "group-hover:bg-[var(--sidebar-hover-strong)]"
                     : ""
                 }`}
               >
                 <Icon
-                  className="size-[18px] translate-y-[1px]"
+                  className={`size-[18px] translate-y-[1px] transition-colors duration-300 ${
+                    isActive ? "text-white" : ""
+                  }`}
                   strokeWidth={1.8}
                 />
                 {badge && isCollapsed ? (
