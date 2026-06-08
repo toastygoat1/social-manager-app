@@ -367,9 +367,7 @@ function AccountRow({
     <li
       title={isCollapsed ? `${accountTitle} ${accountHandle}` : undefined}
       className={`group flex min-h-8 w-full items-center transition-[gap,padding,background-color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-        isCollapsed
-          ? "gap-1 rounded-md px-[3px] py-0"
-          : "gap-1 rounded-md px-[3px] py-0 hover:bg-[var(--sidebar-hover)]"
+        isCollapsed ? "gap-1 rounded-md px-[3px] py-0" : "gap-1 rounded-md px-[3px] py-0"
       }`}
     >
       <Link
@@ -380,9 +378,7 @@ function AccountRow({
         }`}
       >
         <span
-          className={`grid size-8 shrink-0 place-items-center rounded-[5px] transition-colors duration-200 ${
-            isCollapsed ? "group-hover:bg-[var(--sidebar-hover-strong)]" : ""
-          }`}
+          className="grid size-8 shrink-0 place-items-center rounded-[5px]"
         >
           <AccountAvatar account={account} index={index} />
         </span>
@@ -636,11 +632,10 @@ export function SidebarPanel({
       <nav aria-label="Primary" className="relative mt-2 flex flex-col gap-1">
         <span
           aria-hidden="true"
-          className="absolute left-[3px] top-0 z-0 size-8 rounded-[7px] bg-[var(--sidebar-accent)] transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
+          className="absolute left-[3px] top-0 z-0 h-8 rounded-[7px] bg-[var(--sidebar-accent)] transition-[transform,width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
           style={{
-            boxShadow:
-              "0 8px 18px color-mix(in srgb, var(--sidebar-accent) 28%, transparent)",
             transform: `translateY(${activeNavIndex * 36}px)`,
+            width: isCollapsed ? "32px" : "calc(100% - 6px)",
           }}
         />
         {NAV_ITEMS.map(({ key, label, Icon, href, badge }) => {
@@ -659,7 +654,7 @@ export function SidebarPanel({
                   : "gap-1 px-[3px] py-0"
               } ${
                 isActive
-                  ? "font-medium text-[var(--sidebar-text)]"
+                  ? "font-medium text-white"
                   : `text-[var(--sidebar-muted)] ${
                       isCollapsed ? "" : "hover:bg-[var(--sidebar-hover)]"
                     } hover:text-[var(--sidebar-text)]`
@@ -730,7 +725,7 @@ export function SidebarPanel({
         {additionalAccounts.length > 0 && isCollapsed ? (
           <div
             title={`${additionalAccounts.length} more connected accounts`}
-            className="mx-auto flex size-8 items-center justify-center rounded-[5px] text-[11px] font-medium text-[var(--sidebar-dim)] transition-colors hover:bg-[var(--sidebar-hover-strong)]"
+            className="mx-auto flex size-8 items-center justify-center rounded-[5px] text-[11px] font-medium text-[var(--sidebar-dim)]"
           >
             +{additionalAccounts.length}
           </div>
@@ -805,27 +800,10 @@ export function SidebarPanel({
         </span>
         <span
           className={`overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-300 ease-out ${
-            isCollapsed ? "max-w-0 opacity-0" : "max-w-[88px] opacity-100"
+            isCollapsed ? "max-w-0 opacity-0" : "max-w-[92px] opacity-100"
           }`}
         >
-          Dark mode
-        </span>
-        <span
-          aria-hidden="true"
-          className={`relative h-5 w-9 shrink-0 overflow-hidden rounded-full bg-[var(--sidebar-switch-bg)] transition-[max-width,opacity,background-color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-            isCollapsed ? "ml-0 max-w-0 opacity-0" : "ml-auto max-w-9 opacity-100"
-          }`}
-        >
-          <span
-            className={`absolute left-0.5 top-0.5 z-10 size-4 rounded-full bg-[var(--sidebar-switch-knob)] shadow-sm transition-[transform,background-color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-              isDarkTheme ? "translate-x-4" : "translate-x-0"
-            }`}
-          />
-          <span
-            className={`absolute inset-0 rounded-full bg-[var(--sidebar-switch-active)] transition-opacity duration-300 ${
-              isDarkTheme ? "opacity-35" : "opacity-0"
-            }`}
-          />
+          {isDarkTheme ? "Dark mode" : "Light mode"}
         </span>
       </button>
 

@@ -50,7 +50,7 @@ Referensi sudah jalan: `apps/web/lib/dashboard-data.ts`, `apps/web/app/dashboard
 |---|---|---|
 | Backend endpoint `GET /dashboard/overview` | `apps/api/` | Belum ada controller. Wajib return shape `DashboardData`. Sumber: aggregate IG metrics dari Postgres yang di-populate worker (lewat IG Graph API). |
 | `Calendar` field di `DashboardData` → Google Calendar API | `lib/dashboard-data.ts`, backend | Sudah jadi empty state. Backend harus merge data Google Calendar ke field `calendar` saat user sudah connect. |
-| `Sidebar` Settings/Refresh button mati | `_components/Sidebar.tsx:86-99` | User pilih biarkan dulu. Wire saat ada halaman Settings. |
+| `Sidebar` Settings button belum di-wire | `apps/web/app/dashboard/_components/SidebarPanel.tsx` | User pilih biarkan dulu. Wire saat ada halaman Settings. |
 | Layout pakai pixel keras `h-[692px]`, `h-[500px]` | `dashboard/page.tsx:40,71` | Cosmetic. Kalau mau responsive perlu refactor child `h-full` → intrinsic height. |
 | `ContentRow` numeric fields | `_components/data.ts:38-52` | ✅ Sudah `number \| null` + `formatNumber("—")` di ContentTable. |
 | Catch error logging | `lib/dashboard-data.ts:13` | ✅ `console.error` aktif. |
