@@ -307,7 +307,7 @@ function AccountAvatar({
 
   return (
     <span
-      className="flex size-[22px] shrink-0 items-center justify-center overflow-hidden rounded-md text-[10px] font-semibold text-white"
+      className="flex size-[26px] shrink-0 items-center justify-center overflow-hidden rounded-[7px] text-[11px] font-semibold text-white"
       style={{
         background: `linear-gradient(135deg, ${color}, ${color}cc)`,
       }}
@@ -315,8 +315,8 @@ function AccountAvatar({
       <AvatarImage
         src={account.avatarUrl}
         alt=""
-        width={22}
-        height={22}
+        width={26}
+        height={26}
         className="size-full object-cover"
         fallback={getInitials(account.name, "I")}
       />
@@ -368,8 +368,8 @@ function AccountRow({
       title={isCollapsed ? `${accountTitle} ${accountHandle}` : undefined}
       className={`group flex min-h-8 w-full items-center transition-[gap,padding,background-color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
         isCollapsed
-          ? "gap-0 rounded-md px-1 py-0"
-          : "gap-1 rounded-md px-1 py-0 hover:bg-[var(--sidebar-hover)]"
+          ? "gap-1 rounded-md px-[3px] py-0"
+          : "gap-1 rounded-md px-[3px] py-0 hover:bg-[var(--sidebar-hover)]"
       }`}
     >
       <Link
@@ -607,7 +607,7 @@ export function SidebarPanel({
     >
       <header
         className={`flex h-[33px] items-center pb-1 transition-[gap,padding] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-          isCollapsed ? "gap-0 px-1" : "gap-3 px-1"
+          isCollapsed ? "gap-1 px-[3px]" : "gap-4 px-[3px]"
         }`}
       >
         <span className="grid size-8 shrink-0 place-items-center text-[var(--sidebar-accent)] transition-colors duration-500">
@@ -624,7 +624,7 @@ export function SidebarPanel({
         </span>
       </header>
 
-      <nav aria-label="Primary" className="flex flex-col gap-px">
+      <nav aria-label="Primary" className="mt-2 flex flex-col gap-1">
         {NAV_ITEMS.map(({ key, label, Icon, href, badge }) => {
           const isActive = key === active;
 
@@ -636,8 +636,8 @@ export function SidebarPanel({
               title={isCollapsed ? label : undefined}
               className={`group relative flex min-h-8 w-full items-center rounded-md text-[12.5px] leading-4 transition-[gap,padding,background-color,color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
                 isCollapsed
-                  ? "gap-0 px-1 py-0"
-                  : "gap-1 px-1 py-0"
+                  ? "gap-1 px-[3px] py-0"
+                  : "gap-1 px-[3px] py-0"
               } ${
                 isActive
                   ? `${
@@ -648,6 +648,12 @@ export function SidebarPanel({
                     } hover:text-[var(--sidebar-text)]`
               }`}
             >
+              {isActive ? (
+                <span
+                  aria-hidden="true"
+                  className="absolute left-[-12px] top-1/2 h-6 w-[2px] -translate-y-1/2 rounded-full bg-[var(--sidebar-accent)] transition-[height,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
+                />
+              ) : null}
               <span
                 className={`relative grid size-8 shrink-0 place-items-center rounded-[5px] transition-colors duration-200 ${
                   isCollapsed
@@ -689,7 +695,7 @@ export function SidebarPanel({
         })}
       </nav>
 
-      <section aria-label="Accounts" className="flex flex-col gap-3">
+      <section aria-label="Accounts" className="flex flex-col gap-4">
         <div
           aria-hidden="true"
           className="sidebar-dash-rule w-full transition-[width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
@@ -700,7 +706,7 @@ export function SidebarPanel({
             No accounts connected yet
           </p>
         ) : (
-          <ul className="flex flex-col gap-px">
+          <ul className="flex flex-col gap-1">
             {visibleAccounts.map((account, index) => (
               <AccountRow
                 key={account.id}
@@ -759,8 +765,8 @@ export function SidebarPanel({
         }
         className={`group mt-auto flex min-h-8 w-full items-center text-[12.5px] text-[var(--sidebar-muted)] transition-[gap,padding,background-color,color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:text-[var(--sidebar-text)] ${
           isCollapsed
-            ? "gap-0 px-1 py-0"
-            : "gap-1 rounded-md px-1 py-0 hover:bg-[var(--sidebar-hover)]"
+            ? "gap-1 px-[3px] py-0"
+            : "gap-1 rounded-md px-[3px] py-0 hover:bg-[var(--sidebar-hover)]"
         }`}
       >
         <span
@@ -822,8 +828,8 @@ export function SidebarPanel({
         title={isCollapsed ? "Expand sidebar" : undefined}
         className={`group flex min-h-8 w-full items-center text-[12.5px] text-[var(--sidebar-muted)] transition-[gap,padding,background-color,color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:text-[var(--sidebar-text)] ${
           isCollapsed
-            ? "gap-0 px-1 py-0"
-            : "gap-1 rounded-md px-1 py-0 hover:bg-[var(--sidebar-hover)]"
+            ? "gap-1 px-[3px] py-0"
+            : "gap-1 rounded-md px-[3px] py-0 hover:bg-[var(--sidebar-hover)]"
         }`}
       >
         <span
@@ -850,7 +856,7 @@ export function SidebarPanel({
 
       <footer
         className={`sidebar-dash-rule-top flex items-center pb-1 pt-3 transition-[gap,padding] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-          isCollapsed ? "gap-0 px-1" : "gap-1 px-1"
+          isCollapsed ? "gap-1 px-[3px]" : "gap-1 px-[3px]"
         }`}
       >
         <span className="grid size-8 shrink-0 place-items-center">
@@ -868,15 +874,17 @@ export function SidebarPanel({
             {profileDetail}
           </span>
         </span>
-        {isCollapsed ? null : (
-          <button
-            type="button"
-            aria-label="Settings"
-            className="grid size-7 shrink-0 place-items-center rounded-md text-[var(--sidebar-muted)] transition-colors hover:bg-[var(--sidebar-hover)] hover:text-[var(--sidebar-text)]"
-          >
-            <Settings className="size-3.5" strokeWidth={1.7} />
-          </button>
-        )}
+        <button
+          type="button"
+          aria-hidden={isCollapsed}
+          aria-label="Settings"
+          tabIndex={isCollapsed ? -1 : undefined}
+          className={`grid h-7 shrink-0 place-items-center overflow-hidden rounded-md text-[var(--sidebar-muted)] transition-[opacity,width,color,background-color] duration-300 hover:bg-[var(--sidebar-hover)] hover:text-[var(--sidebar-text)] ${
+            isCollapsed ? "w-0 opacity-0" : "w-7 opacity-100"
+          }`}
+        >
+          <Settings className="size-3.5" strokeWidth={1.7} />
+        </button>
       </footer>
     </aside>
   );
