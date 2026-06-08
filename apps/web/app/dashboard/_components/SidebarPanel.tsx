@@ -8,7 +8,6 @@ import {
   ChevronDown,
   Home,
   Inbox,
-  LayoutGrid,
   LoaderCircle,
   Moon,
   PanelLeftClose,
@@ -609,12 +608,12 @@ export function SidebarPanel({
       }`}
     >
       <header
-        className={`flex h-[33px] items-center pb-1 transition-[gap,padding] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+        className={`flex h-12 items-center pb-1 transition-[gap,padding] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
           isCollapsed ? "justify-center gap-0 px-0" : "gap-3 px-1.5"
         }`}
       >
-        <span className="flex shrink-0 items-center justify-center text-[var(--sidebar-accent)] transition-colors duration-500">
-          <SnowflakeLogo className="h-[33px] w-[31px]" />
+        <span className="flex shrink-0 items-center justify-center text-[var(--sidebar-text)] transition-colors duration-500">
+          <SnowflakeLogo className="h-11 w-[42px]" />
         </span>
         <span
           className={`min-w-0 overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-300 ease-out ${
@@ -689,49 +688,13 @@ export function SidebarPanel({
         })}
       </nav>
 
-      <section aria-label="Accounts" className="flex flex-col gap-1">
+      <section aria-label="Accounts" className="flex flex-col gap-3">
         <div
-          className={`flex items-center justify-between overflow-hidden px-2 text-[10.5px] font-medium uppercase text-[var(--sidebar-dim)] transition-[height,margin,opacity,color] duration-300 ease-out ${
-            isCollapsed ? "mb-0 h-0 opacity-0" : "mb-1 h-4 opacity-100"
+          aria-hidden="true"
+          className={`border-t border-dotted border-[var(--sidebar-dashed)] transition-[width,margin,border-color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+            isCollapsed ? "mx-auto w-8" : "mx-2"
           }`}
-        >
-          <h2>Accounts</h2>
-          <span>{accounts.length}</span>
-        </div>
-
-        <Link
-          href={getInsightsHref()}
-          title={isCollapsed ? "All accounts" : undefined}
-          className={`group flex min-h-8 w-full items-center transition-[gap,padding,background-color,box-shadow] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-            isCollapsed
-              ? "justify-center gap-0 px-0 py-0"
-              : "min-h-8 gap-2 rounded-md bg-[var(--sidebar-hover)] px-2 py-1.5 shadow-[inset_0_0_0_1px_var(--sidebar-border)]"
-          }`}
-        >
-          <span
-            className={`grid shrink-0 place-items-center transition-colors duration-200 ${
-              isCollapsed
-                ? "size-8 rounded-[5px] group-hover:bg-[var(--sidebar-hover-strong)]"
-                : ""
-            }`}
-          >
-            <span className="grid size-[22px] shrink-0 place-items-center rounded-md border border-dashed border-[var(--sidebar-dashed)] text-[var(--sidebar-muted)] transition-colors duration-500">
-              <LayoutGrid className="size-[13px]" strokeWidth={1.7} />
-            </span>
-          </span>
-          <span
-            className={`min-w-0 flex-1 overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-300 ease-out ${
-              isCollapsed ? "max-w-0 opacity-0" : "max-w-[132px] opacity-100"
-            }`}
-          >
-            <span className="block truncate text-[12.5px] font-medium leading-4 text-[var(--sidebar-text)]">
-              All accounts
-            </span>
-            <span className="block text-[10.5px] leading-4 text-[var(--sidebar-dim)]">
-              {accounts.length} connected
-            </span>
-          </span>
-        </Link>
+        />
 
         {accounts.length === 0 && !isCollapsed ? (
           <p className="px-2 py-3 text-[12.5px] leading-5 text-[var(--sidebar-dim)]">
