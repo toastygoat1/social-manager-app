@@ -33,7 +33,7 @@ export default async function SchedulerPage() {
   return (
     <div
       data-fit="screen"
-      className="adaptive-content-colors app-shell-frame flex h-screen items-start gap-1 overflow-hidden p-1 font-sans text-ink transition-colors duration-500"
+      className="adaptive-content-colors app-shell-frame flex h-screen items-start gap-[2px] overflow-hidden p-1 font-sans text-ink transition-colors duration-500"
     >
       <Sidebar active="scheduling" profile={getUserProfile(user)} />
       <SchedulerShell
