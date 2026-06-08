@@ -44,9 +44,6 @@
   --sidebar-accent: #3ac1d6;
   --sidebar-success-bg: #e9f4ef;
   --sidebar-success: #287a65;
-  --sidebar-switch-bg: #e8e5dd;
-  --sidebar-switch-knob: #ffffff;
-  --sidebar-switch-active: #3ac1d6;
   --sidebar-switch-icon: #59544c;
 }
 
@@ -83,9 +80,6 @@
   --sidebar-accent: #55d4e6;
   --sidebar-success-bg: #173126;
   --sidebar-success: #74deb3;
-  --sidebar-switch-bg: #302d25;
-  --sidebar-switch-knob: #f4efe6;
-  --sidebar-switch-active: #55d4e6;
   --sidebar-switch-icon: #f5d46b;
 }
 

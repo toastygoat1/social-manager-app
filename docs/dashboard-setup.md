@@ -26,7 +26,7 @@ Dokumen ini mencatat:
 | `UploadChart` MAX dinamis (compute dari `bars.value`) | ✅ Selesai (commit ini) |
 | `formatNumber` helper di `apps/web/lib/format.ts` (StatCard + ContentTable pakai) | ✅ Selesai (commit ini) |
 | Backend `GET /dashboard/overview` (`apps/api/src/dashboard/`) | ✅ Selesai (commit ini) — aggregate dari Prisma |
-| Sidebar Settings/Refresh button mati | ⏸️ Sengaja dibiarkan, akan di-wire saat halaman Settings dibuat |
+| Sidebar Settings button belum di-wire | ⏸️ Sengaja dibiarkan, akan di-wire saat halaman Settings dibuat |
 | Layout pixel keras (`h-[692px]`, `h-[500px]`) | ⏸️ Cosmetic, refactor responsif di-defer |
 | Data real (Instagram metrics) | ❌ Butuh user input (lihat §2) |
 | Field `calendar` real (Google Calendar) | ✅ Implemented — butuh OAuth user + env Google (lihat §2) |
@@ -205,7 +205,7 @@ Dimana cari di Supabase: **Settings → Database → Connection string → Trans
 
 | Item | File | Catatan |
 |---|---|---|
-| Sidebar Settings/Refresh button mati | `_components/Sidebar.tsx:86-99` | Wire setelah `/settings` route dibuat |
+| Sidebar Settings button belum di-wire | `apps/web/app/dashboard/_components/SidebarPanel.tsx` | Wire setelah `/settings` route dibuat |
 | Layout pixel keras `h-[692px]`, `h-[500px]` | `dashboard/page.tsx:40,71` | Refactor responsif kalau dibutuhkan |
 | `reminder` field — sumber data belum jelas | DB model belum ada | Diskusi: AI-generated, manual user input, atau hasil cron job? |
 | Loading state | Belum ada `loading.tsx` | Tambah `apps/web/app/dashboard/loading.tsx` Next.js convention |
