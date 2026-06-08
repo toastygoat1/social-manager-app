@@ -247,7 +247,7 @@ export function SnowAiChat({ accounts }: SnowAiChatProps) {
 
   if (accounts.length === 0) {
     return (
-      <main className="flex h-screen min-w-0 flex-1 bg-card p-4 font-inter text-ink transition-colors duration-500 sm:p-6">
+      <main className="app-shell-panel flex min-w-0 flex-1 bg-paper p-3 font-inter text-ink transition-colors duration-500 sm:p-4">
         <section className="mx-auto flex h-full w-full max-w-[980px] flex-col items-center justify-center gap-4 rounded-xl border border-[#ded8ce] bg-[#fbfaf7] px-6 text-center">
           <span className="flex size-11 items-center justify-center rounded-full bg-[#1d1b18] text-white">
             <Sparkles className="size-5" strokeWidth={1.8} />
@@ -266,7 +266,7 @@ export function SnowAiChat({ accounts }: SnowAiChatProps) {
   }
 
   return (
-    <main className="flex h-screen min-w-0 flex-1 bg-card p-4 font-inter text-ink transition-colors duration-500 sm:p-6">
+    <main className="app-shell-panel flex min-w-0 flex-1 bg-paper p-3 font-inter text-ink transition-colors duration-500 sm:p-4">
       <section className="mx-auto grid h-full w-full max-w-[1180px] min-w-0 overflow-hidden rounded-xl border border-[#ded8ce] bg-[#fbfaf7] lg:grid-cols-[280px_minmax(0,1fr)]">
         <aside className="hidden min-h-0 border-r border-[#e7e3db] bg-[#f4f2ed] lg:flex lg:flex-col">
           <div className="border-b border-[#e7e3db] p-4">
