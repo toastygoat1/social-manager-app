@@ -369,21 +369,19 @@ function AccountRow({
       className={`group flex min-h-8 w-full items-center transition-[gap,padding,background-color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
         isCollapsed
           ? "justify-center gap-0 px-0 py-0"
-          : "min-h-8 gap-1 rounded-md px-2 py-1.5 hover:bg-[var(--sidebar-hover)]"
+          : "gap-1 rounded-md px-1 py-0 hover:bg-[var(--sidebar-hover)]"
       }`}
     >
       <Link
         href={getInsightsHref(account.id)}
         aria-label={`View insights for ${account.name}`}
         className={`flex min-w-0 flex-1 items-center transition-[gap] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-          isCollapsed ? "justify-center gap-0" : "gap-2"
+          isCollapsed ? "justify-center gap-0" : "gap-1"
         }`}
       >
         <span
-          className={`grid shrink-0 place-items-center transition-colors duration-200 ${
-            isCollapsed
-              ? "size-8 rounded-[5px] group-hover:bg-[var(--sidebar-hover-strong)]"
-              : ""
+          className={`grid size-8 shrink-0 place-items-center rounded-[5px] transition-colors duration-200 ${
+            isCollapsed ? "group-hover:bg-[var(--sidebar-hover-strong)]" : ""
           }`}
         >
           <AccountAvatar account={account} index={index} />
@@ -639,7 +637,7 @@ export function SidebarPanel({
               className={`group relative flex min-h-8 w-full items-center rounded-md text-[12.5px] leading-4 transition-[gap,padding,background-color,color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
                 isCollapsed
                   ? "justify-center gap-0 px-0 py-0"
-                  : "gap-[9px] px-2 py-1.5"
+                  : "gap-1 px-1 py-0"
               } ${
                 isActive
                   ? `${
@@ -651,9 +649,9 @@ export function SidebarPanel({
               }`}
             >
               <span
-                className={`relative grid shrink-0 place-items-center transition-colors duration-200 ${
+                className={`relative grid size-8 shrink-0 place-items-center rounded-[5px] transition-colors duration-200 ${
                   isCollapsed
-                    ? `size-8 rounded-[5px] ${
+                    ? `${
                         isActive
                           ? "bg-[var(--sidebar-hover-strong)]"
                           : "group-hover:bg-[var(--sidebar-hover-strong)]"
