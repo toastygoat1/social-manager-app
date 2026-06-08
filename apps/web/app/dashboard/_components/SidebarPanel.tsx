@@ -608,12 +608,12 @@ export function SidebarPanel({
       }`}
     >
       <header
-        className={`flex h-12 items-center pb-1 transition-[gap,padding] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+        className={`flex h-[33px] items-center pb-1 transition-[gap,padding] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
           isCollapsed ? "justify-center gap-0 px-0" : "gap-3 px-1.5"
         }`}
       >
-        <span className="flex shrink-0 items-center justify-center text-[var(--sidebar-text)] transition-colors duration-500">
-          <SnowflakeLogo className="h-11 w-[42px]" />
+        <span className="flex shrink-0 items-center justify-center text-[var(--sidebar-accent)] transition-colors duration-500">
+          <SnowflakeLogo className="h-[33px] w-[31px]" />
         </span>
         <span
           className={`min-w-0 overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-300 ease-out ${
@@ -661,7 +661,10 @@ export function SidebarPanel({
                     : ""
                 }`}
               >
-                <Icon className="size-[15px]" strokeWidth={1.7} />
+                <Icon
+                  className="size-[18px] translate-y-[1px]"
+                  strokeWidth={1.8}
+                />
                 {badge && isCollapsed ? (
                   <span
                     aria-hidden="true"
@@ -691,8 +694,8 @@ export function SidebarPanel({
       <section aria-label="Accounts" className="flex flex-col gap-3">
         <div
           aria-hidden="true"
-          className={`border-t border-dotted border-[var(--sidebar-dashed)] transition-[width,margin,border-color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-            isCollapsed ? "mx-auto w-8" : "mx-2"
+          className={`sidebar-dash-rule transition-[width,margin] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+            isCollapsed ? "mx-auto w-10" : "mx-1"
           }`}
         />
 
@@ -850,7 +853,7 @@ export function SidebarPanel({
       </button>
 
       <footer
-        className={`flex items-center border-t border-[var(--sidebar-border)] pb-1 pt-3 transition-[gap,padding,border-color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+        className={`sidebar-dash-rule-top flex items-center pb-1 pt-3 transition-[gap,padding] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
           isCollapsed ? "justify-center gap-0 px-0" : "gap-2 px-1.5"
         }`}
       >

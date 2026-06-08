@@ -176,6 +176,35 @@ body {
   min-height: 0;
 }
 
+.sidebar-dash-rule {
+  height: 1px;
+  background-image: repeating-linear-gradient(
+    to right,
+    var(--sidebar-dashed) 0 7px,
+    transparent 7px 11px
+  );
+  background-repeat: repeat-x;
+}
+
+.sidebar-dash-rule-top {
+  position: relative;
+}
+
+.sidebar-dash-rule-top::before {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 1px;
+  content: "";
+  background-image: repeating-linear-gradient(
+    to right,
+    var(--sidebar-dashed) 0 7px,
+    transparent 7px 11px
+  );
+  background-repeat: repeat-x;
+}
+
 html.theme-circle-transition,
 html.theme-circle-transition *,
 html.theme-circle-transition *::before,
