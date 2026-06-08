@@ -4,7 +4,7 @@
   --background: #ffffff;
   --foreground: #171717;
 
-  --app-shell-bg: #d8dcda;
+  --app-shell-bg: #f2f5f6;
   --app-panel-bg: #ffffff;
   --app-panel-border: #c5cbc7;
   --app-panel-shadow: rgba(27, 31, 28, 0.12);
@@ -131,8 +131,8 @@ body {
 }
 
 .app-shell-frame {
-  --app-shell-padding: 0.5rem;
-  --app-shell-panel-height: calc(100vh - 1rem);
+  --app-shell-padding: 4px;
+  --app-shell-panel-height: calc(100vh - 8px);
   background: var(--app-shell-bg);
 }
 
@@ -167,13 +167,6 @@ body {
 .app-shell-frame[data-fit="screen"] .app-shell-fill {
   height: 100%;
   min-height: 0;
-}
-
-@media (min-width: 640px) {
-  .app-shell-frame {
-    --app-shell-padding: 0.75rem;
-    --app-shell-panel-height: calc(100vh - 1.5rem);
-  }
 }
 
 html.theme-circle-transition,

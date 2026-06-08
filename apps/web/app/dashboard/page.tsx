@@ -78,7 +78,7 @@ export default async function DashboardPage({
   const profile = getUserProfile(user);
 
   return (
-    <div className="app-shell-frame flex min-h-screen items-start gap-2 p-2 font-sans text-ink transition-colors duration-500 sm:gap-3 sm:p-3">
+    <div className="app-shell-frame flex min-h-screen items-start gap-1 p-1 font-sans text-ink transition-colors duration-500">
       <Sidebar accounts={data.accounts} profile={profile} />
       <div className="app-shell-panel min-w-0 flex-1">
         <DashboardWorkspace
