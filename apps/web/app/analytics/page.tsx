@@ -132,7 +132,7 @@ export default async function AnalyticsPage({
     : [null, null];
 
   return (
-    <div className="app-shell-frame flex min-h-screen items-start gap-2 p-2 font-sans text-ink transition-colors duration-500 sm:gap-3 sm:p-3">
+    <div className="app-shell-frame flex min-h-screen items-start gap-1 p-1 font-sans text-ink transition-colors duration-500">
       <Sidebar
         active="analytics"
         accounts={data.accounts}

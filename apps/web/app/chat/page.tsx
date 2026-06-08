@@ -44,7 +44,7 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
   return (
     <div
       data-fit="screen"
-      className="app-shell-frame flex h-screen items-start gap-2 overflow-hidden p-2 font-sans text-ink transition-colors duration-500 sm:gap-3 sm:p-3"
+      className="app-shell-frame flex h-screen items-start gap-1 overflow-hidden p-1 font-sans text-ink transition-colors duration-500"
     >
       <Sidebar active="chat" profile={getUserProfile(user)} />
       <main className="app-shell-panel flex min-w-0 flex-1 flex-col bg-paper p-3 font-inter text-ink transition-colors duration-500 sm:p-4">
