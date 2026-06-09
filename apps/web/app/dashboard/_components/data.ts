@@ -8,6 +8,8 @@ export type ChartBar = {
   label: string;
   value: number;
   color: string;
+  avatarUrl?: string | null;
+  fallback?: string;
   segments?: ChartBarSegment[];
 };
 

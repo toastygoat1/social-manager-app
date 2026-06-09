@@ -81,7 +81,7 @@ export function LiveActivityPanel({
     <section className="rounded-[10px] border border-line bg-paper p-[18px]">
       <header className="flex items-center justify-between gap-3">
         <h2 className="text-sm font-semibold text-ink">Live Activity</h2>
-        <span className="inline-flex items-center gap-1.5 rounded-lg border border-line px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
+        <span className="inline-flex items-center gap-1.5 rounded-lg border border-line px-2.5 py-1 text-[11px] font-medium text-muted">
           <span className="size-1.5 rounded-full bg-success" />
           Live
         </span>
@@ -108,7 +108,7 @@ export function LiveActivityPanel({
                     <span className="min-w-0 truncate text-xs font-semibold text-ink">
                       {item.title}
                     </span>
-                    <span className="shrink-0 font-mono text-[10px] text-muted">
+                    <span className="shrink-0 text-[10px] text-muted">
                       {formatActivityTime(item.occurredAt)}
                     </span>
                   </span>

@@ -14,7 +14,7 @@ The current product surface includes:
 | Area | What it does |
 |---|---|
 | Auth | Supabase email auth and session middleware. |
-| Dashboard | Compact account overview, post status cards, upload chart, live activity, Google Calendar, and content rows. |
+| Dashboard | Compact account overview, post status cards, Posts chart, live activity, view-scoped Events + Google Calendar, and scrollable content rows. |
 | Workspace | Local task intake board for workspace planning. |
 | Scheduler | Schedule posts, create drafts, upload media, approve posts, retry failed publishes, inspect post details. |
 | Analytics | Account-filtered Instagram analytics, manual insight refresh, media previews, notes, recent post details, and side-by-side account comparison. |

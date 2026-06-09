@@ -6,13 +6,13 @@
 
   --app-shell-bg: #f2f5f6;
   --app-panel-bg: #ffffff;
-  --app-panel-border: rgb(217, 220, 219);
-  --app-panel-shadow: rgba(31, 41, 55, 0.14);
+  --app-panel-border: rgb(246, 246, 246);
+  --app-panel-shadow: transparent;
 
   --bg: #fafafa;
   --bg-light: #ffffff;
   --bg-dark: #f5f5f5;
-  --border: #ededed;
+  --border: rgb(246, 246, 246);
   --text: #0d0d0d;
   --text-muted: #4c4c4c;
   --cta: #3ac1d6;
@@ -40,7 +40,7 @@
   --sidebar-dim: #8a847a;
   --sidebar-hover: #f4f2ed;
   --sidebar-hover-strong: #e8e5dd;
-  --sidebar-dashed: #d3cec3;
+  --sidebar-dashed: rgb(246, 246, 246);
   --sidebar-accent: #3ac1d6;
   --sidebar-success-bg: #e9f4ef;
   --sidebar-success: #287a65;
@@ -53,13 +53,13 @@
 
   --app-shell-bg: #0f1110;
   --app-panel-bg: #202018;
-  --app-panel-border: #343127;
-  --app-panel-shadow: rgba(0, 0, 0, 0.32);
+  --app-panel-border: rgb(246, 246, 246);
+  --app-panel-shadow: transparent;
 
   --bg: #171812;
   --bg-light: #202018;
   --bg-dark: #11120e;
-  --border: #343127;
+  --border: rgb(246, 246, 246);
   --text: #f4efe6;
   --text-muted: #b0aa9d;
   --cta: #55d4e6;
@@ -76,7 +76,7 @@
   --sidebar-dim: #948d80;
   --sidebar-hover: #1d1e18;
   --sidebar-hover-strong: #292920;
-  --sidebar-dashed: #4a4639;
+  --sidebar-dashed: rgb(246, 246, 246);
   --sidebar-accent: #55d4e6;
   --sidebar-success-bg: #173126;
   --sidebar-success: #74deb3;
@@ -137,7 +137,11 @@ body {
   border: 1px solid var(--app-panel-border);
   border-radius: 14px;
   background: var(--app-panel-bg);
-  box-shadow: 0 14px 36px var(--app-panel-shadow);
+  box-shadow: none;
+}
+
+.app-shell-frame * {
+  box-shadow: none !important;
 }
 
 .app-shell-sidebar {
@@ -241,7 +245,7 @@ html.theme-circle-transition::view-transition-new(root) {
   --bg: #f6f5f1;
   --bg-light: #ffffff;
   --bg-dark: #fafaf8;
-  --border: #e7e5df;
+  --border: rgb(246, 246, 246);
   --text: #1a1a18;
   --text-muted: #84827a;
   --cta: #5e6ad2;
@@ -262,7 +266,7 @@ html.theme-circle-transition::view-transition-new(root) {
   --bg: #171812;
   --bg-light: #202018;
   --bg-dark: #11120e;
-  --border: #343127;
+  --border: rgb(246, 246, 246);
   --text: #f4efe6;
   --text-muted: #b0aa9d;
   --cta: #55d4e6;

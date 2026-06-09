@@ -51,6 +51,9 @@ const TRAILING_COLUMNS: { label: string; width: number }[] = [
   { label: "Media", width: 120 },
 ];
 
+const VISIBLE_ROW_LIMIT = 10;
+const ROW_HEIGHT = 54;
+
 function getTotalWidth(metadataFields: MetadataFieldDefinition[]) {
   return (
     LEADING_COLUMNS.reduce((sum, c) => sum + c.width, 0) +
@@ -97,60 +100,66 @@ export function ContentRowsTable({
   const totalWidth = getTotalWidth(metadataFields);
 
   return (
-    <section className="flex min-w-0 flex-col gap-5 overflow-hidden rounded-[10px] border border-line bg-paper p-[18px]">
+    <section className="flex min-w-0 flex-col gap-4 overflow-hidden rounded-[8px] border border-line bg-paper p-4">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-sm font-semibold text-ink">Content table</h2>
-          <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
+          <h2 className="text-sm font-semibold text-ink">Content Table</h2>
+          <p className="mt-0.5 text-xs text-muted">
             {rows.length} recent items / all statuses
           </p>
         </div>
-        <span className="rounded-lg border border-line px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
+        <span className="rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-muted">
           All statuses
         </span>
       </header>
-      <div className="flex w-full flex-col overflow-x-auto">
-        <div className="flex h-9 items-center border-b border-line">
-          {LEADING_COLUMNS.map((c) => (
-            <Cell key={c.label} width={c.width}>
-              <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-muted">
-                {c.label}
-              </span>
-            </Cell>
-          ))}
-          {TRAILING_COLUMNS.map((c) => (
-            <Cell key={c.label} width={c.width}>
-              <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-muted">
-                {c.label}
-              </span>
-            </Cell>
-          ))}
-          {metadataFields.map((field) => (
-            <Cell key={field.id} width={getMetadataColumnWidth(field)}>
-              <span className="truncate font-mono text-[10px] uppercase tracking-[0.06em] text-muted">
-                {field.label}
-              </span>
-            </Cell>
-          ))}
-        </div>
-        {rows.length === 0 ? (
-          <div
-            className="flex h-20 items-center justify-center text-sm text-muted"
-            style={{ width: `${totalWidth}px` }}
-          >
-            No content tracked yet
+      <div className="w-full overflow-hidden rounded-[8px] border border-line">
+        <div className="w-full overflow-x-auto">
+          <div style={{ minWidth: `${totalWidth}px` }}>
+            <div className="flex h-10 items-center border-b border-line bg-card">
+              {LEADING_COLUMNS.map((c) => (
+                <Cell key={c.label} width={c.width}>
+                  <span className="text-[11px] font-semibold text-muted">
+                    {c.label}
+                  </span>
+                </Cell>
+              ))}
+              {TRAILING_COLUMNS.map((c) => (
+                <Cell key={c.label} width={c.width}>
+                  <span className="text-[11px] font-semibold text-muted">
+                    {c.label}
+                  </span>
+                </Cell>
+              ))}
+              {metadataFields.map((field) => (
+                <Cell key={field.id} width={getMetadataColumnWidth(field)}>
+                  <span className="truncate text-[11px] font-semibold text-muted">
+                    {field.label}
+                  </span>
+                </Cell>
+              ))}
+            </div>
+            {rows.length === 0 ? (
+              <div className="flex h-24 items-center justify-center text-sm text-muted">
+                No content tracked yet
+              </div>
+            ) : (
+              <div
+                className="overflow-y-auto"
+                style={{ maxHeight: `${ROW_HEIGHT * VISIBLE_ROW_LIMIT}px` }}
+              >
+                {rows.map((row) => (
+                  <Row
+                    key={row.id}
+                    row={row}
+                    metadataFields={metadataFields}
+                    onOpenDetails={setSelectedPostId}
+                    onPreview={setPreviewRow}
+                  />
+                ))}
+              </div>
+            )}
           </div>
-        ) : (
-          rows.map((row) => (
-            <Row
-              key={row.id}
-              row={row}
-              metadataFields={metadataFields}
-              onOpenDetails={setSelectedPostId}
-              onPreview={setPreviewRow}
-            />
-          ))
-        )}
+        </div>
       </div>
       {previewRow ? (
         <MediaPreviewModal
@@ -180,7 +189,7 @@ function StatusPill({ status }: { status: string }) {
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2 py-1 font-mono text-[10px] ${tone}`}
+      className={`inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[11px] font-medium ${tone}`}
     >
       <span className="size-1.5 rounded-full bg-current" />
       {status}
@@ -240,25 +249,25 @@ function Row({
         <StatusPill status={row.status} />
       </Cell>
       <Cell width={110}>
-        <span className="font-mono text-[11px] text-muted">{row.datePost}</span>
+        <span className="text-xs text-muted">{row.datePost}</span>
       </Cell>
       <Cell width={90}>
-        <span className="font-mono text-xs text-muted">
+        <span className="text-xs text-muted">
           {formatNumber(row.views)}
         </span>
       </Cell>
       <Cell width={90}>
-        <span className="font-mono text-xs text-muted">
+        <span className="text-xs text-muted">
           {formatNumber(row.likes)}
         </span>
       </Cell>
       <Cell width={105}>
-        <span className="font-mono text-xs text-muted">
+        <span className="text-xs text-muted">
           {formatNumber(row.comments)}
         </span>
       </Cell>
       <Cell width={90}>
-        <span className="font-mono text-xs text-muted">
+        <span className="text-xs text-muted">
           {formatNumber(row.shares)}
         </span>
       </Cell>
@@ -304,7 +313,7 @@ function MediaPreviewModal({
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-6">
-      <div className="flex max-h-[86vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-line bg-paper shadow-xl">
+      <div className="flex max-h-[86vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-line bg-paper">
         <div className="flex items-center justify-between border-b border-line px-5 py-4">
           <div className="flex min-w-0 flex-col">
             <p className="truncate text-base font-medium text-ink">

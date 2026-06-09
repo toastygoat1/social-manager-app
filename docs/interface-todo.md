@@ -33,7 +33,7 @@ Referensi sudah jalan: `apps/web/lib/dashboard-data.ts`, `apps/web/app/dashboard
 
 ## 1. Dashboard — `apps/web/app/dashboard/`
 
-**Status**: ✅ Empty-state pattern selesai. Dashboard sekarang memakai layout box overview; workspace board pindah ke `/workspace`.
+**Status**: ✅ Empty-state pattern selesai. Dashboard sekarang memakai layout box overview dengan Events + Google Calendar; workspace board pindah ke `/workspace`.
 
 ### Files
 
