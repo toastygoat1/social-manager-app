@@ -1,6 +1,6 @@
 # Social Manager App Handbook
 
-Last updated: 2026-06-08
+Last updated: 2026-06-09
 
 This is the current onboarding document for humans and AI agents working on
 Social Manager App. It describes what the app does, where code lives, how data
@@ -14,7 +14,8 @@ The current product surface includes:
 | Area | What it does |
 |---|---|
 | Auth | Supabase email auth and session middleware. |
-| Dashboard | Account overview, connected Instagram accounts, upload stats, content rows, and Google Calendar summary. |
+| Dashboard | Compact account overview, post status cards, upload chart, live activity, Google Calendar, and content rows. |
+| Workspace | Local task intake board for workspace planning. |
 | Scheduler | Schedule posts, create drafts, upload media, approve posts, retry failed publishes, inspect post details. |
 | Analytics | Account-filtered Instagram analytics, manual insight refresh, media previews, notes, recent post details, and side-by-side account comparison. |
 | Messages | Instagram DM inbox and reply surface backed by the Instagram API module. |
@@ -130,6 +131,7 @@ Use `prisma:migrate` for local migration development. Use
 | `/dashboard` | `apps/web/app/dashboard/page.tsx` | Main dashboard overview. |
 | `/dashboard/instagram/callback` | `apps/web/app/dashboard/instagram/callback/route.ts` | Instagram OAuth callback bridge. |
 | `/dashboard/messages` | `apps/web/app/dashboard/messages/page.tsx` | Instagram DM page. |
+| `/workspace` | `apps/web/app/workspace/page.tsx` | Workspace task intake board. |
 | `/scheduler` | `apps/web/app/scheduler/page.tsx` | Post scheduler. |
 | `/analytics` | `apps/web/app/analytics/page.tsx` | Analytics overview and compare mode. |
 | `/chat` | `apps/web/app/chat/page.tsx` | Chat surface. |

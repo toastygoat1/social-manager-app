@@ -40,14 +40,20 @@ export function UploadChart({ bars }: UploadChartProps) {
   const yTicks = getYAxisTicks(axisMax);
 
   return (
-    <div className="flex h-full shrink-0 flex-col gap-2 overflow-hidden rounded-2xl border border-line bg-card p-6">
-      <div className="flex items-start justify-between gap-4">
-        <h3 className="text-xl font-medium leading-none text-ink">
-          Upload Chart
-        </h3>
-        <div className="flex items-center gap-3 text-[10px] leading-none text-muted">
+    <section className="flex min-h-[284px] flex-col gap-4 overflow-hidden rounded-[10px] border border-line bg-paper p-[18px] shadow-sm">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-semibold text-ink">Post Chart</h2>
+          <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
+            Recent uploads by account
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 text-[10px] leading-none text-muted">
           {LEGEND_ITEMS.map((item) => (
-            <div key={item.label} className="flex items-center gap-1">
+            <div
+              key={item.label}
+              className="flex items-center gap-1 rounded-lg border border-line px-2 py-1.5"
+            >
               <span
                 className="size-2 rounded-sm"
                 style={{ background: item.color }}
@@ -57,13 +63,13 @@ export function UploadChart({ bars }: UploadChartProps) {
           ))}
         </div>
       </div>
-      <div className="flex min-h-0 flex-1 items-stretch">
-        <div className="flex h-full flex-col items-end justify-end gap-6 pb-12 text-xs text-ink">
+      <div className="flex min-h-0 flex-1 items-stretch overflow-hidden">
+        <div className="flex h-full w-9 shrink-0 flex-col items-end justify-end gap-6 pb-10 text-[11px] text-muted">
           {yTicks.map((t) => (
             <span key={t}>{formatNumber(t)}</span>
           ))}
         </div>
-        <div className="ml-6 flex h-full w-[584px] items-end gap-4 overflow-x-auto">
+        <div className="ml-5 flex h-full min-w-0 flex-1 items-end gap-4 overflow-x-auto">
           {bars.length === 0 ? (
             <div className="flex h-full w-full items-center justify-center text-sm text-muted">
               No upload data yet
@@ -78,7 +84,7 @@ export function UploadChart({ bars }: UploadChartProps) {
                   {formatNumber(bar.value)}
                 </span>
                 <div
-                  className="flex w-10 flex-col-reverse overflow-hidden rounded-lg transition-[height]"
+                  className="flex w-10 flex-col-reverse overflow-hidden rounded-md transition-[height]"
                   style={{
                     height: `${Math.max((bar.value / axisMax) * CHART_HEIGHT, 4)}px`,
                   }}
@@ -103,6 +109,6 @@ export function UploadChart({ bars }: UploadChartProps) {
           )}
         </div>
       </div>
-    </div>
+    </section>
   );
 }
