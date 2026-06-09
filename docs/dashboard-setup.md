@@ -27,7 +27,7 @@ Dokumen ini mencatat:
 | `formatNumber` helper di `apps/web/lib/format.ts` (StatCard + ContentTable pakai) | ✅ Selesai (commit ini) |
 | Backend `GET /dashboard/overview` (`apps/api/src/dashboard/`) | ✅ Selesai (commit ini) — aggregate dari Prisma |
 | Sidebar Settings button belum di-wire | ⏸️ Sengaja dibiarkan, akan di-wire saat halaman Settings dibuat |
-| Dashboard responsive box layout | ✅ Selesai — greeting, status cards, post chart, account/activity rail, calendar, content table |
+| Dashboard responsive box layout | ✅ Selesai — greeting hero, compact status cards, Posts chart, account/activity rail, Events + Google Calendar, scrollable content table |
 | Workspace board | ✅ Dipindah dari Dashboard ke route `/workspace` + tab sidebar |
 | Data real (Instagram metrics) | ❌ Butuh user input (lihat §2) |
 | Field `calendar` real (Google Calendar) | ✅ Implemented — butuh OAuth user + env Google (lihat §2) |
@@ -142,7 +142,7 @@ META_OAUTH_STATE_SECRET=
 3. **APIs & Services → Library → Google Calendar API → Enable**.
 4. **APIs & Services → OAuth consent screen**:
    - User type: External (untuk staging) atau Internal (kalau Google Workspace).
-   - Scope: `https://www.googleapis.com/auth/calendar.readonly` dan `https://www.googleapis.com/auth/calendar.events` (baca agenda + create event).
+   - Scope: `https://www.googleapis.com/auth/calendar.readonly` dan `https://www.googleapis.com/auth/calendar.events` (baca events + create event).
 5. **APIs & Services → Credentials → Create OAuth Client ID**:
    - Application type: **Web application**.
    - Authorized redirect URI: `http://localhost:3001/integrations/google/callback` (dev), tambah production URL nanti.

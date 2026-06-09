@@ -310,7 +310,7 @@ function AccountAvatar({
 
   return (
     <span
-      className="flex size-[26px] shrink-0 items-center justify-center overflow-hidden rounded-[7px] text-[11px] font-semibold text-white"
+      className="flex size-[26px] shrink-0 items-center justify-center overflow-hidden rounded-full text-[11px] font-semibold text-white"
       style={{
         background: `linear-gradient(135deg, ${color}, ${color}cc)`,
       }}
@@ -381,7 +381,7 @@ function AccountRow({
         }`}
       >
         <span
-          className="grid size-8 shrink-0 place-items-center rounded-[5px]"
+          className="grid size-8 shrink-0 place-items-center rounded-full"
         >
           <AccountAvatar account={account} index={index} />
         </span>
@@ -398,7 +398,7 @@ function AccountRow({
           </span>
         </span>
         <span
-          className={`shrink-0 overflow-hidden whitespace-nowrap font-mono text-[9.5px] font-semibold text-[var(--sidebar-dim)] transition-[max-width,opacity] duration-300 ease-out ${
+          className={`shrink-0 overflow-hidden whitespace-nowrap text-[9.5px] font-semibold text-[var(--sidebar-dim)] transition-[max-width,opacity] duration-300 ease-out ${
             isCollapsed ? "max-w-0 opacity-0" : "max-w-[18px] opacity-100"
           }`}
         >
@@ -442,7 +442,7 @@ function ProfileAvatar({
 
   return (
     <span
-      className="flex size-[26px] shrink-0 items-center justify-center overflow-hidden rounded-[7px] bg-[#5e6ad2] text-[10.5px] font-semibold text-white"
+      className="flex size-[26px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#5e6ad2] text-[10.5px] font-semibold text-white"
     >
       <AvatarImage
         src={profile?.avatarUrl}

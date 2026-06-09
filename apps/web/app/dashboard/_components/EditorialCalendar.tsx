@@ -12,7 +12,6 @@ import {
   Columns3,
   FileText,
   Loader2,
-  Plus,
   X,
 } from "lucide-react";
 import { apiFetchBrowser, ApiError } from "@/lib/api/browser-client";
@@ -210,6 +209,16 @@ function sortEvents(events: GoogleCalendarEvent[]) {
   return [...events].sort((a, b) => eventSortValue(a) - eventSortValue(b));
 }
 
+function eventInRange(event: GoogleCalendarEvent, start: Date, end: Date) {
+  const value = eventDateKey(event);
+  if (!value) return false;
+  const date = event.allDay
+    ? new Date(`${value}T00:00:00`)
+    : new Date(event.start ?? value);
+
+  return date >= start && date < end;
+}
+
 function timeFromMinutes(minutes: number) {
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
@@ -369,6 +378,28 @@ export function EditorialCalendar({
   const isViewingInitialMonth =
     visibleRange.key === `month-${today.getFullYear()}-${today.getMonth()}`;
   const eventCountLabel = `${events.length} Google Calendar event${events.length === 1 ? "" : "s"}`;
+  const eventScopeStart =
+    viewMode === "month"
+      ? new Date(anchorDate.getFullYear(), anchorDate.getMonth(), 1)
+      : visibleRange.start;
+  const eventScopeEnd =
+    viewMode === "month"
+      ? new Date(anchorDate.getFullYear(), anchorDate.getMonth() + 1, 1)
+      : visibleRange.end;
+  const scopedEvents =
+    viewMode === "day"
+      ? activeDateEvents
+      : events.filter((event) =>
+          eventInRange(event, eventScopeStart, eventScopeEnd),
+        );
+  const eventScopeLabel =
+    viewMode === "day" ? eventDateLabel(activeDateKey) : visibleRange.label;
+  const eventScopeName =
+    viewMode === "month"
+      ? "This month"
+      : viewMode === "week"
+        ? "This week"
+        : "Selected day";
 
   function openCreateEvent(dateKey = activeDateKey) {
     if (!calendar) return;
@@ -481,9 +512,62 @@ export function EditorialCalendar({
 
   return (
     <>
-      <div className="grid items-start gap-4 xl:grid-cols-[minmax(480px,1fr)_260px]">
-        <section className="overflow-hidden rounded-[10px] border border-line bg-paper">
-          <header className="flex flex-wrap items-start justify-between gap-4 border-b border-line px-5 py-4">
+      <div className="grid items-start gap-4 xl:grid-cols-[260px_minmax(0,1fr)]">
+        <section className="flex min-h-[352px] flex-col rounded-[8px] border border-line bg-paper p-4">
+          <header className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold text-ink">Events</h2>
+              <p className="mt-1 text-xs text-muted">
+                {eventScopeName} / {eventScopeLabel}
+              </p>
+            </div>
+            {calendar ? (
+              <button
+                type="button"
+                onClick={() => openCreateEvent(activeDateKey)}
+                className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-ink px-3 text-xs font-semibold text-page transition hover:bg-cta"
+              >
+                <CalendarPlus className="size-3.5" />
+                Add
+              </button>
+            ) : null}
+          </header>
+
+          {!calendar ? (
+            <div className="mt-6 flex flex-1 flex-col items-start justify-center gap-3">
+              <p className="text-sm text-muted">
+                Connect Google Calendar to show events here.
+              </p>
+              <ConnectGoogleButton compact />
+            </div>
+          ) : isLoading ? (
+            <p className="mt-8 text-sm text-muted">Loading events...</p>
+          ) : scopedEvents.length === 0 ? (
+            <p className="mt-8 text-sm text-muted">
+              No events in this view.
+            </p>
+          ) : (
+            <ul className="mt-5 max-h-[260px] space-y-2 overflow-y-auto pr-1">
+              {scopedEvents.map((event) => (
+                <li
+                  key={event.id}
+                  className="rounded-lg border border-line bg-card px-3 py-2.5"
+                >
+                  <p className="truncate text-sm font-semibold text-ink">
+                    {event.summary}
+                  </p>
+                  <p className="mt-1 text-xs text-muted">
+                    {eventDateLabel(eventDateKey(event) ?? activeDateKey)} /{" "}
+                    {eventTime(event)}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className="overflow-hidden rounded-[8px] border border-line bg-paper">
+          <header className="flex flex-wrap items-start justify-between gap-3 border-b border-line px-4 py-3">
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <div className="inline-flex overflow-hidden rounded-lg border border-line bg-card">
@@ -511,7 +595,7 @@ export function EditorialCalendar({
                 >
                   Today
                 </button>
-                <div className="min-w-[180px]">
+                <div className="min-w-[160px]">
                   <h2 className="truncate text-base font-semibold leading-5 text-ink">
                     {visibleRange.label}
                   </h2>
@@ -524,7 +608,7 @@ export function EditorialCalendar({
                   </p>
                 </div>
               </div>
-              <div className="mt-3 inline-flex rounded-lg border border-line bg-card p-0.5">
+              <div className="mt-2 inline-flex rounded-lg border border-line bg-card p-0.5">
                 {VIEW_OPTIONS.map(({ mode, label, Icon }) => {
                   const active = viewMode === mode;
                   return (
@@ -535,7 +619,7 @@ export function EditorialCalendar({
                       onClick={() => changeViewMode(mode)}
                       className={`inline-flex h-8 min-w-[78px] items-center justify-center gap-1.5 rounded-md px-2.5 text-xs font-semibold transition ${
                         active
-                          ? "bg-ink text-page shadow-sm"
+                          ? "bg-ink text-page"
                           : "text-muted hover:bg-paper hover:text-ink"
                       }`}
                     >
@@ -555,22 +639,12 @@ export function EditorialCalendar({
               ) : null}
               {!calendar ? (
                 <ConnectGoogleButton compact />
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => openCreateEvent(activeDateKey)}
-                  className="inline-flex items-center gap-2 rounded-lg bg-cta px-3.5 py-2 text-xs font-semibold text-white shadow-[0_10px_22px_rgba(101,125,232,0.22)] transition hover:bg-cta-edge"
-                >
-                  <CalendarPlus className="size-4" />
-                  Add event
-                </button>
-              )}
+              ) : null}
             </div>
           </header>
 
           {viewMode === "month" ? (
             <MonthCalendarGrid
-              calendar={calendar}
               cells={visibleRange.cells}
               eventsByDay={eventsByDay}
               todayKey={todayKey}
@@ -579,17 +653,14 @@ export function EditorialCalendar({
               showInitialEvents={isViewingInitialMonth}
               initialEventDays={initialEventDays}
               onSelectDate={selectDate}
-              onCreateEvent={openCreateEvent}
             />
           ) : viewMode === "week" ? (
             <WeekCalendarGrid
-              calendar={calendar}
               cells={visibleRange.cells}
               eventsByDay={eventsByDay}
               todayKey={todayKey}
               activeDateKey={activeDateKey}
               onSelectDate={selectDate}
-              onCreateEvent={openCreateEvent}
             />
           ) : (
             <DayCalendarView
@@ -597,63 +668,8 @@ export function EditorialCalendar({
               date={anchorDate}
               events={activeDateEvents}
               todayKey={todayKey}
-              onCreateEvent={openCreateEvent}
             />
           )}
-        </section>
-
-        <section className="overflow-hidden rounded-[10px] border border-line bg-paper">
-          <header className="flex items-start justify-between gap-3 border-b border-line px-4 py-4">
-            <div>
-              <h2 className="text-sm font-semibold text-ink">
-                Agenda / {shortDateLabel(anchorDate)}
-              </h2>
-              <p className="mt-1 text-[11px] text-muted">
-                {activeDateKey === todayKey ? "Today" : "Google Calendar"}
-              </p>
-            </div>
-            {calendar ? (
-              <button
-                type="button"
-                onClick={() => openCreateEvent(activeDateKey)}
-                className="inline-flex size-8 items-center justify-center rounded-lg border border-line bg-card text-muted transition hover:border-cta hover:text-cta"
-                aria-label={`Add event on ${eventDateLabel(activeDateKey)}`}
-              >
-                <CalendarPlus className="size-4" />
-              </button>
-            ) : null}
-          </header>
-          <div className="px-4 py-3">
-            {!calendar ? (
-              <p className="py-12 text-center text-xs text-muted">
-                Connect Google Calendar to see today&apos;s agenda.
-              </p>
-            ) : isLoading ? (
-              <p className="py-12 text-center text-xs text-muted">
-                Loading events...
-              </p>
-            ) : activeDateEvents.length === 0 ? (
-              <p className="py-12 text-center text-xs text-muted">
-                No Google Calendar events on this day.
-              </p>
-            ) : (
-              <ul className="space-y-1">
-                {activeDateEvents.map((event) => (
-                  <li
-                    key={event.id}
-                    className="grid grid-cols-[56px_1fr] gap-2 border-b border-line py-3 last:border-b-0"
-                  >
-                    <span className="pt-0.5 text-[10px] text-muted">
-                      {eventTime(event)}
-                    </span>
-                    <p className="text-xs font-medium text-ink">
-                      {event.summary}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
         </section>
       </div>
       {draft ? (
@@ -671,12 +687,10 @@ export function EditorialCalendar({
 }
 
 type CalendarViewSurfaceProps = {
-  calendar: CalendarMonth | null;
   eventsByDay: Map<string, GoogleCalendarEvent[]>;
   todayKey: string;
   activeDateKey: string;
   onSelectDate: (date: Date) => void;
-  onCreateEvent: (dateKey: string) => void;
 };
 
 type MonthCalendarGridProps = CalendarViewSurfaceProps & {
@@ -711,7 +725,6 @@ function EventPreview({
 }
 
 function MonthCalendarGrid({
-  calendar,
   cells,
   eventsByDay,
   todayKey,
@@ -720,7 +733,6 @@ function MonthCalendarGrid({
   showInitialEvents,
   initialEventDays,
   onSelectDate,
-  onCreateEvent,
 }: MonthCalendarGridProps) {
   return (
     <>
@@ -749,7 +761,7 @@ function MonthCalendarGrid({
           return (
             <div
               key={cell.key}
-              className={`group relative min-h-[78px] border-b border-r border-line px-2.5 py-2 sm:min-h-[96px] ${
+              className={`group relative min-h-[56px] border-b border-r border-line px-2 py-1.5 sm:min-h-[64px] ${
                 index % 7 === 6 ? "border-r-0" : ""
               } ${index >= 35 ? "border-b-0" : ""} ${
                 isToday ? "bg-cta/10" : isActive ? "bg-card" : ""
@@ -767,21 +779,10 @@ function MonthCalendarGrid({
                         ? "text-muted/50 hover:text-muted"
                         : "text-ink hover:text-cta"
                 }`}
-                aria-label={`Show agenda for ${eventDateLabel(cell.key)}`}
+                aria-label={`Show events for ${eventDateLabel(cell.key)}`}
               >
                 {cell.date.getDate()}
               </button>
-
-              {calendar ? (
-                <button
-                  type="button"
-                  onClick={() => onCreateEvent(cell.key)}
-                  className="absolute right-2 top-2 inline-flex size-6 items-center justify-center rounded-full border border-line bg-paper text-muted opacity-100 shadow-sm transition hover:border-cta hover:text-cta sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
-                  aria-label={`Add event on ${eventDateLabel(cell.key)}`}
-                >
-                  <Plus className="size-3.5" />
-                </button>
-              ) : null}
 
               <div className="mt-1.5 space-y-1">
                 {dayEvents.slice(0, 2).map((event) => (
@@ -819,16 +820,14 @@ type WeekCalendarGridProps = CalendarViewSurfaceProps & {
 };
 
 function WeekCalendarGrid({
-  calendar,
   cells,
   eventsByDay,
   todayKey,
   activeDateKey,
   onSelectDate,
-  onCreateEvent,
 }: WeekCalendarGridProps) {
   return (
-    <div className="grid min-h-[430px] grid-cols-1 divide-y divide-line sm:grid-cols-7 sm:divide-x sm:divide-y-0">
+    <div className="grid min-h-[300px] grid-cols-1 divide-y divide-line sm:grid-cols-7 sm:divide-x sm:divide-y-0">
       {cells.map((cell) => {
         const dayEvents = eventsByDay.get(cell.key) ?? [];
         const isToday = cell.key === todayKey;
@@ -837,7 +836,7 @@ function WeekCalendarGrid({
         return (
           <div key={cell.key} className="group relative flex min-w-0 flex-col">
             <header
-              className={`border-b border-line px-3 py-3 ${
+              className={`border-b border-line px-3 py-2.5 ${
                 isToday ? "bg-cta/10" : isActive ? "bg-card" : ""
               }`}
             >
@@ -854,23 +853,13 @@ function WeekCalendarGrid({
                       ? "border border-cta bg-paper text-cta"
                       : "text-ink hover:bg-card hover:text-cta"
                 }`}
-                aria-label={`Show agenda for ${eventDateLabel(cell.key)}`}
+                aria-label={`Show events for ${eventDateLabel(cell.key)}`}
               >
                 {cell.date.getDate()}
               </button>
-              {calendar ? (
-                <button
-                  type="button"
-                  onClick={() => onCreateEvent(cell.key)}
-                  className="absolute right-2 top-3 inline-flex size-7 items-center justify-center rounded-lg border border-line bg-paper text-muted opacity-100 shadow-sm transition hover:border-cta hover:text-cta sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
-                  aria-label={`Add event on ${eventDateLabel(cell.key)}`}
-                >
-                  <Plus className="size-3.5" />
-                </button>
-              ) : null}
             </header>
 
-            <div className="flex min-h-[120px] flex-1 flex-col gap-2 p-2">
+            <div className="flex min-h-[92px] flex-1 flex-col gap-2 p-2">
               {dayEvents.length === 0 ? (
                 <span className="mt-3 text-[10px] text-muted">
                   No events
@@ -893,19 +882,17 @@ function DayCalendarView({
   date,
   events,
   todayKey,
-  onCreateEvent,
 }: {
   calendar: CalendarMonth | null;
   date: Date;
   events: GoogleCalendarEvent[];
   todayKey: string;
-  onCreateEvent: (dateKey: string) => void;
 }) {
   const dateKey = toDateKey(date);
   const isToday = dateKey === todayKey;
 
   return (
-    <div className="min-h-[430px]">
+    <div className="min-h-[300px]">
       <header
         className={`flex items-start justify-between gap-3 border-b border-line px-5 py-4 ${
           isToday ? "bg-cta/10" : "bg-card"
@@ -922,16 +909,6 @@ function DayCalendarView({
             {events.length} event{events.length === 1 ? "" : "s"}
           </p>
         </div>
-        {calendar ? (
-          <button
-            type="button"
-            onClick={() => onCreateEvent(dateKey)}
-            className="inline-flex items-center gap-2 rounded-lg bg-cta px-3 py-2 text-xs font-semibold text-white shadow-[0_10px_22px_rgba(101,125,232,0.18)] transition hover:bg-cta-edge"
-          >
-            <CalendarPlus className="size-4" />
-            Add event
-          </button>
-        ) : null}
       </header>
 
       <div className="px-5 py-4">
@@ -995,7 +972,7 @@ function CreateEventModal({
           event.preventDefault();
           void onSubmit();
         }}
-        className="relative w-full max-w-[520px] overflow-hidden rounded-2xl border border-line bg-paper shadow-[0_28px_70px_rgba(36,31,24,0.22)]"
+        className="relative w-full max-w-[520px] overflow-hidden rounded-2xl border border-line bg-paper"
       >
         <header className="flex items-start justify-between gap-4 border-b border-line bg-card px-5 py-4">
           <div>
@@ -1127,7 +1104,7 @@ function CreateEventModal({
                 onChange={(event) =>
                   onChange({ description: event.target.value })
                 }
-                placeholder="Agenda, campaign notes, or links"
+                placeholder="Campaign notes, event details, or links"
                 rows={3}
                 maxLength={2000}
                 className="min-w-0 flex-1 resize-none bg-transparent text-sm text-ink outline-none placeholder:text-muted"
@@ -1154,7 +1131,7 @@ function CreateEventModal({
           <button
             type="submit"
             disabled={saving}
-            className="inline-flex min-w-[126px] items-center justify-center gap-2 rounded-lg bg-[#657de8] px-4 py-2 text-xs font-semibold text-white shadow-[0_10px_22px_rgba(101,125,232,0.2)] transition hover:bg-[#586fe0] disabled:cursor-not-allowed disabled:opacity-70"
+            className="inline-flex min-w-[126px] items-center justify-center gap-2 rounded-lg bg-[#657de8] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#586fe0] disabled:cursor-not-allowed disabled:opacity-70"
           >
             {saving ? (
               <Loader2 className="size-4 animate-spin" />
