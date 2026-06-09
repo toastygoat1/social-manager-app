@@ -248,10 +248,10 @@ export function DashboardWorkspace({
 
   return (
     <div className="app-shell-fill bg-paper font-inter text-ink transition-colors duration-500">
-      <main className="mx-auto flex w-full max-w-[1160px] flex-col gap-4 px-5 py-6 sm:px-7 sm:py-7">
+      <main className="mx-auto flex w-full max-w-[1480px] flex-col gap-4 px-5 py-6 sm:px-7 sm:py-7 lg:px-9">
         <DashboardHero data={data} />
 
-        <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,760px)_300px]">
+        <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
           <div className="grid min-w-0 gap-4">
             <UploadChart bars={postChartBars} />
           </div>

@@ -162,6 +162,11 @@ body {
 
 .app-shell-frame:not([data-fit="screen"]) .app-shell-panel {
   overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.app-shell-frame:not([data-fit="screen"]) .app-shell-panel::-webkit-scrollbar {
+  display: none;
 }
 
 .app-shell-frame[data-fit="screen"] .app-shell-panel {
