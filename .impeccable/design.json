@@ -1,0 +1,219 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-06-09T00:00:00.000Z",
+  "title": "Design System: Social Manager App",
+  "extensions": {
+    "colorMeta": {
+      "signal-cyan": {
+        "role": "primary",
+        "displayName": "Signal Cyan",
+        "canonical": "oklch(74% 0.097 207)",
+        "tonalRamp": ["#073138", "#0c4751", "#10606c", "#177a8a", "#1ea2b5", "#3ac1d6", "#7adbe7", "#beedf3"]
+      },
+      "signal-cyan-edge": {
+        "role": "primary",
+        "displayName": "Signal Cyan Edge",
+        "canonical": "oklch(66% 0.092 207)"
+      },
+      "signal-cyan-bright": {
+        "role": "primary",
+        "displayName": "Signal Cyan Bright (dark mode)",
+        "canonical": "oklch(80% 0.097 207)"
+      },
+      "analyst-indigo": {
+        "role": "secondary",
+        "displayName": "Analyst Indigo",
+        "canonical": "oklch(56% 0.158 281)",
+        "tonalRamp": ["#1a1f4d", "#252d63", "#323d7b", "#414e92", "#4f5fad", "#5e6ad2", "#9099e3", "#c5cbef"]
+      },
+      "console-ink": {
+        "role": "neutral",
+        "displayName": "Console Ink",
+        "canonical": "oklch(15% 0 0)",
+        "tonalRamp": ["#0d0d0d", "#1a1a1a", "#2b2b2b", "#3d3d3d", "#525252", "#737373", "#a3a3a3", "#d4d4d4"]
+      },
+      "console-muted": {
+        "role": "neutral",
+        "displayName": "Console Muted",
+        "canonical": "oklch(40% 0 0)"
+      },
+      "studio-paper": {
+        "role": "neutral",
+        "displayName": "Studio Paper",
+        "canonical": "oklch(100% 0 0)"
+      },
+      "studio-card": {
+        "role": "neutral",
+        "displayName": "Studio Card",
+        "canonical": "oklch(98.4% 0 0)"
+      },
+      "studio-page": {
+        "role": "neutral",
+        "displayName": "Studio Page (cool canvas)",
+        "canonical": "oklch(96.6% 0.005 207)"
+      },
+      "hairline": {
+        "role": "neutral",
+        "displayName": "Hairline (1px border)",
+        "canonical": "oklch(97.5% 0 0)"
+      },
+      "studio-off-black": {
+        "role": "neutral",
+        "displayName": "Studio Off-Black (warm dark bg)",
+        "canonical": "oklch(11% 0.005 145)"
+      },
+      "console-cream": {
+        "role": "neutral",
+        "displayName": "Console Cream (dark mode ink)",
+        "canonical": "oklch(94.5% 0.018 86)",
+        "tonalRamp": ["#10110f", "#1c1e1a", "#2a2d27", "#3d4138", "#5b604f", "#85896f", "#c2c4ae", "#f4efe6"]
+      },
+      "status-mint": {
+        "role": "tertiary",
+        "displayName": "Status Mint (success)",
+        "canonical": "oklch(60% 0.108 162)",
+        "tonalRamp": ["#0d3024", "#13442f", "#1a583c", "#236d4c", "#2c845c", "#359c78", "#74c8a3", "#bce0cd"]
+      },
+      "alert-coral": {
+        "role": "tertiary",
+        "displayName": "Alert Coral (danger)",
+        "canonical": "oklch(49% 0.16 25)",
+        "tonalRamp": ["#3b0c0d", "#581113", "#7a181a", "#9a2123", "#a92729", "#cf5e60", "#e09b9c", "#f0cccd"]
+      },
+      "chart-azure": { "role": "tertiary", "displayName": "Chart Azure", "canonical": "oklch(67% 0.198 252)" },
+      "chart-mint": { "role": "tertiary", "displayName": "Chart Mint", "canonical": "oklch(78% 0.135 187)" },
+      "chart-rose": { "role": "tertiary", "displayName": "Chart Rose", "canonical": "oklch(70% 0.146 15)" },
+      "chart-amber": { "role": "tertiary", "displayName": "Chart Amber", "canonical": "oklch(84% 0.144 84)" },
+      "chart-tangerine": { "role": "tertiary", "displayName": "Chart Tangerine", "canonical": "oklch(68% 0.176 50)" },
+      "chart-magenta": { "role": "tertiary", "displayName": "Chart Magenta", "canonical": "oklch(48% 0.193 330)" },
+      "chart-teal": { "role": "tertiary", "displayName": "Chart Teal", "canonical": "oklch(58% 0.117 191)" },
+      "chart-cobalt": { "role": "tertiary", "displayName": "Chart Cobalt", "canonical": "oklch(43% 0.182 263)" },
+      "chart-violet": { "role": "tertiary", "displayName": "Chart Violet", "canonical": "oklch(31% 0.215 308)" },
+      "chart-umber": { "role": "tertiary", "displayName": "Chart Umber", "canonical": "oklch(48% 0.072 51)" }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Stat-card values and primary metrics. font-medium (500), -0.02em tracking. The number that earns the eye." },
+      "headline": { "displayName": "Headline", "purpose": "Page-level h1. Sparing; one per surface." },
+      "title": { "displayName": "Title", "purpose": "Card titles, section headings, panel labels. The most common heading weight in the system." },
+      "body": { "displayName": "Body", "purpose": "Default text size for app UI. Capped at 65-75ch for prose surfaces; tables can run wider." },
+      "label": { "displayName": "Label", "purpose": "Button text, chip text, badge text, table column headers. font-medium (500)." },
+      "mono": { "displayName": "Mono", "purpose": "Account IDs, timestamps, hashes, code-shaped data. Never decorative." },
+      "editorial-serif": { "displayName": "Editorial Serif", "purpose": "Scoped to /analytics only via .analytics-theme .analytics-serif. The system's deliberate register shift; never leaks outside analytics." }
+    },
+    "shadows": [],
+    "motion": [
+      { "name": "ease-state", "value": "cubic-bezier(0.22, 1, 0.36, 1)", "purpose": "Default ease-out-quart for state transitions (150-250ms): hover, focus, theme body swap." },
+      { "name": "ease-reveal", "value": "cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Ease-out-expo for the view-transition theme toggle (950ms circle clip-path reveal). The system's one choreographed moment." },
+      { "name": "duration-state", "value": "150ms", "purpose": "Default duration for UI state transitions (hover, focus, button press)." },
+      { "name": "duration-theme-body", "value": "450ms", "purpose": "Body background/color crossfade during theme swap." },
+      { "name": "duration-theme-reveal", "value": "950ms", "purpose": "View-transition circle reveal duration during theme swap." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" },
+      { "name": "xl", "value": "1280px" },
+      { "name": "2xl", "value": "1536px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The single saturated action on most screens. Signal Cyan background, Console Ink text, font-medium label.",
+      "html": "<button class=\"ds-btn-primary\">Schedule post</button>",
+      "css": ".ds-btn-primary { background: #3ac1d6; color: #0d0d0d; font-family: 'Inter', system-ui, sans-serif; font-size: 0.75rem; font-weight: 500; line-height: 1.3; padding: 8px 16px; border: none; border-radius: 8px; cursor: pointer; transition: background 150ms cubic-bezier(0.22, 1, 0.36, 1); } .ds-btn-primary:hover { background: #1fa8c0; color: #ffffff; } .ds-btn-primary:focus-visible { outline: 2px solid #3ac1d6; outline-offset: 2px; } .ds-btn-primary:active { background: #1fa8c0; transform: translateY(0.5px); }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Studio Paper background with hairline border. The non-saturated counterpart to the primary.",
+      "html": "<button class=\"ds-btn-secondary\">Cancel</button>",
+      "css": ".ds-btn-secondary { background: #ffffff; color: #0d0d0d; font-family: 'Inter', system-ui, sans-serif; font-size: 0.75rem; font-weight: 500; line-height: 1.3; padding: 8px 16px; border: 1px solid #f6f6f6; border-radius: 8px; cursor: pointer; transition: background 150ms cubic-bezier(0.22, 1, 0.36, 1); } .ds-btn-secondary:hover { background: #fafafa; } .ds-btn-secondary:focus-visible { outline: 2px solid #3ac1d6; outline-offset: 2px; }"
+    },
+    {
+      "name": "Stat Card",
+      "kind": "card",
+      "refersTo": "card-stat",
+      "description": "Dashboard metric tile: title, big number, optional trend chip. font-medium (500) on the value, never bold. flex-1 in a row.",
+      "html": "<div class=\"ds-stat-card\"><h3 class=\"ds-stat-card__title\">Total followers</h3><p class=\"ds-stat-card__value\">128,403</p><div class=\"ds-stat-card__trend\"><span class=\"ds-stat-card__delta\">+1,247<svg viewBox=\"0 0 24 24\" width=\"8\" height=\"8\" fill=\"currentColor\"><path d=\"M7 14l5-5 5 5z\"/></svg></span><span class=\"ds-stat-card__label\">Increase from last month</span></div></div>",
+      "css": ".ds-stat-card { display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: 24px; overflow: hidden; padding: 24px; border-radius: 16px; border: 1px solid #f6f6f6; background: #fafafa; font-family: 'Inter', system-ui, sans-serif; min-width: 200px; min-height: 160px; } .ds-stat-card__title { margin: 0; font-size: 1.25rem; font-weight: 500; line-height: 1; letter-spacing: -0.01em; color: #0d0d0d; } .ds-stat-card__value { margin: 0; font-size: 2.25rem; font-weight: 500; line-height: 1; letter-spacing: -0.02em; color: #0d0d0d; } .ds-stat-card__trend { display: flex; align-items: center; gap: 4px; } .ds-stat-card__delta { display: inline-flex; align-items: center; gap: 1px; padding: 0 2px; border: 0.5px solid #359c78; border-radius: 4px; font-size: 0.75rem; font-weight: 500; color: #359c78; } .ds-stat-card__label { font-size: 0.75rem; font-weight: 500; color: #359c78; }"
+    },
+    {
+      "name": "Input Field",
+      "kind": "input",
+      "refersTo": "input-field",
+      "description": "Hairline border, Studio Paper background, Console Muted placeholder that hits 4.5:1.",
+      "html": "<label class=\"ds-input-field\"><span class=\"ds-input-field__label\">Caption</span><input class=\"ds-input-field__input\" type=\"text\" placeholder=\"Write something honest\" /></label>",
+      "css": ".ds-input-field { display: flex; flex-direction: column; gap: 4px; font-family: 'Inter', system-ui, sans-serif; } .ds-input-field__label { font-size: 0.875rem; font-weight: 500; color: #0d0d0d; } .ds-input-field__input { padding: 8px 12px; border: 1px solid #f6f6f6; border-radius: 8px; background: #ffffff; color: #0d0d0d; font-family: inherit; font-size: 0.875rem; line-height: 1.5; outline: none; transition: border-color 150ms cubic-bezier(0.22, 1, 0.36, 1); } .ds-input-field__input::placeholder { color: #4c4c4c; opacity: 1; } .ds-input-field__input:focus-visible { border-color: #3ac1d6; }"
+    },
+    {
+      "name": "Sidebar Item",
+      "kind": "nav",
+      "refersTo": "sidebar-item",
+      "description": "Default + hover + active states. Active uses a 2px Signal Cyan inset indicator on the left, never a side-stripe border.",
+      "html": "<nav class=\"ds-sidebar\"><a class=\"ds-sidebar__item\" href=\"#\"><svg viewBox=\"0 0 24 24\" width=\"16\" height=\"16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"><path d=\"M3 12l9-9 9 9M5 10v10h14V10\"/></svg><span>Dashboard</span></a><a class=\"ds-sidebar__item ds-sidebar__item--active\" href=\"#\"><svg viewBox=\"0 0 24 24\" width=\"16\" height=\"16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"><rect x=\"3\" y=\"4\" width=\"18\" height=\"18\" rx=\"2\"/><path d=\"M16 2v4M8 2v4M3 10h18\"/></svg><span>Scheduler</span></a><a class=\"ds-sidebar__item\" href=\"#\"><svg viewBox=\"0 0 24 24\" width=\"16\" height=\"16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"><path d=\"M3 3v18h18M7 14l4-4 4 4 6-6\"/></svg><span>Analytics</span></a></nav>",
+      "css": ".ds-sidebar { display: flex; flex-direction: column; gap: 2px; padding: 12px; background: #ffffff; border: 1px solid #f6f6f6; border-radius: 14px; font-family: 'Inter', system-ui, sans-serif; min-width: 220px; } .ds-sidebar__item { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 8px; background: transparent; color: #0d0d0d; font-size: 0.875rem; font-weight: 400; text-decoration: none; transition: background 150ms cubic-bezier(0.22, 1, 0.36, 1); position: relative; } .ds-sidebar__item:hover { background: #f4f2ed; } .ds-sidebar__item--active { background: #e8e5dd; font-weight: 500; } .ds-sidebar__item--active::before { content: \"\"; position: absolute; left: 4px; top: 50%; transform: translateY(-50%); width: 2px; height: 16px; background: #3ac1d6; border-radius: 1px; } .ds-sidebar__item:focus-visible { outline: 2px solid #3ac1d6; outline-offset: 2px; }"
+    },
+    {
+      "name": "Status Chip",
+      "kind": "chip",
+      "refersTo": "chip-status-success",
+      "description": "Read-only signal: text color + 0.5px hairline border in the same semantic hue. Tiny padding.",
+      "html": "<span class=\"ds-chip ds-chip--success\">+12%<svg viewBox=\"0 0 24 24\" width=\"8\" height=\"8\" fill=\"currentColor\"><path d=\"M7 14l5-5 5 5z\"/></svg></span>",
+      "css": ".ds-chip { display: inline-flex; align-items: center; gap: 1px; padding: 0 2px; border-radius: 4px; font-family: 'Inter', system-ui, sans-serif; font-size: 0.75rem; font-weight: 500; line-height: 1.3; } .ds-chip--success { color: #359c78; border: 0.5px solid #359c78; background: #ffffff; } .ds-chip--danger { color: #a92729; border: 0.5px solid #a92729; background: #ffffff; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Operator's Console",
+    "overview": "This is the visual system for an agency operator who lives in the app for hours, juggles 10+ client accounts, and reads every screen as a working surface, not a canvas. The aesthetic is calm, ordered, and quietly editorial: rounded hairline panels floating on a cool-neutral canvas in light mode, warm cream-on-graphite at night. The eye moves through scale, weight, and tone, never through ornament. Decoration is a tell of an unconfident system; this one is confident.\n\nThe system explicitly rejects two failure modes called out in PRODUCT.md. It is not agency CRM bloat (navy + orange, nested tabs, three-breadcrumb settings, modal-on-modal, every pixel earning none of its keep). And it is not AI-slop dashboard (gradient-text headings, glassmorphism cards, identical icon-heading-text grids, tiny ALL-CAPS tracked eyebrows on every section, numbered scaffolds, warm SaaS-cream backgrounds). If a screen could be mistaken for either, it has failed before any specific element has.\n\nThe system is light-mode-cool and dark-mode-warm on purpose. Light mode is white panels on a faint cool-gray canvas because daylight desks already supply the warmth. Dark mode is cream-on-graphite because lamplight needs to glow, not glare. The contrarian split is part of the brand voice.",
+    "keyCharacteristics": [
+      "App-shell frame: 4px padding, 14px-rounded panels separated by 2px gutters, sticky sidebar",
+      "Flat by rule: shadows are banned inside the app shell; depth is layered surfaces and hairlines",
+      "Cyan as the single signal color; everything else is restrained neutral or semantic",
+      "Inter for the whole interface, font-medium (500) is the default emphasis weight, font-bold is rare",
+      "Editorial moments are earned, not sprinkled: the analytics surface drops to a serif and a Linear-style indigo as a deliberate register shift, not as decoration"
+    ],
+    "rules": [
+      { "name": "The One Signal Rule", "body": "Signal Cyan is the only saturated color on most screens. Every additional saturated color must justify itself by carrying state (status, chart, danger). Decorative color is forbidden.", "section": "colors" },
+      { "name": "The Cool-Light, Warm-Dark Rule", "body": "Light mode tints toward cool gray; dark mode tints toward warm graphite-cream. The split is the brand voice. Never light-mode-warm 'for friendliness'; that's the warm-SaaS-cream AI tell.", "section": "colors" },
+      { "name": "The Hairline Rule", "body": "Borders are #f6f6f6, almost invisible. They register as a felt edge, not a drawn line. If a border needs to be visible, the design is leaning on chrome where it should be leaning on layout.", "section": "colors" },
+      { "name": "The Medium-Default Rule", "body": "Headings and emphasized text are font-medium (500), not font-bold (700). Bold is reserved for cases where 500 vs. 400 contrast is too thin to register at small sizes.", "section": "typography" },
+      { "name": "The One Family Rule", "body": "Inter carries the entire interface. Mono is for code-shaped data only. Editorial Serif is scoped to /analytics only. Never introduce a second sans-serif (no Plus Jakarta, no Geist Sans, no Soehne).", "section": "typography" },
+      { "name": "The Fixed Scale Rule", "body": "UI type is a fixed rem scale (12, 14, 16, 20, 24, 36), not a fluid clamp. Hero-style clamp typography is forbidden in product UI surfaces.", "section": "typography" },
+      { "name": "The Flat-By-Rule Rule", "body": "No box-shadow value above none is permitted inside .app-shell-frame. The CSS enforces it. New components must not introduce shadows. Depth is tonal, not cast.", "section": "elevation" },
+      { "name": "The Tonal-Layering Rule", "body": "Depth is the sequence: Studio Page (#f2f5f6) -> Studio Paper (#ffffff) -> Studio Card (#fafafa). One step lighter per layer in. Reversing the sequence is forbidden.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do carry hierarchy with scale and weight. font-medium for emphasis, scale steps 12 / 14 / 16 / 20 / 24 / 36.",
+      "Do use Signal Cyan (#3ac1d6) as the only saturated brand color on most screens. The One Signal Rule.",
+      "Do keep light mode cool (Studio Page #f2f5f6) and dark mode warm (Studio Off-Black #10110f with Console Cream #f4efe6 text).",
+      "Do convey depth by tonal layering: Studio Page -> Studio Paper -> Studio Card. One step lighter per layer in.",
+      "Do use 1px Hairline (#f6f6f6) borders everywhere a boundary is needed. Almost-invisible, felt rather than seen.",
+      "Do use 14px radius on panels and 16px on cards. The 2px difference is intentional; panels are the room, cards are the furniture.",
+      "Do treat the multi-account switcher as a first-class component. One click from anywhere, documented keyboard shortcut, never buried in settings.",
+      "Do ship every interactive component with all states: default, hover, focus-visible, active, disabled, loading, error.",
+      "Do use skeleton states for loading, never spinners in the middle of content.",
+      "Do write empty states that teach the surface, never 'Nothing here yet.'",
+      "Do respect prefers-reduced-motion on every transition. The view-transition theme toggle already does; new motion must too."
+    ],
+    "donts": [
+      "Don't ship anything that could be read as agency CRM bloat: navy + orange palettes, nested tabs, modal-on-modal flows, settings three breadcrumbs deep, busy sidebars.",
+      "Don't ship the AI-slop dashboard tells: gradient-text headings, glassmorphism cards, identical icon-heading-text card grids, tiny ALL-CAPS tracked eyebrows above every section, numbered scaffolds (01 / 02 / 03), warm SaaS-cream body backgrounds.",
+      "Don't ship vintage social-SaaS cheerfulness: pastel status chips, cartoon empty-state illustrations, 'Great job!' copy, mascot characters, emoji as primary UI affordance.",
+      "Don't introduce shadows inside .app-shell-frame. The CSS bans them; new components must respect the ban.",
+      "Don't use side-stripe borders (border-left or border-right greater than 1px as a colored accent). Use the active-item inset indicator pattern from the sidebar, or full Hairline borders, or nothing.",
+      "Don't use clamp-sized fluid typography in product UI. Fixed rem scale only.",
+      "Don't use font-bold (700) for headings as a default. Use font-medium (500). Bold reads as CRM; medium reads as composed.",
+      "Don't introduce a second sans-serif family. Inter is the system. Geist Mono is for code-shaped data. Georgia is scoped to /analytics only.",
+      "Don't use Analyst Indigo (#5e6ad2) outside .analytics-theme. It is the analytics register's accent; using it elsewhere collapses the deliberate register shift into noise.",
+      "Don't ship light placeholder text that fails 4.5:1 against Studio Paper. Console Muted (#4c4c4c) is the floor.",
+      "Don't use raw Tailwind zinc-* / slate-* utilities for new components. Use the semantic tokens: text-ink, text-muted, bg-paper, bg-card, bg-page, border-line, text-cta.",
+      "Don't rely on color alone to convey status. Status Mint / Alert Coral always pair with an icon or label.",
+      "Don't animate page-load entrances. Product loads into a task; users don't want to watch it load.",
+      "Don't make the multi-account switcher a 'feature' buried in settings. It is the most-touched interactive element in the system."
+    ]
+  }
+}
