@@ -1,9 +1,4 @@
-import {
-  CheckCircle2,
-  Clock3,
-  FileText,
-  Link2,
-} from "lucide-react";
+import { Link2 } from "lucide-react";
 import type { UserProfile } from "@/lib/supabase/user-profile";
 import { AccountChip } from "./AccountChip";
 import { ConnectAccountsButton } from "./ConnectAccountsButton";
@@ -41,16 +36,8 @@ const ACCOUNT_CHART_COLORS = [
 
 const POST_FORMATS = ["Post", "Reel", "Story", "Carousel"] as const;
 
-function formatCount(value: number | null) {
-  return value === null ? "-" : value.toLocaleString("en-US");
-}
-
 function normalizeStatus(status: string) {
   return status.toLowerCase();
-}
-
-function displayName(profile: UserProfile) {
-  return profile.name?.trim() || profile.email?.split("@")[0] || "there";
 }
 
 function countRowsByStatus(rows: ContentRow[], status: ContentStatus) {
@@ -157,85 +144,44 @@ function buildPostChartBars(data: DashboardData): ChartBar[] {
   return bars.length > 0 ? bars : buildFallbackChartBars(data.uploadChart);
 }
 
-function DashboardHero({
-  profile,
-  data,
-}: {
-  profile: UserProfile;
-  data: DashboardData;
-}) {
-  return (
-    <section className="flex flex-wrap items-end justify-between gap-4 py-2">
-      <div className="min-w-0">
-        <h1 className="truncate text-3xl font-semibold leading-tight text-ink">
-          Good morning, {displayName(profile)}
+function DashboardHero({ data }: { data: DashboardData }) {
+  const totalAccounts = data.totalAccounts ?? 0;
+
+  if (totalAccounts === 0) {
+    return (
+      <section className="flex flex-col gap-1 py-2">
+        <h1 className="text-3xl font-medium leading-tight text-ink tracking-[-0.015em]">
+          Connect an account to get started
         </h1>
-        <p className="mt-1 text-sm text-muted">
-          {data.contentRows.length} content items across {data.totalAccounts ?? 0} account
-          {(data.totalAccounts ?? 0) === 1 ? "" : "s"}.
+        <p className="text-sm text-muted">
+          Your scheduled posts, drafts, and account metrics appear here once an
+          Instagram account is linked.
         </p>
+      </section>
+    );
+  }
+
+  const pending = countRowsByStatus(data.contentRows, "pending");
+  const drafts = countRowsByStatus(data.contentRows, "draft");
+
+  return (
+    <section className="flex flex-col gap-1 py-2">
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <span className="text-5xl font-medium leading-none text-ink tracking-[-0.025em] tabular-nums">
+          {pending}
+        </span>
+        <span className="text-sm font-medium text-ink">
+          {pending === 1 ? "post" : "posts"} scheduled to publish
+        </span>
       </div>
       <p className="text-sm text-muted">
-        Dashboard
+        {drafts} {drafts === 1 ? "draft" : "drafts"} awaiting review across{" "}
+        {totalAccounts} {totalAccounts === 1 ? "account" : "accounts"}.
       </p>
     </section>
   );
 }
 
-function StatusSummary({ rows }: { rows: ContentRow[] }) {
-  const cards: Array<{
-    key: ContentStatus;
-    label: string;
-    Icon: typeof CheckCircle2;
-    tone: string;
-  }> = [
-    {
-      key: "published",
-      label: "Published",
-      Icon: CheckCircle2,
-      tone: "text-success bg-success/10",
-    },
-    {
-      key: "draft",
-      label: "Draft",
-      Icon: FileText,
-      tone: "text-cta bg-cta/10",
-    },
-    {
-      key: "pending",
-      label: "Pending",
-      Icon: Clock3,
-      tone: "text-[#98640d] bg-[#d4a547]/15",
-    },
-  ];
-
-  return (
-    <section
-      aria-label="Post status summary"
-      className="grid gap-3 sm:grid-cols-3"
-    >
-      {cards.map(({ key, label, Icon, tone }) => (
-        <article
-          key={key}
-          className="flex min-h-[74px] items-center justify-between gap-3 rounded-[8px] border border-line bg-paper px-4 py-3"
-        >
-          <div>
-            <h2 className="text-sm font-semibold text-ink">{label}</h2>
-            <p className="mt-0.5 text-xs text-muted">Recent content</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className={`grid size-8 place-items-center rounded-lg ${tone}`}>
-              <Icon className="size-4" strokeWidth={1.8} />
-            </span>
-            <span className="text-xl font-semibold leading-none text-ink">
-              {formatCount(countRowsByStatus(rows, key))}
-            </span>
-          </div>
-        </article>
-      ))}
-    </section>
-  );
-}
 function AccountsPanel({
   accounts,
   totalAccounts,
@@ -246,27 +192,20 @@ function AccountsPanel({
   connectionStatus: ConnectionStatus;
 }) {
   return (
-    <section className="flex min-h-[340px] flex-col rounded-[8px] border border-line bg-paper p-5">
-      <header className="flex items-center justify-between">
+    <section className="flex flex-col rounded-[8px] border border-line bg-paper p-5">
+      <header className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <span className="grid size-8 place-items-center rounded-lg bg-cta/10 text-cta">
             <Link2 className="size-4" strokeWidth={1.8} />
           </span>
-          <h2 className="text-sm font-semibold text-ink">Total Accounts</h2>
+          <h2 className="text-sm font-medium text-ink">Accounts</h2>
         </div>
         <ConnectAccountsButton />
       </header>
 
-      <p className="mt-8 text-[56px] font-semibold leading-none text-ink">
-        {totalAccounts ?? "-"}
-      </p>
-      <p className="mt-1 text-xs text-muted">
-        Connected Instagram accounts
-      </p>
-
       {connectionStatus ? (
         <p
-          className={`mt-4 rounded-lg px-2.5 py-2 text-[11px] ${
+          className={`mt-4 rounded-lg px-2.5 py-2 text-xs ${
             connectionStatus.tone === "success"
               ? "bg-success/10 text-success"
               : "bg-danger/10 text-danger"
@@ -276,24 +215,25 @@ function AccountsPanel({
         </p>
       ) : null}
 
-      <ul className="mt-4 space-y-2">
-        {accounts.slice(0, 3).map((account) => (
-          <li key={account.id}>
-            <AccountChip
-              accountId={account.id}
-              name={account.name}
-              platform={account.platform}
-              avatarUrl={account.avatarUrl}
-              className="w-full !bg-card"
-            />
-          </li>
-        ))}
-      </ul>
       {accounts.length === 0 ? (
-        <p className="mt-6 text-xs text-muted">
-          No Instagram accounts connected yet.
+        <p className="mt-4 text-sm text-muted">
+          Connect an Instagram account to plan posts and pull metrics.
         </p>
-      ) : null}
+      ) : (
+        <ul className="mt-4 space-y-2">
+          {accounts.slice(0, 3).map((account) => (
+            <li key={account.id}>
+              <AccountChip
+                accountId={account.id}
+                name={account.name}
+                platform={account.platform}
+                avatarUrl={account.avatarUrl}
+                className="w-full !bg-card"
+              />
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }
@@ -307,13 +247,12 @@ export function DashboardWorkspace({
   const postChartBars = buildPostChartBars(data);
 
   return (
-    <div className="analytics-theme app-shell-fill bg-paper font-inter text-ink transition-colors duration-500">
+    <div className="app-shell-fill bg-paper font-inter text-ink transition-colors duration-500">
       <main className="mx-auto flex w-full max-w-[1160px] flex-col gap-4 px-5 py-6 sm:px-7 sm:py-7">
-        <DashboardHero profile={profile} data={data} />
+        <DashboardHero data={data} />
 
         <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,760px)_300px]">
           <div className="grid min-w-0 gap-4">
-            <StatusSummary rows={data.contentRows} />
             <UploadChart bars={postChartBars} />
           </div>
           <div className="grid content-start gap-4">
