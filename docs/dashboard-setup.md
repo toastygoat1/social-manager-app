@@ -27,7 +27,8 @@ Dokumen ini mencatat:
 | `formatNumber` helper di `apps/web/lib/format.ts` (StatCard + ContentTable pakai) | ✅ Selesai (commit ini) |
 | Backend `GET /dashboard/overview` (`apps/api/src/dashboard/`) | ✅ Selesai (commit ini) — aggregate dari Prisma |
 | Sidebar Settings button belum di-wire | ⏸️ Sengaja dibiarkan, akan di-wire saat halaman Settings dibuat |
-| Layout pixel keras (`h-[692px]`, `h-[500px]`) | ⏸️ Cosmetic, refactor responsif di-defer |
+| Dashboard responsive box layout | ✅ Selesai — greeting, status cards, post chart, account/activity rail, calendar, content table |
+| Workspace board | ✅ Dipindah dari Dashboard ke route `/workspace` + tab sidebar |
 | Data real (Instagram metrics) | ❌ Butuh user input (lihat §2) |
 | Field `calendar` real (Google Calendar) | ✅ Implemented — butuh OAuth user + env Google (lihat §2) |
 | `reminder` field | ❌ Belum ada model di Prisma. Tetap `null` sampai diputuskan sumbernya |
@@ -206,7 +207,6 @@ Dimana cari di Supabase: **Settings → Database → Connection string → Trans
 | Item | File | Catatan |
 |---|---|---|
 | Sidebar Settings button belum di-wire | `apps/web/app/dashboard/_components/SidebarPanel.tsx` | Wire setelah `/settings` route dibuat |
-| Layout pixel keras `h-[692px]`, `h-[500px]` | `dashboard/page.tsx:40,71` | Refactor responsif kalau dibutuhkan |
 | `reminder` field — sumber data belum jelas | DB model belum ada | Diskusi: AI-generated, manual user input, atau hasil cron job? |
 | Loading state | Belum ada `loading.tsx` | Tambah `apps/web/app/dashboard/loading.tsx` Next.js convention |
 | Worker yang isi `post_analytics` | `apps/worker/` | BullMQ job belum ada — saat siap, jadwalkan fetch IG Insights tiap N jam |

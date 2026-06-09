@@ -33,25 +33,25 @@ Referensi sudah jalan: `apps/web/lib/dashboard-data.ts`, `apps/web/app/dashboard
 
 ## 1. Dashboard — `apps/web/app/dashboard/`
 
-**Status**: ✅ Empty-state pattern selesai (commit `bdcd634` + fixes baru).
+**Status**: ✅ Empty-state pattern selesai. Dashboard sekarang memakai layout box overview; workspace board pindah ke `/workspace`.
 
 ### Files
 
 | Path | Lines | Purpose |
 |---|---|---|
-| `apps/web/app/dashboard/page.tsx` | 1-78 | Server Component, auth check, layout |
-| `apps/web/lib/dashboard-data.ts` | 1-17 | `getDashboardData()` → `GET /dashboard/overview` |
+| `apps/web/app/dashboard/page.tsx` | — | Server Component, auth check, dashboard shell |
+| `apps/web/app/workspace/page.tsx` | — | Server Component, auth check, workspace board route |
+| `apps/web/lib/dashboard-data.ts` | — | `getDashboardData()` → dashboard/Instagram/analytics overview fetches |
 | `apps/web/app/dashboard/_components/data.ts` | 1-75 | `DashboardData`, `EMPTY_DASHBOARD` |
-| `apps/web/app/dashboard/_components/{StatCard,ContentTable,CalendarCard,...}.tsx` | — | Presentational |
+| `apps/web/app/dashboard/_components/{DashboardWorkspace,UploadChart,ContentTable,EditorialCalendar,...}.tsx` | — | Presentational |
 
 ### TODO
 
 | Item | File | Catatan |
 |---|---|---|
-| Backend endpoint `GET /dashboard/overview` | `apps/api/` | Belum ada controller. Wajib return shape `DashboardData`. Sumber: aggregate IG metrics dari Postgres yang di-populate worker (lewat IG Graph API). |
-| `Calendar` field di `DashboardData` → Google Calendar API | `lib/dashboard-data.ts`, backend | Sudah jadi empty state. Backend harus merge data Google Calendar ke field `calendar` saat user sudah connect. |
+| Backend endpoint `GET /dashboard/overview` | `apps/api/src/dashboard/` | ✅ Implemented. Returns content rows, metadata, activity, account data, and Google Calendar summary. |
+| `Calendar` field di `DashboardData` → Google Calendar API | `lib/dashboard-data.ts`, backend | ✅ Implemented with empty state when Google is not connected. |
 | `Sidebar` Settings button belum di-wire | `apps/web/app/dashboard/_components/SidebarPanel.tsx` | User pilih biarkan dulu. Wire saat ada halaman Settings. |
-| Layout pakai pixel keras `h-[692px]`, `h-[500px]` | `dashboard/page.tsx:40,71` | Cosmetic. Kalau mau responsive perlu refactor child `h-full` → intrinsic height. |
 | `ContentRow` numeric fields | `_components/data.ts:38-52` | ✅ Sudah `number \| null` + `formatNumber("—")` di ContentTable. |
 | Catch error logging | `lib/dashboard-data.ts:13` | ✅ `console.error` aktif. |
 

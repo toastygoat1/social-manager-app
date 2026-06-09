@@ -6,6 +6,7 @@ import {
   BarChart3,
   CalendarDays,
   ChevronDown,
+  Columns2,
   Home,
   Inbox,
   LoaderCircle,
@@ -41,6 +42,7 @@ type LucideIcon = ComponentType<
 
 export type SidebarKey =
   | "dashboard"
+  | "workspace"
   | "scheduling"
   | "analytics"
   | "chat"
@@ -78,6 +80,7 @@ type SidebarPanelProps = {
 
 const NAV_ITEMS: NavItem[] = [
   { key: "dashboard", label: "Dashboard", Icon: Home, href: "/dashboard" },
+  { key: "workspace", label: "Workspace", Icon: Columns2, href: "/workspace" },
   {
     key: "scheduling",
     label: "Scheduler",
