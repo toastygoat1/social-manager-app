@@ -118,8 +118,8 @@ export function RecentPostsPanel({ rows }: RecentPostsPanelProps) {
   }, [active, rows]);
 
   return (
-    <section className="absolute inset-0 flex flex-col gap-4 rounded-[20px] border border-line bg-paper p-5">
-      <header className="flex shrink-0 flex-col gap-3">
+    <section className="absolute inset-0 flex flex-col gap-3 rounded-[16px] border border-line bg-paper p-4">
+      <header className="flex shrink-0 flex-col gap-2.5">
         <h2 className="text-sm font-medium text-ink">Recent Posts</h2>
         <div className="relative flex items-center gap-1 rounded-full bg-card p-1">
           <span
@@ -143,7 +143,7 @@ export function RecentPostsPanel({ rows }: RecentPostsPanelProps) {
                 }}
                 type="button"
                 onClick={() => setActive(tab)}
-                className={`relative z-10 flex-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors duration-200 ${
+                className={`relative z-10 flex-1 rounded-full px-2 py-1 text-[10px] font-medium transition-colors duration-200 ${
                   isActive ? "text-white" : "text-muted hover:text-ink"
                 }`}
               >
@@ -154,7 +154,7 @@ export function RecentPostsPanel({ rows }: RecentPostsPanelProps) {
         </div>
       </header>
 
-      <div className="scrollbar-none flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
+      <div className="scrollbar-none flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
         {filtered.length === 0 ? (
           <p className="py-6 text-center text-xs text-muted">
             No recent posts yet
@@ -167,33 +167,10 @@ export function RecentPostsPanel({ rows }: RecentPostsPanelProps) {
             return (
               <article
                 key={row.id}
-                className="flex shrink-0 flex-col gap-3 rounded-[12px] border border-line p-3"
+                className="grid shrink-0 grid-cols-[92px_minmax(0,1fr)] gap-3 rounded-[12px] border border-line p-2.5"
               >
-                <header className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="flex size-6 items-center justify-center overflow-hidden rounded-full">
-                      <AvatarImage
-                        src={row.account.avatarUrl}
-                        alt={row.account.name}
-                        width={24}
-                        height={24}
-                        className="size-6 rounded-full object-cover"
-                        fallback={getInitials(row.account.name)}
-                      />
-                    </span>
-                    <span className="truncate text-xs font-medium text-ink">
-                      {row.account.name}
-                    </span>
-                  </div>
-                  <span
-                    className="rounded-md px-1.5 py-0.5 text-[10px] font-medium text-white"
-                    style={{ backgroundColor: POST_FORMAT_COLORS[format] }}
-                  >
-                    {format}
-                  </span>
-                </header>
                 <div
-                  className="aspect-[16/10] w-full overflow-hidden rounded-[8px]"
+                  className="aspect-square w-full overflow-hidden rounded-[9px]"
                   style={
                     preview
                       ? {
@@ -206,18 +183,41 @@ export function RecentPostsPanel({ rows }: RecentPostsPanelProps) {
                 >
                   {preview ? null : <ThumbnailPlaceholder format={format} />}
                 </div>
-                {row.contents || row.caption ? (
-                  <div className="flex flex-col gap-1">
+                <div className="flex min-w-0 flex-col gap-2">
+                  <header className="flex items-center justify-between gap-2">
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      <span className="flex size-5 items-center justify-center overflow-hidden rounded-full">
+                        <AvatarImage
+                          src={row.account.avatarUrl}
+                          alt={row.account.name}
+                          width={20}
+                          height={20}
+                          className="size-5 rounded-full object-cover"
+                          fallback={getInitials(row.account.name)}
+                        />
+                      </span>
+                      <span className="truncate text-[11px] font-medium text-ink">
+                        {row.account.name}
+                      </span>
+                    </div>
+                    <span
+                      className="rounded-md px-1.5 py-0.5 text-[9px] font-medium text-white"
+                      style={{ backgroundColor: POST_FORMAT_COLORS[format] }}
+                    >
+                      {format}
+                    </span>
+                  </header>
+                  <div className="min-w-0">
                     <p className="truncate text-xs font-medium text-ink">
                       {row.contents || "Untitled"}
                     </p>
                     {row.caption ? (
-                      <p className="line-clamp-2 text-[11px] leading-snug text-muted">
+                      <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-muted">
                         {row.caption}
                       </p>
                     ) : null}
                   </div>
-                ) : null}
+                </div>
               </article>
             );
           })

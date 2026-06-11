@@ -545,10 +545,12 @@ export function SidebarPanel({
     () => initialTheme,
   );
   const [selectedNavKey, setSelectedNavKey] = useState<SidebarKey>(active);
+  const [isNarrowViewport, setIsNarrowViewport] = useState(false);
   const visibleAccounts = accounts.slice(0, VISIBLE_ACCOUNT_COUNT);
   const additionalAccounts = accounts.slice(VISIBLE_ACCOUNT_COUNT);
   const profileName = getProfileName(profile);
   const profileDetail = getProfileDetail(profile);
+  const isCompact = isCollapsed || isNarrowViewport;
   const isDarkTheme = theme === "dark";
   const activeNavIndex = Math.max(
     0,
@@ -562,6 +564,16 @@ export function SidebarPanel({
   useEffect(() => {
     setSelectedNavKey(active);
   }, [active]);
+
+  useEffect(() => {
+    const query = window.matchMedia("(max-width: 767px)");
+    const syncViewport = () => setIsNarrowViewport(query.matches);
+
+    syncViewport();
+    query.addEventListener("change", syncViewport);
+
+    return () => query.removeEventListener("change", syncViewport);
+  }, []);
 
   function toggleSidebar() {
     const nextCollapsed = !isCollapsed;
@@ -609,13 +621,13 @@ export function SidebarPanel({
   return (
     <aside
       data-theme={theme}
-      className={`app-shell-sidebar flex shrink-0 flex-col gap-[18px] overflow-y-auto pb-3 pt-5 font-inter text-[var(--sidebar-text)] transition-[width,padding,background-color,border-color,color,box-shadow] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
-        isCollapsed ? "w-16 px-3" : "w-[232px] px-3"
+      className={`app-shell-sidebar flex shrink-0 flex-col gap-4 overflow-y-auto pb-3 pt-4 font-inter text-[var(--sidebar-text)] transition-[width,padding,background-color,border-color,color,box-shadow] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
+        isCompact ? "w-16 px-3" : "w-[218px] px-2.5"
       }`}
     >
       <header
         className={`flex h-[33px] items-center pb-1 transition-[gap,padding] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-          isCollapsed ? "gap-1 px-[3px]" : "gap-4 px-[3px]"
+          isCompact ? "gap-1 px-[3px]" : "gap-4 px-[3px]"
         }`}
       >
         <span className="grid size-8 shrink-0 place-items-center text-[var(--sidebar-accent)] transition-colors duration-500">
@@ -623,7 +635,7 @@ export function SidebarPanel({
         </span>
         <span
           className={`min-w-0 overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-300 ease-out ${
-            isCollapsed ? "max-w-0 opacity-0" : "max-w-[120px] opacity-100"
+            isCompact ? "max-w-0 opacity-0" : "max-w-[120px] opacity-100"
           }`}
         >
           <span className="block truncate text-sm font-semibold leading-4 text-[var(--sidebar-text)]">
@@ -638,7 +650,7 @@ export function SidebarPanel({
           className="absolute left-[3px] top-0 z-0 h-8 rounded-[7px] bg-[var(--sidebar-accent)] transition-[transform,width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
           style={{
             transform: `translateY(${activeNavIndex * 36}px)`,
-            width: isCollapsed ? "32px" : "calc(100% - 6px)",
+            width: isCompact ? "32px" : "calc(100% - 6px)",
           }}
         />
         {NAV_ITEMS.map(({ key, label, Icon, href, badge }) => {
@@ -650,22 +662,22 @@ export function SidebarPanel({
               href={href}
               aria-current={key === active ? "page" : undefined}
               onClick={() => setSelectedNavKey(key)}
-              title={isCollapsed ? label : undefined}
+              title={isCompact ? label : undefined}
               className={`group relative z-10 flex min-h-8 w-full items-center rounded-md text-[12.5px] leading-4 transition-[gap,padding,background-color,color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-                isCollapsed
+                isCompact
                   ? "gap-1 px-[3px] py-0"
                   : "gap-1 px-[3px] py-0"
               } ${
                 isActive
                   ? "font-medium text-white"
                   : `text-[var(--sidebar-muted)] ${
-                      isCollapsed ? "" : "hover:bg-[var(--sidebar-hover)]"
+                      isCompact ? "" : "hover:bg-[var(--sidebar-hover)]"
                     } hover:text-[var(--sidebar-text)]`
               }`}
             >
               <span
                 className={`relative grid size-8 shrink-0 place-items-center rounded-[5px] transition-colors duration-200 ${
-                  !isActive && isCollapsed
+                  !isActive && isCompact
                     ? "group-hover:bg-[var(--sidebar-hover-strong)]"
                     : ""
                 }`}
@@ -676,7 +688,7 @@ export function SidebarPanel({
                   }`}
                   strokeWidth={1.8}
                 />
-                {badge && isCollapsed ? (
+                {badge && isCompact ? (
                   <span
                     aria-hidden="true"
                     className="absolute -right-1 -top-1 size-1.5 rounded-full bg-[var(--sidebar-dim)]"
@@ -685,14 +697,14 @@ export function SidebarPanel({
               </span>
               <span
                 className={`truncate transition-[max-width,opacity] duration-300 ease-out ${
-                  isCollapsed
+                  isCompact
                     ? "max-w-0 opacity-0"
                     : "max-w-[110px] opacity-100"
                 }`}
               >
                 {label}
               </span>
-              {badge && !isCollapsed ? (
+              {badge && !isCompact ? (
                 <span className="ml-auto rounded-full bg-[var(--sidebar-hover-strong)] px-1.5 py-px text-[10.5px] leading-4 text-[var(--sidebar-muted)] transition-colors duration-500">
                   {badge}
                 </span>
@@ -708,7 +720,7 @@ export function SidebarPanel({
           className="sidebar-dash-rule w-full transition-[width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
         />
 
-        {accounts.length === 0 && !isCollapsed ? (
+        {accounts.length === 0 && !isCompact ? (
           <p className="px-2 py-3 text-[12.5px] leading-5 text-[var(--sidebar-dim)]">
             No accounts connected yet
           </p>
@@ -719,13 +731,13 @@ export function SidebarPanel({
                 key={account.id}
                 account={account}
                 index={index}
-                isCollapsed={isCollapsed}
+                isCollapsed={isCompact}
               />
             ))}
           </ul>
         )}
 
-        {additionalAccounts.length > 0 && isCollapsed ? (
+        {additionalAccounts.length > 0 && isCompact ? (
           <div
             title={`${additionalAccounts.length} more connected accounts`}
             className="mx-auto flex size-8 items-center justify-center rounded-[5px] text-[11px] font-medium text-[var(--sidebar-dim)]"
@@ -734,7 +746,7 @@ export function SidebarPanel({
           </div>
         ) : null}
 
-        {additionalAccounts.length > 0 && !isCollapsed ? (
+        {additionalAccounts.length > 0 && !isCompact ? (
           <details className="group">
             <summary className="flex min-h-8 cursor-pointer list-none items-center gap-2 rounded-md px-2 py-1.5 text-[12.5px] text-[var(--sidebar-muted)] transition-colors hover:bg-[var(--sidebar-hover)] hover:text-[var(--sidebar-text)] [&::-webkit-details-marker]:hidden">
               <span className="grid size-[22px] shrink-0 place-items-center rounded-md border border-dashed border-[var(--sidebar-dashed)] text-[var(--sidebar-muted)]">
@@ -768,10 +780,10 @@ export function SidebarPanel({
         aria-label={isDarkTheme ? "Use light mode" : "Use dark mode"}
         onClick={toggleTheme}
         title={
-          isCollapsed ? (isDarkTheme ? "Light mode" : "Dark mode") : undefined
+          isCompact ? (isDarkTheme ? "Light mode" : "Dark mode") : undefined
         }
         className={`group mt-auto flex min-h-8 w-full items-center text-[12.5px] text-[var(--sidebar-muted)] transition-[gap,padding,background-color,color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:text-[var(--sidebar-text)] ${
-          isCollapsed
+          isCompact
             ? "gap-1 px-[3px] py-0"
             : "gap-1 rounded-md px-[3px] py-0 hover:bg-[var(--sidebar-hover)]"
         }`}
@@ -779,7 +791,7 @@ export function SidebarPanel({
         <span
           data-theme-toggle-origin
           className={`relative grid size-8 shrink-0 place-items-center overflow-hidden rounded-[5px] transition-colors duration-200 ${
-            isCollapsed
+            isCompact
               ? "group-hover:bg-[var(--sidebar-hover-strong)]"
               : ""
           }`}
@@ -803,7 +815,7 @@ export function SidebarPanel({
         </span>
         <span
           className={`overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-300 ease-out ${
-            isCollapsed ? "max-w-0 opacity-0" : "max-w-[92px] opacity-100"
+            isCompact ? "max-w-0 opacity-0" : "max-w-[92px] opacity-100"
           }`}
         >
           {isDarkTheme ? "Dark mode" : "Light mode"}
@@ -812,24 +824,24 @@ export function SidebarPanel({
 
       <button
         type="button"
-        aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-        aria-expanded={!isCollapsed}
+        aria-label={isCompact ? "Expand sidebar" : "Collapse sidebar"}
+        aria-expanded={!isCompact}
         onClick={toggleSidebar}
-        title={isCollapsed ? "Expand sidebar" : undefined}
+        title={isCompact ? "Expand sidebar" : undefined}
         className={`group flex min-h-8 w-full items-center text-[12.5px] text-[var(--sidebar-muted)] transition-[gap,padding,background-color,color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:text-[var(--sidebar-text)] ${
-          isCollapsed
+          isCompact
             ? "gap-1 px-[3px] py-0"
             : "gap-1 rounded-md px-[3px] py-0 hover:bg-[var(--sidebar-hover)]"
         }`}
       >
         <span
           className={`grid size-8 shrink-0 place-items-center rounded-[5px] transition-colors duration-200 ${
-            isCollapsed
+            isCompact
               ? "group-hover:bg-[var(--sidebar-hover-strong)]"
               : ""
           }`}
         >
-          {isCollapsed ? (
+          {isCompact ? (
             <PanelLeftOpen className="size-[15px]" strokeWidth={1.7} />
           ) : (
             <PanelLeftClose className="size-[15px]" strokeWidth={1.7} />
@@ -837,7 +849,7 @@ export function SidebarPanel({
         </span>
         <span
           className={`overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-300 ease-out ${
-            isCollapsed ? "max-w-0 opacity-0" : "max-w-[132px] opacity-100"
+            isCompact ? "max-w-0 opacity-0" : "max-w-[132px] opacity-100"
           }`}
         >
           Collapse sidebar
@@ -846,7 +858,7 @@ export function SidebarPanel({
 
       <footer
         className={`sidebar-dash-rule-top flex items-center pb-1 pt-3 transition-[gap,padding] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-          isCollapsed ? "gap-1 px-[3px]" : "gap-1 px-[3px]"
+          isCompact ? "gap-1 px-[3px]" : "gap-1 px-[3px]"
         }`}
       >
         <span className="grid size-8 shrink-0 place-items-center">
@@ -854,7 +866,7 @@ export function SidebarPanel({
         </span>
         <span
           className={`min-w-0 flex-1 overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-300 ease-out ${
-            isCollapsed ? "max-w-0 opacity-0" : "max-w-[140px] opacity-100"
+            isCompact ? "max-w-0 opacity-0" : "max-w-[140px] opacity-100"
           }`}
         >
           <span className="block truncate text-xs font-medium leading-4 text-[var(--sidebar-text)]">
@@ -866,11 +878,11 @@ export function SidebarPanel({
         </span>
         <button
           type="button"
-          aria-hidden={isCollapsed}
+          aria-hidden={isCompact}
           aria-label="Settings"
-          tabIndex={isCollapsed ? -1 : undefined}
+          tabIndex={isCompact ? -1 : undefined}
           className={`grid h-7 shrink-0 place-items-center overflow-hidden rounded-md text-[var(--sidebar-muted)] transition-[opacity,width,color,background-color] duration-300 hover:bg-[var(--sidebar-hover)] hover:text-[var(--sidebar-text)] ${
-            isCollapsed ? "w-0 opacity-0" : "w-7 opacity-100"
+            isCompact ? "w-0 opacity-0" : "w-7 opacity-100"
           }`}
         >
           <Settings className="size-3.5" strokeWidth={1.7} />
