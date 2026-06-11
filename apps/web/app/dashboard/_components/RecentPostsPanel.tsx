@@ -21,6 +21,8 @@ const TAB_TO_FORMAT: Record<Tab, PostFormat | "All"> = {
   Reels: "Reel",
 };
 
+const PANEL_HEIGHT = 760;
+
 function getInitials(label: string) {
   return (
     label
@@ -44,16 +46,16 @@ export function RecentPostsPanel({ rows }: RecentPostsPanelProps) {
 
   const filtered = useMemo(() => {
     const target = TAB_TO_FORMAT[active];
-    const items =
-      target === "All"
-        ? rows
-        : rows.filter((row) => normalizePostFormat(row.type) === target);
-    return items.slice(0, 6);
+    if (target === "All") return rows;
+    return rows.filter((row) => normalizePostFormat(row.type) === target);
   }, [active, rows]);
 
   return (
-    <section className="flex h-full flex-col gap-4 rounded-[14px] border border-line bg-paper p-4">
-      <header className="flex flex-col gap-3">
+    <section
+      className="flex flex-col gap-4 rounded-[14px] border border-line bg-paper p-4"
+      style={{ height: `${PANEL_HEIGHT}px` }}
+    >
+      <header className="flex shrink-0 flex-col gap-3">
         <h2 className="text-sm font-medium text-ink">Recent Posts</h2>
         <div className="flex items-center gap-1 rounded-full bg-card p-1">
           {TABS.map((tab) => {
@@ -88,7 +90,7 @@ export function RecentPostsPanel({ rows }: RecentPostsPanelProps) {
             return (
               <article
                 key={row.id}
-                className="flex flex-col gap-3 rounded-[12px] border border-line p-3"
+                className="flex shrink-0 flex-col gap-3 rounded-[12px] border border-line p-3"
               >
                 <header className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">

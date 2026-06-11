@@ -145,7 +145,10 @@ export function ContentRowsTable({
             ) : (
               <div
                 className="overflow-y-auto"
-                style={{ maxHeight: `${ROW_HEIGHT * VISIBLE_ROW_LIMIT}px` }}
+                style={{
+                  maxHeight: `${ROW_HEIGHT * VISIBLE_ROW_LIMIT}px`,
+                  overflowX: "clip",
+                }}
               >
                 {rows.map((row) => (
                   <Row

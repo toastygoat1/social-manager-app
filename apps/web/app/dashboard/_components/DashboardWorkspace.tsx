@@ -1,6 +1,6 @@
 import type { UserProfile } from "@/lib/supabase/user-profile";
+import { CalendarCard } from "./CalendarCard";
 import { ContentTable } from "./ContentTable";
-import { GoogleCalendarPanel } from "./GoogleCalendarPanel";
 import { LiveActivityPanel } from "./LiveActivityPanel";
 import { MyAccountsCarousel } from "./MyAccountsCarousel";
 import {
@@ -180,9 +180,9 @@ export function DashboardWorkspace({
           contentRows={data.contentRows}
         />
 
-        <div className="grid items-start gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
+        <div className="grid items-stretch gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
           <LiveActivityPanel initialRows={data.activityRows} />
-          <GoogleCalendarPanel />
+          <CalendarCard calendar={data.calendar} />
         </div>
 
         <ContentTable

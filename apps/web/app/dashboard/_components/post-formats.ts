@@ -4,8 +4,8 @@ export type PostFormat = (typeof POST_FORMATS)[number];
 
 export const POST_FORMAT_COLORS: Record<PostFormat, string> = {
   Post: "#0d0d0d",
-  Reel: "#2aa889",
-  Carousel: "#5e6ad2",
+  Reel: "#5e6ad2",
+  Carousel: "#2aa889",
   Story: "#e17b5f",
 };
 

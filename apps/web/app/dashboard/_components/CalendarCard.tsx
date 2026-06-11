@@ -171,8 +171,9 @@ type CalendarCardProps = {
 
 export function CalendarCard({ calendar }: CalendarCardProps) {
   return (
-    <div className="flex h-full shrink-0 flex-col items-start overflow-hidden rounded-2xl border border-line bg-card p-6">
-      <div className="flex h-[274px] w-[595px] flex-col overflow-hidden rounded-md border border-line bg-paper">
+    <section className="flex h-full min-h-0 flex-col gap-3 rounded-[14px] border border-line bg-paper p-4">
+      <h2 className="text-sm font-medium text-ink">Google Calender</h2>
+      <div className="flex min-h-[420px] flex-1 flex-col overflow-hidden rounded-[10px] border border-line bg-paper">
         {calendar ? (
           <CalendarView calendar={calendar} />
         ) : (
@@ -182,7 +183,7 @@ export function CalendarCard({ calendar }: CalendarCardProps) {
           </div>
         )}
       </div>
-    </div>
+    </section>
   );
 }
 
