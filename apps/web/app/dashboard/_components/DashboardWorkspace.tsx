@@ -1,12 +1,16 @@
-import { Link2 } from "lucide-react";
 import type { UserProfile } from "@/lib/supabase/user-profile";
-import { AccountChip } from "./AccountChip";
-import { ConnectAccountsButton } from "./ConnectAccountsButton";
 import { ContentTable } from "./ContentTable";
-import { EditorialCalendar } from "./EditorialCalendar";
+import { GoogleCalendarPanel } from "./GoogleCalendarPanel";
 import { LiveActivityPanel } from "./LiveActivityPanel";
-import { UploadChart } from "./UploadChart";
-import type { ChartBar, ContentRow, DashboardData } from "./data";
+import { MyAccountsCarousel } from "./MyAccountsCarousel";
+import {
+  PublishedChart,
+  type PublishedBar,
+} from "./PublishedChart";
+import { RecentPostsPanel } from "./RecentPostsPanel";
+import { StatusStatCard } from "./StatusStatCard";
+import { emptyBreakdown, normalizePostFormat } from "./post-formats";
+import type { ContentRow, DashboardData } from "./data";
 
 type ConnectionStatus = {
   source: "instagram";
@@ -21,251 +25,165 @@ type DashboardWorkspaceProps = {
   todayIso: string;
 };
 
-type ContentStatus = "published" | "draft" | "pending";
+type StatusGroup = "pending" | "draft" | "ready" | "published";
 
-const ACCOUNT_CHART_COLORS = [
-  "#5e6ad2",
-  "#2aa889",
-  "#e17b5f",
-  "#d5a33f",
-  "#7f8ea3",
-  "#47a6b5",
-  "#b66fb3",
-  "#4f7bbd",
-];
-
-const POST_FORMATS = ["Post", "Reel", "Story", "Carousel"] as const;
-
-function normalizeStatus(status: string) {
-  return status.toLowerCase();
+function classifyStatus(status: string): StatusGroup | "other" {
+  const normalized = status.toLowerCase();
+  if (normalized.includes("publish")) return "published";
+  if (normalized.includes("draft")) return "draft";
+  if (
+    normalized.includes("ready") ||
+    normalized.includes("approved") ||
+    normalized.includes("scheduled")
+  ) {
+    return "ready";
+  }
+  if (
+    normalized.includes("pending") ||
+    normalized.includes("review")
+  ) {
+    return "pending";
+  }
+  return "other";
 }
 
-function countRowsByStatus(rows: ContentRow[], status: ContentStatus) {
-  return rows.filter((row) => {
-    const normalized = normalizeStatus(row.status);
-    if (status === "published") return normalized.includes("published");
-    if (status === "draft") return normalized.includes("draft");
-    return ["pending", "review", "ready"].some((item) =>
-      normalized.includes(item),
-    );
-  }).length;
-}
-
-function getInitials(label: string) {
-  return (
-    label
-      .replace(/^@/, "")
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((part) => part.charAt(0).toUpperCase())
-      .join("") || "A"
+function buildStatusBreakdown(
+  rows: ContentRow[],
+  group: StatusGroup,
+) {
+  const breakdown = emptyBreakdown();
+  for (const row of rows) {
+    if (classifyStatus(row.status) !== group) continue;
+    const format = normalizePostFormat(row.type);
+    breakdown[format] += 1;
+  }
+  const total = (Object.values(breakdown) as number[]).reduce(
+    (sum, value) => sum + value,
+    0,
   );
+  return { breakdown, total };
 }
 
-function normalizePostFormat(type: string) {
-  const normalized = type.toLowerCase();
-  if (normalized.includes("story")) return "Story";
-  if (normalized.includes("reel")) return "Reel";
-  if (normalized.includes("carousel")) return "Carousel";
-  return "Post";
-}
+function buildPublishedBars(data: DashboardData): {
+  bars: PublishedBar[];
+  total: number;
+} {
+  const map = new Map<string, PublishedBar>();
+  let total = 0;
 
-function normalizeLegacySegmentLabel(label: string) {
-  const normalized = label.toLowerCase();
-  if (normalized.includes("stor")) return "Story";
-  if (normalized.includes("reel")) return "Reel";
-  if (normalized.includes("carousel")) return "Carousel";
-  return "Post";
-}
-
-function buildFallbackChartBars(bars: ChartBar[]) {
-  return bars.map((bar, index) => ({
-    ...bar,
-    color: ACCOUNT_CHART_COLORS[index % ACCOUNT_CHART_COLORS.length],
-    fallback: getInitials(bar.label),
-    segments: (bar.segments ?? [{ label: bar.label, value: bar.value, color: bar.color }])
-      .filter((segment) => segment.value > 0)
-      .map((segment) => ({
-        ...segment,
-        label: normalizeLegacySegmentLabel(segment.label),
-      })),
-  }));
-}
-
-function buildPostChartBars(data: DashboardData): ChartBar[] {
-  const accounts = new Map(
-    data.accounts.map((account, index) => [
-      account.id,
-      {
-        account,
-        index,
-        segments: new Map<(typeof POST_FORMATS)[number], number>(
-          POST_FORMATS.map((format) => [format, 0]),
-        ),
-      },
-    ]),
-  );
+  for (const account of data.accounts) {
+    map.set(account.id, {
+      accountId: account.id,
+      account,
+      total: 0,
+      breakdown: emptyBreakdown(),
+    });
+  }
 
   for (const row of data.contentRows) {
-    const existing =
-      accounts.get(row.account.id) ??
-      {
-        account: row.account,
-        index: accounts.size,
-        segments: new Map<(typeof POST_FORMATS)[number], number>(
-          POST_FORMATS.map((format) => [format, 0]),
-        ),
-      };
+    if (classifyStatus(row.status) !== "published") continue;
     const format = normalizePostFormat(row.type);
-    existing.segments.set(format, (existing.segments.get(format) ?? 0) + 1);
-    accounts.set(row.account.id, existing);
-  }
-
-  const bars = [...accounts.values()]
-    .map(({ account, index, segments }) => {
-      const segmentList = POST_FORMATS.map((label) => ({
-        label,
-        value: segments.get(label) ?? 0,
-        color: ACCOUNT_CHART_COLORS[index % ACCOUNT_CHART_COLORS.length],
-      })).filter((segment) => segment.value > 0);
-
-      return {
-        label: account.name,
-        value: segmentList.reduce((sum, segment) => sum + segment.value, 0),
-        color: ACCOUNT_CHART_COLORS[index % ACCOUNT_CHART_COLORS.length],
-        avatarUrl: account.avatarUrl,
-        fallback: getInitials(account.name),
-        segments: segmentList,
+    total += 1;
+    const existing =
+      map.get(row.account.id) ??
+      {
+        accountId: row.account.id,
+        account: row.account,
+        total: 0,
+        breakdown: emptyBreakdown(),
       };
-    })
-    .filter((bar) => bar.value > 0);
-
-  return bars.length > 0 ? bars : buildFallbackChartBars(data.uploadChart);
-}
-
-function DashboardHero({ data }: { data: DashboardData }) {
-  const totalAccounts = data.totalAccounts ?? 0;
-
-  if (totalAccounts === 0) {
-    return (
-      <section className="flex flex-col gap-1 py-2">
-        <h1 className="text-3xl font-medium leading-tight text-ink tracking-[-0.015em]">
-          Connect an account to get started
-        </h1>
-        <p className="text-sm text-muted">
-          Your scheduled posts, drafts, and account metrics appear here once an
-          Instagram account is linked.
-        </p>
-      </section>
-    );
+    existing.total += 1;
+    existing.breakdown[format] += 1;
+    map.set(row.account.id, existing);
   }
 
-  const pending = countRowsByStatus(data.contentRows, "pending");
-  const drafts = countRowsByStatus(data.contentRows, "draft");
-
-  return (
-    <section className="flex flex-col gap-1 py-2">
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <span className="text-5xl font-medium leading-none text-ink tracking-[-0.025em] tabular-nums">
-          {pending}
-        </span>
-        <span className="text-sm font-medium text-ink">
-          {pending === 1 ? "post" : "posts"} scheduled to publish
-        </span>
-      </div>
-      <p className="text-sm text-muted">
-        {drafts} {drafts === 1 ? "draft" : "drafts"} awaiting review across{" "}
-        {totalAccounts} {totalAccounts === 1 ? "account" : "accounts"}.
-      </p>
-    </section>
-  );
+  const bars = [...map.values()].sort((a, b) => b.total - a.total);
+  return { bars, total };
 }
 
-function AccountsPanel({
-  accounts,
-  totalAccounts,
-  connectionStatus,
-}: {
-  accounts: DashboardData["accounts"];
-  totalAccounts: number | null;
-  connectionStatus: ConnectionStatus;
-}) {
-  return (
-    <section className="flex flex-col rounded-[8px] border border-line bg-paper p-5">
-      <header className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <span className="grid size-8 place-items-center rounded-lg bg-cta/10 text-cta">
-            <Link2 className="size-4" strokeWidth={1.8} />
-          </span>
-          <h2 className="text-sm font-medium text-ink">Accounts</h2>
-        </div>
-        <ConnectAccountsButton />
-      </header>
-
-      {connectionStatus ? (
-        <p
-          className={`mt-4 rounded-lg px-2.5 py-2 text-xs ${
-            connectionStatus.tone === "success"
-              ? "bg-success/10 text-success"
-              : "bg-danger/10 text-danger"
-          }`}
-        >
-          {connectionStatus.message}
-        </p>
-      ) : null}
-
-      {accounts.length === 0 ? (
-        <p className="mt-4 text-sm text-muted">
-          Connect an Instagram account to plan posts and pull metrics.
-        </p>
-      ) : (
-        <ul className="mt-4 space-y-2">
-          {accounts.slice(0, 3).map((account) => (
-            <li key={account.id}>
-              <AccountChip
-                accountId={account.id}
-                name={account.name}
-                platform={account.platform}
-                avatarUrl={account.avatarUrl}
-                className="w-full !bg-card"
-              />
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
-  );
+function getGreetingName(profile: UserProfile) {
+  if (profile.name) return profile.name;
+  if (profile.email) {
+    const handle = profile.email.split("@")[0];
+    return handle.charAt(0).toUpperCase() + handle.slice(1);
+  }
+  return "there";
 }
 
 export function DashboardWorkspace({
   data,
   profile,
   connectionStatus,
-  todayIso,
 }: DashboardWorkspaceProps) {
-  const postChartBars = buildPostChartBars(data);
+  const greetingName = getGreetingName(profile);
+  const pending = buildStatusBreakdown(data.contentRows, "pending");
+  const draft = buildStatusBreakdown(data.contentRows, "draft");
+  const ready = buildStatusBreakdown(data.contentRows, "ready");
+  const { bars: publishedBars, total: publishedTotal } =
+    buildPublishedBars(data);
 
   return (
     <div className="app-shell-fill bg-paper font-inter text-ink transition-colors duration-500">
       <main className="mx-auto flex w-full max-w-[1480px] flex-col gap-4 px-5 py-6 sm:px-7 sm:py-7 lg:px-9">
-        <DashboardHero data={data} />
+        <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="flex min-w-0 flex-col gap-4">
+            <h1
+              className="text-[44px] font-medium leading-[1.05] tracking-[-0.02em] text-ink"
+              style={{
+                fontFamily:
+                  'Georgia, "Times New Roman", "Iowan Old Style", serif',
+              }}
+            >
+              Good morning, {greetingName}
+            </h1>
 
-        <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
-          <div className="grid min-w-0 gap-4">
-            <UploadChart bars={postChartBars} />
+            {connectionStatus ? (
+              <p
+                className={`rounded-[10px] px-3 py-2 text-xs ${
+                  connectionStatus.tone === "success"
+                    ? "bg-success/10 text-success"
+                    : "bg-danger/10 text-danger"
+                }`}
+              >
+                {connectionStatus.message}
+              </p>
+            ) : null}
+
+            <div className="grid gap-3 sm:grid-cols-3">
+              <StatusStatCard
+                label="Pending"
+                total={pending.total}
+                breakdown={pending.breakdown}
+              />
+              <StatusStatCard
+                label="Draft"
+                total={draft.total}
+                breakdown={draft.breakdown}
+              />
+              <StatusStatCard
+                label="Ready"
+                total={ready.total}
+                breakdown={ready.breakdown}
+              />
+            </div>
+
+            <PublishedChart total={publishedTotal} bars={publishedBars} />
           </div>
-          <div className="grid content-start gap-4">
-            <AccountsPanel
-              accounts={data.accounts}
-              totalAccounts={data.totalAccounts}
-              connectionStatus={connectionStatus}
-            />
-            <LiveActivityPanel initialRows={data.activityRows} />
+
+          <div className="flex min-w-0 flex-col gap-4">
+            <RecentPostsPanel rows={data.contentRows} />
           </div>
         </div>
 
-        <EditorialCalendar calendar={data.calendar} todayIso={todayIso} />
+        <MyAccountsCarousel
+          accounts={data.accounts}
+          contentRows={data.contentRows}
+        />
+
+        <div className="grid items-start gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
+          <LiveActivityPanel initialRows={data.activityRows} />
+          <GoogleCalendarPanel />
+        </div>
 
         <ContentTable
           rows={data.contentRows}
@@ -275,3 +193,4 @@ export function DashboardWorkspace({
     </div>
   );
 }
+
