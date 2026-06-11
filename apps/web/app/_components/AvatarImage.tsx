@@ -12,6 +12,26 @@ type AvatarImageProps = {
   fallback: string;
 };
 
+const FALLBACK_COLORS = [
+  "#b2a4ed",
+  "#73b1f4",
+  "#66d4ef",
+  "#61ddbb",
+  "#f0b86e",
+  "#ee8fa7",
+  "#9bb2ff",
+  "#85d2a8",
+];
+
+function getFallbackColor(seed: string) {
+  const cleanSeed = seed.trim() || "?";
+  let hash = 0;
+  for (let index = 0; index < cleanSeed.length; index += 1) {
+    hash = (hash * 31 + cleanSeed.charCodeAt(index)) % FALLBACK_COLORS.length;
+  }
+  return FALLBACK_COLORS[Math.abs(hash) % FALLBACK_COLORS.length];
+}
+
 export function AvatarImage({
   src,
   alt,
@@ -21,28 +41,21 @@ export function AvatarImage({
   fallback,
 }: AvatarImageProps) {
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
-  const fallbackLabel = (fallback || "?").trim().slice(0, 2);
+  const fallbackLabel = (fallback || "?").trim().slice(0, 2).toUpperCase();
+  const fallbackColor = getFallbackColor(fallbackLabel);
 
   if (!src || failedSrc === src) {
     return (
       <span
         aria-hidden={alt ? undefined : true}
-        className={`relative inline-flex items-center justify-center overflow-hidden bg-[#e9e9e9] font-semibold uppercase leading-none text-[#5a5a5a] ${className ?? ""}`}
+        className={`relative inline-flex items-center justify-center overflow-hidden font-semibold uppercase leading-none text-white ${className ?? ""}`}
         style={{
           width,
           height,
+          backgroundColor: fallbackColor,
           fontSize: Math.max(Math.round(width * 0.42), 9),
         }}
       >
-        <svg
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-          className="absolute inset-0 size-full opacity-40"
-          fill="currentColor"
-        >
-          <circle cx="12" cy="9" r="3.6" />
-          <path d="M4.5 20c0-3.6 3.4-6 7.5-6s7.5 2.4 7.5 6v.5H4.5z" />
-        </svg>
         <span className="relative">{fallbackLabel}</span>
       </span>
     );

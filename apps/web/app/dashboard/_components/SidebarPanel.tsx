@@ -9,14 +9,15 @@ import {
   Columns2,
   Home,
   Inbox,
+  Link2Off,
   LoaderCircle,
   Moon,
   PanelLeftClose,
   PanelLeftOpen,
   RefreshCw,
-  Settings,
   Sparkles,
   Sun,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -289,6 +290,25 @@ function getBackfillSuccessMessage(result: BackfillResponse) {
   return `Backfill complete: ${parts.join(", ")}.`;
 }
 
+function getDisconnectErrorMessage(error: unknown) {
+  if (error instanceof ApiError) {
+    if (error.status === 401) {
+      return "Please sign in again before disconnecting this account.";
+    }
+
+    if (error.status === 404) {
+      return "This Instagram account is already disconnected or no longer available.";
+    }
+
+    return (
+      getApiErrorMessage(error) ??
+      `Instagram account could not be disconnected. API returned ${error.status}.`
+    );
+  }
+
+  return "Instagram account could not be disconnected. Please try again after the API finishes redeploying.";
+}
+
 function getInsightsHref(accountId?: string | null) {
   if (!accountId) {
     return "/analytics";
@@ -546,6 +566,10 @@ export function SidebarPanel({
   );
   const [selectedNavKey, setSelectedNavKey] = useState<SidebarKey>(active);
   const [isNarrowViewport, setIsNarrowViewport] = useState(false);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [disconnectingAccountId, setDisconnectingAccountId] =
+    useState<string | null>(null);
+  const router = useRouter();
   const visibleAccounts = accounts.slice(0, VISIBLE_ACCOUNT_COUNT);
   const additionalAccounts = accounts.slice(VISIBLE_ACCOUNT_COUNT);
   const profileName = getProfileName(profile);
@@ -580,6 +604,27 @@ export function SidebarPanel({
 
     writeSidebarCollapsedCookie(nextCollapsed);
     window.dispatchEvent(new Event(SIDEBAR_COLLAPSED_EVENT));
+  }
+
+  async function disconnectAccount(account: Account) {
+    const confirmed = window.confirm(
+      `Disconnect ${getAccountTitle(account)} from this workspace?`,
+    );
+    if (!confirmed) return;
+
+    setDisconnectingAccountId(account.id);
+
+    try {
+      await apiFetchBrowser(`/instagram/accounts/${encodeURIComponent(account.id)}`, {
+        method: "DELETE",
+      });
+      setIsProfileMenuOpen(false);
+      router.refresh();
+    } catch (error) {
+      window.alert(getDisconnectErrorMessage(error));
+    } finally {
+      setDisconnectingAccountId(null);
+    }
   }
 
   function toggleTheme(event: MouseEvent<HTMLButtonElement>) {
@@ -856,36 +901,107 @@ export function SidebarPanel({
         </span>
       </button>
 
+      {isProfileMenuOpen ? (
+        <div className="fixed bottom-16 left-4 z-50 w-[286px] rounded-[14px] border border-line bg-paper p-3 text-left text-ink">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-ink">Account settings</p>
+              <p className="mt-0.5 truncate text-[11px] text-muted">
+                Signed in as {profileDetail}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsProfileMenuOpen(false)}
+              aria-label="Close account settings"
+              className="grid size-7 shrink-0 place-items-center rounded-lg text-muted transition hover:bg-card hover:text-ink"
+            >
+              <X className="size-3.5" strokeWidth={1.8} />
+            </button>
+          </div>
+
+          <div className="mt-3 rounded-[10px] border border-line bg-card p-2.5">
+            <p className="text-[11px] font-medium text-muted">
+              Connected destinations
+            </p>
+            {accounts.length === 0 ? (
+              <p className="mt-2 text-xs text-muted">
+                No social accounts connected yet.
+              </p>
+            ) : (
+              <div className="mt-2 flex flex-col gap-2">
+                {accounts.map((account, index) => {
+                  const isDisconnecting =
+                    disconnectingAccountId === account.id;
+                  return (
+                    <div
+                      key={account.id}
+                      className="flex items-center gap-2 rounded-[9px] bg-paper px-2 py-2"
+                    >
+                      <AccountAvatar account={account} index={index} />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-medium text-ink">
+                          {getAccountTitle(account)}
+                        </p>
+                        <p className="truncate text-[10px] text-muted">
+                          {account.platform} / {getAccountHandle(account)}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => disconnectAccount(account)}
+                        disabled={isDisconnecting}
+                        className="grid size-8 shrink-0 place-items-center rounded-lg text-muted transition hover:bg-red-50 hover:text-danger disabled:pointer-events-none disabled:opacity-60"
+                        aria-label={`Disconnect ${account.name}`}
+                        title="Disconnect"
+                      >
+                        {isDisconnecting ? (
+                          <LoaderCircle
+                            className="size-3.5 animate-spin"
+                            strokeWidth={1.8}
+                          />
+                        ) : (
+                          <Link2Off className="size-3.5" strokeWidth={1.8} />
+                        )}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      ) : null}
+
       <footer
-        className={`sidebar-dash-rule-top flex items-center pb-1 pt-3 transition-[gap,padding] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+        className={`sidebar-dash-rule-top pb-1 pt-3 transition-[gap,padding] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
           isCompact ? "gap-1 px-[3px]" : "gap-1 px-[3px]"
         }`}
       >
-        <span className="grid size-8 shrink-0 place-items-center">
-          <ProfileAvatar profile={profile} />
-        </span>
-        <span
-          className={`min-w-0 flex-1 overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-300 ease-out ${
-            isCompact ? "max-w-0 opacity-0" : "max-w-[140px] opacity-100"
-          }`}
-        >
-          <span className="block truncate text-xs font-medium leading-4 text-[var(--sidebar-text)]">
-            {profileName}
-          </span>
-          <span className="block truncate text-[10.5px] leading-4 text-[var(--sidebar-dim)]">
-            {profileDetail}
-          </span>
-        </span>
         <button
           type="button"
-          aria-hidden={isCompact}
-          aria-label="Settings"
-          tabIndex={isCompact ? -1 : undefined}
-          className={`grid h-7 shrink-0 place-items-center overflow-hidden rounded-md text-[var(--sidebar-muted)] transition-[opacity,width,color,background-color] duration-300 hover:bg-[var(--sidebar-hover)] hover:text-[var(--sidebar-text)] ${
-            isCompact ? "w-0 opacity-0" : "w-7 opacity-100"
+          onClick={() => setIsProfileMenuOpen((open) => !open)}
+          aria-expanded={isProfileMenuOpen}
+          aria-label="Open account settings"
+          className={`flex w-full items-center rounded-md text-left transition-colors hover:bg-[var(--sidebar-hover)] ${
+            isCompact ? "gap-1 px-0 py-0" : "gap-1 px-0 py-1"
           }`}
         >
-          <Settings className="size-3.5" strokeWidth={1.7} />
+          <span className="grid size-8 shrink-0 place-items-center">
+            <ProfileAvatar profile={profile} />
+          </span>
+          <span
+            className={`min-w-0 flex-1 overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-300 ease-out ${
+              isCompact ? "max-w-0 opacity-0" : "max-w-[150px] opacity-100"
+            }`}
+          >
+            <span className="block truncate text-xs font-medium leading-4 text-[var(--sidebar-text)]">
+              {profileName}
+            </span>
+            <span className="block truncate text-[10.5px] leading-4 text-[var(--sidebar-dim)]">
+              {profileDetail}
+            </span>
+          </span>
         </button>
       </footer>
     </aside>

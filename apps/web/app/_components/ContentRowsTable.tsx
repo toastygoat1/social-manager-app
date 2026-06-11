@@ -1,15 +1,14 @@
 "use client";
 
-import { AccountChip } from "@/app/dashboard/_components/AccountChip";
 import type {
   ContentRow,
   MetadataFieldDefinition,
 } from "@/app/dashboard/_components/data";
 import { PostDetailsModal } from "@/app/scheduler/_components/PostDetailsModal";
 import { formatNumber } from "@/lib/format";
-import { ImageIcon, Play, X } from "lucide-react";
+import { ImageIcon, Play, Search, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 
 type ContentMediaItem = {
   id: string;
@@ -34,10 +33,20 @@ type ContentRowsTableProps = {
 
 const METADATA_MIN_WIDTH = 120;
 const METADATA_MAX_WIDTH = 190;
+const INITIAL_VISIBLE_ROWS = 10;
 
 const LEADING_COLUMNS: { label: string; width: number }[] = [
   { label: "Content", width: 265 },
   { label: "Account", width: 210 },
+];
+
+const ACCOUNT_FALLBACK_COLORS = [
+  "#b2a4ed",
+  "#73b1f4",
+  "#66d4ef",
+  "#61ddbb",
+  "#f0b86e",
+  "#ee8fa7",
 ];
 
 const TRAILING_COLUMNS: { label: string; width: number }[] = [
@@ -70,6 +79,29 @@ function getMetadataColumnWidth(field: MetadataFieldDefinition) {
   );
 }
 
+function getColorFromSeed(seed: string) {
+  let hash = 0;
+  for (let index = 0; index < seed.length; index += 1) {
+    hash = (hash * 33 + seed.charCodeAt(index)) % ACCOUNT_FALLBACK_COLORS.length;
+  }
+  return ACCOUNT_FALLBACK_COLORS[Math.abs(hash) % ACCOUNT_FALLBACK_COLORS.length];
+}
+
+function AccountPill({ row }: { row: ContentRowsTableRow }) {
+  const color =
+    row.account.accentColor || getColorFromSeed(row.account.name || row.account.id);
+
+  return (
+    <span
+      className="inline-flex max-w-full items-center rounded-full px-3 py-1 text-[11px] font-medium text-black/70"
+      style={{ backgroundColor: `${color}55` }}
+      title={row.account.name}
+    >
+      <span className="truncate">{row.account.name}</span>
+    </span>
+  );
+}
+
 function Cell({
   width,
   children,
@@ -94,7 +126,29 @@ export function ContentRowsTable({
   const router = useRouter();
   const [previewRow, setPreviewRow] = useState<PreviewRow | null>(null);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_ROWS);
   const totalWidth = getTotalWidth(metadataFields);
+  const normalizedQuery = query.trim().toLowerCase();
+  const filteredRows = useMemo(() => {
+    if (!normalizedQuery) return rows;
+    return rows.filter((row) => {
+      const searchable = [
+        row.contents,
+        row.caption,
+        row.type,
+        row.status,
+        row.datePost,
+        row.account.name,
+        row.account.platform,
+      ]
+        .join(" ")
+        .toLowerCase();
+      return searchable.includes(normalizedQuery);
+    });
+  }, [normalizedQuery, rows]);
+  const visibleRows = filteredRows.slice(0, visibleCount);
+  const remainingRows = Math.max(filteredRows.length - visibleRows.length, 0);
 
   return (
     <section className="flex min-w-0 flex-col gap-3 overflow-hidden rounded-[16px] border border-line bg-paper p-4">
@@ -102,12 +156,26 @@ export function ContentRowsTable({
         <div>
           <h2 className="text-sm font-semibold text-ink">Content Table</h2>
           <p className="mt-0.5 text-xs text-muted">
-            {rows.length} recent items / all statuses
+            {filteredRows.length} of {rows.length} items / all statuses
           </p>
         </div>
-        <span className="rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-muted">
-          All statuses
-        </span>
+        <label className="relative flex min-w-[240px] flex-1 items-center sm:max-w-[340px]">
+          <Search
+            aria-hidden="true"
+            className="pointer-events-none absolute left-3 size-3.5 text-muted"
+            strokeWidth={1.8}
+          />
+          <input
+            value={query}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setVisibleCount(INITIAL_VISIBLE_ROWS);
+            }}
+            placeholder="Search content, account, status..."
+            className="h-9 w-full rounded-lg border border-line bg-paper pl-9 pr-3 text-xs text-ink outline-none transition focus:border-[#b7b7b7] focus:bg-card"
+            type="search"
+          />
+        </label>
       </header>
       <div className="w-full overflow-hidden rounded-[8px] border border-line">
         <div className="w-full overflow-x-auto">
@@ -135,16 +203,17 @@ export function ContentRowsTable({
                 </Cell>
               ))}
             </div>
-            {rows.length === 0 ? (
+            {filteredRows.length === 0 ? (
               <div className="flex h-24 items-center justify-center text-sm text-muted">
-                No content tracked yet
+                {query ? "No content matches your search" : "No content tracked yet"}
               </div>
             ) : (
               <div style={{ overflowX: "clip" }}>
-                {rows.map((row) => (
+                {visibleRows.map((row, index) => (
                   <Row
                     key={row.id}
                     row={row}
+                    index={index}
                     metadataFields={metadataFields}
                     onOpenDetails={setSelectedPostId}
                     onPreview={setPreviewRow}
@@ -155,6 +224,15 @@ export function ContentRowsTable({
           </div>
         </div>
       </div>
+      {remainingRows > 0 ? (
+        <button
+          type="button"
+          onClick={() => setVisibleCount((count) => count + INITIAL_VISIBLE_ROWS)}
+          className="dashboard-motion-card self-center rounded-full border border-line bg-paper px-4 py-2 text-xs font-medium text-ink hover:bg-card"
+        >
+          Show {Math.min(INITIAL_VISIBLE_ROWS, remainingRows)} more
+        </button>
+      ) : null}
       {previewRow ? (
         <MediaPreviewModal
           row={previewRow}
@@ -193,11 +271,13 @@ function StatusPill({ status }: { status: string }) {
 
 function Row({
   row,
+  index,
   metadataFields,
   onOpenDetails,
   onPreview,
 }: {
   row: ContentRowsTableRow;
+  index: number;
   metadataFields: MetadataFieldDefinition[];
   onOpenDetails: (postId: string) => void;
   onPreview: (row: PreviewRow) => void;
@@ -218,7 +298,8 @@ function Row({
           onOpenDetails(row.id);
         }
       }}
-      className="flex h-[48px] cursor-pointer items-center border-b border-line transition hover:bg-card focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#5e6ad2]"
+      className="dashboard-item-enter flex h-[48px] cursor-pointer items-center border-b border-line transition hover:bg-card focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#5e6ad2]"
+      style={{ animationDelay: `${Math.min(index * 24, 220)}ms` }}
     >
       <Cell width={265}>
         <span className="truncate text-[12px] font-medium text-ink">
@@ -229,12 +310,7 @@ function Row({
         className="flex h-full shrink-0 items-center px-2.5 py-1.5"
         style={{ width: 210 }}
       >
-        <AccountChip
-          name={row.account.name}
-          platform={row.account.platform}
-          avatarUrl={row.account.avatarUrl}
-          className="w-full"
-        />
+        <AccountPill row={row} />
       </div>
       <Cell width={90}>
         <span className="text-xs text-muted">{row.type}</span>
