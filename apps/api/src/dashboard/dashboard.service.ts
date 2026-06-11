@@ -83,6 +83,7 @@ type ContentRow = {
   comments: number | null;
   shares: number | null;
   media: string;
+  thumbnailUrl: string | null;
 };
 
 type DashboardOverview = {
@@ -237,6 +238,7 @@ export class DashboardService {
         comments: latest?.commentsCount ?? null,
         shares: latest?.sharesCount ?? null,
         media: post.postMedia.length > 0 ? String(post.postMedia.length) : '—',
+        thumbnailUrl: post.igThumbnailUrl ?? post.igMediaUrl ?? null,
       };
     });
 
