@@ -179,6 +179,15 @@ body {
   min-height: 0;
 }
 
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
 .sidebar-dash-rule {
   height: 1px;
   background-image: repeating-linear-gradient(

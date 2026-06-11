@@ -171,7 +171,7 @@ type CalendarCardProps = {
 
 export function CalendarCard({ calendar }: CalendarCardProps) {
   return (
-    <section className="flex h-full min-h-0 flex-col gap-3 rounded-[14px] border border-line bg-paper p-4">
+    <section className="flex h-full min-h-0 flex-col gap-3 rounded-[20px] border border-line bg-paper p-5">
       <h2 className="text-sm font-medium text-ink">Google Calender</h2>
       <div className="flex min-h-[420px] flex-1 flex-col overflow-hidden rounded-[10px] border border-line bg-paper">
         {calendar ? (

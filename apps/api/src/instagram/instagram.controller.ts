@@ -20,6 +20,10 @@ import { BackfillInstagramAccountDto } from './dto/backfill-instagram-account.dt
 import { CompleteInstagramOAuthDto } from './dto/complete-instagram-oauth.dto.js';
 import { SendDmMessageDto } from './dto/send-dm-message.dto.js';
 import { UpdateAccountPersonalizationDto } from './dto/update-account-personalization.dto.js';
+import {
+  BannerUploadUrlDto,
+  ConfirmBannerUploadDto,
+} from './dto/banner-upload-url.dto.js';
 import type { AuthedRequest } from '../auth/auth.types.js';
 import type { InstagramWebhookPayload } from './instagram-webhook.types.js';
 
@@ -84,6 +88,43 @@ export class InstagramController {
       accountId,
       body,
     );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('accounts/:accountId/banner/upload-url')
+  async createBannerUploadUrl(
+    @Request() req: AuthedRequest,
+    @Param('accountId') accountId: string,
+    @Body() body: BannerUploadUrlDto,
+  ) {
+    return this.instagramService.createBannerUploadUrl(
+      req.user,
+      accountId,
+      body,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('accounts/:accountId/banner')
+  async confirmBanner(
+    @Request() req: AuthedRequest,
+    @Param('accountId') accountId: string,
+    @Body() body: ConfirmBannerUploadDto,
+  ) {
+    return this.instagramService.confirmBannerUpload(
+      req.user.userId,
+      accountId,
+      body.storagePath,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('accounts/:accountId/banner')
+  async clearBanner(
+    @Request() req: AuthedRequest,
+    @Param('accountId') accountId: string,
+  ) {
+    return this.instagramService.clearBanner(req.user.userId, accountId);
   }
 
   @UseGuards(JwtAuthGuard)

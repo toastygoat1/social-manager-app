@@ -48,6 +48,7 @@ model InstagramAccount {
   accountType          InstagramAccountType @map("account_type")
   avatarUrl            String?              @map("avatar_url")
   bannerUrl            String?              @map("banner_url")
+  bannerStoragePath    String?              @map("banner_storage_path")
   accentColor          String?              @map("accent_color")
   nickname             String?
   note                 String?

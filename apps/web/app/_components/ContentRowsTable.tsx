@@ -97,7 +97,7 @@ export function ContentRowsTable({
   const totalWidth = getTotalWidth(metadataFields);
 
   return (
-    <section className="flex min-w-0 flex-col gap-4 overflow-hidden rounded-[8px] border border-line bg-paper p-4">
+    <section className="flex min-w-0 flex-col gap-4 overflow-hidden rounded-[20px] border border-line bg-paper p-5">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-sm font-semibold text-ink">Content Table</h2>

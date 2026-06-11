@@ -175,10 +175,7 @@ export function DashboardWorkspace({
           </div>
         </div>
 
-        <MyAccountsCarousel
-          accounts={data.accounts}
-          contentRows={data.contentRows}
-        />
+        <MyAccountsCarousel accounts={data.accounts} />
 
         <div className="grid items-stretch gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
           <LiveActivityPanel initialRows={data.activityRows} />

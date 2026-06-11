@@ -71,10 +71,8 @@ export function PublishedChart({ total, bars }: PublishedChartProps) {
     if (visibleBars.length === 0 || width <= 0) return null;
     const stride = BAR_WIDTH + BAR_GAP;
     const totalWidth = visibleBars.length * BAR_WIDTH + (visibleBars.length - 1) * BAR_GAP;
-    const startX = (width - totalWidth) / 2;
-    const localX = x - startX;
-    if (localX < -BAR_GAP / 2 || localX > totalWidth + BAR_GAP / 2) return null;
-    const index = Math.round(localX / stride);
+    if (x < -BAR_GAP / 2 || x > totalWidth + BAR_GAP / 2) return null;
+    const index = Math.round(x / stride);
     return Math.max(0, Math.min(visibleBars.length - 1, index));
   }
 
@@ -101,7 +99,7 @@ export function PublishedChart({ total, bars }: PublishedChartProps) {
       : null;
 
   return (
-    <section className="flex flex-col gap-6 rounded-[14px] border border-line bg-paper p-5">
+    <section className="flex flex-col gap-6 rounded-[20px] border border-line bg-paper p-5">
       <header className="flex flex-col gap-1">
         <h2 className="text-sm font-medium text-ink">Published</h2>
         <div className="mt-1 flex flex-col">
@@ -179,7 +177,7 @@ export function PublishedChart({ total, bars }: PublishedChartProps) {
               </div>
             ) : (
               <div
-                className="relative flex h-full items-end justify-center"
+                className="relative flex h-full items-end"
                 style={{ gap: `${BAR_GAP}px` }}
               >
                 {visibleBars.map((bar, index) => {
@@ -227,7 +225,7 @@ export function PublishedChart({ total, bars }: PublishedChartProps) {
           </div>
 
           <div
-            className="mt-4 flex items-start justify-center"
+            className="mt-4 flex items-start"
             style={{ gap: `${BAR_GAP}px` }}
           >
             {visibleBars.map((bar) => (

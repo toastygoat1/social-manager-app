@@ -128,6 +128,10 @@ export class MediaService {
     return data.signedUrl;
   }
 
+  async deleteByPath(storagePath: string): Promise<void> {
+    await this.supabase.storage.from(this.bucket).remove([storagePath]);
+  }
+
   private async ensureUser(user: AuthUser) {
     await this.prisma.user.upsert({
       where: { id: user.userId },
