@@ -21,7 +21,8 @@ const CHART_HEIGHT = 168;
 const MIN_AXIS_MAX = 10;
 const BAR_WIDTH = 38;
 const BAR_GAP = 14;
-const Y_AXIS_WIDTH = 30;
+const AXIS_LABEL_GAP = 18;
+const Y_AXIS_WIDTH = 52;
 
 function getInitials(label: string) {
   return (
@@ -134,8 +135,9 @@ export function PublishedChart({ total, bars }: PublishedChartProps) {
           {ticks.map((tick) => (
             <span
               key={tick}
-              className="absolute right-2 leading-none"
+              className="absolute leading-none"
               style={{
+                right: `${AXIS_LABEL_GAP}px`,
                 top: `${getTickTop(tick, axisMax)}px`,
                 transform:
                   tick === 0 ? "translateY(-100%)" : "translateY(-50%)",
@@ -244,7 +246,7 @@ export function PublishedChart({ total, bars }: PublishedChartProps) {
           </div>
 
           <div
-            className="mt-2.5 flex items-start"
+            className="mt-[18px] flex items-start"
             style={{ gap: `${BAR_GAP}px` }}
           >
             {visibleBars.map((bar) => (

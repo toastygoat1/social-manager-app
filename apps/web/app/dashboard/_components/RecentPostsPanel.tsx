@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { AvatarImage } from "@/app/_components/AvatarImage";
+import { PostDetailsModal } from "@/app/scheduler/_components/PostDetailsModal";
 import type { ContentRow } from "./data";
 import {
   POST_FORMAT_COLORS,
@@ -79,7 +81,9 @@ function ThumbnailPlaceholder({ format }: { format: PostFormat }) {
 }
 
 export function RecentPostsPanel({ rows }: RecentPostsPanelProps) {
+  const router = useRouter();
   const [active, setActive] = useState<Tab>("All");
+  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const tabRefs = useRef<Record<Tab, HTMLButtonElement | null>>({
     All: null,
     Posts: null,
@@ -165,9 +169,12 @@ export function RecentPostsPanel({ rows }: RecentPostsPanelProps) {
             const preview = getThumbnail(row);
 
             return (
-              <article
+              <button
+                type="button"
                 key={row.id}
-                className="dashboard-item-enter dashboard-motion-card group grid shrink-0 grid-cols-[92px_minmax(0,1fr)] gap-3 rounded-[12px] border border-line p-2.5 hover:border-[color:var(--cta)] hover:bg-card"
+                onClick={() => setSelectedPostId(row.id)}
+                aria-label={`Open details for ${row.contents || "Untitled post"}`}
+                className="dashboard-item-enter dashboard-motion-card group grid shrink-0 grid-cols-[92px_minmax(0,1fr)] gap-3 rounded-[12px] border border-line p-2.5 text-left hover:bg-card"
                 style={{ animationDelay: `${Math.min(index * 35, 280)}ms` }}
               >
                 <div className="aspect-square w-full overflow-hidden rounded-[9px]">
@@ -221,11 +228,16 @@ export function RecentPostsPanel({ rows }: RecentPostsPanelProps) {
                     ) : null}
                   </div>
                 </div>
-              </article>
+              </button>
             );
           })
         )}
       </div>
+      <PostDetailsModal
+        postId={selectedPostId}
+        onClose={() => setSelectedPostId(null)}
+        onChanged={() => router.refresh()}
+      />
     </section>
   );
 }

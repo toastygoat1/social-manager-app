@@ -46,10 +46,10 @@ export function StatusStatCard({ label, total, breakdown }: StatusStatCardProps)
     <div className="relative flex min-h-[156px] flex-col justify-between gap-3 rounded-[16px] border border-line bg-paper p-4">
       <div className="flex flex-col gap-3">
         <header className="flex items-center gap-1.5">
-          <span className="grid size-9 shrink-0 place-items-center rounded-[10px] border border-line bg-[#fafafa] text-ink">
-            <StatusIcon className="size-4" strokeWidth={1.6} />
+          <span className="grid size-7 shrink-0 place-items-center rounded-[8px] border border-line bg-[#fafafa] text-ink">
+            <StatusIcon className="size-3.5" strokeWidth={1.7} />
           </span>
-          <span className="text-[17px] font-normal leading-none text-ink tracking-[-0.02em]">
+          <span className="text-sm font-medium leading-none text-ink">
             {label}
           </span>
           <button
@@ -83,7 +83,7 @@ export function StatusStatCard({ label, total, breakdown }: StatusStatCardProps)
       {visible.length === 0 && total > 0 ? (
         <div className="h-6 rounded-[6px] border border-dashed border-line" />
       ) : visible.length > 0 ? (
-        <div className="flex h-6 items-stretch gap-1 rounded-[6px] p-1">
+        <div className="flex h-8 items-stretch gap-1 rounded-[7px] p-1">
           {visible.map((format, index) => {
             const value = breakdown[format];
             const flexGrow = max > 0 ? Math.max(value / max, 0.22) : 1;

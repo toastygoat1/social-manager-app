@@ -32,7 +32,7 @@ export function MyAccountsCarousel({
       {accounts.length === 0 ? (
         <p className="py-4 text-xs text-muted">No accounts connected yet.</p>
       ) : (
-        <div className="flex gap-2.5 overflow-x-auto pb-1">
+        <div className="flex gap-4 overflow-x-auto pb-1">
           {accounts.map((account) => {
             const banner = account.bannerUrl ?? null;
             const accent = account.accentColor ?? null;
@@ -42,7 +42,7 @@ export function MyAccountsCarousel({
                 type="button"
                 key={account.id}
                 onClick={() => setOpenAccount(account)}
-                className="dashboard-motion-card group flex w-[148px] shrink-0 flex-col overflow-hidden rounded-[12px] border border-line bg-paper text-left hover:border-[color:var(--cta)]"
+                className="dashboard-motion-card group flex w-[172px] shrink-0 flex-col overflow-hidden rounded-[12px] border border-line bg-paper text-left hover:bg-card"
                 aria-label={`Personalize ${displayName}`}
               >
                 <div
@@ -61,14 +61,14 @@ export function MyAccountsCarousel({
                         }
                   }
                 />
-                <div className="flex items-center gap-2 px-3 py-3">
-                  <span className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-full">
+                <div className="flex items-center gap-2 px-3.5 py-3">
+                  <span className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full">
                     <AvatarImage
                       src={account.avatarUrl}
                       alt={account.name}
-                      width={28}
-                      height={28}
-                      className="size-7 rounded-full object-cover"
+                      width={32}
+                      height={32}
+                      className="size-8 rounded-full object-cover"
                       fallback={getInitials(account.name)}
                     />
                   </span>
