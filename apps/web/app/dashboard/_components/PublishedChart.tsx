@@ -17,11 +17,11 @@ type PublishedChartProps = {
   bars: PublishedBar[];
 };
 
-const CHART_HEIGHT = 220;
+const CHART_HEIGHT = 168;
 const MIN_AXIS_MAX = 10;
-const BAR_WIDTH = 44;
-const BAR_GAP = 16;
-const Y_AXIS_WIDTH = 32;
+const BAR_WIDTH = 38;
+const BAR_GAP = 14;
+const Y_AXIS_WIDTH = 30;
 
 function getInitials(label: string) {
   return (
@@ -54,6 +54,7 @@ export function PublishedChart({ total, bars }: PublishedChartProps) {
     index: number;
     x: number;
     y: number;
+    width: number;
   } | null>(null);
   const plotRef = useRef<HTMLDivElement | null>(null);
 
@@ -86,7 +87,7 @@ export function PublishedChart({ total, bars }: PublishedChartProps) {
       setHover(null);
       return;
     }
-    setHover({ index, x, y });
+    setHover({ index, x, y, width: rect.width });
   }
 
   function handleMouseLeave() {
@@ -99,18 +100,18 @@ export function PublishedChart({ total, bars }: PublishedChartProps) {
       : null;
 
   return (
-    <section className="flex flex-col gap-6 rounded-[20px] border border-line bg-paper p-5">
-      <header className="flex flex-col gap-1">
+    <section className="flex flex-col gap-4 rounded-[16px] border border-line bg-paper p-4">
+      <header className="flex items-start justify-between gap-4">
         <h2 className="text-sm font-medium text-ink">Published</h2>
-        <div className="mt-1 flex flex-col">
+        <div className="flex flex-col items-end">
           <span
-            className="text-[40px] font-medium leading-none tabular-nums tracking-[-0.02em]"
+            className="text-[32px] font-medium leading-none tabular-nums tracking-[-0.02em]"
             style={{ color: POST_FORMAT_COLORS.Reel }}
           >
             {total}
           </span>
           <span
-            className="mt-1 text-xs"
+            className="mt-0.5 text-[11px]"
             style={{ color: POST_FORMAT_COLORS.Reel }}
           >
             Total Published Posts
@@ -120,9 +121,9 @@ export function PublishedChart({ total, bars }: PublishedChartProps) {
 
       <div className="flex min-h-0 items-stretch">
         <div
-          className="flex shrink-0 flex-col justify-between pb-12 text-[11px] text-muted"
+            className="flex shrink-0 flex-col justify-between pb-9 text-[10px] text-muted"
           style={{
-            height: `${CHART_HEIGHT + 48}px`,
+            height: `${CHART_HEIGHT + 36}px`,
             width: `${Y_AXIS_WIDTH}px`,
           }}
         >
@@ -225,7 +226,7 @@ export function PublishedChart({ total, bars }: PublishedChartProps) {
           </div>
 
           <div
-            className="mt-4 flex items-start"
+            className="mt-2.5 flex items-start"
             style={{ gap: `${BAR_GAP}px` }}
           >
             {visibleBars.map((bar) => (
@@ -234,13 +235,13 @@ export function PublishedChart({ total, bars }: PublishedChartProps) {
                 className="flex flex-col items-center"
                 style={{ width: `${BAR_WIDTH}px` }}
               >
-                <span className="relative flex size-7 items-center justify-center overflow-hidden rounded-full">
+                <span className="relative flex size-6 items-center justify-center overflow-hidden rounded-full">
                   <AvatarImage
                     src={bar.account.avatarUrl}
                     alt={bar.account.name}
-                    width={28}
-                    height={28}
-                    className="size-7 rounded-full object-cover"
+                    width={24}
+                    height={24}
+                    className="size-6 rounded-full object-cover"
                     fallback={getInitials(bar.account.name)}
                   />
                   <span className="absolute -right-0.5 -top-0.5 size-2 rounded-full border border-paper bg-success" />
@@ -254,7 +255,7 @@ export function PublishedChart({ total, bars }: PublishedChartProps) {
               bar={visibleBars[hover.index]}
               x={hover.x}
               y={hover.y}
-              containerWidth={plotRef.current?.clientWidth ?? 0}
+              containerWidth={hover.width}
             />
           ) : null}
         </div>

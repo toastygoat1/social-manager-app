@@ -125,20 +125,20 @@ export function LiveActivityPanel({
   }, []);
 
   return (
-    <section className="flex h-full min-h-0 flex-col rounded-[20px] border border-line bg-paper p-5">
-      <header className="shrink-0 pb-3">
+    <section className="flex h-full min-h-0 flex-col rounded-[16px] border border-line bg-paper p-4">
+      <header className="shrink-0 pb-2.5">
         <h2 className="text-sm font-medium text-ink">Live Activity</h2>
       </header>
 
       {rows.length === 0 ? (
         <p className="mt-3 text-xs text-muted">No activity yet.</p>
       ) : (
-        <ul className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pr-1">
+        <ul className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto pr-1">
           {rows.map((item) => {
             const Icon = ICONS[item.kind];
             const color = ICON_COLORS[item.kind];
             return (
-              <li key={item.id} className="flex items-start gap-2.5">
+              <li key={item.id} className="flex items-start gap-2">
                 <span
                   className="mt-0.5 flex size-5 shrink-0 items-center justify-center"
                   style={{ color }}
@@ -146,7 +146,7 @@ export function LiveActivityPanel({
                   <Icon className="size-4" strokeWidth={1.8} />
                 </span>
                 <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="line-clamp-2 text-xs font-medium leading-snug text-ink">
+                  <span className="line-clamp-2 text-[11px] font-medium leading-snug text-ink">
                     {buildHeadline(item)}
                   </span>
                   <span className="truncate text-[10px] text-muted">

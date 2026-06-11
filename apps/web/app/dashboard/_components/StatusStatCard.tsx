@@ -31,28 +31,28 @@ export function StatusStatCard({ label, total, breakdown }: StatusStatCardProps)
   const captionText = LABEL_TEXT[label] ?? "Posts to review!";
 
   return (
-    <div className="relative flex flex-col justify-between gap-5 rounded-[20px] border border-line bg-paper p-5">
+    <div className="relative flex min-h-[156px] flex-col justify-between gap-3 rounded-[16px] border border-line bg-paper p-4">
       <header className="flex items-center gap-1.5">
-        <span className="grid size-10 shrink-0 place-items-center rounded-[12px] border border-line bg-[#fafafa] text-ink">
-          <Clock3 className="size-5" strokeWidth={1.6} />
+        <span className="grid size-9 shrink-0 place-items-center rounded-[10px] border border-line bg-[#fafafa] text-ink">
+          <Clock3 className="size-4" strokeWidth={1.6} />
         </span>
-        <span className="text-[20px] font-normal leading-none text-ink tracking-[-0.02em]">
+        <span className="text-[17px] font-normal leading-none text-ink tracking-[-0.02em]">
           {label}
         </span>
         <button
           type="button"
           aria-label={`Open ${label}`}
-          className="ml-auto grid size-8 place-items-center rounded-full text-muted transition hover:bg-card hover:text-ink"
+          className="ml-auto grid size-7 place-items-center rounded-full text-muted transition hover:bg-card hover:text-ink"
         >
-          <ArrowUpRight className="size-4" strokeWidth={1.8} />
+          <ArrowUpRight className="size-3.5" strokeWidth={1.8} />
         </button>
       </header>
 
-      <div className="flex items-end gap-2.5">
-        <span className="text-[36px] font-normal leading-none text-ink tabular-nums tracking-[-0.02em]">
+      <div className="flex items-end gap-2">
+        <span className="text-[30px] font-normal leading-none text-ink tabular-nums tracking-[-0.02em]">
           {total}
         </span>
-        <span className="pb-1 text-[14px] leading-none text-ink tracking-[-0.02em]">
+        <span className="pb-0.5 text-[12px] leading-tight text-ink tracking-[-0.02em]">
           {captionText}
         </span>
       </div>
@@ -67,9 +67,9 @@ export function StatusStatCard({ label, total, breakdown }: StatusStatCardProps)
       />
 
       {visible.length === 0 ? (
-        <div className="h-7 rounded-[6px] border border-dashed border-line" />
+        <div className="h-6 rounded-[6px] border border-dashed border-line" />
       ) : (
-        <div className="flex h-7 items-stretch gap-1 rounded-[6px] p-1">
+        <div className="flex h-6 items-stretch gap-1 rounded-[6px] p-1">
           {visible.map((format, index) => {
             const value = breakdown[format];
             const flexGrow = max > 0 ? Math.max(value / max, 0.22) : 1;
@@ -77,7 +77,7 @@ export function StatusStatCard({ label, total, breakdown }: StatusStatCardProps)
               <span
                 key={format}
                 title={`${format}: ${value}`}
-                className="flex items-center justify-center overflow-hidden rounded-[5px] px-2 text-[16px] font-normal leading-none tracking-[-0.02em]"
+                className="flex items-center justify-center overflow-hidden rounded-[5px] px-2 text-[13px] font-normal leading-none tracking-[-0.02em]"
                 style={{
                   backgroundColor: POST_FORMAT_COLORS[format],
                   color: "rgba(0,0,0,0.25)",

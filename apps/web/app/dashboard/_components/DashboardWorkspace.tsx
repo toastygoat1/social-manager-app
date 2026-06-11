@@ -124,11 +124,11 @@ export function DashboardWorkspace({
 
   return (
     <div className="app-shell-fill bg-paper font-inter text-ink transition-colors duration-500">
-      <main className="mx-auto flex w-full max-w-[1480px] flex-col gap-4 px-5 py-6 sm:px-7 sm:py-7 lg:px-9">
-        <div className="grid items-stretch gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="flex min-w-0 flex-col gap-4">
+      <main className="mx-auto flex w-full max-w-[1460px] flex-col gap-3 px-4 py-4 sm:px-5 sm:py-5 lg:px-6">
+        <div className="grid items-stretch gap-3 xl:grid-cols-[minmax(0,1fr)_330px]">
+          <div className="flex min-w-0 flex-col gap-3">
             <h1
-              className="text-[44px] font-medium leading-[1.05] tracking-[-0.02em] text-ink"
+              className="text-[32px] font-medium leading-[1.02] tracking-[-0.02em] text-ink sm:text-[40px]"
               style={{
                 fontFamily:
                   'Georgia, "Times New Roman", "Iowan Old Style", serif',
@@ -149,7 +149,7 @@ export function DashboardWorkspace({
               </p>
             ) : null}
 
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-2.5 sm:grid-cols-3">
               <StatusStatCard
                 label="Pending"
                 total={pending.total}
@@ -170,14 +170,14 @@ export function DashboardWorkspace({
             <PublishedChart total={publishedTotal} bars={publishedBars} />
           </div>
 
-          <div className="relative min-h-0 min-w-0">
+          <div className="relative min-h-[430px] min-w-0 xl:min-h-0">
             <RecentPostsPanel rows={data.contentRows} />
           </div>
         </div>
 
         <MyAccountsCarousel accounts={data.accounts} />
 
-        <div className="grid items-stretch gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
+        <div className="grid items-stretch gap-3 lg:grid-cols-[300px_minmax(0,1fr)]">
           <LiveActivityPanel initialRows={data.activityRows} />
           <CalendarCard calendar={data.calendar} />
         </div>
@@ -190,4 +190,3 @@ export function DashboardWorkspace({
     </div>
   );
 }
-
