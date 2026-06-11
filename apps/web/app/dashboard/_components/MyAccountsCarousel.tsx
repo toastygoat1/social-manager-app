@@ -42,7 +42,7 @@ export function MyAccountsCarousel({
                 type="button"
                 key={account.id}
                 onClick={() => setOpenAccount(account)}
-                className="group flex w-[126px] shrink-0 flex-col overflow-hidden rounded-[12px] border border-line bg-paper text-left transition hover:-translate-y-0.5 hover:border-[color:var(--cta)]"
+                className="dashboard-motion-card group flex w-[148px] shrink-0 flex-col overflow-hidden rounded-[12px] border border-line bg-paper text-left hover:border-[color:var(--cta)]"
                 aria-label={`Personalize ${displayName}`}
               >
                 <div
@@ -61,14 +61,14 @@ export function MyAccountsCarousel({
                         }
                   }
                 />
-                <div className="flex items-center gap-2 px-2.5 py-2.5">
-                  <span className="flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-full">
+                <div className="flex items-center gap-2 px-3 py-3">
+                  <span className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-full">
                     <AvatarImage
                       src={account.avatarUrl}
                       alt={account.name}
-                      width={24}
-                      height={24}
-                      className="size-6 rounded-full object-cover"
+                      width={28}
+                      height={28}
+                      className="size-7 rounded-full object-cover"
                       fallback={getInitials(account.name)}
                     />
                   </span>
