@@ -10,6 +10,8 @@ type StatusStatCardProps = {
 const ORDER: PostFormat[] = ["Post", "Reel", "Carousel", "Story"];
 
 export function StatusStatCard({ label, total, breakdown }: StatusStatCardProps) {
+  const max = Math.max(...ORDER.map((format) => breakdown[format]), 0);
+
   return (
     <div className="flex flex-col gap-3 rounded-[14px] border border-line bg-paper p-4">
       <header className="flex items-center justify-between">
@@ -35,17 +37,39 @@ export function StatusStatCard({ label, total, breakdown }: StatusStatCardProps)
         <span className="text-xs text-muted">Posts Needs Attention!</span>
       </div>
 
-      <div className="flex items-center gap-1.5">
-        {ORDER.map((format) => (
-          <span
-            key={format}
-            title={`${format}: ${breakdown[format]}`}
-            className="flex h-5 min-w-[28px] flex-1 items-center justify-center rounded-[6px] px-2 text-[11px] font-semibold leading-none text-white"
-            style={{ backgroundColor: POST_FORMAT_COLORS[format] }}
-          >
-            {breakdown[format]}
-          </span>
-        ))}
+      <div className="flex h-5 items-stretch gap-1.5">
+        {ORDER.map((format) => {
+          const value = breakdown[format];
+          if (max === 0) {
+            return (
+              <span
+                key={format}
+                title={`${format}: 0`}
+                className="flex h-5 flex-1 items-center justify-center rounded-[6px] px-2 text-[11px] font-semibold leading-none text-white opacity-30"
+                style={{ backgroundColor: POST_FORMAT_COLORS[format] }}
+              >
+                0
+              </span>
+            );
+          }
+          const flexGrow = Math.max(value / max, 0.18);
+          return (
+            <span
+              key={format}
+              title={`${format}: ${value}`}
+              className="flex h-5 min-w-[28px] items-center justify-center rounded-[6px] px-2 text-[11px] font-semibold leading-none text-white"
+              style={{
+                backgroundColor: POST_FORMAT_COLORS[format],
+                flexGrow,
+                flexShrink: 1,
+                flexBasis: 0,
+                opacity: value === 0 ? 0.35 : 1,
+              }}
+            >
+              {value}
+            </span>
+          );
+        })}
       </div>
     </div>
   );
