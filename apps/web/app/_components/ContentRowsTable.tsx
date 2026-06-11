@@ -6,7 +6,16 @@ import type {
 } from "@/app/dashboard/_components/data";
 import { PostDetailsModal } from "@/app/scheduler/_components/PostDetailsModal";
 import { formatNumber } from "@/lib/format";
-import { ChevronDown, ImageIcon, Play, Search, X } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronUp,
+  ImageIcon,
+  Play,
+  Search,
+  X,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState, type ReactNode } from "react";
 
@@ -33,7 +42,8 @@ type ContentRowsTableProps = {
 
 const METADATA_MIN_WIDTH = 120;
 const METADATA_MAX_WIDTH = 190;
-const INITIAL_VISIBLE_ROWS = 10;
+const COLLAPSED_ROWS = 10;
+const EXPANDED_ROWS = 20;
 const TABLE_ROW_HEIGHT = 48;
 
 const LEADING_COLUMNS: { label: string; width: number }[] = [
@@ -148,7 +158,8 @@ export function ContentRowsTable({
   const [previewRow, setPreviewRow] = useState<PreviewRow | null>(null);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_ROWS);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [page, setPage] = useState(0);
   const totalWidth = getTotalWidth(metadataFields);
   const normalizedQuery = query.trim().toLowerCase();
   const filteredRows = useMemo(() => {
@@ -168,20 +179,29 @@ export function ContentRowsTable({
       return searchable.includes(normalizedQuery);
     });
   }, [normalizedQuery, rows]);
-  const visibleRows = filteredRows.slice(0, visibleCount);
-  const remainingRows = Math.max(filteredRows.length - visibleRows.length, 0);
-  const bodyHeight =
-    Math.max(visibleCount, INITIAL_VISIBLE_ROWS) * TABLE_ROW_HEIGHT;
+  const rowsPerPage = isExpanded ? EXPANDED_ROWS : COLLAPSED_ROWS;
+  const totalPages = isExpanded
+    ? Math.max(1, Math.ceil(filteredRows.length / EXPANDED_ROWS))
+    : 1;
+  const safePage = Math.min(page, totalPages - 1);
+  const pageStart = isExpanded ? safePage * rowsPerPage : 0;
+  const visibleRows = filteredRows.slice(
+    pageStart,
+    pageStart + rowsPerPage,
+  );
+  const canExpand = !isExpanded && filteredRows.length > COLLAPSED_ROWS;
+  const bodyHeight = rowsPerPage * TABLE_ROW_HEIGHT;
+  const rangeStart =
+    filteredRows.length === 0 ? 0 : Math.min(pageStart + 1, filteredRows.length);
+  const rangeEnd = Math.min(pageStart + visibleRows.length, filteredRows.length);
 
-  function expandRows() {
-    const rowsToReveal = Math.min(INITIAL_VISIBLE_ROWS, remainingRows);
-
-    setVisibleCount((count) => count + INITIAL_VISIBLE_ROWS);
+  function scrollWithTable(deltaRows: number) {
+    if (deltaRows <= 0) return;
 
     window.setTimeout(() => {
       const scrollTarget = findScrollContainer(sectionRef.current);
       const scrollOptions: ScrollToOptions = {
-        top: rowsToReveal * TABLE_ROW_HEIGHT,
+        top: deltaRows * TABLE_ROW_HEIGHT,
         behavior: "smooth",
       };
 
@@ -194,6 +214,21 @@ export function ContentRowsTable({
     }, 80);
   }
 
+  function expandTable() {
+    setIsExpanded(true);
+    setPage(0);
+    scrollWithTable(EXPANDED_ROWS - COLLAPSED_ROWS);
+  }
+
+  function collapseTable() {
+    setIsExpanded(false);
+    setPage(0);
+  }
+
+  function goToPage(nextPage: number) {
+    setPage(Math.max(0, Math.min(nextPage, totalPages - 1)));
+  }
+
   return (
     <section
       ref={sectionRef}
@@ -203,10 +238,10 @@ export function ContentRowsTable({
         <div>
           <h2 className="text-sm font-semibold text-ink">Content Table</h2>
           <p className="mt-0.5 text-xs text-muted">
-            {filteredRows.length} of {rows.length} items / all statuses
+            {rangeStart}-{rangeEnd} of {filteredRows.length} items / all statuses
           </p>
         </div>
-        <div className="flex min-w-[240px] flex-1 items-center justify-end gap-2 sm:max-w-[390px]">
+        <div className="flex min-w-[240px] flex-1 flex-wrap items-center justify-end gap-2 sm:max-w-[470px]">
           <label className="relative flex min-w-0 flex-1 items-center">
             <Search
               aria-hidden="true"
@@ -215,27 +250,66 @@ export function ContentRowsTable({
             />
             <input
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setPage(0);
+              }}
               placeholder="Search content, account, status..."
               className="h-9 w-full rounded-lg border border-line bg-paper pl-9 pr-3 text-xs text-ink outline-none transition focus:border-[#b7b7b7] focus:bg-card"
               type="search"
             />
           </label>
-          {remainingRows > 0 ? (
+          {isExpanded && totalPages > 1 ? (
+            <div className="flex h-9 items-center gap-1 rounded-lg border border-line bg-paper px-1">
+              <button
+                type="button"
+                onClick={() => goToPage(safePage - 1)}
+                disabled={safePage === 0}
+                aria-label="Previous content page"
+                className="grid size-7 place-items-center rounded-md text-muted transition hover:bg-card hover:text-ink disabled:pointer-events-none disabled:opacity-35"
+              >
+                <ChevronLeft className="size-3.5" strokeWidth={1.9} />
+              </button>
+              <span className="min-w-10 text-center text-[11px] font-medium text-muted">
+                {safePage + 1}/{totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => goToPage(safePage + 1)}
+                disabled={safePage >= totalPages - 1}
+                aria-label="Next content page"
+                className="grid size-7 place-items-center rounded-md text-muted transition hover:bg-card hover:text-ink disabled:pointer-events-none disabled:opacity-35"
+              >
+                <ChevronRight className="size-3.5" strokeWidth={1.9} />
+              </button>
+            </div>
+          ) : null}
+          {canExpand ? (
             <button
               type="button"
-              onClick={expandRows}
-              aria-label={`Expand ${Math.min(INITIAL_VISIBLE_ROWS, remainingRows)} more rows`}
-              title={`Expand ${Math.min(INITIAL_VISIBLE_ROWS, remainingRows)} rows`}
+              onClick={expandTable}
+              aria-label="Expand content table"
+              title="Expand content table"
               className="dashboard-motion-card grid size-9 shrink-0 place-items-center rounded-lg border border-line bg-paper text-muted hover:bg-card hover:text-ink"
             >
               <ChevronDown className="size-4" strokeWidth={1.9} />
             </button>
           ) : null}
+          {isExpanded ? (
+            <button
+              type="button"
+              onClick={collapseTable}
+              aria-label="Minimize content table"
+              title="Minimize content table"
+              className="dashboard-motion-card grid size-9 shrink-0 place-items-center rounded-lg border border-line bg-paper text-muted hover:bg-card hover:text-ink"
+            >
+              <ChevronUp className="size-4" strokeWidth={1.9} />
+            </button>
+          ) : null}
         </div>
       </header>
       <div className="w-full overflow-hidden rounded-[8px] border border-line">
-        <div className="w-full overflow-x-auto">
+        <div className="content-table-scrollbar w-full overflow-x-auto">
           <div style={{ minWidth: `${totalWidth}px` }}>
             <div className="flex h-9 items-center border-b border-line bg-card">
               {LEADING_COLUMNS.map((c) => (
