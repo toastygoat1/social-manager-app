@@ -45,7 +45,11 @@ function getNiceAxisMax(value: number) {
 }
 
 function getTicks(max: number) {
-  return [1, 0.8, 0.6, 0.4, 0.2].map((ratio) => Math.round(max * ratio));
+  return [1, 0.8, 0.6, 0.4, 0.2, 0].map((ratio) => Math.round(max * ratio));
+}
+
+function getTickTop(tick: number, max: number) {
+  return CHART_HEIGHT - (tick / max) * CHART_HEIGHT;
 }
 
 export function PublishedChart({ total, bars }: PublishedChartProps) {
@@ -121,14 +125,22 @@ export function PublishedChart({ total, bars }: PublishedChartProps) {
 
       <div className="flex min-h-0 items-stretch">
         <div
-            className="flex shrink-0 flex-col justify-between pb-9 text-[10px] text-muted"
+          className="relative shrink-0 text-[10px] text-muted"
           style={{
-            height: `${CHART_HEIGHT + 36}px`,
+            height: `${CHART_HEIGHT}px`,
             width: `${Y_AXIS_WIDTH}px`,
           }}
         >
           {ticks.map((tick) => (
-            <span key={tick} className="leading-none">
+            <span
+              key={tick}
+              className="absolute right-2 leading-none"
+              style={{
+                top: `${getTickTop(tick, axisMax)}px`,
+                transform:
+                  tick === 0 ? "translateY(-100%)" : "translateY(-50%)",
+              }}
+            >
               {tick}
             </span>
           ))}
@@ -144,12 +156,18 @@ export function PublishedChart({ total, bars }: PublishedChartProps) {
             className="relative"
             style={{ height: `${CHART_HEIGHT}px` }}
           >
-            <div className="pointer-events-none absolute inset-0 flex flex-col justify-between">
+            <div className="pointer-events-none absolute inset-0">
               {ticks.map((tick) => (
                 <div
                   key={`grid-${tick}`}
-                  className="h-px w-full"
-                  style={{ backgroundColor: "rgb(233,233,233)" }}
+                  className="absolute left-0 h-px w-full"
+                  style={{
+                    top: `${getTickTop(tick, axisMax)}px`,
+                    borderTop:
+                      tick === 0
+                        ? "1px solid rgb(233, 233, 233)"
+                        : "1px dashed rgb(201, 201, 201)",
+                  }}
                 />
               ))}
             </div>

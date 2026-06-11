@@ -134,13 +134,17 @@ export function LiveActivityPanel({
         <p className="mt-3 text-xs text-muted">No activity yet.</p>
       ) : (
         <ul className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto pr-1">
-          {rows.map((item) => {
+          {rows.map((item, index) => {
             const Icon = ICONS[item.kind];
             const color = ICON_COLORS[item.kind];
             return (
-              <li key={item.id} className="flex items-start gap-2">
+              <li
+                key={item.id}
+                className="dashboard-item-enter dashboard-motion-card group flex items-start gap-2 rounded-[10px] px-1.5 py-1 hover:bg-card"
+                style={{ animationDelay: `${Math.min(index * 28, 260)}ms` }}
+              >
                 <span
-                  className="mt-0.5 flex size-5 shrink-0 items-center justify-center"
+                  className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full transition-transform duration-200 group-hover:scale-110"
                   style={{ color }}
                 >
                   <Icon className="size-4" strokeWidth={1.8} />

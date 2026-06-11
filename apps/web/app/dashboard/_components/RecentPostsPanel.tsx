@@ -160,28 +160,31 @@ export function RecentPostsPanel({ rows }: RecentPostsPanelProps) {
             No recent posts yet
           </p>
         ) : (
-          filtered.map((row) => {
+          filtered.map((row, index) => {
             const format = normalizePostFormat(row.type);
             const preview = getThumbnail(row);
 
             return (
               <article
                 key={row.id}
-                className="grid shrink-0 grid-cols-[92px_minmax(0,1fr)] gap-3 rounded-[12px] border border-line p-2.5"
+                className="dashboard-item-enter dashboard-motion-card group grid shrink-0 grid-cols-[92px_minmax(0,1fr)] gap-3 rounded-[12px] border border-line p-2.5 hover:border-[color:var(--cta)] hover:bg-card"
+                style={{ animationDelay: `${Math.min(index * 35, 280)}ms` }}
               >
-                <div
-                  className="aspect-square w-full overflow-hidden rounded-[9px]"
-                  style={
-                    preview
-                      ? {
-                          backgroundImage: `url("${preview}")`,
-                          backgroundSize: "cover",
-                          backgroundPosition: "center",
-                        }
-                      : undefined
-                  }
-                >
-                  {preview ? null : <ThumbnailPlaceholder format={format} />}
+                <div className="aspect-square w-full overflow-hidden rounded-[9px]">
+                  <div
+                    className="size-full transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.04]"
+                    style={
+                      preview
+                        ? {
+                            backgroundImage: `url("${preview}")`,
+                            backgroundSize: "cover",
+                            backgroundPosition: "center",
+                          }
+                        : undefined
+                    }
+                  >
+                    {preview ? null : <ThumbnailPlaceholder format={format} />}
+                  </div>
                 </div>
                 <div className="flex min-w-0 flex-col gap-2">
                   <header className="flex items-center justify-between gap-2">

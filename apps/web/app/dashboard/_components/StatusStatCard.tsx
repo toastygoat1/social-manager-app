@@ -1,7 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowUpRight, Clock3 } from "lucide-react";
+import {
+  ArrowUpRight,
+  CircleCheck,
+  Hourglass,
+  PencilLine,
+} from "lucide-react";
 import { POST_FORMAT_COLORS, type PostFormat } from "./post-formats";
 
 type StatusStatCardProps = {
@@ -18,6 +23,12 @@ const LABEL_TEXT: Record<string, string> = {
   Ready: "Posts ready to publish!",
 };
 
+const STATUS_ICONS = {
+  Pending: Hourglass,
+  Draft: PencilLine,
+  Ready: CircleCheck,
+};
+
 export function StatusStatCard({ label, total, breakdown }: StatusStatCardProps) {
   const [mounted, setMounted] = useState(false);
 
@@ -29,24 +40,36 @@ export function StatusStatCard({ label, total, breakdown }: StatusStatCardProps)
   const visible = ORDER.filter((format) => breakdown[format] > 0);
   const max = Math.max(...visible.map((format) => breakdown[format]), 0);
   const captionText = LABEL_TEXT[label] ?? "Posts to review!";
+  const StatusIcon = STATUS_ICONS[label as keyof typeof STATUS_ICONS] ?? Hourglass;
 
   return (
     <div className="relative flex min-h-[156px] flex-col justify-between gap-3 rounded-[16px] border border-line bg-paper p-4">
-      <header className="flex items-center gap-1.5">
-        <span className="grid size-9 shrink-0 place-items-center rounded-[10px] border border-line bg-[#fafafa] text-ink">
-          <Clock3 className="size-4" strokeWidth={1.6} />
-        </span>
-        <span className="text-[17px] font-normal leading-none text-ink tracking-[-0.02em]">
-          {label}
-        </span>
-        <button
-          type="button"
-          aria-label={`Open ${label}`}
-          className="ml-auto grid size-7 place-items-center rounded-full text-muted transition hover:bg-card hover:text-ink"
-        >
-          <ArrowUpRight className="size-3.5" strokeWidth={1.8} />
-        </button>
-      </header>
+      <div className="flex flex-col gap-3">
+        <header className="flex items-center gap-1.5">
+          <span className="grid size-9 shrink-0 place-items-center rounded-[10px] border border-line bg-[#fafafa] text-ink">
+            <StatusIcon className="size-4" strokeWidth={1.6} />
+          </span>
+          <span className="text-[17px] font-normal leading-none text-ink tracking-[-0.02em]">
+            {label}
+          </span>
+          <button
+            type="button"
+            aria-label={`Open ${label}`}
+            className="ml-auto grid size-7 place-items-center rounded-full text-muted transition hover:bg-card hover:text-ink"
+          >
+            <ArrowUpRight className="size-3.5" strokeWidth={1.8} />
+          </button>
+        </header>
+
+        <div
+          aria-hidden="true"
+          className="h-px w-full"
+          style={{
+            backgroundImage:
+              "repeating-linear-gradient(to right, #c9c9c9 0 3px, transparent 3px 7px)",
+          }}
+        />
+      </div>
 
       <div className="flex items-end gap-2">
         <span className="text-[30px] font-normal leading-none text-ink tabular-nums tracking-[-0.02em]">
@@ -57,18 +80,9 @@ export function StatusStatCard({ label, total, breakdown }: StatusStatCardProps)
         </span>
       </div>
 
-      <div
-        aria-hidden="true"
-        className="h-px w-full"
-        style={{
-          backgroundImage:
-            "repeating-linear-gradient(to right, #c9c9c9 0 3px, transparent 3px 7px)",
-        }}
-      />
-
-      {visible.length === 0 ? (
+      {visible.length === 0 && total > 0 ? (
         <div className="h-6 rounded-[6px] border border-dashed border-line" />
-      ) : (
+      ) : visible.length > 0 ? (
         <div className="flex h-6 items-stretch gap-1 rounded-[6px] p-1">
           {visible.map((format, index) => {
             const value = breakdown[format];
@@ -98,7 +112,7 @@ export function StatusStatCard({ label, total, breakdown }: StatusStatCardProps)
             );
           })}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
