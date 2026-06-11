@@ -913,7 +913,7 @@ export function SidebarPanel({
 
       {isProfileMenuOpen ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-4 text-ink"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 text-ink backdrop-blur-[1px]"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) {
               setIsProfileMenuOpen(false);
@@ -924,7 +924,7 @@ export function SidebarPanel({
             role="dialog"
             aria-modal="true"
             aria-labelledby="sidebar-account-dialog-title"
-            className="w-full max-w-[390px] rounded-[16px] border border-line bg-paper p-4 text-left"
+            className="isolate w-full max-w-[380px] overflow-hidden rounded-[16px] border border-line bg-[var(--app-panel-bg)] p-4 text-left"
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -948,8 +948,10 @@ export function SidebarPanel({
               </button>
             </div>
 
-            <div className="mt-4 flex items-center gap-3 rounded-[12px] border border-line bg-card px-3 py-3">
-              <ProfileAvatar profile={profile} />
+            <div className="mt-4 flex items-center gap-3 rounded-[12px] bg-card px-3 py-3">
+              <span className="grid size-9 shrink-0 place-items-center rounded-full bg-paper">
+                <ProfileAvatar profile={profile} />
+              </span>
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium text-ink">
                   {profileName}
@@ -958,36 +960,39 @@ export function SidebarPanel({
               </div>
             </div>
 
-            <div className="mt-4 rounded-[12px] border border-line bg-paper">
-              <div className="border-b border-line px-3 py-2.5">
-                <p className="text-xs font-medium text-muted">
-                  This web account is connected to
-                </p>
-              </div>
-              <div className="divide-y divide-line">
-                <div className="px-3 py-2.5">
+            <div className="mt-4">
+              <p className="text-xs font-medium text-muted">
+                Known connections
+              </p>
+              <div className="mt-2 grid gap-2">
+                <div className="rounded-[10px] bg-card px-3 py-2.5">
                   <p className="text-sm font-medium text-ink">
-                    Social Manager Web
-                  </p>
-                  <p className="mt-0.5 text-xs text-muted">
-                    Current browser session
-                  </p>
-                </div>
-                <div className="px-3 py-2.5">
-                  <p className="text-sm font-medium text-ink">
-                    Dashboard workspace
+                    Social Manager Dashboard
                   </p>
                   <p className="mt-0.5 text-xs text-muted">
                     Connected as {profileDetail}
                   </p>
                 </div>
-                <div className="px-3 py-2.5">
-                  <p className="text-sm font-medium text-ink">Sign-in method</p>
-                  <p className="mt-0.5 text-xs text-muted">
+                <div className="rounded-[10px] bg-card px-3 py-2.5">
+                  <p className="text-sm font-medium text-ink">
                     {providerSummary}
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted">
+                    Authentication provider
+                  </p>
+                </div>
+                <div className="rounded-[10px] bg-card px-3 py-2.5">
+                  <p className="text-sm font-medium text-ink">
+                    Current browser
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted">
+                    Active session on this device
                   </p>
                 </div>
               </div>
+              <p className="mt-3 text-[11px] leading-4 text-muted">
+                Other browser/device sessions are not tracked by this app yet.
+              </p>
             </div>
 
             <button

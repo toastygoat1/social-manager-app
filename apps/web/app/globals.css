@@ -276,6 +276,32 @@ html.theme-circle-transition::view-transition-new(root) {
   transform: translateY(-2px);
 }
 
+.content-table-scrollbar {
+  scrollbar-color: rgb(185 185 185 / 70%) transparent;
+  scrollbar-width: thin;
+}
+
+.content-table-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.content-table-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.content-table-scrollbar::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: rgb(185 185 185 / 72%);
+  background-clip: content-box;
+}
+
+.content-table-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgb(135 135 135 / 82%);
+  background-clip: content-box;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html.theme-circle-transition::view-transition-new(root) {
     animation: none;
