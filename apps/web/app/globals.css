@@ -6,13 +6,13 @@
 
   --app-shell-bg: #f2f5f6;
   --app-panel-bg: #ffffff;
-  --app-panel-border: rgb(246, 246, 246);
+  --app-panel-border: rgb(233, 233, 233);
   --app-panel-shadow: transparent;
 
   --bg: #fafafa;
   --bg-light: #ffffff;
   --bg-dark: #f5f5f5;
-  --border: rgb(246, 246, 246);
+  --border: rgb(233, 233, 233);
   --text: #0d0d0d;
   --text-muted: #4c4c4c;
   --cta: #3ac1d6;
@@ -40,7 +40,7 @@
   --sidebar-dim: #8a847a;
   --sidebar-hover: #f4f2ed;
   --sidebar-hover-strong: #e8e5dd;
-  --sidebar-dashed: rgb(246, 246, 246);
+  --sidebar-dashed: rgb(233, 233, 233);
   --sidebar-accent: #3ac1d6;
   --sidebar-success-bg: #e9f4ef;
   --sidebar-success: #287a65;
@@ -53,13 +53,13 @@
 
   --app-shell-bg: #0f1110;
   --app-panel-bg: #202018;
-  --app-panel-border: rgb(246, 246, 246);
+  --app-panel-border: rgb(233, 233, 233);
   --app-panel-shadow: transparent;
 
   --bg: #171812;
   --bg-light: #202018;
   --bg-dark: #11120e;
-  --border: rgb(246, 246, 246);
+  --border: rgb(233, 233, 233);
   --text: #f4efe6;
   --text-muted: #b0aa9d;
   --cta: #55d4e6;
@@ -76,7 +76,7 @@
   --sidebar-dim: #948d80;
   --sidebar-hover: #1d1e18;
   --sidebar-hover-strong: #292920;
-  --sidebar-dashed: rgb(246, 246, 246);
+  --sidebar-dashed: rgb(233, 233, 233);
   --sidebar-accent: #55d4e6;
   --sidebar-success-bg: #173126;
   --sidebar-success: #74deb3;
@@ -250,7 +250,7 @@ html.theme-circle-transition::view-transition-new(root) {
   --bg: #f6f5f1;
   --bg-light: #ffffff;
   --bg-dark: #fafaf8;
-  --border: rgb(246, 246, 246);
+  --border: rgb(233, 233, 233);
   --text: #1a1a18;
   --text-muted: #84827a;
   --cta: #5e6ad2;
@@ -271,7 +271,7 @@ html.theme-circle-transition::view-transition-new(root) {
   --bg: #171812;
   --bg-light: #202018;
   --bg-dark: #11120e;
-  --border: rgb(246, 246, 246);
+  --border: rgb(233, 233, 233);
   --text: #f4efe6;
   --text-muted: #b0aa9d;
   --cta: #55d4e6;

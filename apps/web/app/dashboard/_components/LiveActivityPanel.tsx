@@ -48,6 +48,53 @@ function formatActivityWhen(value: string) {
   return `at ${time} on ${day}`;
 }
 
+function splitDetail(detail: string): {
+  label: string | null;
+  account: string | null;
+} {
+  const parts = detail
+    .split(/\s+\/\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (parts.length >= 2) {
+    return { label: parts[0], account: parts[1] };
+  }
+  return { label: null, account: parts[0] ?? null };
+}
+
+function buildHeadline(item: ActivityRow): string {
+  const { label, account } = splitDetail(item.detail);
+
+  switch (item.kind) {
+    case "account_connected":
+      return account
+        ? `${account} has been connected to your workspace`
+        : item.title;
+    case "account_disconnected":
+      return account
+        ? `${account} has been disconnected from your workspace`
+        : item.title;
+    case "post_published":
+      return label && account
+        ? `"${label}" has been posted on ${account}`
+        : item.title;
+    case "post_scheduled":
+      return label && account
+        ? `"${label}" has been scheduled on ${account}`
+        : item.title;
+    case "post_pending":
+      return label && account
+        ? `"${label}" is pending review on ${account}`
+        : item.title;
+    case "post_draft":
+      return label && account
+        ? `"${label}" was edited on ${account}`
+        : item.title;
+    default:
+      return item.title;
+  }
+}
+
 export function LiveActivityPanel({
   initialRows,
 }: {
@@ -79,12 +126,8 @@ export function LiveActivityPanel({
 
   return (
     <section className="flex h-full min-h-0 flex-col rounded-[14px] border border-line bg-paper p-4">
-      <header className="flex shrink-0 items-center justify-between gap-2 pb-3">
+      <header className="shrink-0 pb-3">
         <h2 className="text-sm font-medium text-ink">Live Activity</h2>
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-line px-2 py-0.5 text-[10px] font-medium text-muted">
-          <span className="size-1.5 rounded-full bg-success" />
-          Live
-        </span>
       </header>
 
       {rows.length === 0 ? (
@@ -103,8 +146,8 @@ export function LiveActivityPanel({
                   <Icon className="size-4" strokeWidth={1.8} />
                 </span>
                 <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate text-xs font-medium text-ink">
-                    {item.title}
+                  <span className="line-clamp-2 text-xs font-medium leading-snug text-ink">
+                    {buildHeadline(item)}
                   </span>
                   <span className="truncate text-[10px] text-muted">
                     {formatActivityWhen(item.occurredAt)}

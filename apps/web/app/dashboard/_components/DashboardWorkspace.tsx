@@ -125,7 +125,7 @@ export function DashboardWorkspace({
   return (
     <div className="app-shell-fill bg-paper font-inter text-ink transition-colors duration-500">
       <main className="mx-auto flex w-full max-w-[1480px] flex-col gap-4 px-5 py-6 sm:px-7 sm:py-7 lg:px-9">
-        <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="grid items-stretch gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
           <div className="flex min-w-0 flex-col gap-4">
             <h1
               className="text-[44px] font-medium leading-[1.05] tracking-[-0.02em] text-ink"
@@ -170,7 +170,7 @@ export function DashboardWorkspace({
             <PublishedChart total={publishedTotal} bars={publishedBars} />
           </div>
 
-          <div className="flex min-w-0 flex-col gap-4">
+          <div className="flex min-h-0 min-w-0 flex-col gap-4">
             <RecentPostsPanel rows={data.contentRows} />
           </div>
         </div>

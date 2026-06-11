@@ -51,9 +51,6 @@ const TRAILING_COLUMNS: { label: string; width: number }[] = [
   { label: "Media", width: 120 },
 ];
 
-const VISIBLE_ROW_LIMIT = 10;
-const ROW_HEIGHT = 54;
-
 function getTotalWidth(metadataFields: MetadataFieldDefinition[]) {
   return (
     LEADING_COLUMNS.reduce((sum, c) => sum + c.width, 0) +
@@ -143,13 +140,7 @@ export function ContentRowsTable({
                 No content tracked yet
               </div>
             ) : (
-              <div
-                className="overflow-y-auto"
-                style={{
-                  maxHeight: `${ROW_HEIGHT * VISIBLE_ROW_LIMIT}px`,
-                  overflowX: "clip",
-                }}
-              >
+              <div style={{ overflowX: "clip" }}>
                 {rows.map((row) => (
                   <Row
                     key={row.id}
