@@ -5,11 +5,6 @@ import { Link2Off, LoaderCircle, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { AvatarImage } from "@/app/_components/AvatarImage";
 import { ApiError, apiFetchBrowser } from "@/lib/api/browser-client";
-import {
-  clearPersonalization,
-  saveAccountPersonalization,
-  useAccountPersonalization,
-} from "./account-personalization";
 import { POST_FORMAT_COLORS } from "./post-formats";
 import type { Account } from "./data";
 
@@ -39,15 +34,15 @@ function getInitials(label: string) {
   );
 }
 
-function getDisconnectMessage(error: unknown) {
+function getApiMessage(error: unknown, fallback: string) {
   if (error instanceof ApiError) {
-    if (error.status === 401)
-      return "Please sign in again before disconnecting this account.";
-    if (error.status === 404)
-      return "This account is already disconnected or unavailable.";
-    return `Disconnect failed (${error.status}).`;
+    const body = error.body as { message?: string | string[] } | null;
+    const message = body?.message;
+    if (Array.isArray(message)) return message[0];
+    if (typeof message === "string") return message;
+    return `${fallback} (${error.status}).`;
   }
-  return "Disconnect failed. Please try again.";
+  return fallback;
 }
 
 export function AccountPersonalizationModal({
@@ -55,19 +50,22 @@ export function AccountPersonalizationModal({
   onClose,
 }: AccountPersonalizationModalProps) {
   const router = useRouter();
-  const personalization = useAccountPersonalization(account?.id ?? "");
   const [bannerUrl, setBannerUrl] = useState("");
   const [accentColor, setAccentColor] = useState("");
   const [nickname, setNickname] = useState("");
   const [note, setNote] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setBannerUrl(personalization.bannerUrl ?? "");
-    setAccentColor(personalization.accentColor ?? "");
-    setNickname(personalization.nickname ?? "");
-    setNote(personalization.note ?? "");
-  }, [personalization, account?.id]);
+    if (!account) return;
+    setBannerUrl(account.bannerUrl ?? "");
+    setAccentColor(account.accentColor ?? "");
+    setNickname(account.nickname ?? "");
+    setNote(account.note ?? "");
+    setError(null);
+  }, [account]);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -79,24 +77,58 @@ export function AccountPersonalizationModal({
 
   if (!account) return null;
 
-  function handleSave() {
+  async function handleSave() {
     if (!account) return;
-    saveAccountPersonalization(account.id, {
-      bannerUrl: bannerUrl.trim() || null,
-      accentColor: accentColor.trim() || null,
-      nickname: nickname.trim() || null,
-      note: note.trim() || null,
-    });
-    onClose();
+    setIsSaving(true);
+    setError(null);
+    try {
+      await apiFetchBrowser(
+        `/instagram/accounts/${encodeURIComponent(account.id)}/personalization`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({
+            bannerUrl: bannerUrl.trim() || null,
+            accentColor: accentColor.trim() || null,
+            nickname: nickname.trim() || null,
+            note: note.trim() || null,
+          }),
+        },
+      );
+      router.refresh();
+      onClose();
+    } catch (err) {
+      setError(getApiMessage(err, "Could not save personalization"));
+      setIsSaving(false);
+    }
   }
 
-  function handleClear() {
+  async function handleClear() {
     if (!account) return;
-    clearPersonalization(account.id);
-    setBannerUrl("");
-    setAccentColor("");
-    setNickname("");
-    setNote("");
+    setIsSaving(true);
+    setError(null);
+    try {
+      await apiFetchBrowser(
+        `/instagram/accounts/${encodeURIComponent(account.id)}/personalization`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({
+            bannerUrl: null,
+            accentColor: null,
+            nickname: null,
+            note: null,
+          }),
+        },
+      );
+      setBannerUrl("");
+      setAccentColor("");
+      setNickname("");
+      setNote("");
+      router.refresh();
+    } catch (err) {
+      setError(getApiMessage(err, "Could not reset personalization"));
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   async function handleDisconnect() {
@@ -106,6 +138,7 @@ export function AccountPersonalizationModal({
     );
     if (!confirmed) return;
     setIsDisconnecting(true);
+    setError(null);
     try {
       await apiFetchBrowser(
         `/instagram/accounts/${encodeURIComponent(account.id)}`,
@@ -113,9 +146,9 @@ export function AccountPersonalizationModal({
       );
       router.refresh();
       onClose();
-    } catch (error) {
+    } catch (err) {
       setIsDisconnecting(false);
-      window.alert(getDisconnectMessage(error));
+      setError(getApiMessage(err, "Disconnect failed"));
     }
   }
 
@@ -160,7 +193,7 @@ export function AccountPersonalizationModal({
 
         <div className="-mt-8 flex flex-col items-center gap-1 px-5">
           <span
-            className="flex size-16 items-center justify-center overflow-hidden rounded-full border-4 border-paper bg-card"
+            className="flex size-16 items-center justify-center overflow-hidden rounded-full border-4 bg-card"
             style={{ borderColor: "var(--bg-light)" }}
           >
             <AvatarImage
@@ -179,6 +212,12 @@ export function AccountPersonalizationModal({
         </div>
 
         <div className="flex flex-col gap-4 px-5 pb-5 pt-5">
+          {error ? (
+            <p className="rounded-[8px] bg-[color-mix(in_srgb,var(--danger)_10%,var(--bg-light))] px-3 py-2 text-xs text-[color:var(--danger)]">
+              {error}
+            </p>
+          ) : null}
+
           <Field label="Banner image URL">
             <input
               type="url"
@@ -223,6 +262,7 @@ export function AccountPersonalizationModal({
               value={nickname}
               onChange={(event) => setNickname(event.target.value)}
               placeholder={account.name}
+              maxLength={60}
               className="w-full rounded-[10px] border border-line bg-paper px-3 py-2 text-xs text-ink placeholder:text-muted focus:border-[color:var(--cta)] focus:outline-none"
             />
           </Field>
@@ -232,6 +272,7 @@ export function AccountPersonalizationModal({
               value={note}
               onChange={(event) => setNote(event.target.value)}
               rows={2}
+              maxLength={280}
               placeholder="Visible only to your team"
               className="w-full resize-none rounded-[10px] border border-line bg-paper px-3 py-2 text-xs text-ink placeholder:text-muted focus:border-[color:var(--cta)] focus:outline-none"
             />
@@ -241,7 +282,7 @@ export function AccountPersonalizationModal({
             <button
               type="button"
               onClick={handleDisconnect}
-              disabled={isDisconnecting}
+              disabled={isDisconnecting || isSaving}
               className="inline-flex items-center gap-1.5 rounded-[10px] border border-line px-3 py-2 text-xs font-medium text-[color:var(--danger)] transition hover:bg-[color-mix(in_srgb,var(--danger)_8%,var(--bg-light))] disabled:pointer-events-none disabled:opacity-60"
             >
               {isDisconnecting ? (
@@ -256,15 +297,20 @@ export function AccountPersonalizationModal({
               <button
                 type="button"
                 onClick={handleClear}
-                className="rounded-[10px] border border-line px-3 py-2 text-xs font-medium text-muted transition hover:bg-card hover:text-ink"
+                disabled={isSaving || isDisconnecting}
+                className="rounded-[10px] border border-line px-3 py-2 text-xs font-medium text-muted transition hover:bg-card hover:text-ink disabled:pointer-events-none disabled:opacity-60"
               >
                 Reset
               </button>
               <button
                 type="button"
                 onClick={handleSave}
-                className="rounded-[10px] bg-ink px-3 py-2 text-xs font-medium text-paper transition hover:opacity-90"
+                disabled={isSaving || isDisconnecting}
+                className="inline-flex items-center gap-1.5 rounded-[10px] bg-ink px-3 py-2 text-xs font-medium text-paper transition hover:opacity-90 disabled:pointer-events-none disabled:opacity-60"
               >
+                {isSaving ? (
+                  <LoaderCircle className="size-3.5 animate-spin" strokeWidth={2} />
+                ) : null}
                 Save
               </button>
             </div>

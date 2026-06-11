@@ -47,6 +47,10 @@ model InstagramAccount {
   displayName          String?              @map("display_name")
   accountType          InstagramAccountType @map("account_type")
   avatarUrl            String?              @map("avatar_url")
+  bannerUrl            String?              @map("banner_url")
+  accentColor          String?              @map("accent_color")
+  nickname             String?
+  note                 String?
   accessTokenEncrypted String               @map("access_token_encrypted")
   pageId               String?              @map("page_id")
   isActive             Boolean              @default(true) @map("is_active")

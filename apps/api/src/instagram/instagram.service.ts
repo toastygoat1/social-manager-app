@@ -42,6 +42,10 @@ const SAFE_INSTAGRAM_ACCOUNT_SELECT = {
   displayName: true,
   accountType: true,
   avatarUrl: true,
+  bannerUrl: true,
+  accentColor: true,
+  nickname: true,
+  note: true,
   pageId: true,
   isActive: true,
   tokenExpiresAt: true,
@@ -360,6 +364,37 @@ export class InstagramService {
         avatarUrl: syncedProfile?.avatarUrl ?? account.avatarUrl,
         displayName: syncedProfile?.displayName ?? account.displayName,
       };
+    });
+  }
+
+  async updatePersonalization(
+    userId: string,
+    accountId: string,
+    data: {
+      bannerUrl?: string | null;
+      accentColor?: string | null;
+      nickname?: string | null;
+      note?: string | null;
+    },
+  ) {
+    const account = await this.prisma.instagramAccount.findFirst({
+      where: { id: accountId, userId },
+      select: { id: true },
+    });
+
+    if (!account) {
+      throw new NotFoundException('Instagram account was not found.');
+    }
+
+    return this.prisma.instagramAccount.update({
+      where: { id: accountId },
+      data: {
+        bannerUrl: data.bannerUrl ?? null,
+        accentColor: data.accentColor ?? null,
+        nickname: data.nickname ?? null,
+        note: data.note ?? null,
+      },
+      select: SAFE_INSTAGRAM_ACCOUNT_SELECT,
     });
   }
 

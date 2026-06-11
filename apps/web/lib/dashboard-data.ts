@@ -28,6 +28,10 @@ type InstagramAccountResponse = {
   displayName?: string | null;
   accountType: "PERSONAL" | "BUSINESS" | "CREATOR";
   avatarUrl?: string | null;
+  bannerUrl?: string | null;
+  accentColor?: string | null;
+  nickname?: string | null;
+  note?: string | null;
   isActive: boolean;
 };
 
@@ -103,6 +107,10 @@ export async function getDashboardData(): Promise<DashboardData> {
     platform:
       account.accountType === "CREATOR" ? "Instagram Creator" : "Instagram",
     avatarUrl: account.avatarUrl ?? null,
+    bannerUrl: account.bannerUrl ?? null,
+    accentColor: account.accentColor ?? null,
+    nickname: account.nickname ?? null,
+    note: account.note ?? null,
   }));
   const dashboardAccounts =
     mappedActiveAccounts.length > 0
