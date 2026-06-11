@@ -137,6 +137,7 @@ const BACKFILL_INSIGHT_METRICS = [
 const DEFAULT_BACKFILL_MEDIA_LIMIT = 250;
 const MAX_BACKFILL_MEDIA_LIMIT = 1000;
 const BACKFILL_PAGE_SIZE = 100;
+const PROFILE_REFRESH_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
 type DashboardInsightMetric = (typeof DASHBOARD_INSIGHT_METRICS)[number];
 type DashboardMetric = DashboardInsightMetric | 'likes';
@@ -348,15 +349,15 @@ export class InstagramService {
 
     const withBanners = await this.attachSignedBanners(accounts);
 
-    const missingProfileIds = withBanners
-      .filter((account) => !account.avatarUrl || !account.displayName)
+    const profileSyncIds = withBanners
+      .filter((account) => this.shouldRefreshAccountProfile(account))
       .map((account) => account.id);
 
-    if (missingProfileIds.length === 0) return withBanners;
+    if (profileSyncIds.length === 0) return withBanners;
 
     const syncedProfiles = await this.syncMissingAccountProfiles(
       userId,
-      missingProfileIds,
+      profileSyncIds,
     );
 
     if (syncedProfiles.size === 0) return withBanners;
@@ -389,6 +390,38 @@ export class InstagramService {
         }
       }),
     );
+  }
+
+  private shouldRefreshAccountProfile(
+    account: Pick<
+      SafeInstagramAccount,
+      'avatarUrl' | 'displayName' | 'updatedAt'
+    >,
+  ) {
+    if (!account.avatarUrl || !account.displayName) return true;
+    if (!this.isRefreshableRemoteAvatar(account.avatarUrl)) return false;
+
+    const updatedAt = account.updatedAt.getTime();
+    if (Number.isNaN(updatedAt)) return true;
+
+    return Date.now() - updatedAt > PROFILE_REFRESH_INTERVAL_MS;
+  }
+
+  private isRefreshableRemoteAvatar(avatarUrl: string) {
+    try {
+      const hostname = new URL(avatarUrl).hostname;
+
+      return (
+        hostname === 'cdninstagram.com' ||
+        hostname.endsWith('.cdninstagram.com') ||
+        hostname === 'fbcdn.net' ||
+        hostname.endsWith('.fbcdn.net') ||
+        hostname === 'fbsbx.com' ||
+        hostname.endsWith('.fbsbx.com')
+      );
+    } catch {
+      return true;
+    }
   }
 
   async updatePersonalization(
@@ -1481,11 +1514,14 @@ export class InstagramService {
           );
           const data: Prisma.InstagramAccountUpdateInput = {};
 
-          if (!account.avatarUrl && profile.avatarUrl) {
+          if (profile.avatarUrl && profile.avatarUrl !== account.avatarUrl) {
             data.avatarUrl = profile.avatarUrl;
           }
 
-          if (!account.displayName && profile.displayName) {
+          if (
+            profile.displayName &&
+            profile.displayName !== account.displayName
+          ) {
             data.displayName = profile.displayName;
           }
 

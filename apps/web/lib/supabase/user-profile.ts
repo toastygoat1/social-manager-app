@@ -4,6 +4,7 @@ export type UserProfile = {
   avatarUrl: string | null;
   email: string | null;
   name: string | null;
+  providers: string[];
 };
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -39,6 +40,13 @@ function getHttpsUrl(value: string | null): string | null {
 
 export function getUserProfile(user: User): UserProfile {
   const metadata = asRecord(user.user_metadata);
+  const providers = Array.from(
+    new Set(
+      (user.identities ?? [])
+        .map((identity) => identity.provider)
+        .filter((provider): provider is string => Boolean(provider)),
+    ),
+  );
   const googleIdentity =
     user.identities?.find((identity) => identity.provider === "google") ??
     user.identities?.[0];
@@ -56,5 +64,6 @@ export function getUserProfile(user: User): UserProfile {
     avatarUrl,
     email: user.email ?? null,
     name,
+    providers,
   };
 }

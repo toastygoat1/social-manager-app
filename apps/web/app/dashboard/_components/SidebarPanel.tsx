@@ -9,8 +9,8 @@ import {
   Columns2,
   Home,
   Inbox,
-  Link2Off,
   LoaderCircle,
+  LogOut,
   Moon,
   PanelLeftClose,
   PanelLeftOpen,
@@ -29,6 +29,7 @@ import {
   type ThemeMode,
 } from "@/app/theme-preferences";
 import { ApiError, apiFetchBrowser } from "@/lib/api/browser-client";
+import { createClient } from "@/lib/supabase/client";
 import type { UserProfile } from "@/lib/supabase/user-profile";
 import type { Account } from "./data";
 import {
@@ -290,25 +291,6 @@ function getBackfillSuccessMessage(result: BackfillResponse) {
   return `Backfill complete: ${parts.join(", ")}.`;
 }
 
-function getDisconnectErrorMessage(error: unknown) {
-  if (error instanceof ApiError) {
-    if (error.status === 401) {
-      return "Please sign in again before disconnecting this account.";
-    }
-
-    if (error.status === 404) {
-      return "This Instagram account is already disconnected or no longer available.";
-    }
-
-    return (
-      getApiErrorMessage(error) ??
-      `Instagram account could not be disconnected. API returned ${error.status}.`
-    );
-  }
-
-  return "Instagram account could not be disconnected. Please try again after the API finishes redeploying.";
-}
-
 function getInsightsHref(accountId?: string | null) {
   if (!accountId) {
     return "/analytics";
@@ -317,6 +299,24 @@ function getInsightsHref(accountId?: string | null) {
   const params = new URLSearchParams({ accountId });
 
   return `/analytics?${params.toString()}`;
+}
+
+function getProviderLabel(provider: string) {
+  const normalized = provider.toLowerCase();
+
+  if (normalized === "google") return "Google";
+  if (normalized === "email") return "Email and password";
+  if (normalized === "github") return "GitHub";
+
+  return provider.charAt(0).toUpperCase() + provider.slice(1);
+}
+
+function getProviderSummary(profile?: UserProfile | null) {
+  if (!profile?.providers.length) {
+    return "Email and password";
+  }
+
+  return profile.providers.map(getProviderLabel).join(", ");
 }
 
 function AccountAvatar({
@@ -567,8 +567,7 @@ export function SidebarPanel({
   const [selectedNavKey, setSelectedNavKey] = useState<SidebarKey>(active);
   const [isNarrowViewport, setIsNarrowViewport] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
-  const [disconnectingAccountId, setDisconnectingAccountId] =
-    useState<string | null>(null);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const router = useRouter();
   const visibleAccounts = accounts.slice(0, VISIBLE_ACCOUNT_COUNT);
   const additionalAccounts = accounts.slice(VISIBLE_ACCOUNT_COUNT);
@@ -576,6 +575,7 @@ export function SidebarPanel({
   const profileDetail = getProfileDetail(profile);
   const isCompact = isCollapsed || isNarrowViewport;
   const isDarkTheme = theme === "dark";
+  const providerSummary = getProviderSummary(profile);
   const activeNavIndex = Math.max(
     0,
     NAV_ITEMS.findIndex((item) => item.key === selectedNavKey),
@@ -599,6 +599,20 @@ export function SidebarPanel({
     return () => query.removeEventListener("change", syncViewport);
   }, []);
 
+  useEffect(() => {
+    if (!isProfileMenuOpen) return;
+
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsProfileMenuOpen(false);
+      }
+    }
+
+    window.addEventListener("keydown", closeOnEscape);
+
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [isProfileMenuOpen]);
+
   function toggleSidebar() {
     const nextCollapsed = !isCollapsed;
 
@@ -606,25 +620,21 @@ export function SidebarPanel({
     window.dispatchEvent(new Event(SIDEBAR_COLLAPSED_EVENT));
   }
 
-  async function disconnectAccount(account: Account) {
-    const confirmed = window.confirm(
-      `Disconnect ${getAccountTitle(account)} from this workspace?`,
-    );
-    if (!confirmed) return;
+  async function logOut() {
+    setIsLoggingOut(true);
 
-    setDisconnectingAccountId(account.id);
+    const supabase = createClient();
+    const { error } = await supabase.auth.signOut();
 
-    try {
-      await apiFetchBrowser(`/instagram/accounts/${encodeURIComponent(account.id)}`, {
-        method: "DELETE",
-      });
-      setIsProfileMenuOpen(false);
-      router.refresh();
-    } catch (error) {
-      window.alert(getDisconnectErrorMessage(error));
-    } finally {
-      setDisconnectingAccountId(null);
+    if (error) {
+      window.alert(error.message);
+      setIsLoggingOut(false);
+      return;
     }
+
+    setIsProfileMenuOpen(false);
+    router.push("/");
+    router.refresh();
   }
 
   function toggleTheme(event: MouseEvent<HTMLButtonElement>) {
@@ -902,73 +912,97 @@ export function SidebarPanel({
       </button>
 
       {isProfileMenuOpen ? (
-        <div className="fixed bottom-16 left-4 z-50 w-[286px] rounded-[14px] border border-line bg-paper p-3 text-left text-ink">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-ink">Account settings</p>
-              <p className="mt-0.5 truncate text-[11px] text-muted">
-                Signed in as {profileDetail}
-              </p>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-4 text-ink"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setIsProfileMenuOpen(false);
+            }
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="sidebar-account-dialog-title"
+            className="w-full max-w-[390px] rounded-[16px] border border-line bg-paper p-4 text-left"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p
+                  id="sidebar-account-dialog-title"
+                  className="text-base font-semibold text-ink"
+                >
+                  Account
+                </p>
+                <p className="mt-1 text-xs text-muted">
+                  Your signed-in Social Manager web account.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsProfileMenuOpen(false)}
+                aria-label="Close account popup"
+                className="grid size-8 shrink-0 place-items-center rounded-lg text-muted transition hover:bg-card hover:text-ink"
+              >
+                <X className="size-4" strokeWidth={1.8} />
+              </button>
             </div>
+
+            <div className="mt-4 flex items-center gap-3 rounded-[12px] border border-line bg-card px-3 py-3">
+              <ProfileAvatar profile={profile} />
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-ink">
+                  {profileName}
+                </p>
+                <p className="truncate text-xs text-muted">{profileDetail}</p>
+              </div>
+            </div>
+
+            <div className="mt-4 rounded-[12px] border border-line bg-paper">
+              <div className="border-b border-line px-3 py-2.5">
+                <p className="text-xs font-medium text-muted">
+                  This web account is connected to
+                </p>
+              </div>
+              <div className="divide-y divide-line">
+                <div className="px-3 py-2.5">
+                  <p className="text-sm font-medium text-ink">
+                    Social Manager Web
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted">
+                    Current browser session
+                  </p>
+                </div>
+                <div className="px-3 py-2.5">
+                  <p className="text-sm font-medium text-ink">
+                    Dashboard workspace
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted">
+                    Connected as {profileDetail}
+                  </p>
+                </div>
+                <div className="px-3 py-2.5">
+                  <p className="text-sm font-medium text-ink">Sign-in method</p>
+                  <p className="mt-0.5 text-xs text-muted">
+                    {providerSummary}
+                  </p>
+                </div>
+              </div>
+            </div>
+
             <button
               type="button"
-              onClick={() => setIsProfileMenuOpen(false)}
-              aria-label="Close account settings"
-              className="grid size-7 shrink-0 place-items-center rounded-lg text-muted transition hover:bg-card hover:text-ink"
+              onClick={logOut}
+              disabled={isLoggingOut}
+              className="mt-4 flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-line bg-paper text-sm font-medium text-danger transition hover:bg-red-50 disabled:pointer-events-none disabled:opacity-60"
             >
-              <X className="size-3.5" strokeWidth={1.8} />
+              {isLoggingOut ? (
+                <LoaderCircle className="size-4 animate-spin" strokeWidth={1.8} />
+              ) : (
+                <LogOut className="size-4" strokeWidth={1.8} />
+              )}
+              Log out
             </button>
-          </div>
-
-          <div className="mt-3 rounded-[10px] border border-line bg-card p-2.5">
-            <p className="text-[11px] font-medium text-muted">
-              Connected destinations
-            </p>
-            {accounts.length === 0 ? (
-              <p className="mt-2 text-xs text-muted">
-                No social accounts connected yet.
-              </p>
-            ) : (
-              <div className="mt-2 flex flex-col gap-2">
-                {accounts.map((account, index) => {
-                  const isDisconnecting =
-                    disconnectingAccountId === account.id;
-                  return (
-                    <div
-                      key={account.id}
-                      className="flex items-center gap-2 rounded-[9px] bg-paper px-2 py-2"
-                    >
-                      <AccountAvatar account={account} index={index} />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-xs font-medium text-ink">
-                          {getAccountTitle(account)}
-                        </p>
-                        <p className="truncate text-[10px] text-muted">
-                          {account.platform} / {getAccountHandle(account)}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => disconnectAccount(account)}
-                        disabled={isDisconnecting}
-                        className="grid size-8 shrink-0 place-items-center rounded-lg text-muted transition hover:bg-red-50 hover:text-danger disabled:pointer-events-none disabled:opacity-60"
-                        aria-label={`Disconnect ${account.name}`}
-                        title="Disconnect"
-                      >
-                        {isDisconnecting ? (
-                          <LoaderCircle
-                            className="size-3.5 animate-spin"
-                            strokeWidth={1.8}
-                          />
-                        ) : (
-                          <Link2Off className="size-3.5" strokeWidth={1.8} />
-                        )}
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
           </div>
         </div>
       ) : null}
@@ -981,8 +1015,9 @@ export function SidebarPanel({
         <button
           type="button"
           onClick={() => setIsProfileMenuOpen((open) => !open)}
+          aria-haspopup="dialog"
           aria-expanded={isProfileMenuOpen}
-          aria-label="Open account settings"
+          aria-label="Open account popup"
           className={`flex w-full items-center rounded-md text-left transition-colors hover:bg-[var(--sidebar-hover)] ${
             isCompact ? "gap-1 px-0 py-0" : "gap-1 px-0 py-1"
           }`}

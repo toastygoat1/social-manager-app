@@ -19,6 +19,7 @@ import {
 import { InstagramService } from './instagram.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { encryptSecret } from '../common/crypto.util.js';
+import { MediaService } from '../media/media.service.js';
 
 type PrismaFn = (...args: unknown[]) => Promise<unknown>;
 
@@ -65,6 +66,11 @@ describe('InstagramService', () => {
   };
   let config: {
     get: jest.Mock<(key: string) => string | undefined>;
+  };
+  let media: {
+    createSignedPreviewUrl: jest.Mock<(...args: unknown[]) => Promise<unknown>>;
+    deleteByPath: jest.Mock<(...args: unknown[]) => Promise<unknown>>;
+    createUploadUrls: jest.Mock<(...args: unknown[]) => Promise<unknown>>;
   };
   const originalEncryptionKey = process.env.ENCRYPTION_KEY;
   const hadNativeFetch = 'fetch' in globalThis;
@@ -135,12 +141,18 @@ describe('InstagramService', () => {
         return values[key];
       }),
     };
+    media = {
+      createSignedPreviewUrl: jest.fn(() => Promise.resolve(null)),
+      deleteByPath: jest.fn(() => Promise.resolve(undefined)),
+      createUploadUrls: jest.fn(() => Promise.resolve({ uploads: [] })),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         InstagramService,
         { provide: PrismaService, useValue: prisma },
         { provide: ConfigService, useValue: config },
+        { provide: MediaService, useValue: media },
       ],
     }).compile();
 
@@ -268,6 +280,63 @@ describe('InstagramService', () => {
     expect(result[0]).toMatchObject({
       id: 'account-1',
       avatarUrl: 'https://cdninstagram.com/avatar.jpg',
+      displayName: 'Brand Studio',
+    });
+  });
+
+  it('refreshes stale hosted avatar URLs when listing accounts', async () => {
+    const staleUpdatedAt = new Date(Date.now() - 49 * 60 * 60 * 1000);
+    const account = {
+      id: 'account-1',
+      userId: 'user-1',
+      igUserId: 'ig-1',
+      username: 'brand',
+      displayName: 'Brand Studio',
+      accountType: InstagramAccountType.BUSINESS,
+      avatarUrl: 'https://scontent.cdninstagram.com/stale-avatar.jpg',
+      pageId: null,
+      isActive: true,
+      tokenExpiresAt: null,
+      connectedAt: new Date(),
+      disconnectedAt: null,
+      createdAt: new Date(),
+      updatedAt: staleUpdatedAt,
+    };
+    prisma.instagramAccount.findMany
+      .mockResolvedValueOnce([account])
+      .mockResolvedValueOnce([
+        {
+          id: 'account-1',
+          avatarUrl: account.avatarUrl,
+          displayName: account.displayName,
+          accessTokenEncrypted: encryptSecret('ig-token'),
+        },
+      ]);
+    prisma.instagramAccount.update.mockResolvedValue({ id: 'account-1' });
+    jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: 'ig-1',
+          name: 'Brand Studio',
+          profile_picture_url:
+            'https://scontent.cdninstagram.com/fresh-avatar.jpg',
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      ),
+    );
+
+    const result = await service.getAccounts('user-1');
+
+    expect(prisma.instagramAccount.update).toHaveBeenCalledWith({
+      where: { id: 'account-1' },
+      data: {
+        avatarUrl: 'https://scontent.cdninstagram.com/fresh-avatar.jpg',
+      },
+      select: { id: true },
+    });
+    expect(result[0]).toMatchObject({
+      id: 'account-1',
+      avatarUrl: 'https://scontent.cdninstagram.com/fresh-avatar.jpg',
       displayName: 'Brand Studio',
     });
   });
