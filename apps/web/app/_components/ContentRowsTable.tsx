@@ -6,9 +6,9 @@ import type {
 } from "@/app/dashboard/_components/data";
 import { PostDetailsModal } from "@/app/scheduler/_components/PostDetailsModal";
 import { formatNumber } from "@/lib/format";
-import { ImageIcon, Play, Search, X } from "lucide-react";
+import { ChevronDown, ImageIcon, Play, Search, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 
 type ContentMediaItem = {
   id: string;
@@ -34,6 +34,7 @@ type ContentRowsTableProps = {
 const METADATA_MIN_WIDTH = 120;
 const METADATA_MAX_WIDTH = 190;
 const INITIAL_VISIBLE_ROWS = 10;
+const TABLE_ROW_HEIGHT = 48;
 
 const LEADING_COLUMNS: { label: string; width: number }[] = [
   { label: "Content", width: 265 },
@@ -102,6 +103,25 @@ function AccountPill({ row }: { row: ContentRowsTableRow }) {
   );
 }
 
+function findScrollContainer(element: HTMLElement | null) {
+  let current = element?.parentElement ?? null;
+
+  while (current && current !== document.body) {
+    const overflowY = window.getComputedStyle(current).overflowY;
+
+    if (
+      /(auto|scroll)/.test(overflowY) &&
+      current.scrollHeight > current.clientHeight
+    ) {
+      return current;
+    }
+
+    current = current.parentElement;
+  }
+
+  return null;
+}
+
 function Cell({
   width,
   children,
@@ -124,6 +144,7 @@ export function ContentRowsTable({
   metadataFields,
 }: ContentRowsTableProps) {
   const router = useRouter();
+  const sectionRef = useRef<HTMLElement>(null);
   const [previewRow, setPreviewRow] = useState<PreviewRow | null>(null);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -149,9 +170,35 @@ export function ContentRowsTable({
   }, [normalizedQuery, rows]);
   const visibleRows = filteredRows.slice(0, visibleCount);
   const remainingRows = Math.max(filteredRows.length - visibleRows.length, 0);
+  const bodyHeight =
+    Math.max(visibleCount, INITIAL_VISIBLE_ROWS) * TABLE_ROW_HEIGHT;
+
+  function expandRows() {
+    const rowsToReveal = Math.min(INITIAL_VISIBLE_ROWS, remainingRows);
+
+    setVisibleCount((count) => count + INITIAL_VISIBLE_ROWS);
+
+    window.setTimeout(() => {
+      const scrollTarget = findScrollContainer(sectionRef.current);
+      const scrollOptions: ScrollToOptions = {
+        top: rowsToReveal * TABLE_ROW_HEIGHT,
+        behavior: "smooth",
+      };
+
+      if (scrollTarget) {
+        scrollTarget.scrollBy(scrollOptions);
+        return;
+      }
+
+      window.scrollBy(scrollOptions);
+    }, 80);
+  }
 
   return (
-    <section className="flex min-w-0 flex-col gap-3 overflow-hidden rounded-[16px] border border-line bg-paper p-4">
+    <section
+      ref={sectionRef}
+      className="flex min-w-0 flex-col gap-3 overflow-hidden rounded-[16px] border border-line bg-paper p-4"
+    >
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-sm font-semibold text-ink">Content Table</h2>
@@ -159,23 +206,33 @@ export function ContentRowsTable({
             {filteredRows.length} of {rows.length} items / all statuses
           </p>
         </div>
-        <label className="relative flex min-w-[240px] flex-1 items-center sm:max-w-[340px]">
-          <Search
-            aria-hidden="true"
-            className="pointer-events-none absolute left-3 size-3.5 text-muted"
-            strokeWidth={1.8}
-          />
-          <input
-            value={query}
-            onChange={(event) => {
-              setQuery(event.target.value);
-              setVisibleCount(INITIAL_VISIBLE_ROWS);
-            }}
-            placeholder="Search content, account, status..."
-            className="h-9 w-full rounded-lg border border-line bg-paper pl-9 pr-3 text-xs text-ink outline-none transition focus:border-[#b7b7b7] focus:bg-card"
-            type="search"
-          />
-        </label>
+        <div className="flex min-w-[240px] flex-1 items-center justify-end gap-2 sm:max-w-[390px]">
+          <label className="relative flex min-w-0 flex-1 items-center">
+            <Search
+              aria-hidden="true"
+              className="pointer-events-none absolute left-3 size-3.5 text-muted"
+              strokeWidth={1.8}
+            />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search content, account, status..."
+              className="h-9 w-full rounded-lg border border-line bg-paper pl-9 pr-3 text-xs text-ink outline-none transition focus:border-[#b7b7b7] focus:bg-card"
+              type="search"
+            />
+          </label>
+          {remainingRows > 0 ? (
+            <button
+              type="button"
+              onClick={expandRows}
+              aria-label={`Expand ${Math.min(INITIAL_VISIBLE_ROWS, remainingRows)} more rows`}
+              title={`Expand ${Math.min(INITIAL_VISIBLE_ROWS, remainingRows)} rows`}
+              className="dashboard-motion-card grid size-9 shrink-0 place-items-center rounded-lg border border-line bg-paper text-muted hover:bg-card hover:text-ink"
+            >
+              <ChevronDown className="size-4" strokeWidth={1.9} />
+            </button>
+          ) : null}
+        </div>
       </header>
       <div className="w-full overflow-hidden rounded-[8px] border border-line">
         <div className="w-full overflow-x-auto">
@@ -203,13 +260,18 @@ export function ContentRowsTable({
                 </Cell>
               ))}
             </div>
-            {filteredRows.length === 0 ? (
-              <div className="flex h-24 items-center justify-center text-sm text-muted">
-                {query ? "No content matches your search" : "No content tracked yet"}
-              </div>
-            ) : (
-              <div style={{ overflowX: "clip" }}>
-                {visibleRows.map((row, index) => (
+            <div
+              className="overflow-hidden transition-[height] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
+              style={{ height: `${bodyHeight}px` }}
+            >
+              {filteredRows.length === 0 ? (
+                <div className="flex h-full items-center justify-center text-sm text-muted">
+                  {query
+                    ? "No content matches your search"
+                    : "No content tracked yet"}
+                </div>
+              ) : (
+                visibleRows.map((row, index) => (
                   <Row
                     key={row.id}
                     row={row}
@@ -218,21 +280,12 @@ export function ContentRowsTable({
                     onOpenDetails={setSelectedPostId}
                     onPreview={setPreviewRow}
                   />
-                ))}
-              </div>
-            )}
+                ))
+              )}
+            </div>
           </div>
         </div>
       </div>
-      {remainingRows > 0 ? (
-        <button
-          type="button"
-          onClick={() => setVisibleCount((count) => count + INITIAL_VISIBLE_ROWS)}
-          className="dashboard-motion-card self-center rounded-full border border-line bg-paper px-4 py-2 text-xs font-medium text-ink hover:bg-card"
-        >
-          Show {Math.min(INITIAL_VISIBLE_ROWS, remainingRows)} more
-        </button>
-      ) : null}
       {previewRow ? (
         <MediaPreviewModal
           row={previewRow}

@@ -124,9 +124,9 @@ export function DashboardWorkspace({
 
   return (
     <div className="app-shell-fill bg-paper font-inter text-ink transition-colors duration-500">
-      <main className="mx-auto flex w-full max-w-[1460px] flex-col gap-8 px-4 py-4 sm:px-5 sm:py-5 lg:px-6">
-        <div className="grid items-stretch gap-8 xl:grid-cols-[minmax(0,1fr)_330px]">
-          <div className="flex min-w-0 flex-col gap-4">
+      <main className="mx-auto flex w-full max-w-[1460px] flex-col gap-6 px-4 py-4 sm:px-5 sm:py-5 lg:px-6">
+        <div className="grid items-stretch gap-6 xl:grid-cols-[minmax(0,1fr)_330px]">
+          <div className="flex min-w-0 flex-col gap-6">
             <h1
               className="text-[32px] font-medium leading-[1.02] tracking-[-0.02em] text-ink sm:text-[40px]"
               style={{
@@ -149,7 +149,7 @@ export function DashboardWorkspace({
               </p>
             ) : null}
 
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid gap-6 sm:grid-cols-3">
               <StatusStatCard
                 label="Pending"
                 total={pending.total}
@@ -177,7 +177,7 @@ export function DashboardWorkspace({
 
         <MyAccountsCarousel accounts={data.accounts} />
 
-        <div className="grid items-stretch gap-8 lg:grid-cols-[300px_minmax(0,1fr)]">
+        <div className="grid items-stretch gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
           <LiveActivityPanel initialRows={data.activityRows} />
           <CalendarCard calendar={data.calendar} />
         </div>

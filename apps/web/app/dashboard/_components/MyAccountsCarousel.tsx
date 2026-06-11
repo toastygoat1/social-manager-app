@@ -32,7 +32,7 @@ export function MyAccountsCarousel({
       {accounts.length === 0 ? (
         <p className="py-4 text-xs text-muted">No accounts connected yet.</p>
       ) : (
-        <div className="flex gap-4 overflow-x-auto pb-1">
+        <div className="-mx-1 -mt-2 flex gap-4 overflow-x-auto px-1 pb-2 pt-2">
           {accounts.map((account) => {
             const banner = account.bannerUrl ?? null;
             const accent = account.accentColor ?? null;
@@ -42,11 +42,11 @@ export function MyAccountsCarousel({
                 type="button"
                 key={account.id}
                 onClick={() => setOpenAccount(account)}
-                className="dashboard-motion-card group flex w-[172px] shrink-0 flex-col overflow-hidden rounded-[12px] border border-line bg-paper text-left hover:bg-card"
+                className="dashboard-motion-card group flex w-[224px] shrink-0 flex-col overflow-hidden rounded-[12px] border border-line bg-paper text-left hover:bg-card"
                 aria-label={`Personalize ${displayName}`}
               >
                 <div
-                  className="aspect-[16/10] w-full"
+                  className="aspect-[16/9] w-full"
                   style={
                     banner
                       ? {
@@ -61,18 +61,18 @@ export function MyAccountsCarousel({
                         }
                   }
                 />
-                <div className="flex items-center gap-2 px-3.5 py-3">
-                  <span className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full">
+                <div className="flex items-center gap-2.5 px-4 py-3.5">
+                  <span className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full">
                     <AvatarImage
                       src={account.avatarUrl}
                       alt={account.name}
-                      width={32}
-                      height={32}
-                      className="size-8 rounded-full object-cover"
+                      width={36}
+                      height={36}
+                      className="size-9 rounded-full object-cover"
                       fallback={getInitials(account.name)}
                     />
                   </span>
-                  <span className="truncate text-xs font-medium text-ink">
+                  <span className="truncate text-[13px] font-medium text-ink">
                     {displayName}
                   </span>
                 </div>
