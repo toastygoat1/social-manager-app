@@ -17,7 +17,7 @@ import {
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 type ContentMediaItem = {
   id: string;
@@ -38,6 +38,12 @@ type PreviewRow = ContentRowsTableRow & {
 type ContentRowsTableProps = {
   rows: ContentRowsTableRow[];
   metadataFields: MetadataFieldDefinition[];
+};
+
+type ScrollbarMetrics = {
+  isScrollable: boolean;
+  thumbLeft: number;
+  thumbWidth: number;
 };
 
 const METADATA_MIN_WIDTH = 120;
@@ -155,11 +161,17 @@ export function ContentRowsTable({
 }: ContentRowsTableProps) {
   const router = useRouter();
   const sectionRef = useRef<HTMLElement>(null);
+  const scrollViewportRef = useRef<HTMLDivElement>(null);
   const [previewRow, setPreviewRow] = useState<PreviewRow | null>(null);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [isExpanded, setIsExpanded] = useState(false);
   const [page, setPage] = useState(0);
+  const [scrollbarMetrics, setScrollbarMetrics] = useState<ScrollbarMetrics>({
+    isScrollable: false,
+    thumbLeft: 0,
+    thumbWidth: 100,
+  });
   const totalWidth = getTotalWidth(metadataFields);
   const normalizedQuery = query.trim().toLowerCase();
   const filteredRows = useMemo(() => {
@@ -195,6 +207,44 @@ export function ContentRowsTable({
     filteredRows.length === 0 ? 0 : Math.min(pageStart + 1, filteredRows.length);
   const rangeEnd = Math.min(pageStart + visibleRows.length, filteredRows.length);
 
+  function syncScrollbarMetrics() {
+    const viewport = scrollViewportRef.current;
+    if (!viewport) return;
+
+    const maxScrollLeft = viewport.scrollWidth - viewport.clientWidth;
+    if (maxScrollLeft <= 1) {
+      setScrollbarMetrics({
+        isScrollable: false,
+        thumbLeft: 0,
+        thumbWidth: 100,
+      });
+      return;
+    }
+
+    const thumbWidth = Math.max(
+      12,
+      (viewport.clientWidth / viewport.scrollWidth) * 100,
+    );
+    const thumbLeft =
+      (viewport.scrollLeft / maxScrollLeft) * (100 - thumbWidth);
+
+    setScrollbarMetrics({
+      isScrollable: true,
+      thumbLeft,
+      thumbWidth,
+    });
+  }
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(syncScrollbarMetrics);
+    window.addEventListener("resize", syncScrollbarMetrics);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("resize", syncScrollbarMetrics);
+    };
+  }, [filteredRows.length, metadataFields.length, rowsPerPage, totalWidth]);
+
   function scrollWithTable(deltaRows: number) {
     if (deltaRows <= 0) return;
 
@@ -229,6 +279,46 @@ export function ContentRowsTable({
     setPage(Math.max(0, Math.min(nextPage, totalPages - 1)));
   }
 
+  function moveHorizontalScroll(clientX: number, track: HTMLElement) {
+    const viewport = scrollViewportRef.current;
+    if (!viewport) return;
+
+    const rect = track.getBoundingClientRect();
+    const ratio = Math.min(
+      1,
+      Math.max(0, (clientX - rect.left) / Math.max(rect.width, 1)),
+    );
+
+    viewport.scrollLeft =
+      ratio * Math.max(0, viewport.scrollWidth - viewport.clientWidth);
+    syncScrollbarMetrics();
+  }
+
+  function handleScrollbarPointerDown(
+    event: React.PointerEvent<HTMLDivElement>,
+  ) {
+    event.preventDefault();
+
+    const track = event.currentTarget;
+    moveHorizontalScroll(event.clientX, track);
+    track.setPointerCapture(event.pointerId);
+
+    function handlePointerMove(pointerEvent: PointerEvent) {
+      moveHorizontalScroll(pointerEvent.clientX, track);
+    }
+
+    function cleanup(pointerEvent: PointerEvent) {
+      track.releasePointerCapture(pointerEvent.pointerId);
+      track.removeEventListener("pointermove", handlePointerMove);
+      track.removeEventListener("pointerup", cleanup);
+      track.removeEventListener("pointercancel", cleanup);
+    }
+
+    track.addEventListener("pointermove", handlePointerMove);
+    track.addEventListener("pointerup", cleanup);
+    track.addEventListener("pointercancel", cleanup);
+  }
+
   return (
     <section
       ref={sectionRef}
@@ -238,7 +328,8 @@ export function ContentRowsTable({
         <div>
           <h2 className="text-sm font-semibold text-ink">Content Table</h2>
           <p className="mt-0.5 text-xs text-muted">
-            {rangeStart}-{rangeEnd} of {filteredRows.length} items / all statuses
+            {rangeStart}-{rangeEnd} of {filteredRows.length} items / all
+            statuses
           </p>
         </div>
         <div className="flex min-w-[240px] flex-1 flex-wrap items-center justify-end gap-2 sm:max-w-[470px]">
@@ -309,7 +400,12 @@ export function ContentRowsTable({
         </div>
       </header>
       <div className="w-full overflow-hidden rounded-[8px] border border-line">
-        <div className="content-table-scrollbar w-full overflow-x-auto">
+        <div
+          id="content-table-scroll-area"
+          ref={scrollViewportRef}
+          onScroll={syncScrollbarMetrics}
+          className="scrollbar-none w-full overflow-x-auto"
+        >
           <div style={{ minWidth: `${totalWidth}px` }}>
             <div className="flex h-9 items-center border-b border-line bg-card">
               {LEADING_COLUMNS.map((c) => (
@@ -360,6 +456,26 @@ export function ContentRowsTable({
           </div>
         </div>
       </div>
+      {scrollbarMetrics.isScrollable ? (
+        <div
+          className="content-table-scrollbar-track"
+          role="scrollbar"
+          aria-controls="content-table-scroll-area"
+          aria-orientation="horizontal"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(scrollbarMetrics.thumbLeft)}
+          onPointerDown={handleScrollbarPointerDown}
+        >
+          <span
+            className="content-table-scrollbar-thumb"
+            style={{
+              left: `${scrollbarMetrics.thumbLeft}%`,
+              width: `${scrollbarMetrics.thumbWidth}%`,
+            }}
+          />
+        </div>
+      ) : null}
       {previewRow ? (
         <MediaPreviewModal
           row={previewRow}

@@ -1,7 +1,8 @@
 "use client";
 
 import type { ComponentType, MouseEvent, SVGProps } from "react";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import {
   BarChart3,
   CalendarDays,
@@ -80,6 +81,11 @@ type SidebarPanelProps = {
   profile?: UserProfile | null;
 };
 
+type ProfilePopupPosition = {
+  bottom: number;
+  left: number;
+};
+
 const NAV_ITEMS: NavItem[] = [
   { key: "dashboard", label: "Dashboard", Icon: Home, href: "/dashboard" },
   { key: "workspace", label: "Workspace", Icon: Columns2, href: "/workspace" },
@@ -95,6 +101,7 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 const VISIBLE_ACCOUNT_COUNT = 8;
+const PROFILE_POPUP_WIDTH = 336;
 const AVATAR_COLORS = [
   "#e8855b",
   "#7b6cd9",
@@ -568,6 +575,11 @@ export function SidebarPanel({
   const [isNarrowViewport, setIsNarrowViewport] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+  const [profilePopupPosition, setProfilePopupPosition] =
+    useState<ProfilePopupPosition | null>(null);
+  const profileButtonRef = useRef<HTMLButtonElement>(null);
+  const profilePopupRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const visibleAccounts = accounts.slice(0, VISIBLE_ACCOUNT_COUNT);
   const additionalAccounts = accounts.slice(VISIBLE_ACCOUNT_COUNT);
@@ -580,6 +592,10 @@ export function SidebarPanel({
     0,
     NAV_ITEMS.findIndex((item) => item.key === selectedNavKey),
   );
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   useEffect(() => {
     applyDocumentTheme(theme);
@@ -602,16 +618,58 @@ export function SidebarPanel({
   useEffect(() => {
     if (!isProfileMenuOpen) return;
 
+    function updateProfilePopupPosition() {
+      const trigger = profileButtonRef.current;
+      if (!trigger) return;
+
+      const rect = trigger.getBoundingClientRect();
+      const viewportPadding = 12;
+      const preferredLeft = isCompact ? rect.right + 10 : rect.left;
+      const left = Math.min(
+        Math.max(viewportPadding, preferredLeft),
+        window.innerWidth - PROFILE_POPUP_WIDTH - viewportPadding,
+      );
+      const bottom = Math.min(
+        window.innerHeight - viewportPadding,
+        window.innerHeight - rect.top + 10,
+      );
+
+      setProfilePopupPosition({ bottom, left });
+    }
+
+    function closeOnOutsidePointer(event: PointerEvent) {
+      const target = event.target as Node | null;
+
+      if (
+        target &&
+        (profilePopupRef.current?.contains(target) ||
+          profileButtonRef.current?.contains(target))
+      ) {
+        return;
+      }
+
+      setIsProfileMenuOpen(false);
+    }
+
     function closeOnEscape(event: KeyboardEvent) {
       if (event.key === "Escape") {
         setIsProfileMenuOpen(false);
       }
     }
 
+    updateProfilePopupPosition();
+    window.addEventListener("resize", updateProfilePopupPosition);
+    window.addEventListener("scroll", updateProfilePopupPosition, true);
+    window.addEventListener("pointerdown", closeOnOutsidePointer, true);
     window.addEventListener("keydown", closeOnEscape);
 
-    return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [isProfileMenuOpen]);
+    return () => {
+      window.removeEventListener("resize", updateProfilePopupPosition);
+      window.removeEventListener("scroll", updateProfilePopupPosition, true);
+      window.removeEventListener("pointerdown", closeOnOutsidePointer, true);
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [isCompact, isProfileMenuOpen]);
 
   function toggleSidebar() {
     const nextCollapsed = !isCollapsed;
@@ -911,20 +969,19 @@ export function SidebarPanel({
         </span>
       </button>
 
-      {isProfileMenuOpen ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 text-ink backdrop-blur-[1px]"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) {
-              setIsProfileMenuOpen(false);
-            }
-          }}
-        >
+      {isClient && isProfileMenuOpen
+        ? createPortal(
           <div
+            ref={profilePopupRef}
             role="dialog"
-            aria-modal="true"
+            aria-modal="false"
             aria-labelledby="sidebar-account-dialog-title"
-            className="isolate w-full max-w-[380px] overflow-hidden rounded-[16px] border border-line bg-[var(--app-panel-bg)] p-4 text-left"
+            className="account-popup-panel fixed z-[1000] max-h-[calc(100vh-24px)] overflow-y-auto rounded-[16px] border border-line bg-[var(--app-panel-bg)] p-4 text-left text-ink"
+            style={{
+              bottom: profilePopupPosition?.bottom ?? 16,
+              left: profilePopupPosition?.left ?? 16,
+              width: PROFILE_POPUP_WIDTH,
+            }}
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -1009,8 +1066,10 @@ export function SidebarPanel({
               Log out
             </button>
           </div>
-        </div>
-      ) : null}
+          ,
+          document.body,
+        )
+        : null}
 
       <footer
         className={`sidebar-dash-rule-top pb-1 pt-3 transition-[gap,padding] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
@@ -1018,6 +1077,7 @@ export function SidebarPanel({
         }`}
       >
         <button
+          ref={profileButtonRef}
           type="button"
           onClick={() => setIsProfileMenuOpen((open) => !open)}
           aria-haspopup="dialog"
