@@ -609,7 +609,7 @@ export function SidebarPanel({
   return (
     <aside
       data-theme={theme}
-      className={`app-shell-sidebar flex shrink-0 flex-col gap-[18px] overflow-y-auto pb-3 pt-3.5 font-inter text-[var(--sidebar-text)] transition-[width,padding,background-color,border-color,color,box-shadow] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
+      className={`app-shell-sidebar flex shrink-0 flex-col gap-[18px] overflow-y-auto pb-3 pt-5 font-inter text-[var(--sidebar-text)] transition-[width,padding,background-color,border-color,color,box-shadow] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
         isCollapsed ? "w-16 px-3" : "w-[232px] px-3"
       }`}
     >

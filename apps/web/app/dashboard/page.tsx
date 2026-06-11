@@ -1,9 +1,25 @@
+import type { User } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getDashboardData } from "@/lib/dashboard-data";
 import { getUserProfile } from "@/lib/supabase/user-profile";
 import { DashboardWorkspace } from "./_components/DashboardWorkspace";
 import { Sidebar } from "./_components/Sidebar";
+
+function getDevBypassUser(): User | null {
+  const devUserId = process.env.DEV_USER_ID;
+  if (!devUserId || process.env.NODE_ENV === "production") return null;
+  return {
+    id: devUserId,
+    email: process.env.DEV_USER_EMAIL ?? "dev@local",
+    user_metadata: {
+      full_name: process.env.DEV_USER_NAME ?? "Dev User",
+    },
+    app_metadata: {},
+    aud: "authenticated",
+    created_at: new Date(0).toISOString(),
+  } as User;
+}
 
 type DashboardPageProps = {
   searchParams: Promise<{
@@ -60,18 +76,21 @@ export default async function DashboardPage({
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
   );
 
-  if (!hasSupabaseEnv) {
+  const devBypassUser = getDevBypassUser();
+
+  if (!hasSupabaseEnv && !devBypassUser) {
     redirect("/?message=" + encodeURIComponent("no env variable"));
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
+  let user: User | null = devBypassUser;
 
-  if (error || !user) {
-    redirect("/");
+  if (!user) {
+    const supabase = await createClient();
+    const result = await supabase.auth.getUser();
+    if (result.error || !result.data.user) {
+      redirect("/");
+    }
+    user = result.data.user;
   }
 
   const data = await getDashboardData();

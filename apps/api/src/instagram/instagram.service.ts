@@ -21,6 +21,7 @@ import {
   WebhookProcessingStatus,
   WebhookSource,
 } from '@social-manager/database';
+import { MediaService } from '../media/media.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AddInstagramAccountDto } from './dto/add-instagram-account.dto.js';
 import { CompleteInstagramOAuthDto } from './dto/complete-instagram-oauth.dto.js';
@@ -43,6 +44,7 @@ const SAFE_INSTAGRAM_ACCOUNT_SELECT = {
   accountType: true,
   avatarUrl: true,
   bannerUrl: true,
+  bannerStoragePath: true,
   accentColor: true,
   nickname: true,
   note: true,
@@ -328,6 +330,7 @@ export class InstagramService {
   constructor(
     private prisma: PrismaService,
     private config: ConfigService,
+    private media: MediaService,
     @Optional() private readonly aiAutoAnalysis: AiAutoAnalysisService | null,
   ) {}
 
@@ -343,20 +346,22 @@ export class InstagramService {
       select: SAFE_INSTAGRAM_ACCOUNT_SELECT,
     });
 
-    const missingProfileIds = accounts
+    const withBanners = await this.attachSignedBanners(accounts);
+
+    const missingProfileIds = withBanners
       .filter((account) => !account.avatarUrl || !account.displayName)
       .map((account) => account.id);
 
-    if (missingProfileIds.length === 0) return accounts;
+    if (missingProfileIds.length === 0) return withBanners;
 
     const syncedProfiles = await this.syncMissingAccountProfiles(
       userId,
       missingProfileIds,
     );
 
-    if (syncedProfiles.size === 0) return accounts;
+    if (syncedProfiles.size === 0) return withBanners;
 
-    return accounts.map((account) => {
+    return withBanners.map((account) => {
       const syncedProfile = syncedProfiles.get(account.id);
 
       return {
@@ -365,6 +370,25 @@ export class InstagramService {
         displayName: syncedProfile?.displayName ?? account.displayName,
       };
     });
+  }
+
+  private async attachSignedBanners<
+    T extends { bannerStoragePath: string | null; bannerUrl: string | null },
+  >(accounts: T[]): Promise<T[]> {
+    return Promise.all(
+      accounts.map(async (account) => {
+        if (!account.bannerStoragePath) return account;
+        try {
+          const signed = await this.media.createSignedPreviewUrl(
+            account.bannerStoragePath,
+          );
+          if (!signed) return account;
+          return { ...account, bannerUrl: signed };
+        } catch {
+          return account;
+        }
+      }),
+    );
   }
 
   async updatePersonalization(
@@ -386,7 +410,7 @@ export class InstagramService {
       throw new NotFoundException('Instagram account was not found.');
     }
 
-    return this.prisma.instagramAccount.update({
+    const updated = await this.prisma.instagramAccount.update({
       where: { id: accountId },
       data: {
         bannerUrl: data.bannerUrl ?? null,
@@ -396,6 +420,100 @@ export class InstagramService {
       },
       select: SAFE_INSTAGRAM_ACCOUNT_SELECT,
     });
+
+    const [withBanner] = await this.attachSignedBanners([updated]);
+    return withBanner;
+  }
+
+  async createBannerUploadUrl(
+    user: AuthUser,
+    accountId: string,
+    file: { name: string; mimeType: string; fileSize: number },
+  ) {
+    const account = await this.prisma.instagramAccount.findFirst({
+      where: { id: accountId, userId: user.userId },
+      select: { id: true },
+    });
+    if (!account) {
+      throw new NotFoundException('Instagram account was not found.');
+    }
+
+    const { uploads } = await this.media.createUploadUrls(user, [file]);
+    const upload = uploads[0];
+    if (!upload) {
+      throw new InternalServerErrorException('Failed to create banner upload URL');
+    }
+    return upload;
+  }
+
+  async confirmBannerUpload(
+    userId: string,
+    accountId: string,
+    storagePath: string,
+  ) {
+    if (!storagePath.startsWith(`${userId}/`)) {
+      throw new BadRequestException('Invalid banner path');
+    }
+
+    const account = await this.prisma.instagramAccount.findFirst({
+      where: { id: accountId, userId },
+      select: { id: true, bannerStoragePath: true },
+    });
+    if (!account) {
+      throw new NotFoundException('Instagram account was not found.');
+    }
+
+    if (
+      account.bannerStoragePath &&
+      account.bannerStoragePath !== storagePath
+    ) {
+      try {
+        await this.media.deleteByPath(account.bannerStoragePath);
+      } catch (error) {
+        this.logger.warn(
+          `Could not remove previous banner ${account.bannerStoragePath}: ${(error as Error).message}`,
+        );
+      }
+    }
+
+    const updated = await this.prisma.instagramAccount.update({
+      where: { id: accountId },
+      data: {
+        bannerStoragePath: storagePath,
+        bannerUrl: null,
+      },
+      select: SAFE_INSTAGRAM_ACCOUNT_SELECT,
+    });
+
+    const [withBanner] = await this.attachSignedBanners([updated]);
+    return withBanner;
+  }
+
+  async clearBanner(userId: string, accountId: string) {
+    const account = await this.prisma.instagramAccount.findFirst({
+      where: { id: accountId, userId },
+      select: { id: true, bannerStoragePath: true },
+    });
+    if (!account) {
+      throw new NotFoundException('Instagram account was not found.');
+    }
+
+    if (account.bannerStoragePath) {
+      try {
+        await this.media.deleteByPath(account.bannerStoragePath);
+      } catch (error) {
+        this.logger.warn(
+          `Could not remove banner ${account.bannerStoragePath}: ${(error as Error).message}`,
+        );
+      }
+    }
+
+    const updated = await this.prisma.instagramAccount.update({
+      where: { id: accountId },
+      data: { bannerStoragePath: null, bannerUrl: null },
+      select: SAFE_INSTAGRAM_ACCOUNT_SELECT,
+    });
+    return updated;
   }
 
   async removeAccount(userId: string, accountId: string) {

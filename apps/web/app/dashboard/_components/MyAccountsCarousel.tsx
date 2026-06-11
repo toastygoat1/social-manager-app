@@ -3,11 +3,10 @@
 import { useState } from "react";
 import { AvatarImage } from "@/app/_components/AvatarImage";
 import { AccountPersonalizationModal } from "./AccountPersonalizationModal";
-import type { Account, ContentRow } from "./data";
+import type { Account } from "./data";
 
 type MyAccountsCarouselProps = {
   accounts: Account[];
-  contentRows: ContentRow[];
 };
 
 function getInitials(label: string) {
@@ -22,36 +21,20 @@ function getInitials(label: string) {
   );
 }
 
-function getAccountPreview(account: Account, rows: ContentRow[]) {
-  const row = rows.find(
-    (item) =>
-      item.account.id === account.id &&
-      ((item.thumbnailUrl && /^https?:\/\//i.test(item.thumbnailUrl)) ||
-        /^https?:\/\//i.test(item.media)),
-  );
-  if (!row) return null;
-  if (row.thumbnailUrl && /^https?:\/\//i.test(row.thumbnailUrl)) {
-    return row.thumbnailUrl;
-  }
-  return /^https?:\/\//i.test(row.media) ? row.media : null;
-}
-
 export function MyAccountsCarousel({
   accounts,
-  contentRows,
 }: MyAccountsCarouselProps) {
   const [openAccount, setOpenAccount] = useState<Account | null>(null);
 
   return (
-    <section className="flex flex-col gap-4 rounded-[14px] border border-line bg-paper p-4">
+    <section className="flex flex-col gap-4 rounded-[20px] border border-line bg-paper p-5">
       <h2 className="text-sm font-medium text-ink">My Accounts</h2>
       {accounts.length === 0 ? (
         <p className="py-4 text-xs text-muted">No accounts connected yet.</p>
       ) : (
         <div className="flex gap-3 overflow-x-auto pb-1">
           {accounts.map((account) => {
-            const fallbackPreview = getAccountPreview(account, contentRows);
-            const banner = account.bannerUrl ?? fallbackPreview;
+            const banner = account.bannerUrl ?? null;
             const accent = account.accentColor ?? null;
             const displayName = account.nickname?.trim() || account.name;
             return (
@@ -59,7 +42,7 @@ export function MyAccountsCarousel({
                 type="button"
                 key={account.id}
                 onClick={() => setOpenAccount(account)}
-                className="group flex w-[180px] shrink-0 flex-col overflow-hidden rounded-[12px] border border-line bg-paper text-left transition hover:-translate-y-0.5 hover:border-[color:var(--cta)]"
+                className="group flex w-[140px] shrink-0 flex-col overflow-hidden rounded-[14px] border border-line bg-paper text-left transition hover:-translate-y-0.5 hover:border-[color:var(--cta)]"
                 aria-label={`Personalize ${displayName}`}
               >
                 <div

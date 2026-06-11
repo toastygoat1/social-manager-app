@@ -118,7 +118,7 @@ export function RecentPostsPanel({ rows }: RecentPostsPanelProps) {
   }, [active, rows]);
 
   return (
-    <section className="absolute inset-0 flex flex-col gap-4 rounded-[14px] border border-line bg-paper p-4">
+    <section className="absolute inset-0 flex flex-col gap-4 rounded-[20px] border border-line bg-paper p-5">
       <header className="flex shrink-0 flex-col gap-3">
         <h2 className="text-sm font-medium text-ink">Recent Posts</h2>
         <div className="relative flex items-center gap-1 rounded-full bg-card p-1">
@@ -154,7 +154,7 @@ export function RecentPostsPanel({ rows }: RecentPostsPanelProps) {
         </div>
       </header>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pr-1">
+      <div className="scrollbar-none flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
         {filtered.length === 0 ? (
           <p className="py-6 text-center text-xs text-muted">
             No recent posts yet

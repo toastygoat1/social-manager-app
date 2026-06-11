@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Link2Off, LoaderCircle, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ImagePlus, Link2Off, LoaderCircle, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { AvatarImage } from "@/app/_components/AvatarImage";
 import { ApiError, apiFetchBrowser } from "@/lib/api/browser-client";
+import { createClient } from "@/lib/supabase/client";
 import { POST_FORMAT_COLORS } from "./post-formats";
 import type { Account } from "./data";
 
@@ -13,14 +14,23 @@ type AccountPersonalizationModalProps = {
   onClose: () => void;
 };
 
+type BannerUploadUrlResponse = {
+  bucket: string;
+  storagePath: string;
+  token: string;
+  signedUrl: string;
+};
+
 const PRESET_COLORS = [
   POST_FORMAT_COLORS.Post,
   POST_FORMAT_COLORS.Carousel,
   POST_FORMAT_COLORS.Reel,
   POST_FORMAT_COLORS.Story,
-  "#0ea5e9",
-  "#a855f7",
+  "#4318FF",
+  "#1f2937",
 ];
+
+const MAX_BANNER_BYTES = 8 * 1024 * 1024;
 
 function getInitials(label: string) {
   return (
@@ -50,17 +60,19 @@ export function AccountPersonalizationModal({
   onClose,
 }: AccountPersonalizationModalProps) {
   const router = useRouter();
-  const [bannerUrl, setBannerUrl] = useState("");
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [bannerPreview, setBannerPreview] = useState<string | null>(null);
   const [accentColor, setAccentColor] = useState("");
   const [nickname, setNickname] = useState("");
   const [note, setNote] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!account) return;
-    setBannerUrl(account.bannerUrl ?? "");
+    setBannerPreview(account.bannerUrl ?? null);
     setAccentColor(account.accentColor ?? "");
     setNickname(account.nickname ?? "");
     setNote(account.note ?? "");
@@ -77,6 +89,75 @@ export function AccountPersonalizationModal({
 
   if (!account) return null;
 
+  async function handleUpload(file: File) {
+    if (!account) return;
+    if (!file.type.startsWith("image/")) {
+      setError("Banner must be an image");
+      return;
+    }
+    if (file.size > MAX_BANNER_BYTES) {
+      setError("Banner must be smaller than 8MB");
+      return;
+    }
+    setError(null);
+    setIsUploading(true);
+    const localPreview = URL.createObjectURL(file);
+    setBannerPreview(localPreview);
+    try {
+      const intent = await apiFetchBrowser<BannerUploadUrlResponse>(
+        `/instagram/accounts/${encodeURIComponent(account.id)}/banner/upload-url`,
+        {
+          method: "POST",
+          body: {
+            name: file.name,
+            mimeType: file.type,
+            fileSize: file.size,
+          },
+        },
+      );
+      const supabase = createClient();
+      const { error: uploadError } = await supabase.storage
+        .from(intent.bucket)
+        .uploadToSignedUrl(intent.storagePath, intent.token, file, {
+          contentType: file.type,
+        });
+      if (uploadError) throw uploadError;
+      const updated = await apiFetchBrowser<Account>(
+        `/instagram/accounts/${encodeURIComponent(account.id)}/banner`,
+        {
+          method: "POST",
+          body: { storagePath: intent.storagePath },
+        },
+      );
+      setBannerPreview(updated.bannerUrl ?? null);
+      router.refresh();
+    } catch (err) {
+      setError(getApiMessage(err, "Could not upload banner"));
+      setBannerPreview(account?.bannerUrl ?? null);
+    } finally {
+      setIsUploading(false);
+      URL.revokeObjectURL(localPreview);
+    }
+  }
+
+  async function handleClearBanner() {
+    if (!account) return;
+    setIsUploading(true);
+    setError(null);
+    try {
+      await apiFetchBrowser(
+        `/instagram/accounts/${encodeURIComponent(account.id)}/banner`,
+        { method: "DELETE" },
+      );
+      setBannerPreview(null);
+      router.refresh();
+    } catch (err) {
+      setError(getApiMessage(err, "Could not remove banner"));
+    } finally {
+      setIsUploading(false);
+    }
+  }
+
   async function handleSave() {
     if (!account) return;
     setIsSaving(true);
@@ -86,47 +167,17 @@ export function AccountPersonalizationModal({
         `/instagram/accounts/${encodeURIComponent(account.id)}/personalization`,
         {
           method: "PATCH",
-          body: JSON.stringify({
-            bannerUrl: bannerUrl.trim() || null,
+          body: {
             accentColor: accentColor.trim() || null,
             nickname: nickname.trim() || null,
             note: note.trim() || null,
-          }),
+          },
         },
       );
       router.refresh();
       onClose();
     } catch (err) {
       setError(getApiMessage(err, "Could not save personalization"));
-      setIsSaving(false);
-    }
-  }
-
-  async function handleClear() {
-    if (!account) return;
-    setIsSaving(true);
-    setError(null);
-    try {
-      await apiFetchBrowser(
-        `/instagram/accounts/${encodeURIComponent(account.id)}/personalization`,
-        {
-          method: "PATCH",
-          body: JSON.stringify({
-            bannerUrl: null,
-            accentColor: null,
-            nickname: null,
-            note: null,
-          }),
-        },
-      );
-      setBannerUrl("");
-      setAccentColor("");
-      setNickname("");
-      setNote("");
-      router.refresh();
-    } catch (err) {
-      setError(getApiMessage(err, "Could not reset personalization"));
-    } finally {
       setIsSaving(false);
     }
   }
@@ -153,6 +204,7 @@ export function AccountPersonalizationModal({
   }
 
   const previewAccent = accentColor || "#5e6ad2";
+  const showingPreview = bannerPreview;
 
   return (
     <div
@@ -165,7 +217,7 @@ export function AccountPersonalizationModal({
         aria-modal="true"
         aria-label={`Personalize ${account.name}`}
         onClick={(event) => event.stopPropagation()}
-        className="relative flex w-full max-w-[460px] flex-col overflow-hidden rounded-[16px] border border-line bg-paper"
+        className="relative flex w-full max-w-[460px] flex-col overflow-hidden rounded-[20px] border border-line bg-paper"
       >
         <button
           type="button"
@@ -179,9 +231,9 @@ export function AccountPersonalizationModal({
         <div
           className="relative h-28 w-full"
           style={
-            bannerUrl
+            showingPreview
               ? {
-                  backgroundImage: `url("${bannerUrl}")`,
+                  backgroundImage: `url("${showingPreview}")`,
                   backgroundSize: "cover",
                   backgroundPosition: "center",
                 }
@@ -189,7 +241,45 @@ export function AccountPersonalizationModal({
                   background: `linear-gradient(135deg, ${previewAccent} 0%, ${previewAccent}80 100%)`,
                 }
           }
-        />
+        >
+          <div className="absolute right-3 bottom-3 flex gap-1.5">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              hidden
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) handleUpload(file);
+                if (event.target) event.target.value = "";
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+              className="inline-flex items-center gap-1.5 rounded-full bg-paper/90 px-2.5 py-1 text-[11px] font-medium text-ink shadow-sm backdrop-blur transition hover:bg-paper disabled:pointer-events-none disabled:opacity-60"
+            >
+              {isUploading ? (
+                <LoaderCircle className="size-3.5 animate-spin" strokeWidth={2} />
+              ) : (
+                <ImagePlus className="size-3.5" strokeWidth={1.8} />
+              )}
+              {showingPreview ? "Replace banner" : "Upload banner"}
+            </button>
+            {showingPreview ? (
+              <button
+                type="button"
+                onClick={handleClearBanner}
+                disabled={isUploading}
+                aria-label="Remove banner"
+                className="grid size-7 place-items-center rounded-full bg-paper/90 text-muted shadow-sm backdrop-blur transition hover:bg-paper hover:text-ink disabled:pointer-events-none disabled:opacity-60"
+              >
+                <Trash2 className="size-3.5" strokeWidth={1.8} />
+              </button>
+            ) : null}
+          </div>
+        </div>
 
         <div className="-mt-8 flex flex-col items-center gap-1 px-5">
           <span
@@ -217,16 +307,6 @@ export function AccountPersonalizationModal({
               {error}
             </p>
           ) : null}
-
-          <Field label="Banner image URL">
-            <input
-              type="url"
-              value={bannerUrl}
-              onChange={(event) => setBannerUrl(event.target.value)}
-              placeholder="https://…"
-              className="w-full rounded-[10px] border border-line bg-paper px-3 py-2 text-xs text-ink placeholder:text-muted focus:border-[color:var(--cta)] focus:outline-none"
-            />
-          </Field>
 
           <Field label="Accent color">
             <div className="flex items-center gap-2">
@@ -293,27 +373,17 @@ export function AccountPersonalizationModal({
               Disconnect account
             </button>
 
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handleClear}
-                disabled={isSaving || isDisconnecting}
-                className="rounded-[10px] border border-line px-3 py-2 text-xs font-medium text-muted transition hover:bg-card hover:text-ink disabled:pointer-events-none disabled:opacity-60"
-              >
-                Reset
-              </button>
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={isSaving || isDisconnecting}
-                className="inline-flex items-center gap-1.5 rounded-[10px] bg-ink px-3 py-2 text-xs font-medium text-paper transition hover:opacity-90 disabled:pointer-events-none disabled:opacity-60"
-              >
-                {isSaving ? (
-                  <LoaderCircle className="size-3.5 animate-spin" strokeWidth={2} />
-                ) : null}
-                Save
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={isSaving || isDisconnecting}
+              className="inline-flex items-center gap-1.5 rounded-[10px] bg-ink px-3 py-2 text-xs font-medium text-paper transition hover:opacity-90 disabled:pointer-events-none disabled:opacity-60"
+            >
+              {isSaving ? (
+                <LoaderCircle className="size-3.5 animate-spin" strokeWidth={2} />
+              ) : null}
+              Save
+            </button>
           </div>
         </div>
       </div>
