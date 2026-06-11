@@ -33,13 +33,6 @@ const TAB_ACTIVE_COLOR: Record<Tab, string> = {
   Stories: POST_FORMAT_COLORS.Story,
 };
 
-const FORMAT_SORT_ORDER: Record<PostFormat, number> = {
-  Post: 0,
-  Carousel: 1,
-  Reel: 2,
-  Story: 3,
-};
-
 function getInitials(label: string) {
   return (
     label
@@ -52,10 +45,18 @@ function getInitials(label: string) {
   );
 }
 
-function getMediaPreview(row: ContentRow) {
+function getThumbnail(row: ContentRow) {
+  if (row.thumbnailUrl && /^https?:\/\//i.test(row.thumbnailUrl)) {
+    return row.thumbnailUrl;
+  }
   const media = row.media?.trim();
   if (media && /^https?:\/\//i.test(media)) return media;
   return null;
+}
+
+function parseDate(value: string) {
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function ThumbnailPlaceholder({ format }: { format: PostFormat }) {
@@ -78,7 +79,7 @@ function ThumbnailPlaceholder({ format }: { format: PostFormat }) {
 }
 
 export function RecentPostsPanel({ rows }: RecentPostsPanelProps) {
-  const [active, setActive] = useState<Tab>("Carousel");
+  const [active, setActive] = useState<Tab>("All");
   const tabRefs = useRef<Record<Tab, HTMLButtonElement | null>>({
     All: null,
     Posts: null,
@@ -109,18 +110,15 @@ export function RecentPostsPanel({ rows }: RecentPostsPanelProps) {
 
   const filtered = useMemo(() => {
     const target = TAB_TO_FORMAT[active];
-    if (target === "All") {
-      return [...rows].sort((a, b) => {
-        const fa = FORMAT_SORT_ORDER[normalizePostFormat(a.type)];
-        const fb = FORMAT_SORT_ORDER[normalizePostFormat(b.type)];
-        return fa - fb;
-      });
-    }
-    return rows.filter((row) => normalizePostFormat(row.type) === target);
+    const items =
+      target === "All"
+        ? rows
+        : rows.filter((row) => normalizePostFormat(row.type) === target);
+    return [...items].sort((a, b) => parseDate(b.datePost) - parseDate(a.datePost));
   }, [active, rows]);
 
   return (
-    <section className="flex h-full min-h-0 flex-col gap-4 rounded-[14px] border border-line bg-paper p-4">
+    <section className="absolute inset-0 flex flex-col gap-4 rounded-[14px] border border-line bg-paper p-4">
       <header className="flex shrink-0 flex-col gap-3">
         <h2 className="text-sm font-medium text-ink">Recent Posts</h2>
         <div className="relative flex items-center gap-1 rounded-full bg-card p-1">
@@ -164,8 +162,7 @@ export function RecentPostsPanel({ rows }: RecentPostsPanelProps) {
         ) : (
           filtered.map((row) => {
             const format = normalizePostFormat(row.type);
-            const preview = getMediaPreview(row);
-            const isStory = format === "Story";
+            const preview = getThumbnail(row);
 
             return (
               <article
@@ -196,9 +193,7 @@ export function RecentPostsPanel({ rows }: RecentPostsPanelProps) {
                   </span>
                 </header>
                 <div
-                  className={`w-full overflow-hidden rounded-[8px] ${
-                    isStory ? "aspect-[9/14]" : "aspect-[16/10]"
-                  }`}
+                  className="aspect-[16/10] w-full overflow-hidden rounded-[8px]"
                   style={
                     preview
                       ? {
@@ -211,7 +206,7 @@ export function RecentPostsPanel({ rows }: RecentPostsPanelProps) {
                 >
                   {preview ? null : <ThumbnailPlaceholder format={format} />}
                 </div>
-                {isStory ? null : row.contents || row.caption ? (
+                {row.contents || row.caption ? (
                   <div className="flex flex-col gap-1">
                     <p className="truncate text-xs font-medium text-ink">
                       {row.contents || "Untitled"}

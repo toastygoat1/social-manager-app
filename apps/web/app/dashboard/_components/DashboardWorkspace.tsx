@@ -170,7 +170,7 @@ export function DashboardWorkspace({
             <PublishedChart total={publishedTotal} bars={publishedBars} />
           </div>
 
-          <div className="flex min-h-0 min-w-0 flex-col gap-4">
+          <div className="relative min-h-0 min-w-0">
             <RecentPostsPanel rows={data.contentRows} />
           </div>
         </div>

@@ -65,6 +65,7 @@ export type ContentRow = {
   comments: number | null;
   shares: number | null;
   media: string;
+  thumbnailUrl?: string | null;
 };
 
 export type MetadataFieldDefinition = {
