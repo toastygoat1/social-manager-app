@@ -125,7 +125,7 @@ export function DashboardWorkspace({
   return (
     <div className="app-shell-fill bg-paper font-inter text-ink transition-colors duration-500">
       <main className="mx-auto flex w-full max-w-[1460px] flex-col gap-6 px-4 py-4 sm:px-5 sm:py-5 lg:px-6">
-        <div className="grid items-stretch gap-6 xl:grid-cols-[minmax(0,1fr)_330px]">
+        <div className="grid items-stretch gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
           <div className="flex min-w-0 flex-col gap-6">
             <h1
               className="text-[32px] font-medium leading-[1.02] tracking-[-0.02em] text-ink sm:text-[40px]"
