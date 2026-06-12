@@ -29,6 +29,8 @@ const STATUS_ICONS = {
   Ready: CircleCheck,
 };
 
+const STATUS_CARD_ASPECT_RATIO = "1.77415300546 / 1";
+
 export function StatusStatCard({ label, total, breakdown }: StatusStatCardProps) {
   const [mounted, setMounted] = useState(false);
 
@@ -43,7 +45,10 @@ export function StatusStatCard({ label, total, breakdown }: StatusStatCardProps)
   const StatusIcon = STATUS_ICONS[label as keyof typeof STATUS_ICONS] ?? Hourglass;
 
   return (
-    <div className="relative flex min-h-[156px] flex-col justify-between gap-3 rounded-[16px] border border-line bg-paper p-4">
+    <div
+      className="relative flex flex-col justify-between gap-3 rounded-[16px] border border-line bg-paper p-4"
+      style={{ aspectRatio: STATUS_CARD_ASPECT_RATIO }}
+    >
       <div className="flex flex-col gap-3">
         <header className="flex items-center gap-1.5">
           <span className="grid size-7 shrink-0 place-items-center rounded-[8px] border border-line bg-[#fafafa] text-ink">
