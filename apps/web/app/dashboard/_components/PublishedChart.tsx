@@ -15,6 +15,8 @@ export type PublishedBar = {
 type PublishedChartProps = {
   total: number;
   bars: PublishedBar[];
+  cardWidth: number;
+  cardHeight: number;
 };
 
 const CHART_HEIGHT = 208;
@@ -74,7 +76,12 @@ function getTickTransform(tick: number, max: number) {
   return "translateY(-50%)";
 }
 
-export function PublishedChart({ total, bars }: PublishedChartProps) {
+export function PublishedChart({
+  total,
+  bars,
+  cardWidth,
+  cardHeight,
+}: PublishedChartProps) {
   const [mounted, setMounted] = useState(false);
   const [activeFormats, setActiveFormats] =
     useState<PostFormat[]>(PUBLISHED_FORMATS);
@@ -189,7 +196,10 @@ export function PublishedChart({ total, bars }: PublishedChartProps) {
   }
 
   return (
-    <section className="flex flex-col gap-4 rounded-[16px] border border-line bg-paper p-6">
+    <section
+      className="flex flex-col gap-4 rounded-[16px] border border-line bg-paper p-6"
+      style={{ width: cardWidth, height: cardHeight }}
+    >
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h2 className="font-inter text-[20px] font-medium leading-none text-ink">

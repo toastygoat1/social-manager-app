@@ -28,6 +28,22 @@ type DashboardWorkspaceProps = {
 type StatusGroup = "pending" | "draft" | "ready" | "published";
 
 const GREETING_NAME_MAX_LENGTH = 18;
+const FIXED_DASHBOARD_LAYOUT = {
+  viewportWidth: 1920,
+  viewportHeight: 1080,
+  mainWidth: 1460,
+  mainPaddingX: 24,
+  mainPaddingY: 20,
+  cardGap: 24,
+  leftColumnWidth: 1008,
+  rightColumnWidth: 380,
+  statCardWidth: 320,
+  statCardHeight: 196,
+  publishedCardWidth: 1008,
+  publishedCardHeight: 410,
+  recentPostsCardWidth: 380,
+  recentPostsCardHeight: 782,
+} as const;
 
 function classifyStatus(status: string): StatusGroup | "other" {
   const normalized = status.toLowerCase();
@@ -135,9 +151,25 @@ export function DashboardWorkspace({
 
   return (
     <div className="app-shell-fill bg-paper font-inter text-ink transition-colors duration-500">
-      <main className="mx-auto flex w-full max-w-[1460px] flex-col gap-6 px-4 py-4 sm:px-5 sm:py-5 lg:px-6">
-        <div className="grid items-stretch gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
-          <div className="flex min-w-0 flex-col gap-6">
+      <main
+        className="mx-auto flex max-w-none shrink-0 flex-col"
+        style={{
+          width: FIXED_DASHBOARD_LAYOUT.mainWidth,
+          gap: FIXED_DASHBOARD_LAYOUT.cardGap,
+          padding: `${FIXED_DASHBOARD_LAYOUT.mainPaddingY}px ${FIXED_DASHBOARD_LAYOUT.mainPaddingX}px`,
+        }}
+      >
+        <div
+          className="grid items-start"
+          style={{
+            gap: FIXED_DASHBOARD_LAYOUT.cardGap,
+            gridTemplateColumns: `${FIXED_DASHBOARD_LAYOUT.leftColumnWidth}px ${FIXED_DASHBOARD_LAYOUT.rightColumnWidth}px`,
+          }}
+        >
+          <div
+            className="flex min-w-0 flex-col"
+            style={{ gap: FIXED_DASHBOARD_LAYOUT.cardGap }}
+          >
             <h1
               className="analytics-serif text-[64px] font-normal leading-none text-ink"
             >
@@ -156,28 +188,51 @@ export function DashboardWorkspace({
               </p>
             ) : null}
 
-            <div className="grid gap-6 sm:grid-cols-3">
+            <div
+              className="grid"
+              style={{
+                gap: FIXED_DASHBOARD_LAYOUT.cardGap,
+                gridTemplateColumns: `repeat(3, ${FIXED_DASHBOARD_LAYOUT.statCardWidth}px)`,
+              }}
+            >
               <StatusStatCard
                 label="Pending"
                 total={pending.total}
                 breakdown={pending.breakdown}
+                cardWidth={FIXED_DASHBOARD_LAYOUT.statCardWidth}
+                cardHeight={FIXED_DASHBOARD_LAYOUT.statCardHeight}
               />
               <StatusStatCard
                 label="Draft"
                 total={draft.total}
                 breakdown={draft.breakdown}
+                cardWidth={FIXED_DASHBOARD_LAYOUT.statCardWidth}
+                cardHeight={FIXED_DASHBOARD_LAYOUT.statCardHeight}
               />
               <StatusStatCard
                 label="Ready"
                 total={ready.total}
                 breakdown={ready.breakdown}
+                cardWidth={FIXED_DASHBOARD_LAYOUT.statCardWidth}
+                cardHeight={FIXED_DASHBOARD_LAYOUT.statCardHeight}
               />
             </div>
 
-            <PublishedChart total={publishedTotal} bars={publishedBars} />
+            <PublishedChart
+              total={publishedTotal}
+              bars={publishedBars}
+              cardWidth={FIXED_DASHBOARD_LAYOUT.publishedCardWidth}
+              cardHeight={FIXED_DASHBOARD_LAYOUT.publishedCardHeight}
+            />
           </div>
 
-          <div className="relative min-h-[430px] min-w-0 xl:min-h-0">
+          <div
+            className="relative min-w-0"
+            style={{
+              width: FIXED_DASHBOARD_LAYOUT.recentPostsCardWidth,
+              height: FIXED_DASHBOARD_LAYOUT.recentPostsCardHeight,
+            }}
+          >
             <RecentPostsPanel rows={data.contentRows} />
           </div>
         </div>

@@ -8,6 +8,8 @@ type StatusStatCardProps = {
   label: string;
   total: number;
   breakdown: Record<PostFormat, number>;
+  cardWidth: number;
+  cardHeight: number;
 };
 
 const ORDER: PostFormat[] = ["Post", "Carousel", "Reel", "Story"];
@@ -18,8 +20,6 @@ const LABEL_TEXT: Record<string, string> = {
   Ready: "Posts ready to publish!",
 };
 
-const STATUS_CARD_ASPECT_RATIO = "1.77415300546 / 1";
-
 const STATUS_BAR_COLORS: Record<PostFormat, string> = {
   Post: "#5D9BFE",
   Carousel: "#FA962F",
@@ -27,7 +27,13 @@ const STATUS_BAR_COLORS: Record<PostFormat, string> = {
   Story: "#31D8BB",
 };
 
-export function StatusStatCard({ label, total, breakdown }: StatusStatCardProps) {
+export function StatusStatCard({
+  label,
+  total,
+  breakdown,
+  cardWidth,
+  cardHeight,
+}: StatusStatCardProps) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -44,7 +50,7 @@ export function StatusStatCard({ label, total, breakdown }: StatusStatCardProps)
   return (
     <div
       className="relative flex flex-col rounded-[16px] border border-line bg-paper p-6"
-      style={{ aspectRatio: STATUS_CARD_ASPECT_RATIO }}
+      style={{ width: cardWidth, height: cardHeight }}
     >
       <header className="flex items-start justify-between gap-3">
         <span className="font-inter text-[20px] font-medium leading-none text-ink">
