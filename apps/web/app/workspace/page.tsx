@@ -35,9 +35,9 @@ export default async function WorkspacePage() {
         profile={getUserProfile(user)}
       />
       <main className="analytics-theme app-shell-panel min-w-0 flex-1 overflow-y-auto bg-paper font-inter text-ink">
-        <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-4 px-5 py-6 sm:px-7 sm:py-7">
+        <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-3 px-4 py-3 sm:px-6 sm:py-5">
           <header className="flex flex-wrap items-center justify-between gap-3">
-            <h1 className="inline-flex min-h-10 max-w-full items-center truncate rounded-[6px] border border-line bg-paper px-4 text-sm font-semibold text-ink shadow-sm">
+            <h1 className="analytics-serif text-2xl font-normal leading-tight text-ink">
               Workspace
             </h1>
           </header>
