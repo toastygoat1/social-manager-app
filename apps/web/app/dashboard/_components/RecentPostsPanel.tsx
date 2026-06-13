@@ -77,7 +77,7 @@ function ThumbnailPlaceholder({ format }: { format: PostFormat }) {
       }}
     >
       <span
-        className="text-[10px] font-semibold uppercase tracking-wider"
+        className="dashboard-micro-text font-semibold uppercase tracking-[0.04em]"
         style={{ color }}
       >
         {format}
@@ -130,7 +130,7 @@ export function RecentPostsPanel({ rows }: RecentPostsPanelProps) {
   return (
     <section className="absolute inset-0 flex flex-col gap-3 rounded-[16px] border border-line bg-paper p-6">
       <header className="flex shrink-0 flex-col gap-2.5">
-        <h2 className="font-inter text-[20px] font-medium leading-none text-ink">
+        <h2 className="dashboard-card-title text-ink">
           Recent Posts
         </h2>
         <div className="relative flex items-center gap-1 rounded-full bg-card p-1">
@@ -155,7 +155,7 @@ export function RecentPostsPanel({ rows }: RecentPostsPanelProps) {
                 }}
                 type="button"
                 onClick={() => setActive(tab)}
-                className={`relative z-10 flex-1 rounded-full px-2 py-1 text-[10px] font-medium transition-colors duration-200 ${
+                className={`dashboard-micro-text relative z-10 flex-1 rounded-full px-2 py-1 transition-colors duration-200 ${
                   isActive ? "text-white" : "text-muted hover:text-ink"
                 }`}
               >
@@ -168,7 +168,7 @@ export function RecentPostsPanel({ rows }: RecentPostsPanelProps) {
 
       <div className="scrollbar-none flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
         {filtered.length === 0 ? (
-          <p className="py-6 text-center text-xs text-muted">
+          <p className="dashboard-ui-label py-6 text-center text-muted">
             No recent posts yet
           </p>
         ) : (
@@ -219,23 +219,23 @@ export function RecentPostsPanel({ rows }: RecentPostsPanelProps) {
                           fallback={getInitials(row.account.name)}
                         />
                       </span>
-                      <span className="truncate text-[11px] font-medium text-ink">
+                      <span className="dashboard-ui-meta truncate text-ink">
                         {row.account.name}
                       </span>
                     </div>
                     <span
-                      className="rounded-md px-1.5 py-0.5 text-[9px] font-medium text-white"
+                      className="dashboard-micro-text rounded-md px-1.5 py-0.5 text-white"
                       style={{ backgroundColor: color }}
                     >
                       {format}
                     </span>
                   </header>
                   <div className="min-w-0">
-                    <p className="truncate text-xs font-medium text-ink">
+                    <p className="dashboard-ui-label truncate text-ink">
                       {row.contents || "Untitled"}
                     </p>
                     {row.caption ? (
-                      <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-muted">
+                      <p className="dashboard-ui-meta mt-1 line-clamp-2 font-normal text-muted">
                         {row.caption}
                       </p>
                     ) : null}

@@ -234,17 +234,14 @@ export function PublishedChart({
     >
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h2 className="font-inter text-[20px] font-medium leading-none text-ink">
+          <h2 className="dashboard-card-title text-ink">
             Published
           </h2>
           <div className="mt-4 flex items-end gap-2">
-            <span
-              className="text-[40px] font-normal leading-none text-ink tabular-nums"
-              style={{ fontFamily: "var(--font-copse), Georgia, serif" }}
-            >
+            <span className="dashboard-number text-ink">
               {formattedTotal}
             </span>
-            <span className="font-inter pb-0.5 text-[16px] font-normal leading-tight text-ink">
+            <span className="dashboard-number-caption pb-0.5 text-ink">
               Total Published Posts
             </span>
           </div>
@@ -261,7 +258,7 @@ export function PublishedChart({
                 aria-label={`${PUBLISHED_FORMAT_LABELS[format]} ${count}`}
                 aria-pressed={active}
                 onClick={() => toggleFormat(format)}
-                className="inline-flex w-[84px] items-center justify-center gap-1 rounded-[6px] border bg-[var(--toggle-bg)] px-2 py-0.5 font-inter text-[12px] font-medium leading-5 transition-colors duration-200 hover:bg-[var(--toggle-hover-bg)] focus-visible:bg-[var(--toggle-hover-bg)]"
+                className="dashboard-ui-label inline-flex w-[84px] items-center justify-center gap-1 rounded-[6px] border bg-[var(--toggle-bg)] px-2 py-0.5 transition-colors duration-200 hover:bg-[var(--toggle-hover-bg)] focus-visible:bg-[var(--toggle-hover-bg)]"
                 style={
                   {
                     "--toggle-bg": active ? color : "#FFFFFF",
@@ -280,7 +277,7 @@ export function PublishedChart({
       </header>
       <div className="mt-auto flex min-h-0 items-stretch">
         <div
-          className="relative shrink-0 text-[10px] text-muted"
+          className="dashboard-micro-text relative shrink-0 text-muted"
           style={{
             height: `${CHART_HEIGHT}px`,
             width: `${Y_AXIS_WIDTH}px`,
@@ -332,7 +329,7 @@ export function PublishedChart({
                   }}
                 />
                 <span
-                  className="pointer-events-none absolute right-0 z-20 text-[10px] font-semibold text-ink tabular-nums"
+                  className="dashboard-micro-text pointer-events-none absolute right-0 z-20 font-semibold text-ink tabular-nums"
                   style={{
                     top: `${guide.y}px`,
                     transform: "translateY(-50%)",
@@ -346,7 +343,7 @@ export function PublishedChart({
             ) : null}
 
             {visibleBars.length === 0 ? (
-              <div className="flex h-full w-full items-center justify-center text-xs text-muted">
+              <div className="dashboard-ui-label flex h-full w-full items-center justify-center text-muted">
                 No published posts yet
               </div>
             ) : (
@@ -490,10 +487,10 @@ function FloatingBarTooltip({
         width: `${TOOLTIP_WIDTH}px`,
       }}
     >
-      <p className="truncate text-xs font-semibold text-ink">
+      <p className="dashboard-ui-label truncate font-semibold text-ink">
         {bar.account.name}
       </p>
-      <p className="mt-0.5 text-[10px] text-muted">{bar.total} published</p>
+      <p className="dashboard-micro-text mt-0.5 text-muted">{bar.total} published</p>
       <div className="mt-2 grid gap-1.5">
         {PUBLISHED_FORMATS.map((format) => (
           <div
@@ -505,9 +502,9 @@ function FloatingBarTooltip({
                 className="size-2.5 shrink-0 rounded-[3px]"
                 style={{ backgroundColor: PUBLISHED_BAR_COLORS[format] }}
               />
-              <span className="truncate text-[11px] text-muted">{format}</span>
+              <span className="dashboard-ui-meta truncate text-muted">{format}</span>
             </span>
-            <span className="text-[11px] font-semibold text-ink tabular-nums">
+            <span className="dashboard-ui-meta font-semibold text-ink tabular-nums">
               {bar.breakdown[format]}
             </span>
           </div>

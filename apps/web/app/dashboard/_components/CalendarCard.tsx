@@ -499,7 +499,7 @@ function ViewModeSlider({
   const activeLeft = value === "month" ? "4px" : "70px";
 
   return (
-    <div className="relative grid h-10 w-[140px] grid-cols-2 rounded-[10px] border border-line bg-paper p-1 text-[13px] font-medium text-muted">
+    <div className="dashboard-ui-label relative grid h-10 w-[140px] grid-cols-2 rounded-[10px] border border-line bg-paper p-1 text-muted">
       <span
         aria-hidden="true"
         className="absolute top-1 bottom-1 rounded-[7px] bg-ink transition-[left] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
@@ -770,18 +770,18 @@ export function CalendarCard({ calendar, todayIso }: CalendarCardProps) {
               title="Jump to today"
               className="grid size-14 overflow-hidden rounded-[8px] border border-line text-center transition hover:border-[#b7b7b7] hover:bg-card"
             >
-              <span className="grid place-items-center bg-[#ededed] text-[12px] font-medium uppercase leading-none text-muted">
+              <span className="dashboard-ui-meta grid place-items-center bg-[#ededed] uppercase text-muted">
                 {today.toLocaleDateString("en-US", { month: "short" })}
               </span>
-              <span className="grid place-items-center bg-paper text-[16px] font-semibold leading-none text-ink">
+              <span className="grid place-items-center bg-paper text-[17px] font-semibold leading-none tracking-[-0.02em] text-ink">
                 {today.getDate()}
               </span>
             </button>
             <div>
-              <p className="text-[18px] font-semibold leading-tight text-ink">
+              <p className="text-[17px] font-semibold leading-tight tracking-[-0.015em] text-ink">
                 {titleDateLabel(selectedDay)}
               </p>
-              <p className="mt-0.5 text-[13px] text-muted">
+              <p className="dashboard-section-subtitle mt-0.5 text-muted">
                 {titleWeekdayLabel(selectedDay)}
               </p>
             </div>
@@ -789,7 +789,7 @@ export function CalendarCard({ calendar, todayIso }: CalendarCardProps) {
 
           <div className="flex items-center gap-2">
             {successMessage ? (
-              <span className="rounded-full bg-success/10 px-2.5 py-1 text-[11px] font-medium text-success">
+              <span className="dashboard-ui-meta rounded-full bg-success/10 px-2.5 py-1 text-success">
                 {successMessage}
               </span>
             ) : null}
@@ -802,12 +802,12 @@ export function CalendarCard({ calendar, todayIso }: CalendarCardProps) {
                   ? `Add event on ${eventDateLabel(selectedDateKey)}`
                   : "Connect Google Calendar to add events"
               }
-              className="inline-flex h-10 items-center gap-1.5 rounded-[10px] bg-ink px-3 text-[13px] font-medium text-white transition hover:bg-[#303030] disabled:cursor-not-allowed disabled:bg-card disabled:text-muted"
+              className="dashboard-ui-label inline-flex h-10 items-center gap-1.5 rounded-[10px] bg-ink px-3 text-white transition hover:bg-[#303030] disabled:cursor-not-allowed disabled:bg-card disabled:text-muted"
             >
               <CalendarPlus className="size-4" strokeWidth={1.8} />
               Add event
             </button>
-            <div className="flex h-10 items-center gap-3 rounded-[10px] border border-line bg-paper px-3 text-[14px] font-medium text-muted">
+            <div className="dashboard-ui-label flex h-10 items-center gap-3 rounded-[10px] border border-line bg-paper px-3 text-muted">
               <button
                 type="button"
                 aria-label={`Previous ${viewMode}`}
@@ -835,7 +835,7 @@ export function CalendarCard({ calendar, todayIso }: CalendarCardProps) {
         {viewMode === "week" ? (
           <>
             <div
-              className="grid border-b border-line text-center text-[14px] text-muted"
+              className="dashboard-ui-label grid border-b border-line text-center text-muted"
               style={{
                 height: CALENDAR_DAY_HEADER_HEIGHT,
                 gridTemplateColumns: `${TIME_RAIL_WIDTH}px repeat(${VISIBLE_DAY_COUNT}, minmax(0, 1fr))`,
@@ -894,7 +894,7 @@ export function CalendarCard({ calendar, todayIso }: CalendarCardProps) {
                   return (
                     <div key={hour}>
                       <span
-                        className="absolute left-0 w-[70px] -translate-y-1/2 pr-4 text-right text-[14px] leading-none text-muted"
+                        className="dashboard-ui-label absolute left-0 w-[70px] -translate-y-1/2 pr-4 text-right text-muted"
                         style={{ top }}
                       >
                         {formatHour(hour)}
@@ -949,10 +949,10 @@ export function CalendarCard({ calendar, todayIso }: CalendarCardProps) {
                                 color: event.color,
                               }}
                             >
-                              <p className="line-clamp-2 text-[14px] font-semibold leading-[1.15]">
+                              <p className="dashboard-ui-label line-clamp-2 font-semibold leading-[1.18]">
                                 {event.title}
                               </p>
-                              <p className="mt-1 text-[12px] font-medium leading-none">
+                              <p className="dashboard-ui-meta mt-1 leading-none">
                                 {event.time}
                               </p>
                             </article>
@@ -967,7 +967,7 @@ export function CalendarCard({ calendar, todayIso }: CalendarCardProps) {
         ) : (
           <>
             <div
-              className="grid grid-cols-7 border-b border-line text-center text-[14px] text-muted"
+              className="dashboard-ui-label grid grid-cols-7 border-b border-line text-center text-muted"
               style={{ height: CALENDAR_DAY_HEADER_HEIGHT }}
             >
               {MONTH_WEEKDAY_LABELS.map((label) => (
@@ -1006,7 +1006,7 @@ export function CalendarCard({ calendar, todayIso }: CalendarCardProps) {
                     }`}
                   >
                     <span
-                      className={`inline-flex size-5 items-center justify-center rounded-full text-[12px] font-medium ${
+                      className={`dashboard-ui-label inline-flex size-5 items-center justify-center rounded-full ${
                         selected
                           ? "bg-ink text-white"
                           : isToday
@@ -1028,16 +1028,16 @@ export function CalendarCard({ calendar, todayIso }: CalendarCardProps) {
                             color: event.color,
                           }}
                         >
-                          <span className="block truncate text-[11px] font-semibold leading-tight">
+                          <span className="dashboard-ui-meta block truncate font-semibold leading-tight">
                             {event.title}
                           </span>
-                          <span className="mt-0.5 block text-[10px] font-medium leading-none">
+                          <span className="dashboard-micro-text mt-0.5 block leading-none">
                             {event.time}
                           </span>
                         </span>
                       ))}
                       {events.length > 1 ? (
-                        <span className="text-[10px] font-medium text-muted">
+                        <span className="dashboard-micro-text text-muted">
                           +{events.length - 1} more
                         </span>
                       ) : null}
@@ -1097,13 +1097,13 @@ function CreateEventModal({
       >
         <header className="flex items-start justify-between gap-4 border-b border-line bg-card px-5 py-4">
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">
+            <p className="dashboard-micro-text font-semibold uppercase tracking-[0.08em] text-muted">
               Google Calendar
             </p>
-            <h2 className="mt-1 text-lg font-semibold tracking-[-0.03em] text-ink">
+            <h2 className="dashboard-card-title mt-1 text-ink">
               Add event
             </h2>
-            <p className="mt-1 text-xs text-muted">
+            <p className="dashboard-section-subtitle mt-1 text-muted">
               {eventDateLabel(draft.date)}
             </p>
           </div>
@@ -1120,7 +1120,7 @@ function CreateEventModal({
 
         <div className="space-y-4 px-5 py-5">
           <label className="block">
-            <span className="text-[11px] font-semibold text-muted">
+            <span className="dashboard-ui-meta font-semibold text-muted">
               Title
             </span>
             <input
@@ -1128,14 +1128,14 @@ function CreateEventModal({
               onChange={(event) => onChange({ summary: event.target.value })}
               placeholder="Content planning sync"
               maxLength={160}
-              className="mt-1.5 w-full rounded-lg border border-line bg-card px-3 py-2.5 text-sm text-ink outline-none transition placeholder:text-muted focus:border-cta focus:ring-2 focus:ring-cta/15"
+              className="dashboard-body-text mt-1.5 w-full rounded-lg border border-line bg-card px-3 py-2.5 text-ink outline-none transition placeholder:text-muted focus:border-cta focus:ring-2 focus:ring-cta/15"
               autoFocus
             />
           </label>
 
           <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
             <label className="block">
-              <span className="text-[11px] font-semibold text-muted">
+              <span className="dashboard-ui-meta font-semibold text-muted">
                 Date
               </span>
               <div className="mt-1.5 flex items-center gap-2 rounded-lg border border-line bg-card px-3 py-2">
@@ -1144,7 +1144,7 @@ function CreateEventModal({
                   type="date"
                   value={draft.date}
                   onChange={(event) => onChange({ date: event.target.value })}
-                  className="min-w-0 flex-1 bg-transparent text-sm text-ink outline-none"
+                  className="dashboard-body-text min-w-0 flex-1 bg-transparent text-ink outline-none"
                 />
               </div>
             </label>
@@ -1155,7 +1155,7 @@ function CreateEventModal({
                 role="switch"
                 aria-checked={draft.allDay}
                 onClick={() => onChange({ allDay: !draft.allDay })}
-                className={`flex h-[42px] items-center gap-2 rounded-lg border px-3 text-xs font-semibold transition ${
+                className={`dashboard-ui-label flex h-[42px] items-center gap-2 rounded-lg border px-3 font-semibold transition ${
                   draft.allDay
                     ? "border-cta bg-cta/10 text-cta"
                     : "border-line bg-card text-muted"
@@ -1180,7 +1180,7 @@ function CreateEventModal({
           {!draft.allDay ? (
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block">
-                <span className="text-[11px] font-semibold text-muted">
+                <span className="dashboard-ui-meta font-semibold text-muted">
                   Start
                 </span>
                 <div className="mt-1.5 flex items-center gap-2 rounded-lg border border-line bg-card px-3 py-2">
@@ -1191,12 +1191,12 @@ function CreateEventModal({
                     onChange={(event) =>
                       onChange({ startTime: event.target.value })
                     }
-                    className="min-w-0 flex-1 bg-transparent text-sm text-ink outline-none"
+                    className="dashboard-body-text min-w-0 flex-1 bg-transparent text-ink outline-none"
                   />
                 </div>
               </label>
               <label className="block">
-                <span className="text-[11px] font-semibold text-muted">
+                <span className="dashboard-ui-meta font-semibold text-muted">
                   End
                 </span>
                 <div className="mt-1.5 flex items-center gap-2 rounded-lg border border-line bg-card px-3 py-2">
@@ -1207,7 +1207,7 @@ function CreateEventModal({
                     onChange={(event) =>
                       onChange({ endTime: event.target.value })
                     }
-                    className="min-w-0 flex-1 bg-transparent text-sm text-ink outline-none"
+                    className="dashboard-body-text min-w-0 flex-1 bg-transparent text-ink outline-none"
                   />
                 </div>
               </label>
@@ -1215,7 +1215,7 @@ function CreateEventModal({
           ) : null}
 
           <label className="block">
-            <span className="text-[11px] font-semibold text-muted">
+            <span className="dashboard-ui-meta font-semibold text-muted">
               Notes
             </span>
             <div className="mt-1.5 flex gap-2 rounded-lg border border-line bg-card px-3 py-2.5 focus-within:border-cta focus-within:ring-2 focus-within:ring-cta/15">
@@ -1228,13 +1228,13 @@ function CreateEventModal({
                 placeholder="Campaign notes, event details, or links"
                 rows={3}
                 maxLength={2000}
-                className="min-w-0 flex-1 resize-none bg-transparent text-sm text-ink outline-none placeholder:text-muted"
+                className="dashboard-body-text min-w-0 flex-1 resize-none bg-transparent text-ink outline-none placeholder:text-muted"
               />
             </div>
           </label>
 
           {error ? (
-            <p className="rounded-lg border border-danger/20 bg-danger/10 px-3 py-2 text-xs text-danger">
+            <p className="dashboard-ui-label rounded-lg border border-danger/20 bg-danger/10 px-3 py-2 text-danger">
               {error}
             </p>
           ) : null}
@@ -1245,14 +1245,14 @@ function CreateEventModal({
             type="button"
             onClick={onClose}
             disabled={saving}
-            className="rounded-lg border border-line bg-paper px-4 py-2 text-xs font-semibold text-ink transition hover:border-cta disabled:cursor-not-allowed disabled:opacity-60"
+            className="dashboard-ui-label rounded-lg border border-line bg-paper px-4 py-2 font-semibold text-ink transition hover:border-cta disabled:cursor-not-allowed disabled:opacity-60"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={saving}
-            className="inline-flex min-w-[126px] items-center justify-center gap-2 rounded-lg bg-[#657de8] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#586fe0] disabled:cursor-not-allowed disabled:opacity-70"
+            className="dashboard-ui-label inline-flex min-w-[126px] items-center justify-center gap-2 rounded-lg bg-[#657de8] px-4 py-2 font-semibold text-white transition hover:bg-[#586fe0] disabled:cursor-not-allowed disabled:opacity-70"
           >
             {saving ? (
               <Loader2 className="size-4 animate-spin" />

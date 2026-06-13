@@ -152,7 +152,7 @@ export function DashboardWorkspace({
     buildPublishedBars(data);
 
   return (
-    <div className="app-shell-fill bg-paper font-inter text-ink transition-colors duration-500">
+    <div className="app-shell-fill dashboard-type bg-paper font-inter text-ink transition-colors duration-500">
       <main
         className="mx-auto flex max-w-none shrink-0 flex-col"
         style={{
@@ -172,15 +172,13 @@ export function DashboardWorkspace({
             className="flex min-w-0 flex-col"
             style={{ gap: FIXED_DASHBOARD_LAYOUT.cardGap }}
           >
-            <h1
-              className="analytics-serif text-[64px] font-normal leading-none text-ink"
-            >
+            <h1 className="dashboard-page-title text-ink">
               Good morning, {greetingName}
             </h1>
 
             {connectionStatus ? (
               <p
-                className={`rounded-[10px] px-3 py-2 text-xs ${
+                className={`dashboard-ui-label rounded-[10px] px-3 py-2 ${
                   connectionStatus.tone === "success"
                     ? "bg-success/10 text-success"
                     : "bg-danger/10 text-danger"
