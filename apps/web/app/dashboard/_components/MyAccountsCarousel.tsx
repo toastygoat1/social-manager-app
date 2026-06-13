@@ -27,7 +27,7 @@ export function MyAccountsCarousel({
   const [openAccount, setOpenAccount] = useState<Account | null>(null);
 
   return (
-    <section className="flex flex-col gap-3 rounded-[16px] border border-line bg-paper p-4">
+    <section className="flex flex-col gap-3 rounded-[16px] border border-line bg-paper p-6">
       <h2 className="font-inter text-[20px] font-medium leading-none text-ink">
         My Accounts
       </h2>
@@ -44,7 +44,7 @@ export function MyAccountsCarousel({
                 type="button"
                 key={account.id}
                 onClick={() => setOpenAccount(account)}
-                className="dashboard-motion-card group flex w-[224px] shrink-0 flex-col overflow-hidden rounded-[12px] border border-line bg-paper text-left hover:bg-card"
+                className="group flex w-[224px] shrink-0 flex-col overflow-hidden rounded-[12px] border border-line bg-paper text-left transition-colors duration-200 hover:bg-card"
                 aria-label={`Personalize ${displayName}`}
               >
                 <div

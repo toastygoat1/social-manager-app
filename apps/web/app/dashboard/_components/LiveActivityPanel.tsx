@@ -125,7 +125,7 @@ export function LiveActivityPanel({
   }, []);
 
   return (
-    <section className="flex h-full min-h-0 flex-col rounded-[16px] border border-line bg-paper p-4">
+    <section className="flex h-full min-h-0 flex-col rounded-[16px] border border-line bg-paper p-6">
       <header className="shrink-0 pb-2.5">
         <h2 className="font-inter text-[20px] font-medium leading-none text-ink">
           Live Activity

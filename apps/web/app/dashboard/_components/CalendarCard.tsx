@@ -1,43 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import type { CalendarMonth } from "./data";
-import { ConnectGoogleButton } from "./ConnectGoogleButton";
+import { useEffect, useMemo, useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { apiFetchBrowser } from "@/lib/api/browser-client";
+import type { CalendarMonth } from "./data";
 
-const WEEKDAYS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
-const MONTHS = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
-const MONTHS_SHORT = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-];
+type CalendarCardProps = {
+  calendar: CalendarMonth | null;
+};
 
-type ViewMode = "month" | "week";
-
-type CalEvent = {
+type GoogleCalendarEvent = {
   id: string;
   summary: string;
   start: string | null;
@@ -45,449 +17,452 @@ type CalEvent = {
   allDay: boolean;
 };
 
-function pad2(n: number): string {
-  return String(n).padStart(2, "0");
-}
-
-function dateKey(d: Date): string {
-  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-}
-
-function addDays(d: Date, days: number): Date {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate() + days);
-}
-
-function startOfWeek(d: Date): Date {
-  return addDays(d, -d.getDay());
-}
-
-function eventDateKey(evt: CalEvent): string | null {
-  if (!evt.start) return null;
-  if (evt.allDay) return evt.start.slice(0, 10);
-  const d = new Date(evt.start);
-  return dateKey(d);
-}
-
-function ChevronLeft() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
-      <path d="M15 6l-6 6 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function ChevronRight() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
-      <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function ChevronDown({ open }: { open: boolean }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      className={`h-3 w-3 transition-transform ${open ? "rotate-180" : ""}`}
-    >
-      <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function CalendarIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
-      <rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="1.5" />
-      <path d="M3 9h18M8 3v4M16 3v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function GridIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
-      <rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="1.5" />
-      <rect x="14" y="3" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="1.5" />
-      <rect x="3" y="14" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="1.5" />
-      <rect x="14" y="14" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="1.5" />
-    </svg>
-  );
-}
-
-type GridCell = {
+type WeekEvent = {
+  id: string;
   day: number;
-  muted: boolean;
-  isEvent: boolean;
-  isToday: boolean;
+  title: string;
+  time: string;
+  start: number;
+  end: number;
+  color: string;
+  background: string;
 };
 
-function buildGrid(
-  year: number,
-  month: number,
-  eventDays: Set<number>,
-  today: Date,
-): GridCell[] {
-  const firstDay = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const prevMonthLastDay = new Date(year, month, 0).getDate();
-  const isCurrentMonth =
-    today.getFullYear() === year && today.getMonth() === month;
+const START_HOUR = 8;
+const END_HOUR = 15;
+const HOUR_HEIGHT = 70;
+const TIME_RAIL_WIDTH = 70;
+const VISIBLE_DAY_COUNT = 6;
+const WEEK_START = new Date(2026, 4, 18);
+const HOURS = Array.from(
+  { length: END_HOUR - START_HOUR + 1 },
+  (_, index) => START_HOUR + index,
+);
+const EVENT_PALETTE = [
+  { color: "#8B75FE", background: "#F2EFFF" },
+  { color: "#D0525C", background: "#FFF0F0" },
+  { color: "#3F9BEA", background: "#EEF8FF" },
+  { color: "#4E8D93", background: "#F0FAFA" },
+  { color: "#FA962F", background: "#FFF7E7" },
+];
+const DESIGN_EVENTS: WeekEvent[] = [
+  {
+    id: "weekly-kickoff",
+    day: 0,
+    title: "Weekly kickoff",
+    time: "8:30 AM",
+    start: 8.5,
+    end: 9.5,
+    color: "#8B75FE",
+    background: "#F2EFFF",
+  },
+  {
+    id: "fintech-wireframes",
+    day: 0,
+    title: "Fintech app wireframes",
+    time: "10:00 AM",
+    start: 10,
+    end: 11.55,
+    color: "#4E8D93",
+    background: "#F0FAFA",
+  },
+  {
+    id: "invoice",
+    day: 0,
+    title: "Invoice: Acme Co.",
+    time: "2:30 PM",
+    start: 13.5,
+    end: 14.35,
+    color: "#FA962F",
+    background: "#FFF7E7",
+  },
+  {
+    id: "client-call",
+    day: 1,
+    title: "Client call: John/Novi",
+    time: "9:00 AM",
+    start: 9,
+    end: 9.75,
+    color: "#D0525C",
+    background: "#FFF0F0",
+  },
+  {
+    id: "design-review",
+    day: 1,
+    title: "Design review Fintech",
+    time: "12:00 PM",
+    start: 11.65,
+    end: 13.4,
+    color: "#4E8D93",
+    background: "#F0FAFA",
+  },
+  {
+    id: "deep-work",
+    day: 2,
+    title: "Deep work: UI kit",
+    time: "9:00 AM",
+    start: 9,
+    end: 10.45,
+    color: "#3F9BEA",
+    background: "#EEF8FF",
+  },
+  {
+    id: "lunch",
+    day: 2,
+    title: "Lunch w/Mia",
+    time: "12:30 PM",
+    start: 12.5,
+    end: 13.5,
+    color: "#FF4F2E",
+    background: "#FFF6ED",
+  },
+  {
+    id: "figma-session",
+    day: 3,
+    title: "Figma session: SaaS dashboard",
+    time: "8:30 AM",
+    start: 8.5,
+    end: 9.9,
+    color: "#4E8D93",
+    background: "#F0FAFA",
+  },
+  {
+    id: "feedback",
+    day: 3,
+    title: "Feedback call: Orion",
+    time: "10:30 AM",
+    start: 10.5,
+    end: 11.8,
+    color: "#D0525C",
+    background: "#FFF0F0",
+  },
+  {
+    id: "bookkeeping",
+    day: 3,
+    title: "Bookkeeping",
+    time: "1:00 PM",
+    start: 13,
+    end: 13.85,
+    color: "#FA962F",
+    background: "#FFF9EA",
+  },
+  {
+    id: "weekly-review",
+    day: 4,
+    title: "Weekly review",
+    time: "8:30 AM",
+    start: 8.5,
+    end: 9.5,
+    color: "#8B75FE",
+    background: "#F2EFFF",
+  },
+  {
+    id: "handoff",
+    day: 4,
+    title: "Handoff: Fintech v1",
+    time: "10:30 AM",
+    start: 10.5,
+    end: 13,
+    color: "#4E8D93",
+    background: "#F0FAFA",
+  },
+];
 
-  const cells: GridCell[] = [];
-  for (let i = firstDay - 1; i >= 0; i--) {
-    cells.push({ day: prevMonthLastDay - i, muted: true, isEvent: false, isToday: false });
-  }
-  for (let d = 1; d <= daysInMonth; d++) {
-    cells.push({
-      day: d,
-      muted: false,
-      isEvent: eventDays.has(d),
-      isToday: isCurrentMonth && today.getDate() === d,
-    });
-  }
-  let nextDay = 1;
-  const total = 42;
-  while (cells.length < total) {
-    cells.push({ day: nextDay++, muted: true, isEvent: false, isToday: false });
-  }
-  return cells;
+function addDays(date: Date, days: number) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
 }
 
-function weekRangeLabel(weekStart: Date): string {
-  const end = addDays(weekStart, 6);
-  const startMonth = MONTHS_SHORT[weekStart.getMonth()];
-  const endMonth = MONTHS_SHORT[end.getMonth()];
-  if (weekStart.getMonth() === end.getMonth()) {
-    return `${startMonth} ${weekStart.getDate()} – ${end.getDate()}, ${end.getFullYear()}`;
-  }
-  return `${startMonth} ${weekStart.getDate()} – ${endMonth} ${end.getDate()}, ${end.getFullYear()}`;
+function toDateKey(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
-type CalendarCardProps = {
-  calendar: CalendarMonth | null;
-};
+function formatHour(hour: number) {
+  if (hour === 12) return "12 PM";
+  if (hour > 12) return `${hour - 12} PM`;
+  return `${hour} AM`;
+}
+
+function formatTime(date: Date) {
+  return new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function dayLabel(date: Date) {
+  return date.toLocaleDateString("en-US", {
+    weekday: "short",
+    day: "numeric",
+  });
+}
+
+function weekRangeLabel(weekStart: Date) {
+  const weekEnd = addDays(weekStart, 6);
+  const startDay = weekStart.getDate();
+  const endDay = weekEnd.getDate();
+  const month = weekStart.toLocaleDateString("en-US", { month: "short" });
+  const endMonth = weekEnd.toLocaleDateString("en-US", { month: "short" });
+
+  if (month === endMonth) return `${startDay}-${endDay} ${month}`;
+  return `${startDay} ${month}-${endDay} ${endMonth}`;
+}
+
+function titleDateLabel(date: Date) {
+  return date.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function titleWeekdayLabel(date: Date) {
+  return date.toLocaleDateString("en-US", { weekday: "long" });
+}
+
+function mapCalendarEvent(
+  event: GoogleCalendarEvent,
+  weekStart: Date,
+  index: number,
+): WeekEvent | null {
+  if (!event.start || event.allDay) return null;
+
+  const startDate = new Date(event.start);
+  const endDate = event.end ? new Date(event.end) : null;
+  const startOfWeek = new Date(
+    weekStart.getFullYear(),
+    weekStart.getMonth(),
+    weekStart.getDate(),
+  );
+  const startOfEventDay = new Date(
+    startDate.getFullYear(),
+    startDate.getMonth(),
+    startDate.getDate(),
+  );
+  const day = Math.floor(
+    (startOfEventDay.getTime() - startOfWeek.getTime()) / 86_400_000,
+  );
+
+  if (day < 0 || day >= VISIBLE_DAY_COUNT) return null;
+
+  const start = startDate.getHours() + startDate.getMinutes() / 60;
+  const rawEnd = endDate
+    ? endDate.getHours() + endDate.getMinutes() / 60
+    : start + 1;
+  const end = Math.max(start + 0.4, rawEnd);
+  const palette = EVENT_PALETTE[index % EVENT_PALETTE.length];
+
+  return {
+    id: event.id,
+    day,
+    title: event.summary || "Untitled event",
+    time: formatTime(startDate),
+    start: Math.max(START_HOUR, Math.min(END_HOUR, start)),
+    end: Math.max(START_HOUR, Math.min(END_HOUR, end)),
+    color: palette.color,
+    background: palette.background,
+  };
+}
 
 export function CalendarCard({ calendar }: CalendarCardProps) {
-  return (
-    <section className="flex h-full min-h-0 flex-col gap-3 rounded-[16px] border border-line bg-paper p-4">
-      <h2 className="font-inter text-[20px] font-medium leading-none text-ink">
-        Google Calendar
-      </h2>
-      <div className="flex min-h-[360px] flex-1 flex-col overflow-hidden rounded-[10px] border border-line bg-paper">
-        {calendar ? (
-          <CalendarView calendar={calendar} />
-        ) : (
-          <div className="flex flex-1 flex-col items-center justify-center gap-2 text-sm text-muted">
-            <span>No Google Calendar connected</span>
-            <ConnectGoogleButton />
-          </div>
-        )}
-      </div>
-    </section>
-  );
-}
-
-function CalendarView({ calendar }: { calendar: CalendarMonth }) {
-  const today = useMemo(() => new Date(), []);
-  const [mode, setMode] = useState<ViewMode>("month");
-  const [anchor, setAnchor] = useState(
-    () => new Date(today.getFullYear(), today.getMonth(), today.getDate()),
-  );
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const [pickerYear, setPickerYear] = useState(today.getFullYear());
-  const pickerRef = useRef<HTMLDivElement | null>(null);
-
-  const viewYear = anchor.getFullYear();
-  const viewMonth = anchor.getMonth();
-  const weekStart = useMemo(() => startOfWeek(anchor), [anchor]);
+  const [weekStart, setWeekStart] = useState(WEEK_START);
+  const [calendarEvents, setCalendarEvents] = useState<WeekEvent[]>([]);
   const weekDays = useMemo(
-    () => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
+    () =>
+      Array.from({ length: VISIBLE_DAY_COUNT }, (_, index) =>
+        addDays(weekStart, index),
+      ),
     [weekStart],
   );
-
-  const initialMonthCache = useMemo<Record<string, number[]>>(() => {
-    const days = calendar.cells
-      .filter((c) => !c.muted && c.prefix)
-      .map((c) => c.day);
-    return { [`${today.getFullYear()}-${today.getMonth()}`]: days };
-  }, [calendar, today]);
-
-  const [monthCache, setMonthCache] =
-    useState<Record<string, number[]>>(initialMonthCache);
-  const [weekCache, setWeekCache] = useState<Record<string, CalEvent[]>>({});
+  const bodyHeight = (END_HOUR - START_HOUR) * HOUR_HEIGHT;
+  const selectedDay = weekDays[0];
+  const displayedEvents = calendar ? calendarEvents : DESIGN_EVENTS;
 
   useEffect(() => {
-    if (mode !== "month") return;
-    const key = `${viewYear}-${viewMonth}`;
-    if (monthCache[key]) return;
-    let cancelled = false;
-    apiFetchBrowser<{ eventDays: number[] }>(
-      `/integrations/google/calendar?year=${viewYear}&month=${viewMonth + 1}`,
-    )
-      .then((res) => {
-        if (!cancelled) {
-          setMonthCache((prev) => ({ ...prev, [key]: res.eventDays }));
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setMonthCache((prev) => ({ ...prev, [key]: [] }));
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [mode, viewYear, viewMonth, monthCache]);
+    if (!calendar) return;
 
-  useEffect(() => {
-    if (mode !== "week") return;
-    const key = dateKey(weekStart);
-    if (weekCache[key]) return;
     let cancelled = false;
     const start = weekStart.toISOString();
     const end = addDays(weekStart, 7).toISOString();
-    apiFetchBrowser<{ events: CalEvent[] }>(
+
+    apiFetchBrowser<{ events: GoogleCalendarEvent[] }>(
       `/integrations/google/calendar/events?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`,
     )
-      .then((res) => {
-        if (!cancelled) {
-          setWeekCache((prev) => ({ ...prev, [key]: res.events }));
-        }
+      .then((result) => {
+        if (cancelled) return;
+        setCalendarEvents(
+          result.events
+            .map((event, index) => mapCalendarEvent(event, weekStart, index))
+            .filter((event): event is WeekEvent => Boolean(event)),
+        );
       })
       .catch(() => {
-        if (!cancelled) setWeekCache((prev) => ({ ...prev, [key]: [] }));
+        if (!cancelled) setCalendarEvents([]);
       });
+
     return () => {
       cancelled = true;
     };
-  }, [mode, weekStart, weekCache]);
-
-  useEffect(() => {
-    if (!pickerOpen) return;
-    function onPointerDown(event: MouseEvent) {
-      if (!pickerRef.current?.contains(event.target as Node)) {
-        setPickerOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", onPointerDown);
-    return () => document.removeEventListener("mousedown", onPointerDown);
-  }, [pickerOpen]);
-
-  const grid = useMemo(() => {
-    const days = new Set(monthCache[`${viewYear}-${viewMonth}`] ?? []);
-    return buildGrid(viewYear, viewMonth, days, today);
-  }, [viewYear, viewMonth, monthCache, today]);
-
-  const weekEvents = weekCache[dateKey(weekStart)] ?? [];
-
-  function shift(delta: number) {
-    if (mode === "month") {
-      setAnchor(new Date(viewYear, viewMonth + delta, 1));
-    } else {
-      setAnchor(addDays(anchor, delta * 7));
-    }
-  }
-
-  function togglePicker() {
-    setPickerYear(viewYear);
-    setPickerOpen((open) => !open);
-  }
-
-  function selectMonth(monthIndex: number) {
-    setAnchor(new Date(pickerYear, monthIndex, 1));
-    setPickerOpen(false);
-  }
-
-  const rowCount = Math.ceil(grid.length / 7);
-  const lastRowStart = (rowCount - 1) * 7;
-  const periodLabel =
-    mode === "month"
-      ? `${MONTHS[viewMonth]} ${viewYear}`
-      : weekRangeLabel(weekStart);
+  }, [calendar, weekStart]);
 
   return (
-    <>
-      <div className="flex items-center justify-between border-b border-line px-3 py-2">
-        <div className="flex items-center gap-2 text-ink">
-          <button
-            type="button"
-            onClick={() => shift(-1)}
-            className="text-muted hover:text-ink"
-            aria-label={mode === "month" ? "Previous month" : "Previous week"}
-          >
-            <ChevronLeft />
-          </button>
-          <button
-            type="button"
-            onClick={() => shift(1)}
-            className="text-muted hover:text-ink"
-            aria-label={mode === "month" ? "Next month" : "Next week"}
-          >
-            <ChevronRight />
-          </button>
-          <div className="relative" ref={pickerRef}>
-            <button
-              type="button"
-              onClick={togglePicker}
-              className="ml-1 flex items-center gap-1 text-sm font-medium"
-              aria-label="Pick month and year"
-            >
-              {periodLabel}
-              <ChevronDown open={pickerOpen} />
-            </button>
-            {pickerOpen ? (
-              <div className="absolute left-0 top-full z-10 mt-1 w-56 rounded-md border border-line bg-paper p-2 shadow-lg">
-                <div className="mb-2 flex items-center justify-between text-ink">
-                  <button
-                    type="button"
-                    onClick={() => setPickerYear((y) => y - 1)}
-                    className="text-muted hover:text-ink"
-                    aria-label="Previous year"
-                  >
-                    <ChevronLeft />
-                  </button>
-                  <span className="text-sm font-medium">{pickerYear}</span>
-                  <button
-                    type="button"
-                    onClick={() => setPickerYear((y) => y + 1)}
-                    className="text-muted hover:text-ink"
-                    aria-label="Next year"
-                  >
-                    <ChevronRight />
-                  </button>
-                </div>
-                <div className="grid grid-cols-3 gap-1">
-                  {MONTHS_SHORT.map((label, index) => {
-                    const selected =
-                      index === viewMonth && pickerYear === viewYear;
-                    return (
-                      <button
-                        key={label}
-                        type="button"
-                        onClick={() => selectMonth(index)}
-                        className={`rounded px-2 py-1 text-xs ${
-                          selected
-                            ? "bg-cta text-paper"
-                            : "text-ink hover:bg-line"
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : null}
+    <section className="flex h-full min-h-0 flex-col gap-3 rounded-[16px] border border-line bg-paper p-6">
+      <h2 className="font-inter text-[20px] font-medium leading-none text-ink">
+        Google Calendar
+      </h2>
+      <div className="flex min-h-[622px] flex-1 flex-col overflow-hidden rounded-[14px] border border-line bg-paper">
+        <header className="flex h-[92px] items-center justify-between border-b border-line px-5">
+          <div className="flex items-center gap-3">
+            <div className="grid h-[52px] w-[58px] place-items-center rounded-[8px] border border-line bg-paper text-center">
+              <span className="text-[13px] font-medium uppercase leading-none text-muted">
+                {selectedDay.toLocaleDateString("en-US", { month: "short" })}
+              </span>
+              <span className="mt-1 text-[16px] font-semibold leading-none text-ink">
+                {selectedDay.getDate()}
+              </span>
+            </div>
+            <div>
+              <p className="text-[20px] font-semibold leading-tight text-ink">
+                {titleDateLabel(selectedDay)}
+              </p>
+              <p className="mt-0.5 text-[14px] text-muted">
+                {titleWeekdayLabel(selectedDay)}
+              </p>
+            </div>
           </div>
-        </div>
-        <div className="flex items-center">
-          <button
-            type="button"
-            aria-label="Month view"
-            aria-pressed={mode === "month"}
-            onClick={() => setMode("month")}
-            className={`flex size-7 items-center justify-center rounded-l-md border border-line ${
-              mode === "month" ? "bg-card text-ink" : "bg-paper text-muted"
-            }`}
-          >
-            <CalendarIcon />
-          </button>
-          <button
-            type="button"
-            aria-label="Week view"
-            aria-pressed={mode === "week"}
-            onClick={() => setMode("week")}
-            className={`flex size-7 items-center justify-center rounded-r-md border border-l-0 border-line ${
-              mode === "week" ? "bg-card text-ink" : "bg-paper text-muted"
-            }`}
-          >
-            <GridIcon />
-          </button>
-        </div>
-      </div>
 
-      {mode === "month" ? (
-        <>
-          <div className="grid grid-cols-7 border-b border-line text-[10px] font-medium text-muted">
-            {WEEKDAYS.map((day) => (
-              <div key={day} className="px-2 py-1">
-                {day}
-              </div>
-            ))}
-          </div>
-          <div
-            className="grid flex-1 grid-cols-7"
-            style={{ gridTemplateRows: `repeat(${rowCount}, minmax(0, 1fr))` }}
-          >
-            {grid.map((cell, index) => (
-              <div
-                key={index}
-                className={`border-r border-b border-line px-2 py-1 text-[11px] ${
-                  cell.muted ? "text-muted" : "text-ink"
-                } ${index % 7 === 6 ? "border-r-0" : ""} ${
-                  index >= lastRowStart ? "border-b-0" : ""
-                }`}
+          <div className="flex items-center gap-2">
+            <div className="flex h-10 items-center gap-3 rounded-[10px] border border-line bg-paper px-3 text-[14px] font-medium text-muted">
+              <button
+                type="button"
+                aria-label="Previous week"
+                onClick={() => setWeekStart((date) => addDays(date, -7))}
+                className="-ml-1 grid size-5 place-items-center rounded-full transition hover:bg-card hover:text-ink"
               >
-                <span className="flex items-center gap-1">
-                  <span
-                    className={
-                      cell.isToday
-                        ? "inline-flex h-5 w-5 items-center justify-center rounded-full bg-cta text-paper"
-                        : ""
-                    }
-                  >
-                    {cell.day}
-                  </span>
-                  {cell.isEvent ? (
-                    <span className="h-1 w-1 rounded-full bg-cta" aria-hidden="true" />
-                  ) : null}
-                </span>
-              </div>
+                <ChevronLeft className="size-4" strokeWidth={1.8} />
+              </button>
+              <span className="min-w-[82px] text-center">
+                {weekRangeLabel(weekStart)}
+              </span>
+              <button
+                type="button"
+                aria-label="Next week"
+                onClick={() => setWeekStart((date) => addDays(date, 7))}
+                className="-mr-1 grid size-5 place-items-center rounded-full transition hover:bg-card hover:text-ink"
+              >
+                <ChevronRight className="size-4" strokeWidth={1.8} />
+              </button>
+            </div>
+            <span className="grid h-10 w-10 place-items-center rounded-[10px] border border-line text-[15px] font-medium text-muted">
+              W
+            </span>
+          </div>
+        </header>
+
+        <div
+          className="grid h-10 border-b border-line text-center text-[14px] text-muted"
+          style={{
+            gridTemplateColumns: `${TIME_RAIL_WIDTH}px repeat(${VISIBLE_DAY_COUNT}, minmax(0, 1fr))`,
+          }}
+        >
+          <div className="border-r border-line" />
+          {weekDays.map((day) => (
+            <div
+              key={toDateKey(day)}
+              className="flex items-center justify-center border-r border-line last:border-r-0"
+            >
+              {dayLabel(day)}
+            </div>
+          ))}
+        </div>
+
+        <div
+          className="relative shrink-0 overflow-hidden"
+          style={{ height: bodyHeight }}
+        >
+          <div
+            className="absolute inset-0 grid"
+            style={{
+              gridTemplateColumns: `${TIME_RAIL_WIDTH}px repeat(${VISIBLE_DAY_COUNT}, minmax(0, 1fr))`,
+            }}
+          >
+            <div className="border-r border-line" />
+            {weekDays.map((day) => (
+              <div
+                key={`column-${toDateKey(day)}`}
+                className="border-r border-line last:border-r-0"
+              />
             ))}
           </div>
-        </>
-      ) : (
-        <div className="grid flex-1 grid-cols-7 overflow-hidden">
-          {weekDays.map((day) => {
-            const isToday = dateKey(day) === dateKey(today);
-            const dayEvents = weekEvents.filter(
-              (e) => eventDateKey(e) === dateKey(day),
-            );
+
+          {HOURS.map((hour) => {
+            const top = (hour - START_HOUR) * HOUR_HEIGHT;
             return (
               <div
-                key={dateKey(day)}
-                className="flex min-w-0 flex-col border-r border-line last:border-r-0"
+                key={hour}
+                className="absolute left-0 right-0 border-t border-line"
+                style={{ top }}
               >
-                <div className="flex flex-col items-center gap-0.5 border-b border-line py-1.5">
-                  <span className="text-[10px] font-medium tracking-wider text-muted">
-                    {WEEKDAYS[day.getDay()]}
-                  </span>
-                  <span
-                    className={`inline-flex h-6 w-6 items-center justify-center text-sm font-semibold ${
-                      isToday
-                        ? "rounded-full bg-cta text-paper"
-                        : "text-ink"
-                    }`}
-                  >
-                    {day.getDate()}
-                  </span>
-                </div>
-                <div className="flex flex-1 flex-col gap-1 overflow-y-auto p-1">
-                  {dayEvents.map((e) => (
-                    <div
-                      key={e.id}
-                      title={e.summary}
-                      className="rounded border border-line bg-card px-1.5 py-1 text-[9px] font-medium leading-tight text-ink line-clamp-2"
-                    >
-                      {e.summary}
-                    </div>
-                  ))}
-                </div>
+                <span className="absolute left-0 w-[70px] -translate-y-1/2 pr-4 text-right text-[14px] leading-none text-muted">
+                  {formatHour(hour)}
+                </span>
               </div>
             );
           })}
+
+          <div
+            className="absolute right-0 z-20 h-px bg-[#8A8A8A]"
+            style={{
+              left: TIME_RAIL_WIDTH,
+              top: (13 - START_HOUR) * HOUR_HEIGHT,
+            }}
+          >
+            <span className="absolute left-[-70px] top-[-34px] h-[68px] w-1 rounded-full bg-[#3F3F3F]" />
+          </div>
+
+          <div
+            className="absolute bottom-0 top-0 grid"
+            style={{
+              left: TIME_RAIL_WIDTH,
+              right: 0,
+              gridTemplateColumns: `repeat(${VISIBLE_DAY_COUNT}, minmax(0, 1fr))`,
+            }}
+          >
+            {weekDays.map((day, dayIndex) => (
+              <div key={`events-${toDateKey(day)}`} className="relative">
+                {displayedEvents
+                  .filter((event) => event.day === dayIndex)
+                  .map((event) => {
+                    const top = (event.start - START_HOUR) * HOUR_HEIGHT;
+                    const height = Math.max(
+                      44,
+                      (event.end - event.start) * HOUR_HEIGHT - 8,
+                    );
+
+                    return (
+                      <article
+                        key={event.id}
+                        className="absolute left-1 right-1 rounded-[7px] px-2.5 py-2"
+                        style={{
+                          top,
+                          height,
+                          backgroundColor: event.background,
+                          color: event.color,
+                        }}
+                      >
+                        <p className="line-clamp-2 text-[14px] font-semibold leading-[1.15]">
+                          {event.title}
+                        </p>
+                        <p className="mt-1 text-[12px] font-medium leading-none">
+                          {event.time}
+                        </p>
+                      </article>
+                    );
+                  })}
+              </div>
+            ))}
+          </div>
         </div>
-      )}
-    </>
+      </div>
+    </section>
   );
 }
