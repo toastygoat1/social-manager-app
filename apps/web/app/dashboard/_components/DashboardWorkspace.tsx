@@ -241,7 +241,7 @@ export function DashboardWorkspace({
 
         <MyAccountsCarousel accounts={data.accounts} />
 
-        <div className="grid items-stretch gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
+        <div className="grid items-start gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
           <LiveActivityPanel initialRows={data.activityRows} />
           <CalendarCard calendar={data.calendar} />
         </div>

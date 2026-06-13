@@ -48,7 +48,11 @@ type MonthCell = {
 const START_HOUR = 8;
 const END_HOUR = 15;
 const HOUR_HEIGHT = 70;
+const CALENDAR_HEADER_HEIGHT = 92;
+const CALENDAR_DAY_HEADER_HEIGHT = 40;
 const CALENDAR_BODY_HEIGHT = 360;
+const CALENDAR_CARD_HEIGHT =
+  CALENDAR_HEADER_HEIGHT + CALENDAR_DAY_HEADER_HEIGHT + CALENDAR_BODY_HEIGHT;
 const TIME_RAIL_WIDTH = 70;
 const VISIBLE_DAY_COUNT = 7;
 const WEEK_START = new Date(2026, 4, 18);
@@ -486,8 +490,14 @@ export function CalendarCard({ calendar }: CalendarCardProps) {
   }
 
   return (
-    <section className="flex h-full min-h-[492px] flex-col overflow-hidden rounded-[16px] border border-line bg-paper">
-      <header className="flex h-[92px] items-center justify-between border-b border-line px-6">
+    <section
+      className="flex shrink-0 flex-col overflow-hidden rounded-[16px] border border-line bg-paper"
+      style={{ height: CALENDAR_CARD_HEIGHT }}
+    >
+      <header
+        className="flex items-center justify-between border-b border-line px-6"
+        style={{ height: CALENDAR_HEADER_HEIGHT }}
+      >
         <div className="flex items-center gap-3">
           <div className="grid size-14 overflow-hidden rounded-[8px] border border-line text-center">
             <span className="grid place-items-center bg-[#ededed] text-[12px] font-medium uppercase leading-none text-muted">
@@ -536,8 +546,9 @@ export function CalendarCard({ calendar }: CalendarCardProps) {
       {viewMode === "week" ? (
         <>
           <div
-            className="grid h-10 border-b border-line text-center text-[14px] text-muted"
+            className="grid border-b border-line text-center text-[14px] text-muted"
             style={{
+              height: CALENDAR_DAY_HEADER_HEIGHT,
               gridTemplateColumns: `${TIME_RAIL_WIDTH}px repeat(${VISIBLE_DAY_COUNT}, minmax(0, 1fr))`,
             }}
           >
@@ -647,7 +658,10 @@ export function CalendarCard({ calendar }: CalendarCardProps) {
         </>
       ) : (
         <>
-          <div className="grid h-10 grid-cols-7 border-b border-line text-center text-[14px] text-muted">
+          <div
+            className="grid grid-cols-7 border-b border-line text-center text-[14px] text-muted"
+            style={{ height: CALENDAR_DAY_HEADER_HEIGHT }}
+          >
             {MONTH_WEEKDAY_LABELS.map((label) => (
               <div
                 key={label}
