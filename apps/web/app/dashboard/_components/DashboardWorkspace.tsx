@@ -142,6 +142,7 @@ export function DashboardWorkspace({
   data,
   profile,
   connectionStatus,
+  todayIso,
 }: DashboardWorkspaceProps) {
   const greetingName = shortenAtWordBoundary(getGreetingName(profile));
   const pending = buildStatusBreakdown(data.contentRows, "pending");
@@ -249,7 +250,7 @@ export function DashboardWorkspace({
             <LiveActivityPanel initialRows={data.activityRows} />
           </div>
           <div style={{ height: CALENDAR_CARD_HEIGHT }}>
-            <CalendarCard calendar={data.calendar} />
+            <CalendarCard calendar={data.calendar} todayIso={todayIso} />
           </div>
         </div>
 
