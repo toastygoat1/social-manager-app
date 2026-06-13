@@ -790,11 +790,6 @@ export function SidebarPanel({
       </nav>
 
       <section aria-label="Accounts" className="flex flex-col gap-4">
-        <div
-          aria-hidden="true"
-          className="sidebar-dash-rule w-full transition-[width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
-        />
-
         {accounts.length === 0 && !isCompact ? (
           <p className="px-2 py-3 text-[12.5px] leading-5 text-[var(--sidebar-dim)]">
             No accounts connected yet
@@ -1033,11 +1028,7 @@ export function SidebarPanel({
         )
         : null}
 
-      <footer
-        className={`sidebar-dash-rule-top pb-1 pt-3 transition-[gap,padding] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-          isCompact ? "gap-1 px-[3px]" : "gap-1 px-[3px]"
-        }`}
-      >
+      <footer className="rounded-[12px] border border-line bg-paper p-1">
         <button
           ref={profileButtonRef}
           type="button"
@@ -1045,7 +1036,7 @@ export function SidebarPanel({
           aria-haspopup="dialog"
           aria-expanded={isProfileMenuOpen}
           aria-label="Open account popup"
-          className="flex w-full items-center gap-1 rounded-md px-0 py-0 text-left transition-colors hover:bg-[var(--sidebar-hover)]"
+          className="flex w-full items-center gap-1 rounded-lg px-0 py-0 text-left transition-colors hover:bg-[var(--sidebar-hover)]"
         >
           <span className="grid size-8 shrink-0 place-items-center">
             <ProfileAvatar profile={profile} />
