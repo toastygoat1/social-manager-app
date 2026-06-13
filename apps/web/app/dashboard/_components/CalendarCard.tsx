@@ -17,6 +17,8 @@ type GoogleCalendarEvent = {
   allDay: boolean;
 };
 
+type ViewMode = "month" | "week";
+
 type WeekEvent = {
   id: string;
   day: number;
@@ -28,12 +30,28 @@ type WeekEvent = {
   background: string;
 };
 
+type MonthEvent = {
+  id: string;
+  dateKey: string;
+  title: string;
+  time: string;
+  color: string;
+  background: string;
+};
+
+type MonthCell = {
+  date: Date;
+  key: string;
+  outside: boolean;
+};
+
 const START_HOUR = 8;
 const END_HOUR = 15;
 const HOUR_HEIGHT = 70;
 const TIME_RAIL_WIDTH = 70;
 const VISIBLE_DAY_COUNT = 6;
 const WEEK_START = new Date(2026, 4, 18);
+const MONTH_WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const HOURS = Array.from(
   { length: END_HOUR - START_HOUR + 1 },
   (_, index) => START_HOUR + index,
@@ -172,6 +190,27 @@ function addDays(date: Date, days: number) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
 }
 
+function addMonths(date: Date, months: number) {
+  return new Date(date.getFullYear(), date.getMonth() + months, 1);
+}
+
+function startOfDay(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function startOfWeek(date: Date) {
+  const mondayOffset = (date.getDay() + 6) % 7;
+  return addDays(startOfDay(date), -mondayOffset);
+}
+
+function startOfMonth(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function endOfMonthRange(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth() + 1, 1);
+}
+
 function toDateKey(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
@@ -207,6 +246,13 @@ function weekRangeLabel(weekStart: Date) {
   return `${startDay} ${month}-${endDay} ${endMonth}`;
 }
 
+function monthLabel(date: Date) {
+  return date.toLocaleDateString("en-US", {
+    month: "long",
+    year: "numeric",
+  });
+}
+
 function titleDateLabel(date: Date) {
   return date.toLocaleDateString("en-US", {
     month: "long",
@@ -219,7 +265,25 @@ function titleWeekdayLabel(date: Date) {
   return date.toLocaleDateString("en-US", { weekday: "long" });
 }
 
-function mapCalendarEvent(
+function buildMonthCells(anchorDate: Date): MonthCell[] {
+  const firstOfMonth = startOfMonth(anchorDate);
+  const firstVisible = startOfWeek(firstOfMonth);
+
+  return Array.from({ length: 42 }, (_, index) => {
+    const date = addDays(firstVisible, index);
+    return {
+      date,
+      key: toDateKey(date),
+      outside: date.getMonth() !== anchorDate.getMonth(),
+    };
+  });
+}
+
+function getPalette(index: number) {
+  return EVENT_PALETTE[index % EVENT_PALETTE.length];
+}
+
+function mapCalendarEventToWeekEvent(
   event: GoogleCalendarEvent,
   weekStart: Date,
   index: number,
@@ -228,18 +292,9 @@ function mapCalendarEvent(
 
   const startDate = new Date(event.start);
   const endDate = event.end ? new Date(event.end) : null;
-  const startOfWeek = new Date(
-    weekStart.getFullYear(),
-    weekStart.getMonth(),
-    weekStart.getDate(),
-  );
-  const startOfEventDay = new Date(
-    startDate.getFullYear(),
-    startDate.getMonth(),
-    startDate.getDate(),
-  );
+  const startOfEventDay = startOfDay(startDate);
   const day = Math.floor(
-    (startOfEventDay.getTime() - startOfWeek.getTime()) / 86_400_000,
+    (startOfEventDay.getTime() - weekStart.getTime()) / 86_400_000,
   );
 
   if (day < 0 || day >= VISIBLE_DAY_COUNT) return null;
@@ -249,7 +304,7 @@ function mapCalendarEvent(
     ? endDate.getHours() + endDate.getMinutes() / 60
     : start + 1;
   const end = Math.max(start + 0.4, rawEnd);
-  const palette = EVENT_PALETTE[index % EVENT_PALETTE.length];
+  const palette = getPalette(index);
 
   return {
     id: event.id,
@@ -263,9 +318,105 @@ function mapCalendarEvent(
   };
 }
 
+function mapCalendarEventToMonthEvent(
+  event: GoogleCalendarEvent,
+  index: number,
+): MonthEvent | null {
+  if (!event.start) return null;
+
+  const palette = getPalette(index);
+  const startDate = event.allDay
+    ? new Date(`${event.start.slice(0, 10)}T00:00:00`)
+    : new Date(event.start);
+
+  return {
+    id: event.id,
+    dateKey: toDateKey(startDate),
+    title: event.summary || "Untitled event",
+    time: event.allDay ? "All day" : formatTime(startDate),
+    color: palette.color,
+    background: palette.background,
+  };
+}
+
+function designEventsForWeek(weekStart: Date) {
+  if (toDateKey(weekStart) !== toDateKey(WEEK_START)) return [];
+  return DESIGN_EVENTS;
+}
+
+function designEventsForMonth(anchorDate: Date): MonthEvent[] {
+  if (
+    anchorDate.getFullYear() !== WEEK_START.getFullYear() ||
+    anchorDate.getMonth() !== WEEK_START.getMonth()
+  ) {
+    return [];
+  }
+
+  return DESIGN_EVENTS.map((event) => {
+    const date = addDays(WEEK_START, event.day);
+    return {
+      id: event.id,
+      dateKey: toDateKey(date),
+      title: event.title,
+      time: event.time,
+      color: event.color,
+      background: event.background,
+    };
+  });
+}
+
+function groupEventsByDate(events: MonthEvent[]) {
+  const grouped = new Map<string, MonthEvent[]>();
+  for (const event of events) {
+    const list = grouped.get(event.dateKey) ?? [];
+    list.push(event);
+    grouped.set(event.dateKey, list);
+  }
+  return grouped;
+}
+
+function ViewModeSlider({
+  value,
+  onChange,
+}: {
+  value: ViewMode;
+  onChange: (value: ViewMode) => void;
+}) {
+  const activeLeft = value === "month" ? "4px" : "70px";
+
+  return (
+    <div className="relative grid h-10 w-[140px] grid-cols-2 rounded-[10px] border border-line bg-paper p-1 text-[13px] font-medium text-muted">
+      <span
+        aria-hidden="true"
+        className="absolute top-1 bottom-1 rounded-[7px] bg-ink transition-[left] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
+        style={{ left: activeLeft, width: "66px" }}
+      />
+      {(["month", "week"] as ViewMode[]).map((mode) => {
+        const active = value === mode;
+        return (
+          <button
+            key={mode}
+            type="button"
+            aria-pressed={active}
+            onClick={() => onChange(mode)}
+            className={`relative z-10 rounded-[7px] capitalize transition-colors duration-200 ${
+              active ? "text-white" : "text-muted hover:text-ink"
+            }`}
+          >
+            {mode}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export function CalendarCard({ calendar }: CalendarCardProps) {
-  const [weekStart, setWeekStart] = useState(WEEK_START);
-  const [calendarEvents, setCalendarEvents] = useState<WeekEvent[]>([]);
+  const [viewMode, setViewMode] = useState<ViewMode>("week");
+  const [anchorDate, setAnchorDate] = useState(WEEK_START);
+  const [calendarEvents, setCalendarEvents] = useState<GoogleCalendarEvent[]>([]);
+
+  const weekStart = useMemo(() => startOfWeek(anchorDate), [anchorDate]);
   const weekDays = useMemo(
     () =>
       Array.from({ length: VISIBLE_DAY_COUNT }, (_, index) =>
@@ -273,27 +424,50 @@ export function CalendarCard({ calendar }: CalendarCardProps) {
       ),
     [weekStart],
   );
+  const monthCells = useMemo(() => buildMonthCells(anchorDate), [anchorDate]);
   const bodyHeight = (END_HOUR - START_HOUR) * HOUR_HEIGHT;
-  const selectedDay = weekDays[0];
-  const displayedEvents = calendar ? calendarEvents : DESIGN_EVENTS;
+  const visibleRange = useMemo(
+    () => ({
+      start: viewMode === "week" ? weekStart : startOfMonth(anchorDate),
+      end:
+        viewMode === "week"
+          ? addDays(weekStart, 7)
+          : endOfMonthRange(anchorDate),
+    }),
+    [anchorDate, viewMode, weekStart],
+  );
+  const selectedDay = anchorDate;
+  const periodLabel =
+    viewMode === "week" ? weekRangeLabel(weekStart) : monthLabel(anchorDate);
+
+  const displayedWeekEvents = useMemo(() => {
+    if (!calendar) return designEventsForWeek(weekStart);
+    return calendarEvents
+      .map((event, index) =>
+        mapCalendarEventToWeekEvent(event, weekStart, index),
+      )
+      .filter((event): event is WeekEvent => Boolean(event));
+  }, [calendar, calendarEvents, weekStart]);
+
+  const displayedMonthEvents = useMemo(() => {
+    const events = calendar
+      ? calendarEvents
+          .map((event, index) => mapCalendarEventToMonthEvent(event, index))
+          .filter((event): event is MonthEvent => Boolean(event))
+      : designEventsForMonth(anchorDate);
+    return groupEventsByDate(events);
+  }, [anchorDate, calendar, calendarEvents]);
 
   useEffect(() => {
     if (!calendar) return;
 
     let cancelled = false;
-    const start = weekStart.toISOString();
-    const end = addDays(weekStart, 7).toISOString();
 
     apiFetchBrowser<{ events: GoogleCalendarEvent[] }>(
-      `/integrations/google/calendar/events?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`,
+      `/integrations/google/calendar/events?start=${encodeURIComponent(visibleRange.start.toISOString())}&end=${encodeURIComponent(visibleRange.end.toISOString())}`,
     )
       .then((result) => {
-        if (cancelled) return;
-        setCalendarEvents(
-          result.events
-            .map((event, index) => mapCalendarEvent(event, weekStart, index))
-            .filter((event): event is WeekEvent => Boolean(event)),
-        );
+        if (!cancelled) setCalendarEvents(result.events);
       })
       .catch(() => {
         if (!cancelled) setCalendarEvents([]);
@@ -302,85 +476,66 @@ export function CalendarCard({ calendar }: CalendarCardProps) {
     return () => {
       cancelled = true;
     };
-  }, [calendar, weekStart]);
+  }, [calendar, visibleRange]);
+
+  function shiftPeriod(delta: number) {
+    setAnchorDate((date) =>
+      viewMode === "week" ? addDays(date, delta * 7) : addMonths(date, delta),
+    );
+  }
 
   return (
-    <section className="flex h-full min-h-0 flex-col gap-3 rounded-[16px] border border-line bg-paper p-6">
-      <h2 className="font-inter text-[20px] font-medium leading-none text-ink">
-        Google Calendar
-      </h2>
-      <div className="flex min-h-[622px] flex-1 flex-col overflow-hidden rounded-[14px] border border-line bg-paper">
-        <header className="flex h-[92px] items-center justify-between border-b border-line px-5">
-          <div className="flex items-center gap-3">
-            <div className="grid h-[52px] w-[58px] place-items-center rounded-[8px] border border-line bg-paper text-center">
-              <span className="text-[13px] font-medium uppercase leading-none text-muted">
-                {selectedDay.toLocaleDateString("en-US", { month: "short" })}
-              </span>
-              <span className="mt-1 text-[16px] font-semibold leading-none text-ink">
-                {selectedDay.getDate()}
-              </span>
-            </div>
-            <div>
-              <p className="text-[20px] font-semibold leading-tight text-ink">
-                {titleDateLabel(selectedDay)}
-              </p>
-              <p className="mt-0.5 text-[14px] text-muted">
-                {titleWeekdayLabel(selectedDay)}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <div className="flex h-10 items-center gap-3 rounded-[10px] border border-line bg-paper px-3 text-[14px] font-medium text-muted">
-              <button
-                type="button"
-                aria-label="Previous week"
-                onClick={() => setWeekStart((date) => addDays(date, -7))}
-                className="-ml-1 grid size-5 place-items-center rounded-full transition hover:bg-card hover:text-ink"
-              >
-                <ChevronLeft className="size-4" strokeWidth={1.8} />
-              </button>
-              <span className="min-w-[82px] text-center">
-                {weekRangeLabel(weekStart)}
-              </span>
-              <button
-                type="button"
-                aria-label="Next week"
-                onClick={() => setWeekStart((date) => addDays(date, 7))}
-                className="-mr-1 grid size-5 place-items-center rounded-full transition hover:bg-card hover:text-ink"
-              >
-                <ChevronRight className="size-4" strokeWidth={1.8} />
-              </button>
-            </div>
-            <span className="grid h-10 w-10 place-items-center rounded-[10px] border border-line text-[15px] font-medium text-muted">
-              W
+    <section className="flex h-full min-h-[622px] flex-col overflow-hidden rounded-[16px] border border-line bg-paper">
+      <header className="flex h-[92px] items-center justify-between border-b border-line px-6">
+        <div className="flex items-center gap-3">
+          <div className="grid size-14 overflow-hidden rounded-[8px] border border-line text-center">
+            <span className="grid place-items-center bg-[#ededed] text-[12px] font-medium uppercase leading-none text-muted">
+              {selectedDay.toLocaleDateString("en-US", { month: "short" })}
+            </span>
+            <span className="grid place-items-center bg-paper text-[16px] font-semibold leading-none text-ink">
+              {selectedDay.getDate()}
             </span>
           </div>
-        </header>
-
-        <div
-          className="grid h-10 border-b border-line text-center text-[14px] text-muted"
-          style={{
-            gridTemplateColumns: `${TIME_RAIL_WIDTH}px repeat(${VISIBLE_DAY_COUNT}, minmax(0, 1fr))`,
-          }}
-        >
-          <div className="border-r border-line" />
-          {weekDays.map((day) => (
-            <div
-              key={toDateKey(day)}
-              className="flex items-center justify-center border-r border-line last:border-r-0"
-            >
-              {dayLabel(day)}
-            </div>
-          ))}
+          <div>
+            <p className="text-[18px] font-semibold leading-tight text-ink">
+              {titleDateLabel(selectedDay)}
+            </p>
+            <p className="mt-0.5 text-[13px] text-muted">
+              {titleWeekdayLabel(selectedDay)}
+            </p>
+          </div>
         </div>
 
-        <div
-          className="relative shrink-0 overflow-hidden"
-          style={{ height: bodyHeight }}
-        >
+        <div className="flex items-center gap-2">
+          <div className="flex h-10 items-center gap-3 rounded-[10px] border border-line bg-paper px-3 text-[14px] font-medium text-muted">
+            <button
+              type="button"
+              aria-label={`Previous ${viewMode}`}
+              onClick={() => shiftPeriod(-1)}
+              className="-ml-1 grid size-5 place-items-center rounded-full transition hover:bg-card hover:text-ink"
+            >
+              <ChevronLeft className="size-4" strokeWidth={1.8} />
+            </button>
+            <span className="min-w-[92px] text-center">
+              {periodLabel}
+            </span>
+            <button
+              type="button"
+              aria-label={`Next ${viewMode}`}
+              onClick={() => shiftPeriod(1)}
+              className="-mr-1 grid size-5 place-items-center rounded-full transition hover:bg-card hover:text-ink"
+            >
+              <ChevronRight className="size-4" strokeWidth={1.8} />
+            </button>
+          </div>
+          <ViewModeSlider value={viewMode} onChange={setViewMode} />
+        </div>
+      </header>
+
+      {viewMode === "week" ? (
+        <>
           <div
-            className="absolute inset-0 grid"
+            className="grid h-10 border-b border-line text-center text-[14px] text-muted"
             style={{
               gridTemplateColumns: `${TIME_RAIL_WIDTH}px repeat(${VISIBLE_DAY_COUNT}, minmax(0, 1fr))`,
             }}
@@ -388,81 +543,170 @@ export function CalendarCard({ calendar }: CalendarCardProps) {
             <div className="border-r border-line" />
             {weekDays.map((day) => (
               <div
-                key={`column-${toDateKey(day)}`}
-                className="border-r border-line last:border-r-0"
-              />
+                key={toDateKey(day)}
+                className="flex items-center justify-center border-r border-line last:border-r-0"
+              >
+                {dayLabel(day)}
+              </div>
             ))}
           </div>
 
-          {HOURS.map((hour) => {
-            const top = (hour - START_HOUR) * HOUR_HEIGHT;
-            return (
-              <div
-                key={hour}
-                className="absolute left-0 right-0 border-t border-line"
-                style={{ top }}
-              >
-                <span className="absolute left-0 w-[70px] -translate-y-1/2 pr-4 text-right text-[14px] leading-none text-muted">
-                  {formatHour(hour)}
-                </span>
-              </div>
-            );
-          })}
-
           <div
-            className="absolute right-0 z-20 h-px bg-[#8A8A8A]"
-            style={{
-              left: TIME_RAIL_WIDTH,
-              top: (13 - START_HOUR) * HOUR_HEIGHT,
-            }}
+            className="relative shrink-0 overflow-hidden"
+            style={{ height: bodyHeight }}
           >
-            <span className="absolute left-[-70px] top-[-34px] h-[68px] w-1 rounded-full bg-[#3F3F3F]" />
+            <div
+              className="absolute inset-0 grid"
+              style={{
+                gridTemplateColumns: `${TIME_RAIL_WIDTH}px repeat(${VISIBLE_DAY_COUNT}, minmax(0, 1fr))`,
+              }}
+            >
+              <div className="border-r border-line" />
+              {weekDays.map((day) => (
+                <div
+                  key={`column-${toDateKey(day)}`}
+                  className="border-r border-line last:border-r-0"
+                />
+              ))}
+            </div>
+
+            {HOURS.map((hour) => {
+              const top = (hour - START_HOUR) * HOUR_HEIGHT;
+              return (
+                <div
+                  key={hour}
+                  className="absolute left-0 right-0 border-t border-line"
+                  style={{ top }}
+                >
+                  <span className="absolute left-0 w-[70px] -translate-y-1/2 pr-4 text-right text-[14px] leading-none text-muted">
+                    {formatHour(hour)}
+                  </span>
+                </div>
+              );
+            })}
+
+            <div
+              className="absolute right-0 z-20 h-px bg-[#8A8A8A]"
+              style={{
+                left: TIME_RAIL_WIDTH,
+                top: (13 - START_HOUR) * HOUR_HEIGHT,
+              }}
+            >
+              <span className="absolute left-[-70px] top-[-34px] h-[68px] w-1 rounded-full bg-[#3F3F3F]" />
+            </div>
+
+            <div
+              className="absolute bottom-0 top-0 grid"
+              style={{
+                left: TIME_RAIL_WIDTH,
+                right: 0,
+                gridTemplateColumns: `repeat(${VISIBLE_DAY_COUNT}, minmax(0, 1fr))`,
+              }}
+            >
+              {weekDays.map((day, dayIndex) => (
+                <div key={`events-${toDateKey(day)}`} className="relative">
+                  {displayedWeekEvents
+                    .filter((event) => event.day === dayIndex)
+                    .map((event) => {
+                      const top = (event.start - START_HOUR) * HOUR_HEIGHT;
+                      const height = Math.max(
+                        44,
+                        (event.end - event.start) * HOUR_HEIGHT - 8,
+                      );
+
+                      return (
+                        <article
+                          key={event.id}
+                          className="absolute left-1 right-1 rounded-[7px] px-2.5 py-2"
+                          style={{
+                            top,
+                            height,
+                            backgroundColor: event.background,
+                            color: event.color,
+                          }}
+                        >
+                          <p className="line-clamp-2 text-[14px] font-semibold leading-[1.15]">
+                            {event.title}
+                          </p>
+                          <p className="mt-1 text-[12px] font-medium leading-none">
+                            {event.time}
+                          </p>
+                        </article>
+                      );
+                    })}
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="grid h-10 grid-cols-7 border-b border-line text-center text-[14px] text-muted">
+            {MONTH_WEEKDAY_LABELS.map((label) => (
+              <div
+                key={label}
+                className="flex items-center justify-center border-r border-line last:border-r-0"
+              >
+                {label}
+              </div>
+            ))}
           </div>
 
           <div
-            className="absolute bottom-0 top-0 grid"
+            className="grid shrink-0 grid-cols-7 overflow-hidden"
             style={{
-              left: TIME_RAIL_WIDTH,
-              right: 0,
-              gridTemplateColumns: `repeat(${VISIBLE_DAY_COUNT}, minmax(0, 1fr))`,
+              height: bodyHeight,
+              gridTemplateRows: "repeat(6, minmax(0, 1fr))",
             }}
           >
-            {weekDays.map((day, dayIndex) => (
-              <div key={`events-${toDateKey(day)}`} className="relative">
-                {displayedEvents
-                  .filter((event) => event.day === dayIndex)
-                  .map((event) => {
-                    const top = (event.start - START_HOUR) * HOUR_HEIGHT;
-                    const height = Math.max(
-                      44,
-                      (event.end - event.start) * HOUR_HEIGHT - 8,
-                    );
-
-                    return (
+            {monthCells.map((cell, index) => {
+              const events = displayedMonthEvents.get(cell.key) ?? [];
+              const isLastColumn = index % 7 === 6;
+              const isLastRow = index >= monthCells.length - 7;
+              return (
+                <div
+                  key={cell.key}
+                  className={`min-w-0 border-line px-2 py-1.5 ${
+                    isLastColumn ? "" : "border-r"
+                  } ${isLastRow ? "" : "border-b"}`}
+                >
+                  <div
+                    className={`text-[12px] font-medium ${
+                      cell.outside ? "text-muted/55" : "text-muted"
+                    }`}
+                  >
+                    {cell.date.getDate()}
+                  </div>
+                  <div className="mt-1 grid gap-1">
+                    {events.slice(0, 2).map((event) => (
                       <article
                         key={event.id}
-                        className="absolute left-1 right-1 rounded-[7px] px-2.5 py-2"
+                        className="rounded-[7px] px-2 py-1"
                         style={{
-                          top,
-                          height,
                           backgroundColor: event.background,
                           color: event.color,
                         }}
                       >
-                        <p className="line-clamp-2 text-[14px] font-semibold leading-[1.15]">
+                        <p className="truncate text-[12px] font-semibold leading-tight">
                           {event.title}
                         </p>
-                        <p className="mt-1 text-[12px] font-medium leading-none">
+                        <p className="mt-0.5 text-[10px] font-medium leading-none">
                           {event.time}
                         </p>
                       </article>
-                    );
-                  })}
-              </div>
-            ))}
+                    ))}
+                    {events.length > 2 ? (
+                      <span className="text-[10px] font-medium text-muted">
+                        +{events.length - 2} more
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+              );
+            })}
           </div>
-        </div>
-      </div>
+        </>
+      )}
     </section>
   );
 }
