@@ -85,6 +85,9 @@ export function PublishedChart({
   const [mounted, setMounted] = useState(false);
   const [activeFormats, setActiveFormats] =
     useState<PostFormat[]>(PUBLISHED_FORMATS);
+  const [displayedFilteredTotal, setDisplayedFilteredTotal] =
+    useState(0);
+  const previousFilteredTotalRef = useRef(0);
   const [guide, setGuide] = useState<{ y: number } | null>(null);
   const [tooltip, setTooltip] = useState<{
     index: number;
@@ -140,11 +143,40 @@ export function PublishedChart({
   const peak = Math.max(...visibleBars.map((bar) => bar.visibleTotal), 0);
   const axisMax = getNiceAxisMax(peak);
   const ticks = getTicks(axisMax);
-  const formattedTotal = `${filteredTotal}/${total}`;
+  const formattedTotal = `${displayedFilteredTotal}/${total}`;
   const guideValue =
     guide && peak > 0
       ? Math.round(((CHART_HEIGHT - guide.y) / CHART_HEIGHT) * axisMax)
       : null;
+
+  useEffect(() => {
+    const startValue = previousFilteredTotalRef.current;
+    const endValue = filteredTotal;
+    previousFilteredTotalRef.current = endValue;
+
+    if (startValue === endValue) {
+      return;
+    }
+
+    const duration = 520;
+    const startTime = window.performance.now();
+    let frame = 0;
+
+    function tick(now: number) {
+      const progress = Math.min((now - startTime) / duration, 1);
+      const eased = 1 - (1 - progress) ** 3;
+      setDisplayedFilteredTotal(
+        Math.round(startValue + (endValue - startValue) * eased),
+      );
+
+      if (progress < 1) {
+        frame = window.requestAnimationFrame(tick);
+      }
+    }
+
+    frame = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(frame);
+  }, [filteredTotal]);
 
   function toggleFormat(format: PostFormat) {
     setActiveFormats((current) => {
@@ -229,7 +261,7 @@ export function PublishedChart({
                 aria-label={`${PUBLISHED_FORMAT_LABELS[format]} ${count}`}
                 aria-pressed={active}
                 onClick={() => toggleFormat(format)}
-                className="inline-flex w-[104px] items-center justify-center gap-1.5 rounded-[6px] border bg-[var(--toggle-bg)] px-2 py-0.5 font-inter text-[14px] font-medium leading-5 transition-colors duration-200 hover:bg-[var(--toggle-hover-bg)] focus-visible:bg-[var(--toggle-hover-bg)]"
+                className="inline-flex w-[84px] items-center justify-center gap-1 rounded-[6px] border bg-[var(--toggle-bg)] px-2 py-0.5 font-inter text-[12px] font-medium leading-5 transition-colors duration-200 hover:bg-[var(--toggle-hover-bg)] focus-visible:bg-[var(--toggle-hover-bg)]"
                 style={
                   {
                     "--toggle-bg": active ? color : "#FFFFFF",

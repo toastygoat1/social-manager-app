@@ -6,7 +6,6 @@ import { AvatarImage } from "@/app/_components/AvatarImage";
 import { PostDetailsModal } from "@/app/scheduler/_components/PostDetailsModal";
 import type { ContentRow } from "./data";
 import {
-  POST_FORMAT_COLORS,
   normalizePostFormat,
   type PostFormat,
 } from "./post-formats";
@@ -29,10 +28,17 @@ const TAB_TO_FORMAT: Record<Tab, PostFormat | "All"> = {
 
 const TAB_ACTIVE_COLOR: Record<Tab, string> = {
   All: "#0d0d0d",
-  Posts: POST_FORMAT_COLORS.Post,
-  Carousel: POST_FORMAT_COLORS.Carousel,
-  Reels: POST_FORMAT_COLORS.Reel,
-  Stories: POST_FORMAT_COLORS.Story,
+  Posts: "#5D9BFE",
+  Carousel: "#FA962F",
+  Reels: "#8B75FE",
+  Stories: "#31D8BB",
+};
+
+const RECENT_POST_FORMAT_COLORS: Record<PostFormat, string> = {
+  Post: "#5D9BFE",
+  Carousel: "#FA962F",
+  Reel: "#8B75FE",
+  Story: "#31D8BB",
 };
 
 function getInitials(label: string) {
@@ -62,7 +68,7 @@ function parseDate(value: string) {
 }
 
 function ThumbnailPlaceholder({ format }: { format: PostFormat }) {
-  const color = POST_FORMAT_COLORS[format];
+  const color = RECENT_POST_FORMAT_COLORS[format];
   return (
     <div
       className="flex h-full w-full items-center justify-center"
@@ -122,7 +128,7 @@ export function RecentPostsPanel({ rows }: RecentPostsPanelProps) {
   }, [active, rows]);
 
   return (
-    <section className="absolute inset-0 flex flex-col gap-3 rounded-[16px] border border-line bg-paper p-4">
+    <section className="absolute inset-0 flex flex-col gap-3 rounded-[16px] border border-line bg-paper p-6">
       <header className="flex shrink-0 flex-col gap-2.5">
         <h2 className="font-inter text-[20px] font-medium leading-none text-ink">
           Recent Posts
@@ -169,6 +175,7 @@ export function RecentPostsPanel({ rows }: RecentPostsPanelProps) {
           filtered.map((row, index) => {
             const format = normalizePostFormat(row.type);
             const preview = getThumbnail(row);
+            const color = RECENT_POST_FORMAT_COLORS[format];
 
             return (
               <button
@@ -176,8 +183,12 @@ export function RecentPostsPanel({ rows }: RecentPostsPanelProps) {
                 key={row.id}
                 onClick={() => setSelectedPostId(row.id)}
                 aria-label={`Open details for ${row.contents || "Untitled post"}`}
-                className="dashboard-item-enter dashboard-motion-card group grid shrink-0 grid-cols-[92px_minmax(0,1fr)] gap-3 rounded-[12px] border border-line p-2.5 text-left hover:bg-card"
-                style={{ animationDelay: `${Math.min(index * 35, 280)}ms` }}
+                className="dashboard-item-enter dashboard-motion-card group grid shrink-0 grid-cols-[92px_minmax(0,1fr)] gap-3 rounded-[12px] border p-2.5 text-left"
+                style={{
+                  animationDelay: `${Math.min(index * 35, 280)}ms`,
+                  borderColor: `${color}55`,
+                  backgroundColor: `${color}08`,
+                }}
               >
                 <div className="aspect-square w-full overflow-hidden rounded-[9px]">
                   <div
@@ -214,7 +225,7 @@ export function RecentPostsPanel({ rows }: RecentPostsPanelProps) {
                     </div>
                     <span
                       className="rounded-md px-1.5 py-0.5 text-[9px] font-medium text-white"
-                      style={{ backgroundColor: POST_FORMAT_COLORS[format] }}
+                      style={{ backgroundColor: color }}
                     >
                       {format}
                     </span>

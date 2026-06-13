@@ -4,6 +4,7 @@ import type {
   ContentRow,
   MetadataFieldDefinition,
 } from "@/app/dashboard/_components/data";
+import { AvatarImage } from "@/app/_components/AvatarImage";
 import { PostDetailsModal } from "@/app/scheduler/_components/PostDetailsModal";
 import { formatNumber } from "@/lib/format";
 import {
@@ -46,34 +47,33 @@ type ScrollbarMetrics = {
   thumbWidth: number;
 };
 
+type ColumnAlign = "left" | "center" | "right";
+
+type ColumnDefinition = {
+  label: string;
+  width: number;
+  align?: ColumnAlign;
+};
+
 const METADATA_MIN_WIDTH = 120;
 const METADATA_MAX_WIDTH = 190;
 const COLLAPSED_ROWS = 10;
 const EXPANDED_ROWS = 20;
-const TABLE_ROW_HEIGHT = 48;
+const TABLE_ROW_HEIGHT = 56;
 
-const LEADING_COLUMNS: { label: string; width: number }[] = [
+const LEADING_COLUMNS: ColumnDefinition[] = [
   { label: "Content", width: 265 },
   { label: "Account", width: 210 },
 ];
 
-const ACCOUNT_FALLBACK_COLORS = [
-  "#b2a4ed",
-  "#73b1f4",
-  "#66d4ef",
-  "#61ddbb",
-  "#f0b86e",
-  "#ee8fa7",
-];
-
-const TRAILING_COLUMNS: { label: string; width: number }[] = [
+const TRAILING_COLUMNS: ColumnDefinition[] = [
   { label: "Type", width: 90 },
   { label: "Status", width: 115 },
   { label: "Date", width: 110 },
-  { label: "Views", width: 90 },
-  { label: "Likes", width: 90 },
-  { label: "Comments", width: 105 },
-  { label: "Shares", width: 90 },
+  { label: "Views", width: 90, align: "right" },
+  { label: "Likes", width: 90, align: "right" },
+  { label: "Comments", width: 105, align: "right" },
+  { label: "Shares", width: 90, align: "right" },
   { label: "Media", width: 120 },
 ];
 
@@ -96,24 +96,34 @@ function getMetadataColumnWidth(field: MetadataFieldDefinition) {
   );
 }
 
-function getColorFromSeed(seed: string) {
-  let hash = 0;
-  for (let index = 0; index < seed.length; index += 1) {
-    hash = (hash * 33 + seed.charCodeAt(index)) % ACCOUNT_FALLBACK_COLORS.length;
-  }
-  return ACCOUNT_FALLBACK_COLORS[Math.abs(hash) % ACCOUNT_FALLBACK_COLORS.length];
+function getInitials(label: string) {
+  return (
+    label
+      .replace(/^@/, "")
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part.charAt(0).toUpperCase())
+      .join("") || "A"
+  );
 }
 
 function AccountPill({ row }: { row: ContentRowsTableRow }) {
-  const color =
-    row.account.accentColor || getColorFromSeed(row.account.name || row.account.id);
-
   return (
     <span
-      className="inline-flex max-w-full items-center rounded-full px-3 py-1 text-[11px] font-medium text-black/70"
-      style={{ backgroundColor: `${color}55` }}
+      className="inline-flex min-w-0 max-w-full items-center gap-2 text-[12px] font-medium text-ink"
       title={row.account.name}
     >
+      <span className="flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-full">
+        <AvatarImage
+          src={row.account.avatarUrl}
+          alt={row.account.name}
+          width={24}
+          height={24}
+          className="size-6 rounded-full object-cover"
+          fallback={getInitials(row.account.name)}
+        />
+      </span>
       <span className="truncate">{row.account.name}</span>
     </span>
   );
@@ -141,13 +151,22 @@ function findScrollContainer(element: HTMLElement | null) {
 function Cell({
   width,
   children,
+  align = "left",
 }: {
   width: number;
   children: React.ReactNode;
+  align?: ColumnAlign;
 }) {
+  const alignClass =
+    align === "right"
+      ? "justify-end text-right"
+      : align === "center"
+        ? "justify-center text-center"
+        : "justify-start text-left";
+
   return (
     <div
-      className="flex h-full shrink-0 items-center px-2.5 py-1.5"
+      className={`flex h-full shrink-0 items-center px-2.5 py-1.5 ${alignClass}`}
       style={{ width: `${width}px` }}
     >
       {children}
@@ -322,7 +341,7 @@ export function ContentRowsTable({
   return (
     <section
       ref={sectionRef}
-      className="flex min-w-0 flex-col gap-3 overflow-hidden rounded-[16px] border border-line bg-paper p-4"
+      className="flex min-w-0 flex-col gap-3 overflow-hidden rounded-[16px] border border-line bg-paper p-6"
     >
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -411,14 +430,14 @@ export function ContentRowsTable({
           <div style={{ minWidth: `${totalWidth}px` }}>
             <div className="flex h-9 items-center border-b border-line bg-card">
               {LEADING_COLUMNS.map((c) => (
-                <Cell key={c.label} width={c.width}>
+                <Cell key={c.label} width={c.width} align={c.align}>
                   <span className="text-[11px] font-semibold text-muted">
                     {c.label}
                   </span>
                 </Cell>
               ))}
               {TRAILING_COLUMNS.map((c) => (
-                <Cell key={c.label} width={c.width}>
+                <Cell key={c.label} width={c.width} align={c.align}>
                   <span className="text-[11px] font-semibold text-muted">
                     {c.label}
                   </span>
@@ -543,7 +562,7 @@ function Row({
           onOpenDetails(row.id);
         }
       }}
-      className="dashboard-item-enter flex h-[48px] cursor-pointer items-center border-b border-line transition hover:bg-card focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#5e6ad2]"
+      className="dashboard-item-enter flex h-[56px] cursor-pointer items-center border-b border-line transition hover:bg-card focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#5e6ad2]"
       style={{ animationDelay: `${Math.min(index * 24, 220)}ms` }}
     >
       <Cell width={265}>
@@ -551,12 +570,9 @@ function Row({
           {row.contents}
         </span>
       </Cell>
-      <div
-        className="flex h-full shrink-0 items-center px-2.5 py-1.5"
-        style={{ width: 210 }}
-      >
+      <Cell width={210}>
         <AccountPill row={row} />
-      </div>
+      </Cell>
       <Cell width={90}>
         <span className="text-xs text-muted">{row.type}</span>
       </Cell>
@@ -566,22 +582,22 @@ function Row({
       <Cell width={110}>
         <span className="text-xs text-muted">{row.datePost}</span>
       </Cell>
-      <Cell width={90}>
+      <Cell width={90} align="right">
         <span className="text-xs text-muted">
           {formatNumber(row.views)}
         </span>
       </Cell>
-      <Cell width={90}>
+      <Cell width={90} align="right">
         <span className="text-xs text-muted">
           {formatNumber(row.likes)}
         </span>
       </Cell>
-      <Cell width={105}>
+      <Cell width={105} align="right">
         <span className="text-xs text-muted">
           {formatNumber(row.comments)}
         </span>
       </Cell>
-      <Cell width={90}>
+      <Cell width={90} align="right">
         <span className="text-xs text-muted">
           {formatNumber(row.shares)}
         </span>
