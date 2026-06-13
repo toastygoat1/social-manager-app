@@ -12,33 +12,16 @@ import { AvatarImage } from "@/app/_components/AvatarImage";
 import { PostDetailsModal } from "@/app/scheduler/_components/PostDetailsModal";
 import { formatNumber } from "@/lib/format";
 import {
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
-  ChevronUp,
-  ImageIcon,
-  Play,
+  Expand,
   Search,
-  X,
+  Shrink,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
-type ContentMediaItem = {
-  id: string;
-  kind: "IMAGE" | "VIDEO";
-  label: string;
-  previewUrl: string | null;
-  mimeType: string;
-};
-
-type ContentRowsTableRow = ContentRow & {
-  mediaItems?: ContentMediaItem[];
-};
-
-type PreviewRow = ContentRowsTableRow & {
-  mediaItems: ContentMediaItem[];
-};
+type ContentRowsTableRow = ContentRow;
 
 type ContentRowsTableProps = {
   rows: ContentRowsTableRow[];
@@ -49,6 +32,7 @@ type ScrollbarMetrics = {
   isScrollable: boolean;
   thumbLeft: number;
   thumbWidth: number;
+  scrollPercent: number;
 };
 
 type ColumnAlign = "left" | "center" | "right";
@@ -78,7 +62,6 @@ const TRAILING_COLUMNS: ColumnDefinition[] = [
   { label: "Likes", width: 90, align: "right" },
   { label: "Comments", width: 105, align: "right" },
   { label: "Shares", width: 90, align: "right" },
-  { label: "Media", width: 120 },
 ];
 
 const TYPE_COLORS: Record<PostFormat, string> = {
@@ -119,6 +102,17 @@ function getInitials(label: string) {
   );
 }
 
+function displayText(value: string | null | undefined) {
+  if (value === null || value === undefined) return null;
+
+  const trimmed = value.trim();
+  if (!trimmed || trimmed === "-" || trimmed === "—" || trimmed === "–") {
+    return null;
+  }
+
+  return trimmed;
+}
+
 function AccountPill({ row }: { row: ContentRowsTableRow }) {
   return (
     <span
@@ -141,17 +135,18 @@ function AccountPill({ row }: { row: ContentRowsTableRow }) {
 }
 
 function TypePill({ type }: { type: string }) {
-  if (!type.trim()) return null;
+  const label = displayText(type);
+  if (!label) return null;
 
-  const format = normalizePostFormat(type);
+  const format = normalizePostFormat(label);
 
   return (
     <span
       className="inline-flex max-w-full items-center rounded-md px-2 py-1 text-[11px] font-medium leading-none text-white"
       style={{ backgroundColor: TYPE_COLORS[format] }}
-      title={type}
+      title={label}
     >
-      <span className="truncate">{type}</span>
+      <span className="truncate">{label}</span>
     </span>
   );
 }
@@ -218,7 +213,6 @@ export function ContentRowsTable({
   const router = useRouter();
   const sectionRef = useRef<HTMLElement>(null);
   const scrollViewportRef = useRef<HTMLDivElement>(null);
-  const [previewRow, setPreviewRow] = useState<PreviewRow | null>(null);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [isExpanded, setIsExpanded] = useState(false);
@@ -226,7 +220,8 @@ export function ContentRowsTable({
   const [scrollbarMetrics, setScrollbarMetrics] = useState<ScrollbarMetrics>({
     isScrollable: false,
     thumbLeft: 0,
-    thumbWidth: 100,
+    thumbWidth: 0,
+    scrollPercent: 0,
   });
   const totalWidth = getTotalWidth(metadataFields);
   const normalizedQuery = query.trim().toLowerCase();
@@ -272,22 +267,26 @@ export function ContentRowsTable({
       setScrollbarMetrics({
         isScrollable: false,
         thumbLeft: 0,
-        thumbWidth: 100,
+        thumbWidth: 0,
+        scrollPercent: 0,
       });
       return;
     }
 
-    const thumbWidth = Math.max(
-      12,
-      (viewport.clientWidth / viewport.scrollWidth) * 100,
+    const trackWidth = viewport.clientWidth;
+    const thumbWidth = Math.min(
+      trackWidth,
+      Math.max(44, (viewport.clientWidth / viewport.scrollWidth) * trackWidth),
     );
+    const maxThumbLeft = Math.max(0, trackWidth - thumbWidth);
     const thumbLeft =
-      (viewport.scrollLeft / maxScrollLeft) * (100 - thumbWidth);
+      maxThumbLeft > 0 ? (viewport.scrollLeft / maxScrollLeft) * maxThumbLeft : 0;
 
     setScrollbarMetrics({
       isScrollable: true,
       thumbLeft,
       thumbWidth,
+      scrollPercent: (viewport.scrollLeft / maxScrollLeft) * 100,
     });
   }
 
@@ -340,13 +339,22 @@ export function ContentRowsTable({
     if (!viewport) return;
 
     const rect = track.getBoundingClientRect();
-    const ratio = Math.min(
-      1,
-      Math.max(0, (clientX - rect.left) / Math.max(rect.width, 1)),
+    const maxScrollLeft = Math.max(
+      0,
+      viewport.scrollWidth - viewport.clientWidth,
+    );
+    const thumbWidth = Math.min(
+      rect.width,
+      Math.max(44, (viewport.clientWidth / viewport.scrollWidth) * rect.width),
+    );
+    const maxThumbLeft = Math.max(0, rect.width - thumbWidth);
+    const nextThumbLeft = Math.min(
+      maxThumbLeft,
+      Math.max(0, clientX - rect.left - thumbWidth / 2),
     );
 
     viewport.scrollLeft =
-      ratio * Math.max(0, viewport.scrollWidth - viewport.clientWidth);
+      maxThumbLeft > 0 ? (nextThumbLeft / maxThumbLeft) * maxScrollLeft : 0;
     syncScrollbarMetrics();
   }
 
@@ -378,7 +386,7 @@ export function ContentRowsTable({
   return (
     <section
       ref={sectionRef}
-      className="flex min-w-0 flex-col gap-3 overflow-hidden rounded-[16px] border border-line bg-paper p-6"
+      className="flex min-w-0 flex-col gap-3 overflow-visible rounded-[16px] border border-line bg-paper p-6"
     >
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -441,7 +449,7 @@ export function ContentRowsTable({
               title="Expand content table"
               className="dashboard-motion-card grid size-9 shrink-0 place-items-center rounded-lg border border-line bg-paper text-muted hover:bg-card hover:text-ink"
             >
-              <ChevronDown className="size-4" strokeWidth={1.9} />
+              <Expand className="size-4" strokeWidth={1.9} />
             </button>
           ) : null}
           {isExpanded ? (
@@ -452,12 +460,12 @@ export function ContentRowsTable({
               title="Minimize content table"
               className="dashboard-motion-card grid size-9 shrink-0 place-items-center rounded-lg border border-line bg-paper text-muted hover:bg-card hover:text-ink"
             >
-              <ChevronUp className="size-4" strokeWidth={1.9} />
+              <Shrink className="size-4" strokeWidth={1.9} />
             </button>
           ) : null}
         </div>
       </header>
-      <div className="w-full overflow-hidden">
+      <div className="w-full overflow-hidden rounded-lg border border-line bg-paper">
         <div
           id="content-table-scroll-area"
           ref={scrollViewportRef}
@@ -506,7 +514,6 @@ export function ContentRowsTable({
                     index={index}
                     metadataFields={metadataFields}
                     onOpenDetails={setSelectedPostId}
-                    onPreview={setPreviewRow}
                   />
                 ))
               )}
@@ -522,23 +529,17 @@ export function ContentRowsTable({
           aria-orientation="horizontal"
           aria-valuemin={0}
           aria-valuemax={100}
-          aria-valuenow={Math.round(scrollbarMetrics.thumbLeft)}
+          aria-valuenow={Math.round(scrollbarMetrics.scrollPercent)}
           onPointerDown={handleScrollbarPointerDown}
         >
           <span
             className="content-table-scrollbar-thumb"
             style={{
-              left: `${scrollbarMetrics.thumbLeft}%`,
-              width: `${scrollbarMetrics.thumbWidth}%`,
+              left: `${scrollbarMetrics.thumbLeft}px`,
+              width: `${scrollbarMetrics.thumbWidth}px`,
             }}
           />
         </div>
-      ) : null}
-      {previewRow ? (
-        <MediaPreviewModal
-          row={previewRow}
-          onClose={() => setPreviewRow(null)}
-        />
       ) : null}
       <PostDetailsModal
         postId={selectedPostId}
@@ -550,9 +551,10 @@ export function ContentRowsTable({
 }
 
 function StatusPill({ status }: { status: string }) {
-  if (!status.trim()) return null;
+  const label = displayText(status);
+  if (!label) return null;
 
-  const normalized = status.toLowerCase();
+  const normalized = label.toLowerCase();
   const tone =
     normalized === "published"
       ? "bg-emerald-50 text-success"
@@ -567,7 +569,7 @@ function StatusPill({ status }: { status: string }) {
       className={`inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[11px] font-medium ${tone}`}
     >
       <span className="size-1.5 rounded-full bg-current" />
-      {status}
+      {label}
     </span>
   );
 }
@@ -577,16 +579,13 @@ function Row({
   index,
   metadataFields,
   onOpenDetails,
-  onPreview,
 }: {
   row: ContentRowsTableRow;
   index: number;
   metadataFields: MetadataFieldDefinition[];
   onOpenDetails: (postId: string) => void;
-  onPreview: (row: PreviewRow) => void;
 }) {
-  const mediaItems = row.mediaItems ?? [];
-  const hasMedia = mediaItems.length > 0;
+  const datePost = displayText(row.datePost);
 
   return (
     <div
@@ -619,8 +618,8 @@ function Row({
         <StatusPill status={row.status} />
       </Cell>
       <Cell width={110}>
-        {row.datePost ? (
-          <span className="text-xs text-muted">{row.datePost}</span>
+        {datePost ? (
+          <span className="text-xs text-muted">{datePost}</span>
         ) : null}
       </Cell>
       <Cell width={90} align="right">
@@ -635,124 +634,15 @@ function Row({
       <Cell width={90} align="right">
         <MetricText value={row.shares} />
       </Cell>
-      <Cell width={120}>
-        {hasMedia ? (
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              onPreview({ ...row, mediaItems });
-            }}
-            onKeyDown={(event) => event.stopPropagation()}
-            className="flex max-w-full items-center gap-1.5 rounded-md border border-line bg-paper px-2 py-1 text-[11px] text-ink transition hover:bg-card"
-          >
-            {mediaItems[0].kind === "VIDEO" ? (
-              <Play className="size-3.5 shrink-0" strokeWidth={1.8} />
-            ) : (
-              <ImageIcon className="size-3.5 shrink-0" strokeWidth={1.8} />
-            )}
-            <span className="truncate">{row.media}</span>
-          </button>
-        ) : row.media ? (
-          <span className="text-xs text-muted">{row.media}</span>
-        ) : (
-          null
-        )}
-      </Cell>
       {metadataFields.map((field) => (
         <Cell key={field.id} width={getMetadataColumnWidth(field)}>
-          {row.metadata?.[field.id] ? (
+          {displayText(row.metadata?.[field.id]) ? (
             <span className="truncate text-xs text-muted">
-              {row.metadata[field.id]}
+              {displayText(row.metadata?.[field.id])}
             </span>
           ) : null}
         </Cell>
       ))}
-    </div>
-  );
-}
-
-function MediaPreviewModal({
-  row,
-  onClose,
-}: {
-  row: PreviewRow;
-  onClose: () => void;
-}) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-6">
-      <div className="flex max-h-[86vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-line bg-paper">
-        <div className="flex items-center justify-between border-b border-line px-5 py-4">
-          <div className="flex min-w-0 flex-col">
-            <p className="truncate text-base font-medium text-ink">
-              {row.contents}
-            </p>
-            <p className="text-xs text-muted">{row.media}</p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close media preview"
-            className="flex size-9 shrink-0 items-center justify-center rounded-lg text-muted transition hover:bg-card hover:text-ink"
-          >
-            <X className="size-5" strokeWidth={1.8} />
-          </button>
-        </div>
-        <div className="grid min-h-0 gap-4 overflow-y-auto p-5 md:grid-cols-2">
-          {row.mediaItems.map((item) => (
-            <MediaPreview key={item.id} item={item} title={row.contents} />
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function MediaPreview({
-  item,
-  title,
-}: {
-  item: ContentMediaItem;
-  title: string;
-}) {
-  let content: ReactNode;
-
-  if (!item.previewUrl) {
-    content = (
-      <div className="flex aspect-square w-full items-center justify-center bg-card text-sm text-muted">
-        Preview unavailable
-      </div>
-    );
-  } else if (item.kind === "VIDEO") {
-    content = (
-      <video
-        controls
-        className="aspect-square w-full bg-black object-contain"
-        src={item.previewUrl}
-      />
-    );
-  } else {
-    content = (
-      <div
-        aria-label={title}
-        className="aspect-square w-full bg-card bg-contain bg-center bg-no-repeat"
-        role="img"
-        style={{ backgroundImage: `url("${item.previewUrl}")` }}
-      />
-    );
-  }
-
-  return (
-    <div className="overflow-hidden rounded-xl border border-line bg-paper">
-      {content}
-      <div className="flex items-center gap-2 px-3 py-2 text-sm text-muted">
-        {item.kind === "VIDEO" ? (
-          <Play className="size-4" strokeWidth={1.8} />
-        ) : (
-          <ImageIcon className="size-4" strokeWidth={1.8} />
-        )}
-        <span>{item.label}</span>
-      </div>
     </div>
   );
 }

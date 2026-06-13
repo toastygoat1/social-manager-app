@@ -298,8 +298,8 @@ html.theme-circle-transition::view-transition-new(root) {
 
 .content-table-scrollbar-track {
   position: relative;
-  height: 12px;
-  margin: -2px 8px 0;
+  height: 14px;
+  margin-top: 4px;
   cursor: pointer;
   touch-action: none;
 }
@@ -309,7 +309,7 @@ html.theme-circle-transition::view-transition-new(root) {
   top: 50%;
   right: 0;
   left: 0;
-  height: 3px;
+  height: 4px;
   content: "";
   border-radius: 999px;
   background: rgb(15 15 15 / 7%);
@@ -319,7 +319,7 @@ html.theme-circle-transition::view-transition-new(root) {
 .content-table-scrollbar-thumb {
   position: absolute;
   top: 50%;
-  min-width: 34px;
+  min-width: 44px;
   height: 5px;
   border-radius: 999px;
   background: rgb(45 45 45 / 24%);
