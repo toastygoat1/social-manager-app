@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   CalendarPlus,
   ChevronLeft,
@@ -67,8 +67,8 @@ type CreateEventResponse = {
   event: GoogleCalendarEvent;
 };
 
-const START_HOUR = 8;
-const END_HOUR = 15;
+const START_HOUR = 0;
+const END_HOUR = 24;
 const HOUR_HEIGHT = 70;
 const CALENDAR_HEADER_HEIGHT = 92;
 const CALENDAR_DAY_HEADER_HEIGHT = 40;
@@ -77,8 +77,8 @@ export const CALENDAR_CARD_HEIGHT =
   CALENDAR_HEADER_HEIGHT + CALENDAR_DAY_HEADER_HEIGHT + CALENDAR_BODY_HEIGHT;
 const TIME_RAIL_WIDTH = 70;
 const VISIBLE_DAY_COUNT = 7;
-const WEEK_START = new Date(2026, 4, 18);
-const MONTH_WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const WEEK_START = new Date(2026, 4, 17);
+const MONTH_WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const HOURS = Array.from(
   { length: END_HOUR - START_HOUR + 1 },
   (_, index) => START_HOUR + index,
@@ -93,7 +93,7 @@ const EVENT_PALETTE = [
 const DESIGN_EVENTS: WeekEvent[] = [
   {
     id: "weekly-kickoff",
-    day: 0,
+    day: 1,
     title: "Weekly kickoff",
     time: "8:30 AM",
     start: 8.5,
@@ -103,7 +103,7 @@ const DESIGN_EVENTS: WeekEvent[] = [
   },
   {
     id: "fintech-wireframes",
-    day: 0,
+    day: 1,
     title: "Fintech app wireframes",
     time: "10:00 AM",
     start: 10,
@@ -113,7 +113,7 @@ const DESIGN_EVENTS: WeekEvent[] = [
   },
   {
     id: "invoice",
-    day: 0,
+    day: 1,
     title: "Invoice: Acme Co.",
     time: "2:30 PM",
     start: 13.5,
@@ -123,7 +123,7 @@ const DESIGN_EVENTS: WeekEvent[] = [
   },
   {
     id: "client-call",
-    day: 1,
+    day: 2,
     title: "Client call: John/Novi",
     time: "9:00 AM",
     start: 9,
@@ -133,7 +133,7 @@ const DESIGN_EVENTS: WeekEvent[] = [
   },
   {
     id: "design-review",
-    day: 1,
+    day: 2,
     title: "Design review Fintech",
     time: "12:00 PM",
     start: 11.65,
@@ -143,7 +143,7 @@ const DESIGN_EVENTS: WeekEvent[] = [
   },
   {
     id: "deep-work",
-    day: 2,
+    day: 3,
     title: "Deep work: UI kit",
     time: "9:00 AM",
     start: 9,
@@ -153,7 +153,7 @@ const DESIGN_EVENTS: WeekEvent[] = [
   },
   {
     id: "lunch",
-    day: 2,
+    day: 3,
     title: "Lunch w/Mia",
     time: "12:30 PM",
     start: 12.5,
@@ -163,7 +163,7 @@ const DESIGN_EVENTS: WeekEvent[] = [
   },
   {
     id: "figma-session",
-    day: 3,
+    day: 4,
     title: "Figma session: SaaS dashboard",
     time: "8:30 AM",
     start: 8.5,
@@ -173,7 +173,7 @@ const DESIGN_EVENTS: WeekEvent[] = [
   },
   {
     id: "feedback",
-    day: 3,
+    day: 4,
     title: "Feedback call: Orion",
     time: "10:30 AM",
     start: 10.5,
@@ -183,7 +183,7 @@ const DESIGN_EVENTS: WeekEvent[] = [
   },
   {
     id: "bookkeeping",
-    day: 3,
+    day: 4,
     title: "Bookkeeping",
     time: "1:00 PM",
     start: 13,
@@ -193,7 +193,7 @@ const DESIGN_EVENTS: WeekEvent[] = [
   },
   {
     id: "weekly-review",
-    day: 4,
+    day: 5,
     title: "Weekly review",
     time: "8:30 AM",
     start: 8.5,
@@ -203,7 +203,7 @@ const DESIGN_EVENTS: WeekEvent[] = [
   },
   {
     id: "handoff",
-    day: 4,
+    day: 5,
     title: "Handoff: Fintech v1",
     time: "10:30 AM",
     start: 10.5,
@@ -226,8 +226,7 @@ function startOfDay(date: Date) {
 }
 
 function startOfWeek(date: Date) {
-  const mondayOffset = (date.getDay() + 6) % 7;
-  return addDays(startOfDay(date), -mondayOffset);
+  return addDays(startOfDay(date), -date.getDay());
 }
 
 function startOfMonth(date: Date) {
@@ -243,6 +242,7 @@ function toDateKey(date: Date) {
 }
 
 function formatHour(hour: number) {
+  if (hour === 0 || hour === 24) return "12 AM";
   if (hour === 12) return "12 PM";
   if (hour > 12) return `${hour - 12} PM`;
   return `${hour} AM`;
@@ -315,10 +315,13 @@ function mapCalendarEventToWeekEvent(
   weekStart: Date,
   index: number,
 ): WeekEvent | null {
-  if (!event.start || event.allDay) return null;
+  if (!event.start) return null;
 
-  const startDate = new Date(event.start);
-  const endDate = event.end ? new Date(event.end) : null;
+  const startDate = event.allDay
+    ? new Date(`${event.start.slice(0, 10)}T00:00:00`)
+    : new Date(event.start);
+  const endDate =
+    !event.allDay && event.end ? new Date(event.end) : null;
   const startOfEventDay = startOfDay(startDate);
   const day = Math.floor(
     (startOfEventDay.getTime() - weekStart.getTime()) / 86_400_000,
@@ -326,10 +329,14 @@ function mapCalendarEventToWeekEvent(
 
   if (day < 0 || day >= VISIBLE_DAY_COUNT) return null;
 
-  const start = startDate.getHours() + startDate.getMinutes() / 60;
+  const start = event.allDay
+    ? START_HOUR
+    : (startDate.getTime() - startOfEventDay.getTime()) / 3_600_000;
   const rawEnd = endDate
-    ? endDate.getHours() + endDate.getMinutes() / 60
-    : start + 1;
+    ? (endDate.getTime() - startOfEventDay.getTime()) / 3_600_000
+    : event.allDay
+      ? start + 1
+      : start + 1;
   const end = Math.max(start + 0.4, rawEnd);
   const palette = getPalette(index);
 
@@ -337,7 +344,7 @@ function mapCalendarEventToWeekEvent(
     id: event.id,
     day,
     title: event.summary || "Untitled event",
-    time: formatTime(startDate),
+    time: event.allDay ? "All day" : formatTime(startDate),
     start: Math.max(START_HOUR, Math.min(END_HOUR, start)),
     end: Math.max(START_HOUR, Math.min(END_HOUR, end)),
     color: palette.color,
@@ -519,7 +526,8 @@ function ViewModeSlider({
 }
 
 export function CalendarCard({ calendar, todayIso }: CalendarCardProps) {
-  const today = useMemo(() => startOfDay(new Date(todayIso)), [todayIso]);
+  const [currentTime, setCurrentTime] = useState(() => new Date(todayIso));
+  const today = useMemo(() => startOfDay(currentTime), [currentTime]);
   const todayKey = toDateKey(today);
   const [viewMode, setViewMode] = useState<ViewMode>("week");
   const [anchorDate, setAnchorDate] = useState(() => today);
@@ -528,6 +536,8 @@ export function CalendarCard({ calendar, todayIso }: CalendarCardProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const weekScrollRef = useRef<HTMLDivElement>(null);
+  const lastAutoScrolledWeekRef = useRef<string | null>(null);
 
   const weekStart = useMemo(() => startOfWeek(anchorDate), [anchorDate]);
   const weekDays = useMemo(
@@ -551,8 +561,40 @@ export function CalendarCard({ calendar, todayIso }: CalendarCardProps) {
   );
   const selectedDay = anchorDate;
   const selectedDateKey = toDateKey(selectedDay);
+  const currentTimeTop =
+    (currentTime.getHours() + currentTime.getMinutes() / 60 - START_HOUR) *
+    HOUR_HEIGHT;
+  const showCurrentTimeLine =
+    weekDays.some((day) => toDateKey(day) === todayKey) &&
+    currentTimeTop >= 0 &&
+    currentTimeTop <= bodyHeight;
   const periodLabel =
     viewMode === "week" ? weekRangeLabel(weekStart) : monthLabel(anchorDate);
+
+  useEffect(() => {
+    setCurrentTime(new Date());
+    const interval = window.setInterval(() => setCurrentTime(new Date()), 60_000);
+    return () => window.clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const scrollTarget = weekScrollRef.current;
+    const weekKey = toDateKey(weekStart);
+    if (
+      viewMode !== "week" ||
+      !showCurrentTimeLine ||
+      !scrollTarget ||
+      lastAutoScrolledWeekRef.current === weekKey
+    ) {
+      return;
+    }
+
+    scrollTarget.scrollTop = Math.max(
+      0,
+      currentTimeTop - CALENDAR_BODY_HEIGHT * 0.45,
+    );
+    lastAutoScrolledWeekRef.current = weekKey;
+  }, [currentTimeTop, showCurrentTimeLine, viewMode, weekStart]);
 
   const displayedWeekEvents = useMemo(() => {
     if (!calendar) return designEventsForWeek(weekStart);
@@ -736,10 +778,7 @@ export function CalendarCard({ calendar, todayIso }: CalendarCardProps) {
               </span>
             </button>
             <div>
-              <p className="text-[11px] font-medium uppercase leading-none tracking-[0.08em] text-muted">
-                Selected date
-              </p>
-              <p className="mt-1 text-[18px] font-semibold leading-tight text-ink">
+              <p className="text-[18px] font-semibold leading-tight text-ink">
                 {titleDateLabel(selectedDay)}
               </p>
               <p className="mt-0.5 text-[13px] text-muted">
@@ -830,6 +869,7 @@ export function CalendarCard({ calendar, todayIso }: CalendarCardProps) {
             </div>
 
             <div
+              ref={weekScrollRef}
               className="scrollbar-none relative shrink-0 overflow-y-auto overflow-x-hidden"
               style={{ height: CALENDAR_BODY_HEIGHT }}
             >
@@ -867,15 +907,17 @@ export function CalendarCard({ calendar, todayIso }: CalendarCardProps) {
                   );
                 })}
 
-                <div
-                  className="absolute right-0 z-20 h-px bg-[#8A8A8A]"
-                  style={{
-                    left: TIME_RAIL_WIDTH,
-                    top: (13 - START_HOUR) * HOUR_HEIGHT,
-                  }}
-                >
-                  <span className="absolute left-[-2px] top-[-34px] h-[68px] w-1 rounded-full bg-[#3F3F3F]" />
-                </div>
+                {showCurrentTimeLine ? (
+                  <div
+                    className="absolute right-0 z-20 h-px bg-[#8A8A8A]"
+                    style={{
+                      left: TIME_RAIL_WIDTH,
+                      top: currentTimeTop,
+                    }}
+                  >
+                    <span className="absolute left-[-2px] top-[-34px] h-[68px] w-1 rounded-full bg-[#3F3F3F]" />
+                  </div>
+                ) : null}
 
                 <div
                   className="absolute bottom-0 top-0 grid"
