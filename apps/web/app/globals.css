@@ -1,17 +1,17 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
+  --background: #fafafa;
   --foreground: #171717;
 
-  --app-shell-bg: #f2f5f6;
+  --app-shell-bg: #fafafa;
   --app-panel-bg: #ffffff;
   --app-panel-border: rgb(233, 233, 233);
   --app-panel-shadow: transparent;
 
   --bg: #fafafa;
   --bg-light: #ffffff;
-  --bg-dark: #f5f5f5;
+  --bg-dark: #fafafa;
   --border: rgb(233, 233, 233);
   --text: #0d0d0d;
   --text-muted: #4c4c4c;
@@ -125,18 +125,20 @@ body {
 }
 
 .app-shell-frame {
-  --app-shell-padding: 4px;
-  --app-shell-panel-height: calc(100vh - 8px);
+  --app-shell-padding: 0px;
+  --app-shell-panel-height: 100vh;
+  gap: 0;
   height: 100vh;
+  padding: 0;
   background: var(--app-shell-bg);
   overflow: hidden;
 }
 
 .app-shell-panel,
 .app-shell-sidebar {
-  border: 1px solid var(--app-panel-border);
-  border-radius: 14px;
-  background: var(--app-panel-bg);
+  border: 0;
+  border-radius: 0;
+  background: var(--background);
   box-shadow: none;
 }
 
@@ -147,6 +149,7 @@ body {
 .app-shell-sidebar {
   position: sticky;
   top: var(--app-shell-padding);
+  border-right: 1px solid var(--app-panel-border);
   height: var(--app-shell-panel-height);
 }
 
