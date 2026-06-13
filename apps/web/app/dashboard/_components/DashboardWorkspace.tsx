@@ -118,7 +118,7 @@ function shortenAtWordBoundary(value: string, maxLength = GREETING_NAME_MAX_LENG
 
   const lastSpace = normalized.slice(0, maxLength + 1).lastIndexOf(" ");
   const end = lastSpace > 0 ? lastSpace : maxLength;
-  return `${normalized.slice(0, end)}...`;
+  return normalized.slice(0, end);
 }
 
 export function DashboardWorkspace({
@@ -139,8 +139,7 @@ export function DashboardWorkspace({
         <div className="grid items-stretch gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
           <div className="flex min-w-0 flex-col gap-6">
             <h1
-              className="text-[64px] font-normal leading-none text-ink"
-              style={{ fontFamily: "var(--font-copse), Georgia, serif" }}
+              className="analytics-serif text-[64px] font-normal leading-none text-ink"
             >
               Good morning, {greetingName}
             </h1>
