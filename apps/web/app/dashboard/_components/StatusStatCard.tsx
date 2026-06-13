@@ -75,7 +75,7 @@ export function StatusStatCard({
       </div>
 
       {isEmpty ? (
-        <div className="mt-8 h-1 rounded-full bg-[#0d0d0d]" />
+        <div className="mt-8 h-1 rounded-full bg-[var(--status-empty-bar)]" />
       ) : visible.length > 0 ? (
         <div className="mt-8 flex h-1 items-stretch gap-1 rounded-full">
           {visible.map((format, index) => {

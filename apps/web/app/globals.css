@@ -54,6 +54,8 @@
   --calendar-control-disabled-fg: #9b9b9b;
   --calendar-date-month-bg: #ededed;
   --calendar-today-bg: #f1f1f1;
+  --published-toggle-bg: #ffffff;
+  --status-empty-bar: #ffffff;
 }
 
 :root[data-theme="dark"] {
@@ -99,6 +101,8 @@
   --calendar-control-disabled-fg: #777777;
   --calendar-date-month-bg: #242424;
   --calendar-today-bg: #242424;
+  --published-toggle-bg: #181818;
+  --status-empty-bar: #ffffff;
 }
 
 @theme inline {

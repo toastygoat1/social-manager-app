@@ -261,7 +261,7 @@ export function PublishedChart({
                 className="dashboard-ui-label inline-flex w-[84px] items-center justify-center gap-1 rounded-[6px] border bg-[var(--toggle-bg)] px-2 py-0.5 transition-colors duration-200 hover:bg-[var(--toggle-hover-bg)] focus-visible:bg-[var(--toggle-hover-bg)]"
                 style={
                   {
-                    "--toggle-bg": active ? color : "#FFFFFF",
+                    "--toggle-bg": active ? color : "var(--published-toggle-bg)",
                     "--toggle-hover-bg": active ? color : `${color}26`,
                     color: active ? "#FFFFFF" : color,
                     borderColor: color,
