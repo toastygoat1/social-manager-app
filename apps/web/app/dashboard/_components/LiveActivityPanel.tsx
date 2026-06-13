@@ -127,13 +127,13 @@ export function LiveActivityPanel({
   return (
     <section className="flex h-full min-h-0 flex-col rounded-[16px] border border-line bg-paper p-6">
       <header className="shrink-0 pb-2.5">
-        <h2 className="font-inter text-[20px] font-medium leading-none text-ink">
+        <h2 className="dashboard-card-title text-ink">
           Live Activity
         </h2>
       </header>
 
       {rows.length === 0 ? (
-        <p className="mt-3 text-xs text-muted">No activity yet.</p>
+        <p className="dashboard-ui-label mt-3 text-muted">No activity yet.</p>
       ) : (
         <ul className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto pr-1">
           {rows.map((item, index) => {
@@ -152,10 +152,10 @@ export function LiveActivityPanel({
                   <Icon className="size-4" strokeWidth={1.8} />
                 </span>
                 <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="line-clamp-2 text-[11px] font-medium leading-snug text-ink">
+                  <span className="dashboard-ui-meta line-clamp-2 text-ink">
                     {buildHeadline(item)}
                   </span>
-                  <span className="truncate text-[10px] text-muted">
+                  <span className="dashboard-micro-text truncate font-normal text-muted">
                     {formatActivityWhen(item.occurredAt)}
                   </span>
                 </span>

@@ -28,11 +28,13 @@ export function MyAccountsCarousel({
 
   return (
     <section className="flex flex-col gap-3 rounded-[16px] border border-line bg-paper p-6">
-      <h2 className="font-inter text-[20px] font-medium leading-none text-ink">
+      <h2 className="dashboard-card-title text-ink">
         My Accounts
       </h2>
       {accounts.length === 0 ? (
-        <p className="py-4 text-xs text-muted">No accounts connected yet.</p>
+        <p className="dashboard-ui-label py-4 text-muted">
+          No accounts connected yet.
+        </p>
       ) : (
         <div className="-mx-1 -mt-2 flex gap-4 overflow-x-auto px-1 pb-2 pt-2">
           {accounts.map((account) => {
@@ -74,7 +76,7 @@ export function MyAccountsCarousel({
                       fallback={getInitials(account.name)}
                     />
                   </span>
-                  <span className="truncate text-[13px] font-medium text-ink">
+                  <span className="dashboard-ui-label truncate text-ink">
                     {displayName}
                   </span>
                 </div>

@@ -53,7 +53,7 @@ export function StatusStatCard({
       style={{ width: cardWidth, height: cardHeight }}
     >
       <header className="flex items-start justify-between gap-3">
-        <span className="font-inter text-[20px] font-medium leading-none text-ink">
+        <span className="dashboard-card-title text-ink">
           {label}
         </span>
         <button
@@ -66,13 +66,10 @@ export function StatusStatCard({
       </header>
 
       <div className="mt-4 flex items-end gap-2">
-        <span
-          className="text-[40px] font-normal leading-none text-ink tabular-nums"
-          style={{ fontFamily: "var(--font-copse), Georgia, serif" }}
-        >
+        <span className="dashboard-number text-ink">
           {formattedTotal}
         </span>
-        <span className="font-inter pb-0.5 text-[16px] font-normal leading-tight text-ink">
+        <span className="dashboard-number-caption pb-0.5 text-ink">
           {captionText}
         </span>
       </div>

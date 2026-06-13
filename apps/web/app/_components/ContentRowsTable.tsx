@@ -116,7 +116,7 @@ function displayText(value: string | null | undefined) {
 function AccountPill({ row }: { row: ContentRowsTableRow }) {
   return (
     <span
-      className="inline-flex min-w-0 max-w-full items-center gap-2 text-[12px] font-medium text-ink"
+      className="dashboard-ui-label inline-flex min-w-0 max-w-full items-center gap-2 text-ink"
       title={row.account.name}
     >
       <span className="flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-full">
@@ -142,7 +142,7 @@ function TypePill({ type }: { type: string }) {
 
   return (
     <span
-      className="inline-flex max-w-full items-center rounded-md px-2 py-1 text-[11px] font-medium leading-none text-white"
+      className="dashboard-ui-meta inline-flex max-w-full items-center rounded-md px-2 py-1 leading-none text-white"
       style={{ backgroundColor: TYPE_COLORS[format] }}
       title={label}
     >
@@ -155,7 +155,7 @@ function MetricText({ value }: { value: number | null | undefined }) {
   if (value === null || value === undefined) return null;
 
   return (
-    <span className="text-xs text-muted">
+    <span className="dashboard-ui-label text-muted">
       {formatNumber(value)}
     </span>
   );
@@ -390,10 +390,10 @@ export function ContentRowsTable({
     >
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="font-inter text-[20px] font-medium leading-none text-ink">
+          <h2 className="dashboard-card-title text-ink">
             Content Table
           </h2>
-          <p className="mt-0.5 text-xs text-muted">
+          <p className="dashboard-section-subtitle mt-0.5 text-muted">
             {rangeStart}-{rangeEnd} of {filteredRows.length} items / all
             statuses
           </p>
@@ -412,7 +412,7 @@ export function ContentRowsTable({
                 setPage(0);
               }}
               placeholder="Search content, account, status..."
-              className="h-9 w-full rounded-lg border border-line bg-paper pl-9 pr-3 text-xs text-ink outline-none transition focus:border-[#b7b7b7] focus:bg-card"
+              className="dashboard-ui-label h-9 w-full rounded-lg border border-line bg-paper pl-9 pr-3 text-ink outline-none transition placeholder:font-normal focus:border-[#b7b7b7] focus:bg-card"
               type="search"
             />
           </label>
@@ -427,7 +427,7 @@ export function ContentRowsTable({
               >
                 <ChevronLeft className="size-3.5" strokeWidth={1.9} />
               </button>
-              <span className="min-w-10 text-center text-[11px] font-medium text-muted">
+              <span className="dashboard-ui-meta min-w-10 text-center text-muted">
                 {safePage + 1}/{totalPages}
               </span>
               <button
@@ -476,21 +476,21 @@ export function ContentRowsTable({
             <div className="flex h-9 items-center border-b border-line bg-card">
               {LEADING_COLUMNS.map((c) => (
                 <Cell key={c.label} width={c.width} align={c.align}>
-                  <span className="text-[11px] font-semibold text-muted">
+                  <span className="dashboard-ui-meta font-semibold text-muted">
                     {c.label}
                   </span>
                 </Cell>
               ))}
               {TRAILING_COLUMNS.map((c) => (
                 <Cell key={c.label} width={c.width} align={c.align}>
-                  <span className="text-[11px] font-semibold text-muted">
+                  <span className="dashboard-ui-meta font-semibold text-muted">
                     {c.label}
                   </span>
                 </Cell>
               ))}
               {metadataFields.map((field) => (
                 <Cell key={field.id} width={getMetadataColumnWidth(field)}>
-                  <span className="truncate text-[11px] font-semibold text-muted">
+                  <span className="dashboard-ui-meta truncate font-semibold text-muted">
                     {field.label}
                   </span>
                 </Cell>
@@ -501,7 +501,7 @@ export function ContentRowsTable({
               style={{ height: `${bodyHeight}px` }}
             >
               {filteredRows.length === 0 ? (
-                <div className="flex h-full items-center justify-center text-sm text-muted">
+                <div className="dashboard-body-text flex h-full items-center justify-center text-muted">
                   {query
                     ? "No content matches your search"
                     : "No content tracked yet"}
@@ -566,7 +566,7 @@ function StatusPill({ status }: { status: string }) {
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[11px] font-medium ${tone}`}
+      className={`dashboard-ui-meta inline-flex items-center gap-1.5 rounded-full px-2 py-1 ${tone}`}
     >
       <span className="size-1.5 rounded-full bg-current" />
       {label}
@@ -604,7 +604,7 @@ function Row({
       style={{ animationDelay: `${Math.min(index * 24, 220)}ms` }}
     >
       <Cell width={265}>
-        <span className="truncate text-[12px] font-medium text-ink">
+        <span className="dashboard-ui-label truncate text-ink">
           {row.contents}
         </span>
       </Cell>
@@ -619,7 +619,7 @@ function Row({
       </Cell>
       <Cell width={110}>
         {datePost ? (
-          <span className="text-xs text-muted">{datePost}</span>
+          <span className="dashboard-ui-label text-muted">{datePost}</span>
         ) : null}
       </Cell>
       <Cell width={90} align="right">
@@ -637,7 +637,7 @@ function Row({
       {metadataFields.map((field) => (
         <Cell key={field.id} width={getMetadataColumnWidth(field)}>
           {displayText(row.metadata?.[field.id]) ? (
-            <span className="truncate text-xs text-muted">
+            <span className="dashboard-ui-label truncate text-muted">
               {displayText(row.metadata?.[field.id])}
             </span>
           ) : null}

@@ -307,7 +307,7 @@ function AccountAvatar({
 
   return (
     <span
-      className="flex size-[26px] shrink-0 items-center justify-center overflow-hidden rounded-full text-[11px] font-semibold text-white"
+      className="dashboard-ui-meta flex size-[26px] shrink-0 items-center justify-center overflow-hidden rounded-full font-semibold text-white"
       style={{
         background: `linear-gradient(135deg, ${color}, ${color}cc)`,
       }}
@@ -383,15 +383,15 @@ function AccountRow({
             isCollapsed ? "max-w-0 opacity-0" : "max-w-[142px] opacity-100"
           }`}
         >
-          <span className="block truncate text-[12.5px] font-medium leading-4 text-[var(--sidebar-text)]">
+          <span className="dashboard-ui-label block truncate text-[var(--sidebar-text)]">
             {accountTitle}
           </span>
-          <span className="block truncate text-[10.5px] leading-4 text-[var(--sidebar-dim)]">
+          <span className="dashboard-micro-text block truncate font-normal text-[var(--sidebar-dim)]">
             {accountHandle}
           </span>
         </span>
         <span
-          className={`shrink-0 overflow-hidden whitespace-nowrap text-[9.5px] font-semibold text-[var(--sidebar-dim)] transition-[max-width,opacity] duration-300 ease-out ${
+          className={`dashboard-micro-text shrink-0 overflow-hidden whitespace-nowrap font-semibold text-[var(--sidebar-dim)] transition-[max-width,opacity] duration-300 ease-out ${
             isCollapsed ? "max-w-0 opacity-0" : "max-w-[18px] opacity-100"
           }`}
         >
@@ -435,7 +435,7 @@ function ProfileAvatar({
 
   return (
     <span
-      className="flex size-[26px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#5e6ad2] text-[10.5px] font-semibold text-white"
+      className="dashboard-ui-meta flex size-[26px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#5e6ad2] font-semibold text-white"
     >
       <AvatarImage
         src={profile?.avatarUrl}
@@ -717,7 +717,7 @@ export function SidebarPanel({
             isCompact ? "max-w-0 opacity-0" : "max-w-[120px] opacity-100"
           }`}
         >
-          <span className="block truncate text-sm font-semibold leading-4 text-[var(--sidebar-text)]">
+          <span className="dashboard-ui-label block truncate font-semibold text-[var(--sidebar-text)]">
             Snowflake
           </span>
         </span>
@@ -742,7 +742,7 @@ export function SidebarPanel({
               aria-current={key === active ? "page" : undefined}
               onClick={() => setSelectedNavKey(key)}
               title={isCompact ? label : undefined}
-              className={`group relative z-10 flex min-h-8 w-full items-center gap-1 rounded-md px-[3px] py-0 text-[12.5px] leading-4 transition-colors duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+              className={`dashboard-ui-label group relative z-10 flex min-h-8 w-full items-center gap-1 rounded-md px-[3px] py-0 transition-colors duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
                 isActive
                   ? "font-medium text-[var(--sidebar-active-foreground)]"
                   : `text-[var(--sidebar-muted)] ${
@@ -780,7 +780,7 @@ export function SidebarPanel({
                 {label}
               </span>
               {badge && !isCompact ? (
-                <span className="ml-auto rounded-full bg-[var(--sidebar-hover-strong)] px-1.5 py-px text-[10.5px] leading-4 text-[var(--sidebar-muted)] transition-colors duration-500">
+                <span className="dashboard-micro-text ml-auto rounded-full bg-[var(--sidebar-hover-strong)] px-1.5 py-px text-[var(--sidebar-muted)] transition-colors duration-500">
                   {badge}
                 </span>
               ) : null}
@@ -791,7 +791,7 @@ export function SidebarPanel({
 
       <section aria-label="Accounts" className="flex flex-col gap-4">
         {accounts.length === 0 && !isCompact ? (
-          <p className="px-2 py-3 text-[12.5px] leading-5 text-[var(--sidebar-dim)]">
+          <p className="dashboard-ui-label px-2 py-3 text-[var(--sidebar-dim)]">
             No accounts connected yet
           </p>
         ) : (
@@ -810,7 +810,7 @@ export function SidebarPanel({
         {additionalAccounts.length > 0 && isCompact ? (
           <div
             title={`${additionalAccounts.length} more connected accounts`}
-            className="mx-auto flex size-8 items-center justify-center rounded-[5px] text-[11px] font-medium text-[var(--sidebar-dim)]"
+            className="dashboard-ui-meta mx-auto flex size-8 items-center justify-center rounded-[5px] text-[var(--sidebar-dim)]"
           >
             +{additionalAccounts.length}
           </div>
@@ -818,7 +818,7 @@ export function SidebarPanel({
 
         {additionalAccounts.length > 0 && !isCompact ? (
           <details className="group">
-            <summary className="flex min-h-8 cursor-pointer list-none items-center gap-2 rounded-md px-2 py-1.5 text-[12.5px] text-[var(--sidebar-muted)] transition-colors hover:bg-[var(--sidebar-hover)] hover:text-[var(--sidebar-text)] [&::-webkit-details-marker]:hidden">
+            <summary className="dashboard-ui-label flex min-h-8 cursor-pointer list-none items-center gap-2 rounded-md px-2 py-1.5 text-[var(--sidebar-muted)] transition-colors hover:bg-[var(--sidebar-hover)] hover:text-[var(--sidebar-text)] [&::-webkit-details-marker]:hidden">
               <span className="grid size-[22px] shrink-0 place-items-center rounded-md border border-dashed border-[var(--sidebar-dashed)] text-[var(--sidebar-muted)]">
                 <ChevronDown
                   className="size-[13px] transition-transform group-open:rotate-180"
@@ -852,7 +852,7 @@ export function SidebarPanel({
         title={
           isCompact ? (isDarkTheme ? "Light mode" : "Dark mode") : undefined
         }
-        className={`group mt-auto flex min-h-8 w-full items-center text-[12.5px] text-[var(--sidebar-muted)] transition-colors duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:text-[var(--sidebar-text)] ${
+        className={`dashboard-ui-label group mt-auto flex min-h-8 w-full items-center text-[var(--sidebar-muted)] transition-colors duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:text-[var(--sidebar-text)] ${
           isCompact
             ? "gap-1 px-[3px] py-0"
             : "gap-1 rounded-md px-[3px] py-0 hover:bg-[var(--sidebar-hover)]"
@@ -898,7 +898,7 @@ export function SidebarPanel({
         aria-expanded={!isCompact}
         onClick={toggleSidebar}
         title={isCompact ? "Expand sidebar" : undefined}
-        className={`group flex min-h-8 w-full items-center text-[12.5px] text-[var(--sidebar-muted)] transition-colors duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:text-[var(--sidebar-text)] ${
+        className={`dashboard-ui-label group flex min-h-8 w-full items-center text-[var(--sidebar-muted)] transition-colors duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:text-[var(--sidebar-text)] ${
           isCompact
             ? "gap-1 px-[3px] py-0"
             : "gap-1 rounded-md px-[3px] py-0 hover:bg-[var(--sidebar-hover)]"
@@ -944,11 +944,11 @@ export function SidebarPanel({
               <div className="min-w-0">
                 <p
                   id="sidebar-account-dialog-title"
-                  className="text-base font-semibold text-ink"
+                  className="text-[17px] font-semibold leading-tight tracking-[-0.015em] text-ink"
                 >
                   Account
                 </p>
-                <p className="mt-1 text-xs text-muted">
+                <p className="dashboard-section-subtitle mt-1 text-muted">
                   Your signed-in Social Manager web account.
                 </p>
               </div>
@@ -967,44 +967,44 @@ export function SidebarPanel({
                 <ProfileAvatar profile={profile} />
               </span>
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-ink">
+                <p className="dashboard-ui-label truncate text-ink">
                   {profileName}
                 </p>
-                <p className="truncate text-xs text-muted">{profileDetail}</p>
+                <p className="dashboard-ui-meta truncate font-normal text-muted">{profileDetail}</p>
               </div>
             </div>
 
             <div className="mt-4">
-              <p className="text-xs font-medium text-muted">
+              <p className="dashboard-ui-label text-muted">
                 Known connections
               </p>
               <div className="mt-2 grid gap-2">
                 <div className="rounded-[10px] bg-card px-3 py-2.5">
-                  <p className="text-sm font-medium text-ink">
+                  <p className="dashboard-ui-label text-ink">
                     Social Manager Dashboard
                   </p>
-                  <p className="mt-0.5 text-xs text-muted">
+                  <p className="dashboard-ui-meta mt-0.5 font-normal text-muted">
                     Connected as {profileDetail}
                   </p>
                 </div>
                 <div className="rounded-[10px] bg-card px-3 py-2.5">
-                  <p className="text-sm font-medium text-ink">
+                  <p className="dashboard-ui-label text-ink">
                     {providerSummary}
                   </p>
-                  <p className="mt-0.5 text-xs text-muted">
+                  <p className="dashboard-ui-meta mt-0.5 font-normal text-muted">
                     Authentication provider
                   </p>
                 </div>
                 <div className="rounded-[10px] bg-card px-3 py-2.5">
-                  <p className="text-sm font-medium text-ink">
+                  <p className="dashboard-ui-label text-ink">
                     Current browser
                   </p>
-                  <p className="mt-0.5 text-xs text-muted">
+                  <p className="dashboard-ui-meta mt-0.5 font-normal text-muted">
                     Active session on this device
                   </p>
                 </div>
               </div>
-              <p className="mt-3 text-[11px] leading-4 text-muted">
+              <p className="dashboard-ui-meta mt-3 font-normal text-muted">
                 Other browser/device sessions are not tracked by this app yet.
               </p>
             </div>
@@ -1013,7 +1013,7 @@ export function SidebarPanel({
               type="button"
               onClick={logOut}
               disabled={isLoggingOut}
-              className="mt-4 flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-line bg-paper text-sm font-medium text-danger transition hover:bg-red-50 disabled:pointer-events-none disabled:opacity-60"
+              className="dashboard-ui-label mt-4 flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-line bg-paper text-danger transition hover:bg-red-50 disabled:pointer-events-none disabled:opacity-60"
             >
               {isLoggingOut ? (
                 <LoaderCircle className="size-4 animate-spin" strokeWidth={1.8} />
@@ -1046,10 +1046,10 @@ export function SidebarPanel({
               isCompact ? "max-w-0 opacity-0" : "max-w-[150px] opacity-100"
             }`}
           >
-            <span className="block truncate text-xs font-medium leading-4 text-[var(--sidebar-text)]">
+            <span className="dashboard-ui-label block truncate text-[var(--sidebar-text)]">
               {profileName}
             </span>
-            <span className="block truncate text-[10.5px] leading-4 text-[var(--sidebar-dim)]">
+            <span className="dashboard-micro-text block truncate font-normal text-[var(--sidebar-dim)]">
               {profileDetail}
             </span>
           </span>
