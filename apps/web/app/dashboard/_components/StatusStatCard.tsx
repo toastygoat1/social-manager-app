@@ -43,7 +43,7 @@ export function StatusStatCard({ label, total, breakdown }: StatusStatCardProps)
 
   return (
     <div
-      className="relative flex flex-col justify-between gap-3 rounded-[16px] border border-line bg-paper p-6"
+      className="relative flex flex-col gap-4 rounded-[16px] border border-line bg-paper p-6"
       style={{ aspectRatio: STATUS_CARD_ASPECT_RATIO }}
     >
       <header className="flex items-start justify-between gap-3">
@@ -53,9 +53,9 @@ export function StatusStatCard({ label, total, breakdown }: StatusStatCardProps)
         <button
           type="button"
           aria-label={`Open ${label}`}
-          className="grid size-5 shrink-0 place-items-center rounded-full border border-line bg-[#f9f9f9] text-[#777] shadow-[0_1px_2px_rgba(0,0,0,0.06)] transition hover:bg-white hover:text-ink"
+          className="grid size-8 shrink-0 place-items-center rounded-full border border-line bg-[#f9f9f9] text-[#777] shadow-[0_1px_2px_rgba(0,0,0,0.06)] transition hover:bg-white hover:text-ink"
         >
-          <ArrowUpRight className="size-3.5" strokeWidth={1.8} />
+          <ArrowUpRight className="size-[18px]" strokeWidth={1.8} />
         </button>
       </header>
 
@@ -66,7 +66,7 @@ export function StatusStatCard({ label, total, breakdown }: StatusStatCardProps)
         >
           {formattedTotal}
         </span>
-        <span className="pb-0.5 text-[12px] leading-tight text-ink tracking-[-0.02em]">
+        <span className="font-inter pb-0.5 text-[16px] font-normal leading-tight text-ink">
           {captionText}
         </span>
       </div>
