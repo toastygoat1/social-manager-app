@@ -17,7 +17,7 @@ type PublishedChartProps = {
   bars: PublishedBar[];
 };
 
-const CHART_HEIGHT = 168;
+const CHART_HEIGHT = 268;
 const MIN_AXIS_MAX = 10;
 const BAR_WIDTH = 38;
 const BAR_GAP = 14;
@@ -105,7 +105,7 @@ export function PublishedChart({ total, bars }: PublishedChartProps) {
       : null;
 
   return (
-    <section className="flex flex-col gap-4 rounded-[16px] border border-line bg-paper p-4">
+    <section className="flex flex-col gap-4 rounded-[16px] border border-line bg-paper p-6">
       <header className="flex items-start justify-between gap-4">
         <h2 className="text-sm font-medium text-ink">Published</h2>
         <div className="flex flex-col items-end">
@@ -158,29 +158,13 @@ export function PublishedChart({ total, bars }: PublishedChartProps) {
             className="relative"
             style={{ height: `${CHART_HEIGHT}px` }}
           >
-            <div className="pointer-events-none absolute inset-0">
-              {ticks.map((tick) => (
-                <div
-                  key={`grid-${tick}`}
-                  className="absolute left-0 h-px w-full"
-                  style={{
-                    top: `${getTickTop(tick, axisMax)}px`,
-                    borderTop:
-                      tick === 0
-                        ? "1px solid rgb(233, 233, 233)"
-                        : "1px dashed rgb(201, 201, 201)",
-                  }}
-                />
-              ))}
-            </div>
-
             {hover && hoverValue !== null ? (
               <div
                 className="pointer-events-none absolute inset-x-0 z-10 flex items-center"
                 style={{ top: `${hover.y}px` }}
               >
                 <div
-                  className="h-px flex-1 border-t border-dashed"
+                  className="h-px flex-1 border-t"
                   style={{ borderColor: POST_FORMAT_COLORS.Reel, opacity: 0.8 }}
                 />
                 <span
