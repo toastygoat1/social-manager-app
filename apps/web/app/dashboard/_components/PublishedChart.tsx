@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { AvatarImage } from "@/app/_components/AvatarImage";
 import type { PostFormat } from "./post-formats";
 import type { Account } from "./data";
@@ -24,7 +24,7 @@ const BAR_GAP = 32;
 const AXIS_LABEL_GAP = 32;
 const Y_AXIS_LABEL_WIDTH = 24;
 const Y_AXIS_WIDTH = Y_AXIS_LABEL_WIDTH + AXIS_LABEL_GAP;
-const GUIDE_VALUE_WIDTH = 36;
+const GUIDE_VALUE_WIDTH = 24;
 const PUBLISHED_FORMATS: PostFormat[] = ["Post", "Carousel", "Reel", "Story"];
 const PUBLISHED_BAR_COLORS: Record<PostFormat, string> = {
   Post: "#5D9BFE",
@@ -139,9 +139,7 @@ export function PublishedChart({ total, bars }: PublishedChartProps) {
   const peak = Math.max(...visibleBars.map((bar) => bar.visibleTotal), 0);
   const axisMax = getNiceAxisMax(peak);
   const ticks = getTicks(axisMax);
-  const formattedTotal = `${filteredTotal.toString().padStart(2, "0")}/${total
-    .toString()
-    .padStart(2, "0")}`;
+  const formattedTotal = `${filteredTotal}/${total}`;
   const guideValue =
     guide && peak > 0
       ? Math.round(((CHART_HEIGHT - guide.y) / CHART_HEIGHT) * axisMax)
@@ -219,7 +217,7 @@ export function PublishedChart({ total, bars }: PublishedChartProps) {
           {PUBLISHED_FORMATS.map((format) => {
             const active = activeFormats.includes(format);
             const color = PUBLISHED_BAR_COLORS[format];
-            const count = formatTotals[format].toString().padStart(2, "0");
+            const count = formatTotals[format].toString();
             return (
               <button
                 key={format}
@@ -227,17 +225,18 @@ export function PublishedChart({ total, bars }: PublishedChartProps) {
                 aria-label={`${PUBLISHED_FORMAT_LABELS[format]} ${count}`}
                 aria-pressed={active}
                 onClick={() => toggleFormat(format)}
-                className="inline-flex h-8 items-center gap-1.5 rounded-[6px] border px-2.5 font-inter text-[14px] font-medium transition-all duration-200 hover:-translate-y-px"
-                style={{
-                  borderColor: color,
-                  backgroundColor: active ? color : "var(--paper)",
-                  color: active ? PUBLISHED_BAR_TEXT_COLORS[format] : color,
-                }}
+                className="inline-flex items-center gap-1.5 rounded-[6px] border bg-[var(--toggle-bg)] px-1 py-0.5 font-inter text-[14px] font-medium leading-5 transition-colors duration-200 hover:bg-[var(--toggle-hover-bg)] focus-visible:bg-[var(--toggle-hover-bg)]"
+                style={
+                  {
+                    "--toggle-bg": active ? color : "#FFFFFF",
+                    "--toggle-hover-bg": active ? color : `${color}26`,
+                    color: active ? PUBLISHED_BAR_TEXT_COLORS[format] : color,
+                    borderColor: color,
+                  } as CSSProperties
+                }
               >
-                <span>{count}</span>
-                <span className="tabular-nums">
-                  {PUBLISHED_FORMAT_LABELS[format]}
-                </span>
+                <span className="tabular-nums">{count}</span>
+                <span>{PUBLISHED_FORMAT_LABELS[format]}</span>
               </button>
             );
           })}
