@@ -123,66 +123,36 @@ const ACCOUNT_TONE_COLORS: Record<string, string> = {
 function SnowflakeLogo(props: SVGProps<SVGSVGElement>) {
   return (
     <svg
-      viewBox="0 0 31 33"
-      fill="none"
       xmlns="http://www.w3.org/2000/svg"
+      viewBox="-50 -50 100 100"
+      fill="none"
       role="img"
       aria-label="Snowflake logo"
       {...props}
     >
-      <path
-        d="M15.5 4.54004L15.5 27.8859"
-        stroke="currentColor"
-        strokeWidth="2.09452"
-      />
-      <circle
-        cx="15.4993"
-        cy="2.91824"
-        r="1.87098"
-        stroke="currentColor"
-        strokeWidth="2.09452"
-      />
-      <path
-        d="M15.499 27.6357C16.5322 27.6357 17.37 28.4736 17.3701 29.5068C17.3701 30.5401 16.5323 31.3779 15.499 31.3779C14.4658 31.3778 13.6279 30.5401 13.6279 29.5068C13.6281 28.4737 14.4659 27.6359 15.499 27.6357Z"
-        stroke="currentColor"
-        strokeWidth="2.09452"
-      />
-      <path
-        d="M5.3916 10.375L25.6098 22.048"
-        stroke="currentColor"
-        strokeWidth="2.09452"
-      />
-      <circle
-        cx="3.98639"
-        cy="9.56466"
-        r="1.87098"
-        transform="rotate(-60 3.98639 9.56466)"
-        stroke="currentColor"
-        strokeWidth="2.09452"
-      />
-      <path
-        d="M25.392 21.9232C25.9086 21.0284 27.0531 20.7218 27.9479 21.2383C28.8428 21.7549 29.1495 22.8994 28.6328 23.7943C28.1161 24.6889 26.9716 24.9957 26.0768 24.4791C25.1822 23.9624 24.8755 22.8179 25.392 21.9232Z"
-        stroke="currentColor"
-        strokeWidth="2.09452"
-      />
-      <path
-        d="M25.6084 10.375L5.39025 22.048"
-        stroke="currentColor"
-        strokeWidth="2.09452"
-      />
-      <circle
-        cx="2.91824"
-        cy="2.91824"
-        r="1.87098"
-        transform="matrix(-0.5 -0.866025 -0.866025 0.5 30.999 10.6328)"
-        stroke="currentColor"
-        strokeWidth="2.09452"
-      />
-      <path
-        d="M5.60705 21.9232C5.09044 21.0284 3.94593 20.7218 3.05109 21.2383C2.15621 21.7549 1.84957 22.8994 2.36622 23.7943C2.88294 24.6889 4.02739 24.9957 4.92218 24.4791C5.8168 23.9624 6.12347 22.8179 5.60705 21.9232Z"
-        stroke="currentColor"
-        strokeWidth="2.09452"
-      />
+      <g fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="7">
+        <g>
+          <line x1="0" y1="-40" x2="0" y2="40" />
+          <line x1="-10" y1="-30" x2="0" y2="-40" />
+          <line x1="10" y1="-30" x2="0" y2="-40" />
+          <line x1="-10" y1="30" x2="0" y2="40" />
+          <line x1="10" y1="30" x2="0" y2="40" />
+        </g>
+        <g transform="rotate(60)">
+          <line x1="0" y1="-40" x2="0" y2="40" />
+          <line x1="-10" y1="-30" x2="0" y2="-40" />
+          <line x1="10" y1="-30" x2="0" y2="-40" />
+          <line x1="-10" y1="30" x2="0" y2="40" />
+          <line x1="10" y1="30" x2="0" y2="40" />
+        </g>
+        <g transform="rotate(120)">
+          <line x1="0" y1="-40" x2="0" y2="40" />
+          <line x1="-10" y1="-30" x2="0" y2="-40" />
+          <line x1="10" y1="-30" x2="0" y2="-40" />
+          <line x1="-10" y1="30" x2="0" y2="40" />
+          <line x1="10" y1="30" x2="0" y2="40" />
+        </g>
+      </g>
     </svg>
   );
 }
@@ -740,7 +710,7 @@ export function SidebarPanel({
         }`}
       >
         <span className="grid size-8 shrink-0 place-items-center text-[var(--sidebar-accent)] transition-colors duration-500">
-          <SnowflakeLogo className="h-[33px] w-[31px]" />
+          <SnowflakeLogo className="size-8" />
         </span>
         <span
           className={`min-w-0 overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-300 ease-out ${
