@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AvatarImage } from "@/app/_components/AvatarImage";
-import { POST_FORMATS, POST_FORMAT_COLORS, type PostFormat } from "./post-formats";
+import type { PostFormat } from "./post-formats";
 import type { Account } from "./data";
 
 export type PublishedBar = {
@@ -17,12 +17,19 @@ type PublishedChartProps = {
   bars: PublishedBar[];
 };
 
-const CHART_HEIGHT = 268;
+const CHART_HEIGHT = 260;
 const MIN_AXIS_MAX = 10;
-const BAR_WIDTH = 38;
-const BAR_GAP = 14;
-const AXIS_LABEL_GAP = 18;
-const Y_AXIS_WIDTH = 52;
+const BAR_WIDTH = 36;
+const BAR_GAP = 32;
+const AXIS_LABEL_GAP = 32;
+const Y_AXIS_WIDTH = 68;
+const PUBLISHED_FORMATS: PostFormat[] = ["Post", "Carousel", "Reel", "Story"];
+const PUBLISHED_BAR_COLORS: Record<PostFormat, string> = {
+  Post: "#5D9BFE",
+  Carousel: "#FA962F",
+  Reel: "#8B75FE",
+  Story: "#31D8BB",
+};
 
 function getInitials(label: string) {
   return (
@@ -55,7 +62,8 @@ function getTickTop(tick: number, max: number) {
 
 export function PublishedChart({ total, bars }: PublishedChartProps) {
   const [mounted, setMounted] = useState(false);
-  const [hover, setHover] = useState<{
+  const [guide, setGuide] = useState<{ y: number } | null>(null);
+  const [tooltip, setTooltip] = useState<{
     index: number;
     x: number;
     y: number;
@@ -73,35 +81,43 @@ export function PublishedChart({ total, bars }: PublishedChartProps) {
   const ticks = getTicks(axisMax);
   const visibleBars = bars.slice(0, 14);
 
-  function findIndexFromX(x: number, width: number): number | null {
-    if (visibleBars.length === 0 || width <= 0) return null;
-    const stride = BAR_WIDTH + BAR_GAP;
-    const totalWidth = visibleBars.length * BAR_WIDTH + (visibleBars.length - 1) * BAR_GAP;
-    if (x < -BAR_GAP / 2 || x > totalWidth + BAR_GAP / 2) return null;
-    const index = Math.round(x / stride);
-    return Math.max(0, Math.min(visibleBars.length - 1, index));
-  }
-
-  function handleMouseMove(event: React.MouseEvent<HTMLDivElement>) {
+  function getPointerPosition(event: React.MouseEvent<HTMLElement>) {
     const rect = plotRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const x = event.clientX - rect.left;
-    const y = Math.max(0, Math.min(CHART_HEIGHT, event.clientY - rect.top));
-    const index = findIndexFromX(x, rect.width);
-    if (index === null) {
-      setHover(null);
-      return;
+    if (!rect) return null;
+    return {
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top,
+      width: rect.width,
+    };
+  }
+
+  function handlePlotMouseMove(event: React.MouseEvent<HTMLDivElement>) {
+    const point = getPointerPosition(event);
+    if (!point) return;
+    setGuide({ y: Math.max(0, Math.min(CHART_HEIGHT, point.y)) });
+  }
+
+  function showTooltip(
+    index: number,
+    event: React.MouseEvent<HTMLElement>,
+    options: { showGuide?: boolean } = {},
+  ) {
+    const point = getPointerPosition(event);
+    if (!point) return;
+    setTooltip({
+      index,
+      x: point.x,
+      y: point.y,
+      width: point.width,
+    });
+    if (options.showGuide) {
+      setGuide({ y: Math.max(0, Math.min(CHART_HEIGHT, point.y)) });
     }
-    setHover({ index, x, y, width: rect.width });
   }
 
-  function handleMouseLeave() {
-    setHover(null);
-  }
-
-  const hoverValue =
-    hover && peak > 0
-      ? Math.round(((CHART_HEIGHT - hover.y) / CHART_HEIGHT) * axisMax)
+  const guideValue =
+    guide && peak > 0
+      ? Math.round(((CHART_HEIGHT - guide.y) / CHART_HEIGHT) * axisMax)
       : null;
 
   return (
@@ -111,13 +127,13 @@ export function PublishedChart({ total, bars }: PublishedChartProps) {
         <div className="flex flex-col items-end">
           <span
             className="text-[32px] font-medium leading-none tabular-nums tracking-[-0.02em]"
-            style={{ color: POST_FORMAT_COLORS.Reel }}
+            style={{ color: PUBLISHED_BAR_COLORS.Reel }}
           >
             {total}
           </span>
           <span
             className="mt-0.5 text-[11px]"
-            style={{ color: POST_FORMAT_COLORS.Reel }}
+            style={{ color: PUBLISHED_BAR_COLORS.Reel }}
           >
             Total Published Posts
           </span>
@@ -151,27 +167,27 @@ export function PublishedChart({ total, bars }: PublishedChartProps) {
         <div
           ref={plotRef}
           className="relative flex min-w-0 flex-1 flex-col"
-          onMouseMove={handleMouseMove}
-          onMouseLeave={handleMouseLeave}
+          onMouseLeave={() => {
+            setGuide(null);
+            setTooltip(null);
+          }}
         >
           <div
             className="relative"
             style={{ height: `${CHART_HEIGHT}px` }}
+            onMouseMove={handlePlotMouseMove}
+            onMouseLeave={() => setGuide(null)}
           >
-            {hover && hoverValue !== null ? (
+            {guide && guideValue !== null ? (
               <div
                 className="pointer-events-none absolute inset-x-0 z-10 flex items-center"
-                style={{ top: `${hover.y}px` }}
+                style={{ top: `${guide.y}px` }}
               >
                 <div
-                  className="h-px flex-1 border-t"
-                  style={{ borderColor: POST_FORMAT_COLORS.Reel, opacity: 0.8 }}
+                  className="h-px flex-1 border-t border-dotted border-[#0d0d0d]"
                 />
-                <span
-                  className="ml-2 text-[10px] font-semibold tabular-nums"
-                  style={{ color: POST_FORMAT_COLORS.Reel }}
-                >
-                  {hoverValue}
+                <span className="ml-2 text-[10px] font-semibold text-ink tabular-nums">
+                  {guideValue}
                 </span>
               </div>
             ) : null}
@@ -188,7 +204,7 @@ export function PublishedChart({ total, bars }: PublishedChartProps) {
                 {visibleBars.map((bar, index) => {
                   const heightPx =
                     bar.total > 0 ? (bar.total / axisMax) * CHART_HEIGHT : 0;
-                  const isHover = hover?.index === index;
+                  const isHover = tooltip?.index === index;
                   return (
                     <div
                       key={bar.accountId}
@@ -197,6 +213,10 @@ export function PublishedChart({ total, bars }: PublishedChartProps) {
                     >
                       <div
                         className="flex w-full flex-col-reverse gap-1"
+                        onMouseMove={(event) =>
+                          showTooltip(index, event, { showGuide: true })
+                        }
+                        onMouseLeave={() => setTooltip(null)}
                         style={{
                           height: mounted ? `${Math.max(heightPx, 4)}px` : "0px",
                           filter: isHover ? "brightness(1.1)" : undefined,
@@ -205,7 +225,7 @@ export function PublishedChart({ total, bars }: PublishedChartProps) {
                           }ms, filter 200ms ease`,
                         }}
                       >
-                        {POST_FORMATS.map((format) => {
+                        {PUBLISHED_FORMATS.map((format) => {
                           const value = bar.breakdown[format];
                           if (value <= 0) return null;
                           const segmentHeight =
@@ -215,7 +235,7 @@ export function PublishedChart({ total, bars }: PublishedChartProps) {
                               key={format}
                               className="w-full rounded-[5px]"
                               style={{
-                                backgroundColor: POST_FORMAT_COLORS[format],
+                                backgroundColor: PUBLISHED_BAR_COLORS[format],
                                 height: `${Math.max(segmentHeight - 4, 6)}px`,
                               }}
                             />
@@ -233,13 +253,24 @@ export function PublishedChart({ total, bars }: PublishedChartProps) {
             className="mt-[18px] flex items-start"
             style={{ gap: `${BAR_GAP}px` }}
           >
-            {visibleBars.map((bar) => (
+            {visibleBars.map((bar, index) => (
               <div
                 key={`avatar-${bar.accountId}`}
                 className="flex flex-col items-center"
                 style={{ width: `${BAR_WIDTH}px` }}
               >
-                <span className="relative flex size-6 items-center justify-center overflow-hidden rounded-full">
+                <span
+                  className="relative flex size-6 items-center justify-center overflow-hidden rounded-full"
+                  onMouseEnter={(event) => {
+                    setGuide(null);
+                    showTooltip(index, event);
+                  }}
+                  onMouseMove={(event) => {
+                    setGuide(null);
+                    showTooltip(index, event);
+                  }}
+                  onMouseLeave={() => setTooltip(null)}
+                >
                   <AvatarImage
                     src={bar.account.avatarUrl}
                     alt={bar.account.name}
@@ -254,12 +285,12 @@ export function PublishedChart({ total, bars }: PublishedChartProps) {
             ))}
           </div>
 
-          {hover ? (
+          {tooltip ? (
             <FloatingBarTooltip
-              bar={visibleBars[hover.index]}
-              x={hover.x}
-              y={hover.y}
-              containerWidth={hover.width}
+              bar={visibleBars[tooltip.index]}
+              x={tooltip.x}
+              y={tooltip.y}
+              containerWidth={tooltip.width}
             />
           ) : null}
         </div>
@@ -298,7 +329,7 @@ function FloatingBarTooltip({
       </p>
       <p className="mt-0.5 text-[10px] text-muted">{bar.total} published</p>
       <div className="mt-2 grid gap-1.5">
-        {POST_FORMATS.map((format) => (
+        {PUBLISHED_FORMATS.map((format) => (
           <div
             key={format}
             className="flex items-center justify-between gap-2"
@@ -306,7 +337,7 @@ function FloatingBarTooltip({
             <span className="flex min-w-0 items-center gap-1.5">
               <span
                 className="size-2.5 shrink-0 rounded-[3px]"
-                style={{ backgroundColor: POST_FORMAT_COLORS[format] }}
+                style={{ backgroundColor: PUBLISHED_BAR_COLORS[format] }}
               />
               <span className="truncate text-[11px] text-muted">{format}</span>
             </span>
