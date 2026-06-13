@@ -465,7 +465,7 @@ export function ContentRowsTable({
           ) : null}
         </div>
       </header>
-      <div className="w-full overflow-hidden">
+      <div className="-mx-6 overflow-hidden">
         <div
           id="content-table-scroll-area"
           ref={scrollViewportRef}
@@ -523,7 +523,7 @@ export function ContentRowsTable({
       </div>
       {scrollbarMetrics.isScrollable ? (
         <div
-          className="content-table-scrollbar-track"
+          className="content-table-scrollbar-track -mx-6"
           role="scrollbar"
           aria-controls="content-table-scroll-area"
           aria-orientation="horizontal"
