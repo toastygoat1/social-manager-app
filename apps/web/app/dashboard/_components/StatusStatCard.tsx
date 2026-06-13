@@ -43,7 +43,7 @@ export function StatusStatCard({ label, total, breakdown }: StatusStatCardProps)
 
   return (
     <div
-      className="relative flex flex-col gap-4 rounded-[16px] border border-line bg-paper p-6"
+      className="relative flex flex-col justify-between gap-3 rounded-[16px] border border-line bg-paper p-6"
       style={{ aspectRatio: STATUS_CARD_ASPECT_RATIO }}
     >
       <header className="flex items-start justify-between gap-3">
