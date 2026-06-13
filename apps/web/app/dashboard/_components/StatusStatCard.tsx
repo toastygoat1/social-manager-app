@@ -43,7 +43,7 @@ export function StatusStatCard({ label, total, breakdown }: StatusStatCardProps)
 
   return (
     <div
-      className="relative flex flex-col justify-between gap-3 rounded-[16px] border border-line bg-paper p-6"
+      className="relative flex flex-col rounded-[16px] border border-line bg-paper p-6"
       style={{ aspectRatio: STATUS_CARD_ASPECT_RATIO }}
     >
       <header className="flex items-start justify-between gap-3">
@@ -59,7 +59,7 @@ export function StatusStatCard({ label, total, breakdown }: StatusStatCardProps)
         </button>
       </header>
 
-      <div className="flex items-end gap-2">
+      <div className="mt-4 flex items-end gap-2">
         <span
           className="text-[48px] font-normal leading-none text-ink tabular-nums"
           style={{ fontFamily: "var(--font-copse), Georgia, serif" }}
@@ -72,9 +72,9 @@ export function StatusStatCard({ label, total, breakdown }: StatusStatCardProps)
       </div>
 
       {isEmpty ? (
-        <div className="h-1 rounded-full bg-[#0d0d0d]" />
+        <div className="mt-7 h-1 rounded-full bg-[#0d0d0d]" />
       ) : visible.length > 0 ? (
-        <div className="flex h-1 items-stretch gap-1 rounded-full">
+        <div className="mt-7 flex h-1 items-stretch gap-1 rounded-full">
           {visible.map((format, index) => {
             const value = breakdown[format];
             const flexGrow = max > 0 ? Math.max(value / max, 0.22) : 1;
