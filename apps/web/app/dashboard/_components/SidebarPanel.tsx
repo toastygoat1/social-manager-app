@@ -757,7 +757,7 @@ export function SidebarPanel({
         </span>
       </header>
 
-      <nav aria-label="Primary" className="relative mt-2 flex flex-col gap-1">
+      <nav aria-label="Primary" className="relative mt-4 flex flex-col gap-1">
         <span
           aria-hidden="true"
           className="absolute left-[3px] top-0 z-0 h-8 rounded-[7px] bg-[var(--sidebar-accent)] transition-[transform,width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"

@@ -30,7 +30,7 @@ export default async function Home({ searchParams }: HomePageProps) {
   }
 
   return (
-    <main className="flex flex-1 items-center justify-center bg-zinc-100 px-4 py-10">
+    <main className="flex flex-1 items-center justify-center bg-[#fafafa] px-4 py-10">
       <section className="w-full max-w-xl rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm">
         <p className="text-sm font-medium text-zinc-500">Social Manager App</p>
         <h1 className="mt-2 text-2xl font-semibold text-zinc-900">
