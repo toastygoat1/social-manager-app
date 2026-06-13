@@ -148,6 +148,30 @@ body {
   box-shadow: none !important;
 }
 
+.sidebar-selected-shadow {
+  box-shadow:
+    0 10px 24px rgb(13 13 13 / 18%),
+    0 2px 5px rgb(13 13 13 / 14%) !important;
+}
+
+.sidebar-profile-card-shadow {
+  box-shadow:
+    0 8px 22px rgb(15 15 15 / 7%),
+    0 1px 3px rgb(15 15 15 / 8%) !important;
+}
+
+:root[data-theme="dark"] .sidebar-selected-shadow {
+  box-shadow:
+    0 10px 24px rgb(0 0 0 / 36%),
+    0 0 0 1px rgb(255 255 255 / 6%) !important;
+}
+
+:root[data-theme="dark"] .sidebar-profile-card-shadow {
+  box-shadow:
+    0 10px 28px rgb(0 0 0 / 32%),
+    0 0 0 1px rgb(255 255 255 / 4%) !important;
+}
+
 .app-shell-sidebar {
   position: sticky;
   top: var(--app-shell-padding);

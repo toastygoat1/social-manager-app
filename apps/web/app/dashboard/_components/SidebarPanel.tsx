@@ -726,7 +726,7 @@ export function SidebarPanel({
       <nav aria-label="Primary" className="relative mt-4 flex flex-col gap-1">
         <span
           aria-hidden="true"
-          className="absolute left-[3px] top-0 z-0 h-8 rounded-[7px] bg-[var(--sidebar-accent)] transition-[transform,width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
+          className="sidebar-selected-shadow absolute left-[3px] top-0 z-0 h-8 rounded-[7px] bg-[var(--sidebar-accent)] transition-[transform,width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
           style={{
             transform: `translateY(${activeNavIndex * 36}px)`,
             width: isCompact ? "32px" : "calc(100% - 6px)",
@@ -1028,7 +1028,7 @@ export function SidebarPanel({
         )
         : null}
 
-      <footer className="mx-auto w-full rounded-[12px] border border-line bg-paper p-[3px]">
+      <footer className="sidebar-profile-card-shadow mx-auto w-full rounded-[12px] border border-line bg-paper p-[3px]">
         <button
           ref={profileButtonRef}
           type="button"
@@ -1036,7 +1036,7 @@ export function SidebarPanel({
           aria-haspopup="dialog"
           aria-expanded={isProfileMenuOpen}
           aria-label="Open account popup"
-          className="flex w-full items-center gap-1 rounded-lg px-0 py-0 text-left transition-colors hover:bg-[var(--sidebar-hover)]"
+          className="flex w-full items-center gap-1 rounded-lg px-0 py-0 text-left"
         >
           <span className="grid size-8 shrink-0 place-items-center">
             <ProfileAvatar profile={profile} />
