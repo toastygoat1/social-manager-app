@@ -396,16 +396,12 @@ function AccountRow({
   return (
     <li
       title={isCollapsed ? `${accountTitle} ${accountHandle}` : undefined}
-      className={`group flex min-h-8 w-full items-center transition-[gap,padding,background-color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-        isCollapsed ? "gap-1 rounded-md px-[3px] py-0" : "gap-1 rounded-md px-[3px] py-0"
-      }`}
+      className="group flex min-h-8 w-full items-center gap-1 rounded-md px-[3px] py-0 transition-colors duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
     >
       <Link
         href={getInsightsHref(account.id)}
         aria-label={`View insights for ${account.name}`}
-        className={`flex min-w-0 flex-1 items-center transition-[gap] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-          isCollapsed ? "gap-0" : "gap-1"
-        }`}
+        className="flex min-w-0 flex-1 items-center gap-1"
       >
         <span
           className="grid size-8 shrink-0 place-items-center rounded-full"
@@ -734,8 +730,8 @@ export function SidebarPanel({
   return (
     <aside
       data-theme={theme}
-      className={`app-shell-sidebar flex shrink-0 flex-col gap-4 overflow-y-auto pb-3 pt-4 font-inter text-[var(--sidebar-text)] transition-[width,padding,background-color,border-color,color,box-shadow] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
-        isCompact ? "w-16 px-3" : "w-[218px] px-2.5"
+      className={`app-shell-sidebar flex shrink-0 flex-col gap-4 overflow-y-auto px-3 pb-3 pt-4 font-inter text-[var(--sidebar-text)] transition-[width,background-color,border-color,color,box-shadow] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
+        isCompact ? "w-16" : "w-[218px]"
       }`}
     >
       <header
@@ -776,11 +772,7 @@ export function SidebarPanel({
               aria-current={key === active ? "page" : undefined}
               onClick={() => setSelectedNavKey(key)}
               title={isCompact ? label : undefined}
-              className={`group relative z-10 flex min-h-8 w-full items-center rounded-md text-[12.5px] leading-4 transition-[gap,padding,background-color,color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-                isCompact
-                  ? "gap-1 px-[3px] py-0"
-                  : "gap-1 px-[3px] py-0"
-              } ${
+              className={`group relative z-10 flex min-h-8 w-full items-center gap-1 rounded-md px-[3px] py-0 text-[12.5px] leading-4 transition-colors duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
                 isActive
                   ? "font-medium text-white"
                   : `text-[var(--sidebar-muted)] ${
@@ -895,7 +887,7 @@ export function SidebarPanel({
         title={
           isCompact ? (isDarkTheme ? "Light mode" : "Dark mode") : undefined
         }
-        className={`group mt-auto flex min-h-8 w-full items-center text-[12.5px] text-[var(--sidebar-muted)] transition-[gap,padding,background-color,color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:text-[var(--sidebar-text)] ${
+        className={`group mt-auto flex min-h-8 w-full items-center text-[12.5px] text-[var(--sidebar-muted)] transition-colors duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:text-[var(--sidebar-text)] ${
           isCompact
             ? "gap-1 px-[3px] py-0"
             : "gap-1 rounded-md px-[3px] py-0 hover:bg-[var(--sidebar-hover)]"
@@ -941,7 +933,7 @@ export function SidebarPanel({
         aria-expanded={!isCompact}
         onClick={toggleSidebar}
         title={isCompact ? "Expand sidebar" : undefined}
-        className={`group flex min-h-8 w-full items-center text-[12.5px] text-[var(--sidebar-muted)] transition-[gap,padding,background-color,color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:text-[var(--sidebar-text)] ${
+        className={`group flex min-h-8 w-full items-center text-[12.5px] text-[var(--sidebar-muted)] transition-colors duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:text-[var(--sidebar-text)] ${
           isCompact
             ? "gap-1 px-[3px] py-0"
             : "gap-1 rounded-md px-[3px] py-0 hover:bg-[var(--sidebar-hover)]"
@@ -1083,9 +1075,7 @@ export function SidebarPanel({
           aria-haspopup="dialog"
           aria-expanded={isProfileMenuOpen}
           aria-label="Open account popup"
-          className={`flex w-full items-center rounded-md text-left transition-colors hover:bg-[var(--sidebar-hover)] ${
-            isCompact ? "gap-1 px-0 py-0" : "gap-1 px-0 py-1"
-          }`}
+          className="flex w-full items-center gap-1 rounded-md px-0 py-0 text-left transition-colors hover:bg-[var(--sidebar-hover)]"
         >
           <span className="grid size-8 shrink-0 place-items-center">
             <ProfileAvatar profile={profile} />
