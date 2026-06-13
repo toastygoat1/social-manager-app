@@ -51,7 +51,7 @@ const HOUR_HEIGHT = 70;
 const CALENDAR_HEADER_HEIGHT = 92;
 const CALENDAR_DAY_HEADER_HEIGHT = 40;
 const CALENDAR_BODY_HEIGHT = 360;
-const CALENDAR_CARD_HEIGHT =
+export const CALENDAR_CARD_HEIGHT =
   CALENDAR_HEADER_HEIGHT + CALENDAR_DAY_HEADER_HEIGHT + CALENDAR_BODY_HEIGHT;
 const TIME_RAIL_WIDTH = 70;
 const VISIBLE_DAY_COUNT = 7;
@@ -491,8 +491,14 @@ export function CalendarCard({ calendar }: CalendarCardProps) {
 
   return (
     <section
+      data-dashboard-calendar-card
       className="flex shrink-0 flex-col overflow-hidden rounded-[16px] border border-line bg-paper"
-      style={{ height: CALENDAR_CARD_HEIGHT }}
+      style={{
+        alignSelf: "start",
+        height: CALENDAR_CARD_HEIGHT,
+        maxHeight: CALENDAR_CARD_HEIGHT,
+        minHeight: CALENDAR_CARD_HEIGHT,
+      }}
     >
       <header
         className="flex items-center justify-between border-b border-line px-6"

@@ -1,5 +1,5 @@
 import type { UserProfile } from "@/lib/supabase/user-profile";
-import { CalendarCard } from "./CalendarCard";
+import { CalendarCard, CALENDAR_CARD_HEIGHT } from "./CalendarCard";
 import { ContentTable } from "./ContentTable";
 import { LiveActivityPanel } from "./LiveActivityPanel";
 import { MyAccountsCarousel } from "./MyAccountsCarousel";
@@ -241,9 +241,16 @@ export function DashboardWorkspace({
 
         <MyAccountsCarousel accounts={data.accounts} />
 
-        <div className="grid items-start gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
-          <LiveActivityPanel initialRows={data.activityRows} />
-          <CalendarCard calendar={data.calendar} />
+        <div
+          className="grid items-start gap-6 lg:grid-cols-[300px_minmax(0,1fr)]"
+          style={{ gridAutoRows: CALENDAR_CARD_HEIGHT }}
+        >
+          <div style={{ height: CALENDAR_CARD_HEIGHT }}>
+            <LiveActivityPanel initialRows={data.activityRows} />
+          </div>
+          <div style={{ height: CALENDAR_CARD_HEIGHT }}>
+            <CalendarCard calendar={data.calendar} />
+          </div>
         </div>
 
         <ContentTable
