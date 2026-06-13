@@ -502,7 +502,7 @@ function ViewModeSlider({
     <div className="dashboard-ui-label relative grid h-10 w-[140px] grid-cols-2 rounded-[10px] border border-line bg-paper p-1 text-muted">
       <span
         aria-hidden="true"
-        className="absolute top-1 bottom-1 rounded-[7px] bg-ink transition-[left] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
+        className="absolute top-1 bottom-1 rounded-[7px] bg-[var(--calendar-control-active-bg)] transition-[left] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
         style={{ left: activeLeft, width: "66px" }}
       />
       {(["month", "week"] as ViewMode[]).map((mode) => {
@@ -514,7 +514,9 @@ function ViewModeSlider({
             aria-pressed={active}
             onClick={() => onChange(mode)}
             className={`relative z-10 rounded-[7px] capitalize transition-colors duration-200 ${
-              active ? "text-white" : "text-muted hover:text-ink"
+              active
+                ? "text-[var(--calendar-control-active-fg)]"
+                : "text-muted hover:text-ink"
             }`}
           >
             {mode}
@@ -770,7 +772,7 @@ export function CalendarCard({ calendar, todayIso }: CalendarCardProps) {
               title="Jump to today"
               className="grid size-14 overflow-hidden rounded-[8px] border border-line text-center transition hover:border-[#b7b7b7] hover:bg-card"
             >
-              <span className="dashboard-ui-meta grid place-items-center bg-[#ededed] uppercase text-muted">
+              <span className="dashboard-ui-meta grid place-items-center bg-[var(--calendar-date-month-bg)] uppercase text-muted">
                 {today.toLocaleDateString("en-US", { month: "short" })}
               </span>
               <span className="grid place-items-center bg-paper text-[17px] font-semibold leading-none tracking-[-0.02em] text-ink">
@@ -802,7 +804,7 @@ export function CalendarCard({ calendar, todayIso }: CalendarCardProps) {
                   ? `Add event on ${eventDateLabel(selectedDateKey)}`
                   : "Connect Google Calendar to add events"
               }
-              className="dashboard-ui-label inline-flex h-10 items-center gap-1.5 rounded-[10px] bg-ink px-3 text-white transition hover:bg-[#303030] disabled:cursor-not-allowed disabled:bg-card disabled:text-muted"
+              className="dashboard-ui-label inline-flex h-10 items-center gap-1.5 rounded-[10px] bg-[var(--calendar-control-active-bg)] px-3 text-[var(--calendar-control-active-fg)] transition hover:bg-[var(--calendar-control-hover-bg)] disabled:cursor-not-allowed disabled:bg-[var(--calendar-control-disabled-bg)] disabled:text-[var(--calendar-control-disabled-fg)]"
             >
               <CalendarPlus className="size-4" strokeWidth={1.8} />
               Add event
@@ -857,7 +859,7 @@ export function CalendarCard({ calendar, todayIso }: CalendarCardProps) {
                       onClick={() => selectDate(day)}
                       className={`h-full w-full transition ${
                         selected
-                          ? "bg-card text-ink"
+                          ? "bg-[var(--calendar-today-bg)] text-ink"
                           : "hover:bg-card/70 hover:text-ink"
                       } ${isToday && !selected ? "text-ink" : ""}`}
                     >
@@ -1008,9 +1010,9 @@ export function CalendarCard({ calendar, todayIso }: CalendarCardProps) {
                     <span
                       className={`dashboard-ui-label inline-flex size-5 items-center justify-center rounded-full ${
                         selected
-                          ? "bg-ink text-white"
+                          ? "bg-[var(--calendar-control-active-bg)] text-[var(--calendar-control-active-fg)]"
                           : isToday
-                            ? "bg-card text-ink"
+                            ? "bg-[var(--calendar-today-bg)] text-ink"
                             : cell.outside
                               ? "text-muted/55"
                               : "text-muted"

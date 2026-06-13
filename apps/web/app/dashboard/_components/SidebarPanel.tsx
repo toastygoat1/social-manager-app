@@ -314,7 +314,7 @@ function AccountAvatar({
     >
       <AvatarImage
         src={account.avatarUrl}
-        alt=""
+        alt={account.name}
         width={26}
         height={26}
         className="size-full object-cover"

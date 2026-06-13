@@ -48,6 +48,7 @@ const METADATA_MAX_WIDTH = 190;
 const COLLAPSED_ROWS = 10;
 const EXPANDED_ROWS = 20;
 const TABLE_ROW_HEIGHT = 56;
+const TRAILING_COLUMN_WIDTH = 128;
 
 const LEADING_COLUMNS: ColumnDefinition[] = [
   { label: "Content", width: 265 },
@@ -55,13 +56,13 @@ const LEADING_COLUMNS: ColumnDefinition[] = [
 ];
 
 const TRAILING_COLUMNS: ColumnDefinition[] = [
-  { label: "Type", width: 90 },
-  { label: "Status", width: 115 },
-  { label: "Date", width: 110 },
-  { label: "Views", width: 90, align: "right" },
-  { label: "Likes", width: 90, align: "right" },
-  { label: "Comments", width: 105, align: "right" },
-  { label: "Shares", width: 90, align: "right" },
+  { label: "Type", width: TRAILING_COLUMN_WIDTH },
+  { label: "Status", width: TRAILING_COLUMN_WIDTH },
+  { label: "Date", width: TRAILING_COLUMN_WIDTH },
+  { label: "Views", width: TRAILING_COLUMN_WIDTH, align: "right" },
+  { label: "Likes", width: TRAILING_COLUMN_WIDTH, align: "right" },
+  { label: "Comments", width: TRAILING_COLUMN_WIDTH, align: "right" },
+  { label: "Shares", width: TRAILING_COLUMN_WIDTH, align: "right" },
 ];
 
 const TYPE_COLORS: Record<PostFormat, string> = {
@@ -139,6 +140,7 @@ function TypePill({ type }: { type: string }) {
   if (!label) return null;
 
   const format = normalizePostFormat(label);
+  const displayLabel = format;
 
   return (
     <span
@@ -146,7 +148,7 @@ function TypePill({ type }: { type: string }) {
       style={{ backgroundColor: TYPE_COLORS[format] }}
       title={label}
     >
-      <span className="truncate">{label}</span>
+      <span className="truncate">{displayLabel}</span>
     </span>
   );
 }
@@ -566,9 +568,8 @@ function StatusPill({ status }: { status: string }) {
 
   return (
     <span
-      className={`dashboard-ui-meta inline-flex items-center gap-1.5 rounded-full px-2 py-1 ${tone}`}
+      className={`dashboard-ui-meta inline-flex items-center rounded-full px-2 py-1 ${tone}`}
     >
-      <span className="size-1.5 rounded-full bg-current" />
       {label}
     </span>
   );
@@ -611,27 +612,27 @@ function Row({
       <Cell width={210}>
         <AccountPill row={row} />
       </Cell>
-      <Cell width={90}>
+      <Cell width={TRAILING_COLUMN_WIDTH}>
         <TypePill type={row.type} />
       </Cell>
-      <Cell width={115}>
+      <Cell width={TRAILING_COLUMN_WIDTH}>
         <StatusPill status={row.status} />
       </Cell>
-      <Cell width={110}>
+      <Cell width={TRAILING_COLUMN_WIDTH}>
         {datePost ? (
           <span className="dashboard-ui-label text-muted">{datePost}</span>
         ) : null}
       </Cell>
-      <Cell width={90} align="right">
+      <Cell width={TRAILING_COLUMN_WIDTH} align="right">
         <MetricText value={row.views} />
       </Cell>
-      <Cell width={90} align="right">
+      <Cell width={TRAILING_COLUMN_WIDTH} align="right">
         <MetricText value={row.likes} />
       </Cell>
-      <Cell width={105} align="right">
+      <Cell width={TRAILING_COLUMN_WIDTH} align="right">
         <MetricText value={row.comments} />
       </Cell>
-      <Cell width={90} align="right">
+      <Cell width={TRAILING_COLUMN_WIDTH} align="right">
         <MetricText value={row.shares} />
       </Cell>
       {metadataFields.map((field) => (

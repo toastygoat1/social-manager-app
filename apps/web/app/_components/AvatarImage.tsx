@@ -32,6 +32,26 @@ function getFallbackColor(seed: string) {
   return FALLBACK_COLORS[Math.abs(hash) % FALLBACK_COLORS.length];
 }
 
+function getFallbackLabel(value: string) {
+  const normalized = value
+    .replace(/\s+profile\s+picture$/i, "")
+    .replace(/^@/, "")
+    .trim();
+  const parts = normalized
+    .split(/[\s._-]+/)
+    .filter(Boolean);
+
+  if (parts.length >= 2) {
+    return parts
+      .slice(0, 2)
+      .map((part) => part.charAt(0).toUpperCase())
+      .join("");
+  }
+
+  const compact = (parts[0] ?? normalized).replace(/[^a-z0-9]/gi, "");
+  return compact.slice(0, 2).toUpperCase() || "?";
+}
+
 export function AvatarImage({
   src,
   alt,
@@ -41,8 +61,9 @@ export function AvatarImage({
   fallback,
 }: AvatarImageProps) {
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
-  const fallbackLabel = (fallback || "?").trim().slice(0, 2).toUpperCase();
-  const fallbackColor = getFallbackColor(fallbackLabel);
+  const fallbackSource = alt.trim() || fallback || "?";
+  const fallbackLabel = getFallbackLabel(fallbackSource);
+  const fallbackColor = getFallbackColor(fallbackSource);
 
   if (!src || failedSrc === src) {
     return (
