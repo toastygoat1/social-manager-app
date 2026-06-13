@@ -46,6 +46,14 @@
   --sidebar-success-bg: #e9f4ef;
   --sidebar-success: #287a65;
   --sidebar-switch-icon: #59544c;
+
+  --calendar-control-active-bg: #0d0d0d;
+  --calendar-control-active-fg: #ffffff;
+  --calendar-control-hover-bg: #303030;
+  --calendar-control-disabled-bg: #f0f0f0;
+  --calendar-control-disabled-fg: #9b9b9b;
+  --calendar-date-month-bg: #ededed;
+  --calendar-today-bg: #f1f1f1;
 }
 
 :root[data-theme="dark"] {
@@ -83,6 +91,14 @@
   --sidebar-success-bg: #173126;
   --sidebar-success: #74deb3;
   --sidebar-switch-icon: #d8d8d8;
+
+  --calendar-control-active-bg: #2a2a2a;
+  --calendar-control-active-fg: #f5f5f5;
+  --calendar-control-hover-bg: #333333;
+  --calendar-control-disabled-bg: #242424;
+  --calendar-control-disabled-fg: #777777;
+  --calendar-date-month-bg: #242424;
+  --calendar-today-bg: #242424;
 }
 
 @theme inline {
