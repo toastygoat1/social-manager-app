@@ -53,7 +53,7 @@ export function StatusStatCard({ label, total, breakdown }: StatusStatCardProps)
         <button
           type="button"
           aria-label={`Open ${label}`}
-          className="grid size-8 shrink-0 place-items-center rounded-full border border-line bg-[#f9f9f9] text-[#777] shadow-[0_1px_2px_rgba(0,0,0,0.06)] transition hover:bg-white hover:text-ink"
+          className="grid size-8 shrink-0 place-items-center rounded-full border border-line bg-paper text-[#777] shadow-[0_1px_2px_rgba(0,0,0,0.06)] transition hover:text-ink"
         >
           <ArrowUpRight className="size-[18px]" strokeWidth={1.8} />
         </button>
