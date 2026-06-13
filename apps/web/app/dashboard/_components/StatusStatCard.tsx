@@ -38,7 +38,7 @@ export function StatusStatCard({ label, total, breakdown }: StatusStatCardProps)
   const visible = ORDER.filter((format) => breakdown[format] > 0);
   const max = Math.max(...visible.map((format) => breakdown[format]), 0);
   const captionText = LABEL_TEXT[label] ?? "Posts to review!";
-  const formattedTotal = total.toString().padStart(2, "0");
+  const formattedTotal = total.toString();
   const isEmpty = total === 0;
 
   return (
