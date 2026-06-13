@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AvatarImage } from "@/app/_components/AvatarImage";
 import type { PostFormat } from "./post-formats";
 import type { Account } from "./data";
@@ -17,18 +17,25 @@ type PublishedChartProps = {
   bars: PublishedBar[];
 };
 
-const CHART_HEIGHT = 260;
+const CHART_HEIGHT = 232;
 const MIN_AXIS_MAX = 10;
 const BAR_WIDTH = 36;
 const BAR_GAP = 32;
 const AXIS_LABEL_GAP = 32;
-const Y_AXIS_WIDTH = 68;
+const Y_AXIS_LABEL_WIDTH = 24;
+const Y_AXIS_WIDTH = Y_AXIS_LABEL_WIDTH + AXIS_LABEL_GAP;
 const PUBLISHED_FORMATS: PostFormat[] = ["Post", "Carousel", "Reel", "Story"];
 const PUBLISHED_BAR_COLORS: Record<PostFormat, string> = {
   Post: "#5D9BFE",
   Carousel: "#FA962F",
   Reel: "#8B75FE",
   Story: "#31D8BB",
+};
+const PUBLISHED_FORMAT_LABELS: Record<PostFormat, string> = {
+  Post: "Post",
+  Carousel: "Carousel",
+  Reel: "Reels",
+  Story: "Story",
 };
 
 function getInitials(label: string) {
@@ -60,8 +67,16 @@ function getTickTop(tick: number, max: number) {
   return CHART_HEIGHT - (tick / max) * CHART_HEIGHT;
 }
 
-export function PublishedChart({ total, bars }: PublishedChartProps) {
+function getTickTransform(tick: number, max: number) {
+  if (tick === max) return "translateY(0)";
+  if (tick === 0) return "translateY(-100%)";
+  return "translateY(-50%)";
+}
+
+export function PublishedChart({ bars }: PublishedChartProps) {
   const [mounted, setMounted] = useState(false);
+  const [activeFormats, setActiveFormats] =
+    useState<PostFormat[]>(PUBLISHED_FORMATS);
   const [guide, setGuide] = useState<{ y: number } | null>(null);
   const [tooltip, setTooltip] = useState<{
     index: number;
@@ -76,10 +91,49 @@ export function PublishedChart({ total, bars }: PublishedChartProps) {
     return () => window.cancelAnimationFrame(id);
   }, []);
 
-  const peak = Math.max(...bars.map((bar) => bar.total), 0);
+  const visibleBars = useMemo(
+    () =>
+      bars.slice(0, 14).map((bar) => {
+        const visibleTotal = activeFormats.reduce(
+          (sum, format) => sum + bar.breakdown[format],
+          0,
+        );
+        return { ...bar, visibleTotal };
+      }),
+    [activeFormats, bars],
+  );
+  const filteredTotal = useMemo(
+    () =>
+      bars.reduce(
+        (sum, bar) =>
+          sum +
+          activeFormats.reduce(
+            (formatSum, format) => formatSum + bar.breakdown[format],
+            0,
+          ),
+        0,
+      ),
+    [activeFormats, bars],
+  );
+  const peak = Math.max(...visibleBars.map((bar) => bar.visibleTotal), 0);
   const axisMax = getNiceAxisMax(peak);
   const ticks = getTicks(axisMax);
-  const visibleBars = bars.slice(0, 14);
+  const formattedTotal = filteredTotal.toString().padStart(2, "0");
+
+  function toggleFormat(format: PostFormat) {
+    setActiveFormats((current) => {
+      if (current.includes(format)) {
+        return current.length === 1
+          ? current
+          : current.filter((item) => item !== format);
+      }
+      return PUBLISHED_FORMATS.filter(
+        (item) => item === format || current.includes(item),
+      );
+    });
+    setGuide(null);
+    setTooltip(null);
+  }
 
   function getPointerPosition(event: React.MouseEvent<HTMLElement>) {
     const rect = plotRef.current?.getBoundingClientRect();
@@ -115,31 +169,56 @@ export function PublishedChart({ total, bars }: PublishedChartProps) {
     }
   }
 
-  const guideValue =
-    guide && peak > 0
-      ? Math.round(((CHART_HEIGHT - guide.y) / CHART_HEIGHT) * axisMax)
-      : null;
-
   return (
     <section className="flex flex-col gap-4 rounded-[16px] border border-line bg-paper p-6">
-      <header className="flex items-start justify-between gap-4">
-        <h2 className="text-sm font-medium text-ink">Published</h2>
-        <div className="flex flex-col items-end">
-          <span
-            className="text-[32px] font-medium leading-none tabular-nums tracking-[-0.02em]"
-            style={{ color: PUBLISHED_BAR_COLORS.Reel }}
-          >
-            {total}
-          </span>
-          <span
-            className="mt-0.5 text-[11px]"
-            style={{ color: PUBLISHED_BAR_COLORS.Reel }}
-          >
-            Total Published Posts
-          </span>
+      <header className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h2 className="font-inter text-[20px] font-medium leading-none text-ink">
+            Published
+          </h2>
+          <div className="mt-3 flex items-end gap-2">
+            <span
+              className="text-[48px] font-normal leading-none text-ink tabular-nums"
+              style={{ fontFamily: "var(--font-copse), Georgia, serif" }}
+            >
+              {formattedTotal}
+            </span>
+            <span className="font-inter pb-0.5 text-[16px] font-normal leading-tight text-ink">
+              Total Published Posts
+            </span>
+          </div>
+        </div>
+        <div className="flex flex-wrap justify-end gap-1.5">
+          {PUBLISHED_FORMATS.map((format) => {
+            const active = activeFormats.includes(format);
+            const color = PUBLISHED_BAR_COLORS[format];
+            return (
+              <button
+                key={format}
+                type="button"
+                aria-pressed={active}
+                onClick={() => toggleFormat(format)}
+                className="inline-flex h-8 items-center gap-1.5 rounded-full border px-2.5 text-[11px] font-medium transition-all duration-200 hover:-translate-y-px"
+                style={{
+                  borderColor: active ? color : "var(--border)",
+                  backgroundColor: active ? `${color}20` : "var(--bg-light)",
+                  color: active ? "var(--text)" : "var(--text-muted)",
+                }}
+              >
+                <span
+                  className="size-2 rounded-full transition-transform duration-200"
+                  style={{
+                    backgroundColor: color,
+                    transform: active ? "scale(1)" : "scale(0.7)",
+                    opacity: active ? 1 : 0.35,
+                  }}
+                />
+                {PUBLISHED_FORMAT_LABELS[format]}
+              </button>
+            );
+          })}
         </div>
       </header>
-
       <div className="flex min-h-0 items-stretch">
         <div
           className="relative shrink-0 text-[10px] text-muted"
@@ -154,9 +233,10 @@ export function PublishedChart({ total, bars }: PublishedChartProps) {
               className="absolute leading-none"
               style={{
                 right: `${AXIS_LABEL_GAP}px`,
+                width: `${Y_AXIS_LABEL_WIDTH}px`,
+                textAlign: "right",
                 top: `${getTickTop(tick, axisMax)}px`,
-                transform:
-                  tick === 0 ? "translateY(-100%)" : "translateY(-50%)",
+                transform: getTickTransform(tick, axisMax),
               }}
             >
               {tick}
@@ -178,18 +258,11 @@ export function PublishedChart({ total, bars }: PublishedChartProps) {
             onMouseMove={handlePlotMouseMove}
             onMouseLeave={() => setGuide(null)}
           >
-            {guide && guideValue !== null ? (
+            {guide ? (
               <div
-                className="pointer-events-none absolute inset-x-0 z-10 flex items-center"
+                className="pointer-events-none absolute inset-x-0 z-10 h-px border-t border-dotted border-[#0d0d0d]"
                 style={{ top: `${guide.y}px` }}
-              >
-                <div
-                  className="h-px flex-1 border-t border-dotted border-[#0d0d0d]"
-                />
-                <span className="ml-2 text-[10px] font-semibold text-ink tabular-nums">
-                  {guideValue}
-                </span>
-              </div>
+              />
             ) : null}
 
             {visibleBars.length === 0 ? (
@@ -203,7 +276,9 @@ export function PublishedChart({ total, bars }: PublishedChartProps) {
               >
                 {visibleBars.map((bar, index) => {
                   const heightPx =
-                    bar.total > 0 ? (bar.total / axisMax) * CHART_HEIGHT : 0;
+                    bar.visibleTotal > 0
+                      ? (bar.visibleTotal / axisMax) * CHART_HEIGHT
+                      : 0;
                   const isHover = tooltip?.index === index;
                   return (
                     <div
@@ -225,11 +300,11 @@ export function PublishedChart({ total, bars }: PublishedChartProps) {
                           }ms, filter 200ms ease`,
                         }}
                       >
-                        {PUBLISHED_FORMATS.map((format) => {
+                        {activeFormats.map((format) => {
                           const value = bar.breakdown[format];
                           if (value <= 0) return null;
                           const segmentHeight =
-                            (value / Math.max(bar.total, 1)) * heightPx;
+                            (value / Math.max(bar.visibleTotal, 1)) * heightPx;
                           return (
                             <div
                               key={format}
