@@ -32,12 +32,6 @@ const PUBLISHED_BAR_COLORS: Record<PostFormat, string> = {
   Reel: "#8B75FE",
   Story: "#31D8BB",
 };
-const PUBLISHED_BAR_TEXT_COLORS: Record<PostFormat, string> = {
-  Post: "#1557b8",
-  Carousel: "#9a4f00",
-  Reel: "#3f27b8",
-  Story: "#0f7b68",
-};
 const PUBLISHED_FORMAT_LABELS: Record<PostFormat, string> = {
   Post: "Post",
   Carousel: "Carousel",
@@ -225,12 +219,12 @@ export function PublishedChart({ total, bars }: PublishedChartProps) {
                 aria-label={`${PUBLISHED_FORMAT_LABELS[format]} ${count}`}
                 aria-pressed={active}
                 onClick={() => toggleFormat(format)}
-                className="inline-flex items-center gap-1.5 rounded-[6px] border bg-[var(--toggle-bg)] px-1 py-0.5 font-inter text-[14px] font-medium leading-5 transition-colors duration-200 hover:bg-[var(--toggle-hover-bg)] focus-visible:bg-[var(--toggle-hover-bg)]"
+                className="inline-flex w-[104px] items-center justify-center gap-1.5 rounded-[6px] border bg-[var(--toggle-bg)] px-2 py-0.5 font-inter text-[14px] font-medium leading-5 transition-colors duration-200 hover:bg-[var(--toggle-hover-bg)] focus-visible:bg-[var(--toggle-hover-bg)]"
                 style={
                   {
                     "--toggle-bg": active ? color : "#FFFFFF",
                     "--toggle-hover-bg": active ? color : `${color}26`,
-                    color: active ? PUBLISHED_BAR_TEXT_COLORS[format] : color,
+                    color: active ? "#FFFFFF" : color,
                     borderColor: color,
                   } as CSSProperties
                 }
@@ -289,7 +283,10 @@ export function PublishedChart({ total, bars }: PublishedChartProps) {
                     right: `${GUIDE_VALUE_WIDTH}px`,
                     top: `${guide.y}px`,
                     backgroundImage:
-                      "repeating-linear-gradient(to right, #0d0d0d 0 8px, transparent 8px 12px)",
+                      "linear-gradient(to right, transparent 0 4px, #0d0d0d 4px 12px)",
+                    backgroundPosition: "right center",
+                    backgroundRepeat: "repeat-x",
+                    backgroundSize: "12px 1px",
                   }}
                 />
                 <span
