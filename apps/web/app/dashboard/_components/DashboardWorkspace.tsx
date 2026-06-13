@@ -38,11 +38,12 @@ const FIXED_DASHBOARD_LAYOUT = {
   leftColumnWidth: 1008,
   rightColumnWidth: 380,
   statCardWidth: 320,
-  statCardHeight: 196,
+  statCardHeight: 180,
   publishedCardWidth: 1008,
-  publishedCardHeight: 410,
+  publishedCardHeight: 420,
   recentPostsCardWidth: 380,
-  recentPostsCardHeight: 782,
+  recentPostsCardHeight: 624,
+  recentPostsTopOffset: 88,
 } as const;
 
 function classifyStatus(status: string): StatusGroup | "other" {
@@ -231,6 +232,7 @@ export function DashboardWorkspace({
             style={{
               width: FIXED_DASHBOARD_LAYOUT.recentPostsCardWidth,
               height: FIXED_DASHBOARD_LAYOUT.recentPostsCardHeight,
+              marginTop: FIXED_DASHBOARD_LAYOUT.recentPostsTopOffset,
             }}
           >
             <RecentPostsPanel rows={data.contentRows} />
