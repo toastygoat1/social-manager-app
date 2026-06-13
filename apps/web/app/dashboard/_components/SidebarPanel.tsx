@@ -744,7 +744,7 @@ export function SidebarPanel({
               title={isCompact ? label : undefined}
               className={`group relative z-10 flex min-h-8 w-full items-center gap-1 rounded-md px-[3px] py-0 text-[12.5px] leading-4 transition-colors duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
                 isActive
-                  ? "font-medium text-white"
+                  ? "font-medium text-[var(--sidebar-active-foreground)]"
                   : `text-[var(--sidebar-muted)] ${
                       isCompact ? "" : "hover:bg-[var(--sidebar-hover)]"
                     } hover:text-[var(--sidebar-text)]`
@@ -759,7 +759,7 @@ export function SidebarPanel({
               >
                 <Icon
                   className={`size-[18px] translate-y-[1px] transition-colors duration-300 ${
-                    isActive ? "text-white" : ""
+                    isActive ? "text-[var(--sidebar-active-foreground)]" : ""
                   }`}
                   strokeWidth={1.8}
                 />
@@ -1028,7 +1028,7 @@ export function SidebarPanel({
         )
         : null}
 
-      <footer className="rounded-[12px] border border-line bg-paper p-1">
+      <footer className="mx-auto w-full rounded-[12px] border border-line bg-paper p-[3px]">
         <button
           ref={profileButtonRef}
           type="button"
