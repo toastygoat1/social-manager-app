@@ -55,6 +55,7 @@
   --calendar-date-month-bg: #ededed;
   --calendar-today-bg: #f1f1f1;
   --published-toggle-bg: #ffffff;
+  --published-guide-line: #0d0d0d;
   --status-empty-bar: #ffffff;
 }
 
@@ -102,6 +103,7 @@
   --calendar-date-month-bg: #242424;
   --calendar-today-bg: #242424;
   --published-toggle-bg: #181818;
+  --published-guide-line: #ffffff;
   --status-empty-bar: #ffffff;
 }
 

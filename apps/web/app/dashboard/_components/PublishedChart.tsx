@@ -322,7 +322,7 @@ export function PublishedChart({
                     right: `${GUIDE_VALUE_WIDTH}px`,
                     top: `${guide.y}px`,
                     backgroundImage:
-                      "linear-gradient(to right, transparent 0 4px, #0d0d0d 4px 12px)",
+                      "linear-gradient(to right, transparent 0 4px, var(--published-guide-line) 4px 12px)",
                     backgroundPosition: "right center",
                     backgroundRepeat: "repeat-x",
                     backgroundSize: "12px 1px",
