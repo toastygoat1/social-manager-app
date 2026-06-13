@@ -128,7 +128,7 @@ export function RecentPostsPanel({ rows }: RecentPostsPanelProps) {
   }, [active, rows]);
 
   return (
-    <section className="absolute inset-0 flex flex-col gap-3 rounded-[16px] border border-line bg-paper p-6">
+    <section className="absolute inset-0 flex flex-col gap-3 overflow-hidden rounded-[16px] border border-line bg-paper p-6">
       <header className="flex shrink-0 flex-col gap-2.5">
         <h2 className="dashboard-card-title text-ink">
           Recent Posts
