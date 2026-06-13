@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
-import { Geist_Mono, Inter } from "next/font/google";
+import { Copse, Geist_Mono, Inter } from "next/font/google";
 import "./globals.css";
 import { APP_THEME_COOKIE, normalizeTheme } from "./theme-preferences";
 
@@ -12,6 +12,12 @@ const inter = Inter({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+
+const copse = Copse({
+  variable: "--font-copse",
+  subsets: ["latin"],
+  weight: "400",
 });
 
 export const metadata: Metadata = {
@@ -33,7 +39,7 @@ export default async function RootLayout({
       data-theme={initialTheme}
       style={{ colorScheme: initialTheme }}
       suppressHydrationWarning
-      className={`${inter.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${inter.variable} ${geistMono.variable} ${copse.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
