@@ -43,7 +43,7 @@ const FIXED_DASHBOARD_LAYOUT = {
   publishedCardHeight: 420,
   recentPostsCardWidth: 380,
   recentPostsCardHeight: 624,
-  recentPostsTopOffset: 88,
+  recentPostsTopOffset: 82,
 } as const;
 
 function classifyStatus(status: string): StatusGroup | "other" {
