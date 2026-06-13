@@ -53,7 +53,7 @@ export function AvatarImage({
           width,
           height,
           backgroundColor: fallbackColor,
-          fontSize: Math.max(Math.round(width * 0.42), 9),
+          fontSize: Math.max(Math.round(width * 0.42), 14),
         }}
       >
         <span className="relative">{fallbackLabel}</span>

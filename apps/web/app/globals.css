@@ -236,7 +236,7 @@ body {
 }
 
 .dashboard-section-subtitle {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 400;
   line-height: 1.35;
   letter-spacing: -0.005em;
@@ -260,31 +260,47 @@ body {
 }
 
 .dashboard-body-text {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 400;
   line-height: 1.45;
   letter-spacing: -0.005em;
 }
 
 .dashboard-ui-label {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   line-height: 1.35;
   letter-spacing: -0.005em;
 }
 
 .dashboard-ui-meta {
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 500;
   line-height: 1.35;
   letter-spacing: 0;
 }
 
 .dashboard-micro-text {
-  font-size: 10px;
+  font-size: 14px;
   font-weight: 500;
   line-height: 1.25;
   letter-spacing: 0.01em;
+}
+
+:where(
+  .text-xs,
+  .text-\[7px\],
+  .text-\[8px\],
+  .text-\[9px\],
+  .text-\[9\.5px\],
+  .text-\[10px\],
+  .text-\[10\.5px\],
+  .text-\[11px\],
+  .text-\[12px\],
+  .text-\[12\.5px\],
+  .text-\[13px\]
+) {
+  font-size: 14px !important;
 }
 
 .scrollbar-none {
