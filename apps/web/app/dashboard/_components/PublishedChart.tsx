@@ -246,7 +246,7 @@ export function PublishedChart({
           })}
         </div>
       </header>
-      <div className="flex min-h-0 items-stretch">
+      <div className="mt-auto flex min-h-0 items-stretch">
         <div
           className="relative shrink-0 text-[10px] text-muted"
           style={{
