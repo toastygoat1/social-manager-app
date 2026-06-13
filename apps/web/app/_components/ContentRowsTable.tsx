@@ -4,6 +4,10 @@ import type {
   ContentRow,
   MetadataFieldDefinition,
 } from "@/app/dashboard/_components/data";
+import {
+  normalizePostFormat,
+  type PostFormat,
+} from "@/app/dashboard/_components/post-formats";
 import { AvatarImage } from "@/app/_components/AvatarImage";
 import { PostDetailsModal } from "@/app/scheduler/_components/PostDetailsModal";
 import { formatNumber } from "@/lib/format";
@@ -77,6 +81,13 @@ const TRAILING_COLUMNS: ColumnDefinition[] = [
   { label: "Media", width: 120 },
 ];
 
+const TYPE_COLORS: Record<PostFormat, string> = {
+  Post: "#5D9BFE",
+  Carousel: "#FA962F",
+  Reel: "#8B75FE",
+  Story: "#31D8BB",
+};
+
 function getTotalWidth(metadataFields: MetadataFieldDefinition[]) {
   return (
     LEADING_COLUMNS.reduce((sum, c) => sum + c.width, 0) +
@@ -125,6 +136,32 @@ function AccountPill({ row }: { row: ContentRowsTableRow }) {
         />
       </span>
       <span className="truncate">{row.account.name}</span>
+    </span>
+  );
+}
+
+function TypePill({ type }: { type: string }) {
+  if (!type.trim()) return null;
+
+  const format = normalizePostFormat(type);
+
+  return (
+    <span
+      className="inline-flex max-w-full items-center rounded-md px-2 py-1 text-[11px] font-medium leading-none text-white"
+      style={{ backgroundColor: TYPE_COLORS[format] }}
+      title={type}
+    >
+      <span className="truncate">{type}</span>
+    </span>
+  );
+}
+
+function MetricText({ value }: { value: number | null | undefined }) {
+  if (value === null || value === undefined) return null;
+
+  return (
+    <span className="text-xs text-muted">
+      {formatNumber(value)}
     </span>
   );
 }
@@ -420,7 +457,7 @@ export function ContentRowsTable({
           ) : null}
         </div>
       </header>
-      <div className="w-full overflow-hidden rounded-[8px] border border-line">
+      <div className="w-full overflow-hidden">
         <div
           id="content-table-scroll-area"
           ref={scrollViewportRef}
@@ -513,6 +550,8 @@ export function ContentRowsTable({
 }
 
 function StatusPill({ status }: { status: string }) {
+  if (!status.trim()) return null;
+
   const normalized = status.toLowerCase();
   const tone =
     normalized === "published"
@@ -574,33 +613,27 @@ function Row({
         <AccountPill row={row} />
       </Cell>
       <Cell width={90}>
-        <span className="text-xs text-muted">{row.type}</span>
+        <TypePill type={row.type} />
       </Cell>
       <Cell width={115}>
         <StatusPill status={row.status} />
       </Cell>
       <Cell width={110}>
-        <span className="text-xs text-muted">{row.datePost}</span>
+        {row.datePost ? (
+          <span className="text-xs text-muted">{row.datePost}</span>
+        ) : null}
       </Cell>
       <Cell width={90} align="right">
-        <span className="text-xs text-muted">
-          {formatNumber(row.views)}
-        </span>
+        <MetricText value={row.views} />
       </Cell>
       <Cell width={90} align="right">
-        <span className="text-xs text-muted">
-          {formatNumber(row.likes)}
-        </span>
+        <MetricText value={row.likes} />
       </Cell>
       <Cell width={105} align="right">
-        <span className="text-xs text-muted">
-          {formatNumber(row.comments)}
-        </span>
+        <MetricText value={row.comments} />
       </Cell>
       <Cell width={90} align="right">
-        <span className="text-xs text-muted">
-          {formatNumber(row.shares)}
-        </span>
+        <MetricText value={row.shares} />
       </Cell>
       <Cell width={120}>
         {hasMedia ? (
@@ -620,15 +653,19 @@ function Row({
             )}
             <span className="truncate">{row.media}</span>
           </button>
-        ) : (
+        ) : row.media ? (
           <span className="text-xs text-muted">{row.media}</span>
+        ) : (
+          null
         )}
       </Cell>
       {metadataFields.map((field) => (
         <Cell key={field.id} width={getMetadataColumnWidth(field)}>
-          <span className="truncate text-xs text-muted">
-            {row.metadata?.[field.id] || "-"}
-          </span>
+          {row.metadata?.[field.id] ? (
+            <span className="truncate text-xs text-muted">
+              {row.metadata[field.id]}
+            </span>
+          ) : null}
         </Cell>
       ))}
     </div>

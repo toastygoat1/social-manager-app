@@ -48,8 +48,9 @@ type MonthCell = {
 const START_HOUR = 8;
 const END_HOUR = 15;
 const HOUR_HEIGHT = 70;
+const CALENDAR_BODY_HEIGHT = 360;
 const TIME_RAIL_WIDTH = 70;
-const VISIBLE_DAY_COUNT = 6;
+const VISIBLE_DAY_COUNT = 7;
 const WEEK_START = new Date(2026, 4, 18);
 const MONTH_WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const HOURS = Array.from(
@@ -485,7 +486,7 @@ export function CalendarCard({ calendar }: CalendarCardProps) {
   }
 
   return (
-    <section className="flex h-full min-h-[622px] flex-col overflow-hidden rounded-[16px] border border-line bg-paper">
+    <section className="flex h-full min-h-[492px] flex-col overflow-hidden rounded-[16px] border border-line bg-paper">
       <header className="flex h-[92px] items-center justify-between border-b border-line px-6">
         <div className="flex items-center gap-3">
           <div className="grid size-14 overflow-hidden rounded-[8px] border border-line text-center">
@@ -552,90 +553,95 @@ export function CalendarCard({ calendar }: CalendarCardProps) {
           </div>
 
           <div
-            className="relative shrink-0 overflow-hidden"
-            style={{ height: bodyHeight }}
+            className="relative shrink-0 overflow-y-auto overflow-x-hidden"
+            style={{ height: CALENDAR_BODY_HEIGHT }}
           >
-            <div
-              className="absolute inset-0 grid"
-              style={{
-                gridTemplateColumns: `${TIME_RAIL_WIDTH}px repeat(${VISIBLE_DAY_COUNT}, minmax(0, 1fr))`,
-              }}
-            >
-              <div className="border-r border-line" />
-              {weekDays.map((day) => (
-                <div
-                  key={`column-${toDateKey(day)}`}
-                  className="border-r border-line last:border-r-0"
-                />
-              ))}
-            </div>
+            <div className="relative" style={{ height: bodyHeight }}>
+              <div
+                className="absolute inset-0 grid"
+                style={{
+                  gridTemplateColumns: `${TIME_RAIL_WIDTH}px repeat(${VISIBLE_DAY_COUNT}, minmax(0, 1fr))`,
+                }}
+              >
+                <div className="border-r border-line" />
+                {weekDays.map((day) => (
+                  <div
+                    key={`column-${toDateKey(day)}`}
+                    className="border-r border-line last:border-r-0"
+                  />
+                ))}
+              </div>
 
-            {HOURS.map((hour) => {
-              const top = (hour - START_HOUR) * HOUR_HEIGHT;
-              return (
-                <div
-                  key={hour}
-                  className="absolute left-0 right-0 border-t border-line"
-                  style={{ top }}
-                >
-                  <span className="absolute left-0 w-[70px] -translate-y-1/2 pr-4 text-right text-[14px] leading-none text-muted">
-                    {formatHour(hour)}
-                  </span>
-                </div>
-              );
-            })}
+              {HOURS.map((hour) => {
+                const top = (hour - START_HOUR) * HOUR_HEIGHT;
+                return (
+                  <div key={hour}>
+                    <span
+                      className="absolute left-0 w-[70px] -translate-y-1/2 pr-4 text-right text-[14px] leading-none text-muted"
+                      style={{ top }}
+                    >
+                      {formatHour(hour)}
+                    </span>
+                    <span
+                      className="absolute right-0 border-t border-line"
+                      style={{ left: TIME_RAIL_WIDTH, top }}
+                    />
+                  </div>
+                );
+              })}
 
-            <div
-              className="absolute right-0 z-20 h-px bg-[#8A8A8A]"
-              style={{
-                left: TIME_RAIL_WIDTH,
-                top: (13 - START_HOUR) * HOUR_HEIGHT,
-              }}
-            >
-              <span className="absolute left-[-70px] top-[-34px] h-[68px] w-1 rounded-full bg-[#3F3F3F]" />
-            </div>
+              <div
+                className="absolute right-0 z-20 h-px bg-[#8A8A8A]"
+                style={{
+                  left: TIME_RAIL_WIDTH,
+                  top: (13 - START_HOUR) * HOUR_HEIGHT,
+                }}
+              >
+                <span className="absolute left-[-2px] top-[-34px] h-[68px] w-1 rounded-full bg-[#3F3F3F]" />
+              </div>
 
-            <div
-              className="absolute bottom-0 top-0 grid"
-              style={{
-                left: TIME_RAIL_WIDTH,
-                right: 0,
-                gridTemplateColumns: `repeat(${VISIBLE_DAY_COUNT}, minmax(0, 1fr))`,
-              }}
-            >
-              {weekDays.map((day, dayIndex) => (
-                <div key={`events-${toDateKey(day)}`} className="relative">
-                  {displayedWeekEvents
-                    .filter((event) => event.day === dayIndex)
-                    .map((event) => {
-                      const top = (event.start - START_HOUR) * HOUR_HEIGHT;
-                      const height = Math.max(
-                        44,
-                        (event.end - event.start) * HOUR_HEIGHT - 8,
-                      );
+              <div
+                className="absolute bottom-0 top-0 grid"
+                style={{
+                  left: TIME_RAIL_WIDTH,
+                  right: 0,
+                  gridTemplateColumns: `repeat(${VISIBLE_DAY_COUNT}, minmax(0, 1fr))`,
+                }}
+              >
+                {weekDays.map((day, dayIndex) => (
+                  <div key={`events-${toDateKey(day)}`} className="relative">
+                    {displayedWeekEvents
+                      .filter((event) => event.day === dayIndex)
+                      .map((event) => {
+                        const top = (event.start - START_HOUR) * HOUR_HEIGHT;
+                        const height = Math.max(
+                          44,
+                          (event.end - event.start) * HOUR_HEIGHT - 8,
+                        );
 
-                      return (
-                        <article
-                          key={event.id}
-                          className="absolute left-1 right-1 rounded-[7px] px-2.5 py-2"
-                          style={{
-                            top,
-                            height,
-                            backgroundColor: event.background,
-                            color: event.color,
-                          }}
-                        >
-                          <p className="line-clamp-2 text-[14px] font-semibold leading-[1.15]">
-                            {event.title}
-                          </p>
-                          <p className="mt-1 text-[12px] font-medium leading-none">
-                            {event.time}
-                          </p>
-                        </article>
-                      );
-                    })}
-                </div>
-              ))}
+                        return (
+                          <article
+                            key={event.id}
+                            className="absolute left-1 right-1 rounded-[7px] px-2.5 py-2"
+                            style={{
+                              top,
+                              height,
+                              backgroundColor: event.background,
+                              color: event.color,
+                            }}
+                          >
+                            <p className="line-clamp-2 text-[14px] font-semibold leading-[1.15]">
+                              {event.title}
+                            </p>
+                            <p className="mt-1 text-[12px] font-medium leading-none">
+                              {event.time}
+                            </p>
+                          </article>
+                        );
+                      })}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </>
@@ -655,7 +661,7 @@ export function CalendarCard({ calendar }: CalendarCardProps) {
           <div
             className="grid shrink-0 grid-cols-7 overflow-hidden"
             style={{
-              height: bodyHeight,
+              height: CALENDAR_BODY_HEIGHT,
               gridTemplateRows: "repeat(6, minmax(0, 1fr))",
             }}
           >
@@ -678,7 +684,7 @@ export function CalendarCard({ calendar }: CalendarCardProps) {
                     {cell.date.getDate()}
                   </div>
                   <div className="mt-1 grid gap-1">
-                    {events.slice(0, 2).map((event) => (
+                    {events.slice(0, 1).map((event) => (
                       <article
                         key={event.id}
                         className="rounded-[7px] px-2 py-1"
@@ -687,7 +693,7 @@ export function CalendarCard({ calendar }: CalendarCardProps) {
                           color: event.color,
                         }}
                       >
-                        <p className="truncate text-[12px] font-semibold leading-tight">
+                        <p className="truncate text-[11px] font-semibold leading-tight">
                           {event.title}
                         </p>
                         <p className="mt-0.5 text-[10px] font-medium leading-none">
@@ -695,9 +701,9 @@ export function CalendarCard({ calendar }: CalendarCardProps) {
                         </p>
                       </article>
                     ))}
-                    {events.length > 2 ? (
+                    {events.length > 1 ? (
                       <span className="text-[10px] font-medium text-muted">
-                        +{events.length - 2} more
+                        +{events.length - 1} more
                       </span>
                     ) : null}
                   </div>
