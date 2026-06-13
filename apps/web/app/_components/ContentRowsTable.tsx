@@ -465,7 +465,7 @@ export function ContentRowsTable({
           ) : null}
         </div>
       </header>
-      <div className="w-full overflow-hidden rounded-lg border border-line bg-paper">
+      <div className="w-full overflow-hidden">
         <div
           id="content-table-scroll-area"
           ref={scrollViewportRef}
