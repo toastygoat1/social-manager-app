@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ArrowUpRight } from "lucide-react";
 import type { PostFormat } from "./post-formats";
 
 type StatusStatCardProps = {
@@ -38,16 +39,24 @@ export function StatusStatCard({ label, total, breakdown }: StatusStatCardProps)
   const max = Math.max(...visible.map((format) => breakdown[format]), 0);
   const captionText = LABEL_TEXT[label] ?? "Posts to review!";
   const formattedTotal = total.toString().padStart(2, "0");
+  const isEmpty = total === 0;
 
   return (
     <div
       className="relative flex flex-col justify-between gap-3 rounded-[16px] border border-line bg-paper p-6"
       style={{ aspectRatio: STATUS_CARD_ASPECT_RATIO }}
     >
-      <header className="flex items-center">
-        <span className="text-sm font-medium leading-none text-ink">
+      <header className="flex items-start justify-between gap-3">
+        <span className="font-inter text-[20px] font-medium leading-none text-ink">
           {label}
         </span>
+        <button
+          type="button"
+          aria-label={`Open ${label}`}
+          className="grid size-12 shrink-0 place-items-center rounded-[15px] border border-line bg-[#f9f9f9] text-[#777] shadow-[0_1px_2px_rgba(0,0,0,0.06)] transition hover:bg-white hover:text-ink"
+        >
+          <ArrowUpRight className="size-7" strokeWidth={1.7} />
+        </button>
       </header>
 
       <div className="flex items-end gap-2">
@@ -62,7 +71,9 @@ export function StatusStatCard({ label, total, breakdown }: StatusStatCardProps)
         </span>
       </div>
 
-      {visible.length > 0 ? (
+      {isEmpty ? (
+        <div className="h-1 rounded-full bg-[#0d0d0d]" />
+      ) : visible.length > 0 ? (
         <div className="flex h-1 items-stretch gap-1 rounded-full">
           {visible.map((format, index) => {
             const value = breakdown[format];
