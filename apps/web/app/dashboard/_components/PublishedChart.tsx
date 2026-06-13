@@ -24,12 +24,19 @@ const BAR_GAP = 32;
 const AXIS_LABEL_GAP = 32;
 const Y_AXIS_LABEL_WIDTH = 24;
 const Y_AXIS_WIDTH = Y_AXIS_LABEL_WIDTH + AXIS_LABEL_GAP;
+const GUIDE_VALUE_WIDTH = 36;
 const PUBLISHED_FORMATS: PostFormat[] = ["Post", "Carousel", "Reel", "Story"];
 const PUBLISHED_BAR_COLORS: Record<PostFormat, string> = {
   Post: "#5D9BFE",
   Carousel: "#FA962F",
   Reel: "#8B75FE",
   Story: "#31D8BB",
+};
+const PUBLISHED_BAR_TEXT_COLORS: Record<PostFormat, string> = {
+  Post: "#1557b8",
+  Carousel: "#9a4f00",
+  Reel: "#3f27b8",
+  Story: "#0f7b68",
 };
 const PUBLISHED_FORMAT_LABELS: Record<PostFormat, string> = {
   Post: "Post",
@@ -198,7 +205,7 @@ export function PublishedChart({ total, bars }: PublishedChartProps) {
           </h2>
           <div className="mt-4 flex items-end gap-2">
             <span
-              className="text-[48px] font-normal leading-none text-ink tabular-nums"
+              className="text-[40px] font-normal leading-none text-ink tabular-nums"
               style={{ fontFamily: "var(--font-copse), Georgia, serif" }}
             >
               {formattedTotal}
@@ -220,24 +227,16 @@ export function PublishedChart({ total, bars }: PublishedChartProps) {
                 aria-label={`${PUBLISHED_FORMAT_LABELS[format]} ${count}`}
                 aria-pressed={active}
                 onClick={() => toggleFormat(format)}
-                className="inline-flex h-8 items-center gap-1.5 rounded-full border px-2.5 text-[11px] font-medium transition-all duration-200 hover:-translate-y-px"
+                className="inline-flex h-8 items-center gap-1.5 rounded-[6px] border px-2.5 font-inter text-[14px] font-medium transition-all duration-200 hover:-translate-y-px"
                 style={{
-                  borderColor: active ? color : "var(--border)",
-                  backgroundColor: active ? `${color}20` : "var(--bg-light)",
-                  color: active ? "var(--text)" : "var(--text-muted)",
+                  borderColor: color,
+                  backgroundColor: active ? color : "var(--paper)",
+                  color: active ? PUBLISHED_BAR_TEXT_COLORS[format] : color,
                 }}
               >
-                <span
-                  className="size-2 rounded-full transition-transform duration-200"
-                  style={{
-                    backgroundColor: color,
-                    transform: active ? "scale(1)" : "scale(0.7)",
-                    opacity: active ? 1 : 0.35,
-                  }}
-                />
-                <span>{PUBLISHED_FORMAT_LABELS[format]}</span>
-                <span className="tabular-nums text-ink">
-                  {count}
+                <span>{count}</span>
+                <span className="tabular-nums">
+                  {PUBLISHED_FORMAT_LABELS[format]}
                 </span>
               </button>
             );
@@ -286,8 +285,9 @@ export function PublishedChart({ total, bars }: PublishedChartProps) {
             {guide && guideValue !== null ? (
               <>
                 <div
-                  className="pointer-events-none absolute inset-x-0 z-10 h-px"
+                  className="pointer-events-none absolute left-0 z-10 h-px"
                   style={{
+                    right: `${GUIDE_VALUE_WIDTH}px`,
                     top: `${guide.y}px`,
                     backgroundImage:
                       "repeating-linear-gradient(to right, #0d0d0d 0 8px, transparent 8px 12px)",
@@ -298,6 +298,8 @@ export function PublishedChart({ total, bars }: PublishedChartProps) {
                   style={{
                     top: `${guide.y}px`,
                     transform: "translateY(-50%)",
+                    width: `${GUIDE_VALUE_WIDTH - 4}px`,
+                    textAlign: "right",
                   }}
                 >
                   {guideValue}

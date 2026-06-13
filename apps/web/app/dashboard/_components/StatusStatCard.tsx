@@ -61,7 +61,7 @@ export function StatusStatCard({ label, total, breakdown }: StatusStatCardProps)
 
       <div className="mt-4 flex items-end gap-2">
         <span
-          className="text-[48px] font-normal leading-none text-ink tabular-nums"
+          className="text-[40px] font-normal leading-none text-ink tabular-nums"
           style={{ fontFamily: "var(--font-copse), Georgia, serif" }}
         >
           {formattedTotal}
