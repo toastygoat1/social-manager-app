@@ -17,7 +17,7 @@ type PublishedChartProps = {
   bars: PublishedBar[];
 };
 
-const CHART_HEIGHT = 232;
+const CHART_HEIGHT = 208;
 const MIN_AXIS_MAX = 10;
 const BAR_WIDTH = 36;
 const BAR_GAP = 32;
@@ -73,7 +73,7 @@ function getTickTransform(tick: number, max: number) {
   return "translateY(-50%)";
 }
 
-export function PublishedChart({ bars }: PublishedChartProps) {
+export function PublishedChart({ total, bars }: PublishedChartProps) {
   const [mounted, setMounted] = useState(false);
   const [activeFormats, setActiveFormats] =
     useState<PostFormat[]>(PUBLISHED_FORMATS);
@@ -115,10 +115,30 @@ export function PublishedChart({ bars }: PublishedChartProps) {
       ),
     [activeFormats, bars],
   );
+  const formatTotals = useMemo(
+    () =>
+      PUBLISHED_FORMATS.reduce(
+        (result, format) => {
+          result[format] = bars.reduce(
+            (sum, bar) => sum + bar.breakdown[format],
+            0,
+          );
+          return result;
+        },
+        {} as Record<PostFormat, number>,
+      ),
+    [bars],
+  );
   const peak = Math.max(...visibleBars.map((bar) => bar.visibleTotal), 0);
   const axisMax = getNiceAxisMax(peak);
   const ticks = getTicks(axisMax);
-  const formattedTotal = filteredTotal.toString().padStart(2, "0");
+  const formattedTotal = `${filteredTotal.toString().padStart(2, "0")}/${total
+    .toString()
+    .padStart(2, "0")}`;
+  const guideValue =
+    guide && peak > 0
+      ? Math.round(((CHART_HEIGHT - guide.y) / CHART_HEIGHT) * axisMax)
+      : null;
 
   function toggleFormat(format: PostFormat) {
     setActiveFormats((current) => {
@@ -176,7 +196,7 @@ export function PublishedChart({ bars }: PublishedChartProps) {
           <h2 className="font-inter text-[20px] font-medium leading-none text-ink">
             Published
           </h2>
-          <div className="mt-3 flex items-end gap-2">
+          <div className="mt-4 flex items-end gap-2">
             <span
               className="text-[48px] font-normal leading-none text-ink tabular-nums"
               style={{ fontFamily: "var(--font-copse), Georgia, serif" }}
@@ -192,10 +212,12 @@ export function PublishedChart({ bars }: PublishedChartProps) {
           {PUBLISHED_FORMATS.map((format) => {
             const active = activeFormats.includes(format);
             const color = PUBLISHED_BAR_COLORS[format];
+            const count = formatTotals[format].toString().padStart(2, "0");
             return (
               <button
                 key={format}
                 type="button"
+                aria-label={`${PUBLISHED_FORMAT_LABELS[format]} ${count}`}
                 aria-pressed={active}
                 onClick={() => toggleFormat(format)}
                 className="inline-flex h-8 items-center gap-1.5 rounded-full border px-2.5 text-[11px] font-medium transition-all duration-200 hover:-translate-y-px"
@@ -213,7 +235,10 @@ export function PublishedChart({ bars }: PublishedChartProps) {
                     opacity: active ? 1 : 0.35,
                   }}
                 />
-                {PUBLISHED_FORMAT_LABELS[format]}
+                <span>{PUBLISHED_FORMAT_LABELS[format]}</span>
+                <span className="tabular-nums text-ink">
+                  {count}
+                </span>
               </button>
             );
           })}
@@ -258,11 +283,26 @@ export function PublishedChart({ bars }: PublishedChartProps) {
             onMouseMove={handlePlotMouseMove}
             onMouseLeave={() => setGuide(null)}
           >
-            {guide ? (
-              <div
-                className="pointer-events-none absolute inset-x-0 z-10 h-px border-t border-dotted border-[#0d0d0d]"
-                style={{ top: `${guide.y}px` }}
-              />
+            {guide && guideValue !== null ? (
+              <>
+                <div
+                  className="pointer-events-none absolute inset-x-0 z-10 h-px"
+                  style={{
+                    top: `${guide.y}px`,
+                    backgroundImage:
+                      "repeating-linear-gradient(to right, #0d0d0d 0 8px, transparent 8px 12px)",
+                  }}
+                />
+                <span
+                  className="pointer-events-none absolute right-0 z-20 text-[10px] font-semibold text-ink tabular-nums"
+                  style={{
+                    top: `${guide.y}px`,
+                    transform: "translateY(-50%)",
+                  }}
+                >
+                  {guideValue}
+                </span>
+              </>
             ) : null}
 
             {visibleBars.length === 0 ? (
@@ -287,7 +327,7 @@ export function PublishedChart({ bars }: PublishedChartProps) {
                       style={{ width: `${BAR_WIDTH}px` }}
                     >
                       <div
-                        className="flex w-full flex-col-reverse gap-1"
+                        className="flex w-full flex-col-reverse overflow-hidden"
                         onMouseMove={(event) =>
                           showTooltip(index, event, { showGuide: true })
                         }
@@ -300,18 +340,29 @@ export function PublishedChart({ bars }: PublishedChartProps) {
                           }ms, filter 200ms ease`,
                         }}
                       >
-                        {activeFormats.map((format) => {
+                        {PUBLISHED_FORMATS.map((format) => {
                           const value = bar.breakdown[format];
                           if (value <= 0) return null;
+                          const isActiveFormat = activeFormats.includes(format);
                           const segmentHeight =
-                            (value / Math.max(bar.visibleTotal, 1)) * heightPx;
+                            isActiveFormat && bar.visibleTotal > 0
+                              ? (value / Math.max(bar.visibleTotal, 1)) * heightPx
+                              : 0;
+                          const renderedHeight =
+                            segmentHeight > 0
+                              ? Math.max(segmentHeight - 4, 6)
+                              : 0;
                           return (
                             <div
                               key={format}
                               className="w-full rounded-[5px]"
                               style={{
                                 backgroundColor: PUBLISHED_BAR_COLORS[format],
-                                height: `${Math.max(segmentHeight - 4, 6)}px`,
+                                height: `${renderedHeight}px`,
+                                marginTop: renderedHeight > 0 ? "4px" : "0px",
+                                opacity: renderedHeight > 0 ? 1 : 0,
+                                transition:
+                                  "height 520ms cubic-bezier(0.22, 1, 0.36, 1), margin-top 520ms cubic-bezier(0.22, 1, 0.36, 1), opacity 220ms ease",
                               }}
                             />
                           );
