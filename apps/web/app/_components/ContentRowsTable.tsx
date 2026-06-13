@@ -326,7 +326,9 @@ export function ContentRowsTable({
     >
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-sm font-semibold text-ink">Content Table</h2>
+          <h2 className="font-inter text-[20px] font-medium leading-none text-ink">
+            Content Table
+          </h2>
           <p className="mt-0.5 text-xs text-muted">
             {rangeStart}-{rangeEnd} of {filteredRows.length} items / all
             statuses

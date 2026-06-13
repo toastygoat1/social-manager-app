@@ -28,7 +28,9 @@ export function MyAccountsCarousel({
 
   return (
     <section className="flex flex-col gap-3 rounded-[16px] border border-line bg-paper p-4">
-      <h2 className="text-sm font-medium text-ink">My Accounts</h2>
+      <h2 className="font-inter text-[20px] font-medium leading-none text-ink">
+        My Accounts
+      </h2>
       {accounts.length === 0 ? (
         <p className="py-4 text-xs text-muted">No accounts connected yet.</p>
       ) : (

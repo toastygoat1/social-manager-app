@@ -124,7 +124,9 @@ export function RecentPostsPanel({ rows }: RecentPostsPanelProps) {
   return (
     <section className="absolute inset-0 flex flex-col gap-3 rounded-[16px] border border-line bg-paper p-4">
       <header className="flex shrink-0 flex-col gap-2.5">
-        <h2 className="text-sm font-medium text-ink">Recent Posts</h2>
+        <h2 className="font-inter text-[20px] font-medium leading-none text-ink">
+          Recent Posts
+        </h2>
         <div className="relative flex items-center gap-1 rounded-full bg-card p-1">
           <span
             aria-hidden="true"
