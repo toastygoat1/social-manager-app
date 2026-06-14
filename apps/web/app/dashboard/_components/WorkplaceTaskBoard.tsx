@@ -7,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { createPortal } from "react-dom";
 import {
   CalendarDays,
   CheckCircle2,
@@ -19,6 +20,13 @@ import {
   TriangleAlert,
   X,
 } from "lucide-react";
+import {
+  DateTimePickerPopover,
+  formatLocalDateTimeDisplay,
+  getFloatingAnchorRect,
+  getFloatingPopoverPosition,
+  type FloatingAnchorRect,
+} from "@/app/_components/DateTimePickerPopover";
 import { apiFetchBrowser } from "@/lib/api/browser-client";
 import type { Account } from "./data";
 
@@ -198,17 +206,6 @@ function formatDeadlineLabel(value: string) {
   }).format(parsed);
 }
 
-function formatDeadlineCellValue(value: string) {
-  const parsed = parseLocalDateTime(value);
-  if (!parsed) return "No deadline";
-
-  return `${padDatePart(parsed.getDate())}/${padDatePart(
-    parsed.getMonth() + 1,
-  )}/${parsed.getFullYear()}, ${padDatePart(parsed.getHours())}:${padDatePart(
-    parsed.getMinutes(),
-  )}`;
-}
-
 function formatDeadlineTime(value: string) {
   const parsed = parseLocalDateTime(value);
   if (!parsed) return "";
@@ -226,14 +223,6 @@ function getFirstDeadlineDate(tasks: WorkplaceTask[]) {
     .sort((a, b) => a.getTime() - b.getTime());
 
   return sortedDates[0] ?? null;
-}
-
-function toLocalDateTimeValue(date: Date) {
-  return `${date.getFullYear()}-${padDatePart(
-    date.getMonth() + 1,
-  )}-${padDatePart(date.getDate())}T${padDatePart(
-    date.getHours(),
-  )}:${padDatePart(date.getMinutes())}`;
 }
 
 function getAccountLabel(account: Account) {
@@ -436,9 +425,13 @@ function AccountSelect({
   accounts: Account[];
   onChange: (accountId: string | null) => void;
 }) {
-  const [isOpen, setIsOpen] = useState(false);
+  const [menuAnchorRect, setMenuAnchorRect] =
+    useState<FloatingAnchorRect | null>(null);
   const selectedAccount =
     accounts.find((account) => account.id === accountId) ?? null;
+  const menuPosition = menuAnchorRect
+    ? getFloatingPopoverPosition(menuAnchorRect, 220, 220)
+    : null;
   const label = selectedAccount
     ? getAccountLabel(selectedAccount)
     : accounts.length === 0
@@ -447,70 +440,80 @@ function AccountSelect({
 
   function chooseAccount(nextAccountId: string | null) {
     onChange(nextAccountId);
-    setIsOpen(false);
+    setMenuAnchorRect(null);
+  }
+
+  function toggleAccountMenu(trigger: HTMLElement) {
+    setMenuAnchorRect((current) =>
+      current ? null : getFloatingAnchorRect(trigger),
+    );
   }
 
   return (
-    <div
-      className="relative w-full"
-      onBlur={(event) => {
-        const nextTarget = event.relatedTarget;
-        if (
-          !(nextTarget instanceof Node) ||
-          !event.currentTarget.contains(nextTarget)
-        ) {
-          setIsOpen(false);
-        }
-      }}
-    >
+    <>
       <button
         type="button"
         aria-label="Account"
-        aria-expanded={isOpen}
+        aria-expanded={Boolean(menuAnchorRect)}
         aria-haspopup="listbox"
         disabled={accounts.length === 0}
-        onClick={() => setIsOpen((current) => !current)}
+        onClick={(event) => toggleAccountMenu(event.currentTarget)}
         className="flex w-full items-center gap-2 bg-transparent px-2 py-1.5 text-left text-xs text-ink outline-none transition hover:text-ink focus:text-ink disabled:text-muted"
       >
         <AccountAvatar account={selectedAccount} />
         <span className="min-w-0 flex-1 truncate">{label}</span>
       </button>
 
-      {isOpen ? (
-        <div
-          role="listbox"
-          className="mt-1 max-h-44 overflow-y-auto rounded-lg border border-line bg-paper p-1 shadow-sm"
-        >
-          <button
-            type="button"
-            role="option"
-            aria-selected={!selectedAccount}
-            onMouseDown={(event) => event.preventDefault()}
-            onClick={() => chooseAccount(null)}
-            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-muted transition hover:bg-card hover:text-ink"
-          >
-            <AccountAvatar account={null} />
-            <span className="min-w-0 flex-1 truncate">No account</span>
-          </button>
-          {accounts.map((account) => (
-            <button
-              key={account.id}
-              type="button"
-              role="option"
-              aria-selected={selectedAccount?.id === account.id}
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() => chooseAccount(account.id)}
-              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-ink transition hover:bg-card"
+      {menuAnchorRect && menuPosition && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[9999]"
+              onKeyDown={(event) => {
+                if (event.key === "Escape") setMenuAnchorRect(null);
+              }}
+              onMouseDown={() => setMenuAnchorRect(null)}
             >
-              <AccountAvatar account={account} />
-              <span className="min-w-0 flex-1 truncate">
-                {getAccountLabel(account)}
-              </span>
-            </button>
-          ))}
-        </div>
-      ) : null}
-    </div>
+              <div
+                role="listbox"
+                className="absolute max-h-44 overflow-y-auto rounded-lg border border-line bg-paper p-1 shadow-xl"
+                style={{
+                  left: menuPosition.left,
+                  top: menuPosition.top,
+                  width: Math.max(220, menuAnchorRect.width),
+                }}
+                onMouseDown={(event) => event.stopPropagation()}
+              >
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={!selectedAccount}
+                  onClick={() => chooseAccount(null)}
+                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-muted transition hover:bg-card hover:text-ink"
+                >
+                  <AccountAvatar account={null} />
+                  <span className="min-w-0 flex-1 truncate">No account</span>
+                </button>
+                {accounts.map((account) => (
+                  <button
+                    key={account.id}
+                    type="button"
+                    role="option"
+                    aria-selected={selectedAccount?.id === account.id}
+                    onClick={() => chooseAccount(account.id)}
+                    className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-ink transition hover:bg-card"
+                  >
+                    <AccountAvatar account={account} />
+                    <span className="min-w-0 flex-1 truncate">
+                      {getAccountLabel(account)}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
+    </>
   );
 }
 
@@ -521,232 +524,37 @@ function DateTimeInput({
   value: string;
   onChange: (value: string) => void;
 }) {
-  const parsedValue = parseLocalDateTime(value) ?? new Date();
-  const [isOpen, setIsOpen] = useState(false);
-  const [referenceMonth, setReferenceMonth] = useState(
-    () => new Date(parsedValue.getFullYear(), parsedValue.getMonth(), 1),
-  );
-  const [hourDraft, setHourDraft] = useState(() =>
-    padDatePart(parsedValue.getHours()),
-  );
-  const [minuteDraft, setMinuteDraft] = useState(() =>
-    padDatePart(parsedValue.getMinutes()),
-  );
-  const cells = useMemo(
-    () => buildDeadlineCalendarCells(referenceMonth),
-    [referenceMonth],
-  );
-  const selectedDateKey = toDateKey(parsedValue);
-  const todayKey = toDateKey(new Date());
+  const [pickerAnchorRect, setPickerAnchorRect] =
+    useState<FloatingAnchorRect | null>(null);
 
-  function syncPickerDraftsFromValue() {
-    const nextDate = parseLocalDateTime(value) ?? new Date();
-    setReferenceMonth(new Date(nextDate.getFullYear(), nextDate.getMonth(), 1));
-    setHourDraft(padDatePart(nextDate.getHours()));
-    setMinuteDraft(padDatePart(nextDate.getMinutes()));
-  }
-
-  function getDraftTime() {
-    const hour = Number.parseInt(hourDraft, 10);
-    const minute = Number.parseInt(minuteDraft, 10);
-
-    return {
-      hour: Number.isFinite(hour)
-        ? Math.min(Math.max(hour, 0), 23)
-        : parsedValue.getHours(),
-      minute: Number.isFinite(minute)
-        ? Math.min(Math.max(minute, 0), 59)
-        : parsedValue.getMinutes(),
-    };
-  }
-
-  function updateDeadline(date: Date) {
-    onChange(toLocalDateTimeValue(date));
-  }
-
-  function selectDate(date: Date) {
-    const { hour, minute } = getDraftTime();
-    updateDeadline(
-      new Date(date.getFullYear(), date.getMonth(), date.getDate(), hour, minute),
+  function togglePicker(trigger: HTMLElement) {
+    setPickerAnchorRect((current) =>
+      current ? null : getFloatingAnchorRect(trigger),
     );
-  }
-
-  function commitTime() {
-    const { hour, minute } = getDraftTime();
-    setHourDraft(padDatePart(hour));
-    setMinuteDraft(padDatePart(minute));
-    updateDeadline(
-      new Date(
-        parsedValue.getFullYear(),
-        parsedValue.getMonth(),
-        parsedValue.getDate(),
-        hour,
-        minute,
-      ),
-    );
-  }
-
-  function shiftPickerMonth(monthOffset: number) {
-    setReferenceMonth(
-      new Date(
-        referenceMonth.getFullYear(),
-        referenceMonth.getMonth() + monthOffset,
-        1,
-      ),
-    );
-  }
-
-  function updateTimeDraft(
-    nextValue: string,
-    setter: (value: string) => void,
-  ) {
-    setter(nextValue.replace(/\D/g, "").slice(0, 2));
-  }
-
-  function togglePicker() {
-    if (!isOpen) {
-      syncPickerDraftsFromValue();
-    }
-    setIsOpen((current) => !current);
   }
 
   return (
-    <div
-      className="relative w-full"
-      onBlur={(event) => {
-        const nextTarget = event.relatedTarget;
-        if (
-          !(nextTarget instanceof Node) ||
-          !event.currentTarget.contains(nextTarget)
-        ) {
-          commitTime();
-          setIsOpen(false);
-        }
-      }}
-      onKeyDown={(event) => {
-        if (event.key === "Escape") {
-          setIsOpen(false);
-        }
-      }}
-    >
+    <>
       <button
         type="button"
         aria-label="Deadline"
-        aria-expanded={isOpen}
+        aria-expanded={Boolean(pickerAnchorRect)}
         aria-haspopup="dialog"
-        onClick={togglePicker}
+        onClick={(event) => togglePicker(event.currentTarget)}
         className="flex w-full items-center px-2 py-1.5 text-left text-xs text-ink outline-none transition hover:text-cta focus:text-cta"
       >
-        <span className="truncate">{formatDeadlineCellValue(value)}</span>
+        <span className="truncate">{formatLocalDateTimeDisplay(value)}</span>
       </button>
 
-      {isOpen ? (
-        <div
-          role="dialog"
-          aria-label="Choose deadline"
-          className="absolute left-0 top-full z-50 mt-1 w-[320px] rounded-lg border border-line bg-paper p-3 shadow-xl"
-        >
-          <header className="flex items-center justify-between gap-2">
-            <button
-              type="button"
-              aria-label="Previous month"
-              onClick={() => shiftPickerMonth(-1)}
-              className="flex size-8 items-center justify-center rounded-md text-muted transition hover:bg-card hover:text-ink"
-            >
-              <ChevronLeft className="size-4" strokeWidth={1.8} />
-            </button>
-            <span className="text-sm font-semibold text-ink">
-              {formatMonthLabel(referenceMonth)}
-            </span>
-            <button
-              type="button"
-              aria-label="Next month"
-              onClick={() => shiftPickerMonth(1)}
-              className="flex size-8 items-center justify-center rounded-md text-muted transition hover:bg-card hover:text-ink"
-            >
-              <ChevronRight className="size-4" strokeWidth={1.8} />
-            </button>
-          </header>
-
-          <div className="mt-3 grid grid-cols-7 gap-1 text-center text-xs">
-            {CALENDAR_WEEKDAYS.map((day) => (
-              <span key={day} className="py-1 font-semibold text-muted">
-                {day}
-              </span>
-            ))}
-            {cells.map((cell) => {
-              const selected = cell.dateKey === selectedDateKey;
-              const today = cell.dateKey === todayKey;
-
-              return (
-                <button
-                  key={cell.dateKey}
-                  type="button"
-                  onClick={() => selectDate(cell.date)}
-                  className={`flex h-8 items-center justify-center rounded-md text-xs transition ${
-                    selected
-                      ? "bg-ink text-paper"
-                      : today
-                        ? "border border-cta text-cta"
-                        : cell.outside
-                          ? "text-muted/70 hover:bg-card hover:text-ink"
-                          : "text-ink hover:bg-card"
-                  }`}
-                >
-                  {cell.day}
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="mt-3 flex items-end gap-2 border-t border-line pt-3">
-            <label className="flex flex-1 flex-col gap-1 text-xs text-muted">
-              Hour
-              <input
-                aria-label="Deadline hour"
-                inputMode="numeric"
-                value={hourDraft}
-                onBlur={commitTime}
-                onChange={(event) =>
-                  updateTimeDraft(event.target.value, setHourDraft)
-                }
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") commitTime();
-                }}
-                className="h-9 rounded-md border border-line bg-paper px-2 text-xs text-ink outline-none focus:border-cta"
-              />
-            </label>
-            <span className="pb-2 text-sm font-semibold text-muted">:</span>
-            <label className="flex flex-1 flex-col gap-1 text-xs text-muted">
-              Minute
-              <input
-                aria-label="Deadline minute"
-                inputMode="numeric"
-                value={minuteDraft}
-                onBlur={commitTime}
-                onChange={(event) =>
-                  updateTimeDraft(event.target.value, setMinuteDraft)
-                }
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") commitTime();
-                }}
-                className="h-9 rounded-md border border-line bg-paper px-2 text-xs text-ink outline-none focus:border-cta"
-              />
-            </label>
-            <button
-              type="button"
-              onClick={() => {
-                commitTime();
-                setIsOpen(false);
-              }}
-              className="h-9 rounded-md bg-ink px-3 text-xs font-semibold text-paper transition hover:opacity-90"
-            >
-              Done
-            </button>
-          </div>
-        </div>
+      {pickerAnchorRect ? (
+        <DateTimePickerPopover
+          anchorRect={pickerAnchorRect}
+          value={value}
+          onChange={onChange}
+          onClose={() => setPickerAnchorRect(null)}
+        />
       ) : null}
-    </div>
+    </>
   );
 }
 
