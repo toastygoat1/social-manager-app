@@ -100,14 +100,14 @@ const URGENCY_DOT_STYLES: Record<TaskUrgency, string> = {
 const STATUS_STYLES: Record<TaskStatus, string> = {
   "Not started": "bg-card text-muted",
   "In progress": "bg-cta/10 text-cta",
-  Review: "bg-[#6f7ad7]/12 text-[#4f5cbf]",
+  Review: "bg-neutral-100 text-neutral-700",
   Done: "bg-success/10 text-success",
 };
 
 const CALENDAR_EVENT_STYLES: Record<TaskStatus, string> = {
   "Not started": "border-line bg-paper text-muted",
   "In progress": "border-cta/20 bg-cta/10 text-cta",
-  Review: "border-[#6f7ad7]/25 bg-[#6f7ad7]/12 text-[#4f5cbf]",
+  Review: "border-neutral-200 bg-neutral-100 text-neutral-700",
   Done: "border-success/20 bg-success/10 text-success",
 };
 
