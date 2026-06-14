@@ -22,7 +22,6 @@ import {
   type SchedulerEvent,
   type SchedulerData,
   EMPTY_SCHEDULER,
-  formatPeriodLabel,
   rangeForMonth,
   rangeForWeek,
   toIsoDate,
@@ -100,7 +99,6 @@ export function SchedulerShell({ initialReferenceIso, initialData }: Props) {
     void fetchEvents();
   }, [fetchEvents]);
 
-  const periodLabel = formatPeriodLabel(view, reference);
   const todayIso = useMemo(
     () => toIsoDate(new Date(initialReferenceIso)),
     [initialReferenceIso],
@@ -288,7 +286,6 @@ export function SchedulerShell({ initialReferenceIso, initialData }: Props) {
       <SchedulerHeader
         view={view}
         onViewChange={setView}
-        periodLabel={periodLabel}
         onPrev={() => shiftReference(-1)}
         onNext={() => shiftReference(1)}
         onToday={goToday}

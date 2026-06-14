@@ -12,7 +12,7 @@ import {
   WEEK_HOUR_START,
 } from "./data";
 
-const GRID_COLS = "grid-cols-[62px_repeat(7,minmax(0,1fr))]";
+const GRID_COLS = "grid-cols-[58px_repeat(7,minmax(0,1fr))]";
 
 function formatHour(hour: number) {
   return new Date(2026, 0, 1, hour).toLocaleTimeString("en-US", {
@@ -66,14 +66,14 @@ export function WeeklyCalendar({
         <div
           className={`sticky top-0 z-10 grid ${GRID_COLS} border-b border-[#e7e1d6] bg-[#f8f6f1]`}
         >
-          <div className="border-r border-[#eee9df]" />
+          <div />
           {weekDays.map((day) => {
             const isDropTarget = dragController?.dropTargetIso === day.iso;
             return (
               <div
                 key={day.iso}
                 {...getDateDropProps(dragController, day.iso)}
-                className={`flex flex-col items-center justify-center gap-0.5 border-r border-[#eee9df] py-2.5 transition-colors last:border-r-0 ${
+                className={`flex flex-col items-center justify-center gap-0.5 border-l border-[#eee9df] py-2.5 transition-colors ${
                   isDropTarget
                     ? "bg-[#eef2ff] ring-2 ring-inset ring-[#607ffc]"
                     : ""
