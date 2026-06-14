@@ -1028,7 +1028,13 @@ export function SidebarPanel({
         )
         : null}
 
-      <footer className="sidebar-profile-card-shadow mx-auto mt-auto w-full rounded-[12px] border border-line bg-paper p-[3px]">
+      <footer
+        className={`mx-auto mt-auto w-full transition-[background-color,border-color,padding] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+          isCompact
+            ? "p-0"
+            : "sidebar-profile-card-shadow rounded-[12px] border border-line bg-paper p-[3px]"
+        }`}
+      >
         <button
           ref={profileButtonRef}
           type="button"
@@ -1036,7 +1042,9 @@ export function SidebarPanel({
           aria-haspopup="dialog"
           aria-expanded={isProfileMenuOpen}
           aria-label="Open account popup"
-          className="flex w-full items-center gap-1 rounded-lg px-0 py-0 text-left"
+          className={`flex w-full items-center gap-1 rounded-lg px-0 py-0 text-left ${
+            isCompact ? "justify-center" : ""
+          }`}
         >
           <span className="grid size-8 shrink-0 place-items-center">
             <ProfileAvatar profile={profile} />
