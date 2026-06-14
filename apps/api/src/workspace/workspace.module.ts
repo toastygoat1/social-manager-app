@@ -5,5 +5,6 @@ import { WorkspaceService } from './workspace.service.js';
 @Module({
   controllers: [WorkspaceController],
   providers: [WorkspaceService],
+  exports: [WorkspaceService],
 })
 export class WorkspaceModule {}
