@@ -28,7 +28,7 @@ type DateTimePickerPopoverProps = {
 
 const CALENDAR_WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const POPOVER_WIDTH = 320;
-const POPOVER_HEIGHT = 358;
+const POPOVER_HEIGHT = 292;
 const POPOVER_GAP = 6;
 const VIEWPORT_PADDING = 8;
 
@@ -89,9 +89,7 @@ function formatMonthLabel(reference: Date) {
 function toLocalDateTimeValue(date: Date) {
   return `${date.getFullYear()}-${padDatePart(
     date.getMonth() + 1,
-  )}-${padDatePart(date.getDate())}T${padDatePart(
-    date.getHours(),
-  )}:${padDatePart(date.getMinutes())}`;
+  )}-${padDatePart(date.getDate())}T00:00`;
 }
 
 export function getFloatingPopoverPosition(
@@ -139,9 +137,7 @@ export function formatLocalDateTimeDisplay(value: string) {
 
   return `${padDatePart(parsed.getDate())}/${padDatePart(
     parsed.getMonth() + 1,
-  )}/${parsed.getFullYear()}, ${padDatePart(parsed.getHours())}:${padDatePart(
-    parsed.getMinutes(),
-  )}`;
+  )}/${parsed.getFullYear()}`;
 }
 
 export function DateTimePickerPopover({
@@ -154,12 +150,6 @@ export function DateTimePickerPopover({
   const [referenceMonth, setReferenceMonth] = useState(
     () => new Date(parsedValue.getFullYear(), parsedValue.getMonth(), 1),
   );
-  const [hourDraft, setHourDraft] = useState(() =>
-    padDatePart(parsedValue.getHours()),
-  );
-  const [minuteDraft, setMinuteDraft] = useState(() =>
-    padDatePart(parsedValue.getMinutes()),
-  );
   const position = getFloatingPopoverPosition(anchorRect);
   const cells = useMemo(
     () => buildCalendarCells(referenceMonth),
@@ -168,44 +158,15 @@ export function DateTimePickerPopover({
   const selectedDateKey = toDateKey(parsedValue);
   const todayKey = toDateKey(new Date());
 
-  function getDraftTime() {
-    const hour = Number.parseInt(hourDraft, 10);
-    const minute = Number.parseInt(minuteDraft, 10);
-
-    return {
-      hour: Number.isFinite(hour)
-        ? Math.min(Math.max(hour, 0), 23)
-        : parsedValue.getHours(),
-      minute: Number.isFinite(minute)
-        ? Math.min(Math.max(minute, 0), 59)
-        : parsedValue.getMinutes(),
-    };
-  }
-
   function updateDeadline(date: Date) {
     onChange(toLocalDateTimeValue(date));
   }
 
   function selectDate(date: Date) {
-    const { hour, minute } = getDraftTime();
     updateDeadline(
-      new Date(date.getFullYear(), date.getMonth(), date.getDate(), hour, minute),
+      new Date(date.getFullYear(), date.getMonth(), date.getDate()),
     );
-  }
-
-  function commitTime() {
-    const { hour, minute } = getDraftTime();
-    setHourDraft(padDatePart(hour));
-    setMinuteDraft(padDatePart(minute));
-    updateDeadline(
-      new Date(
-        parsedValue.getFullYear(),
-        parsedValue.getMonth(),
-        parsedValue.getDate(),
-        hour,
-        minute,
-      ),
-    );
+    onClose();
   }
 
   function shiftMonth(monthOffset: number) {
@@ -216,13 +177,6 @@ export function DateTimePickerPopover({
         1,
       ),
     );
-  }
-
-  function updateTimeDraft(
-    nextValue: string,
-    setter: (value: string) => void,
-  ) {
-    setter(nextValue.replace(/\D/g, "").slice(0, 2));
   }
 
   if (typeof document === "undefined") return null;
@@ -237,7 +191,7 @@ export function DateTimePickerPopover({
     >
       <div
         role="dialog"
-        aria-label="Choose date and time"
+        aria-label="Choose date"
         className="absolute rounded-lg border border-line bg-paper p-3 shadow-xl"
         style={{ left: position.left, top: position.top, width: POPOVER_WIDTH }}
         onMouseDown={(event) => event.stopPropagation()}
@@ -293,52 +247,6 @@ export function DateTimePickerPopover({
               </button>
             );
           })}
-        </div>
-
-        <div className="mt-3 flex items-end gap-2 border-t border-line pt-3">
-          <label className="flex flex-1 flex-col gap-1 text-xs text-muted">
-            Hour
-            <input
-              aria-label="Deadline hour"
-              inputMode="numeric"
-              value={hourDraft}
-              onBlur={commitTime}
-              onChange={(event) =>
-                updateTimeDraft(event.target.value, setHourDraft)
-              }
-              onKeyDown={(event) => {
-                if (event.key === "Enter") commitTime();
-              }}
-              className="h-9 rounded-md border border-line bg-paper px-2 text-xs text-ink outline-none focus:border-cta"
-            />
-          </label>
-          <span className="pb-2 text-sm font-semibold text-muted">:</span>
-          <label className="flex flex-1 flex-col gap-1 text-xs text-muted">
-            Minute
-            <input
-              aria-label="Deadline minute"
-              inputMode="numeric"
-              value={minuteDraft}
-              onBlur={commitTime}
-              onChange={(event) =>
-                updateTimeDraft(event.target.value, setMinuteDraft)
-              }
-              onKeyDown={(event) => {
-                if (event.key === "Enter") commitTime();
-              }}
-              className="h-9 rounded-md border border-line bg-paper px-2 text-xs text-ink outline-none focus:border-cta"
-            />
-          </label>
-          <button
-            type="button"
-            onClick={() => {
-              commitTime();
-              onClose();
-            }}
-            className="h-9 rounded-md bg-ink px-3 text-xs font-semibold text-paper transition hover:opacity-90"
-          >
-            Done
-          </button>
         </div>
       </div>
     </div>,

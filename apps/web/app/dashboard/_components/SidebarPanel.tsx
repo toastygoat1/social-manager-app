@@ -843,226 +843,230 @@ export function SidebarPanel({
         ) : null}
       </section>
 
-      <button
-        type="button"
-        role="switch"
-        aria-checked={isDarkTheme}
-        aria-label={isDarkTheme ? "Use light mode" : "Use dark mode"}
-        onClick={toggleTheme}
-        title={
-          isCompact ? (isDarkTheme ? "Light mode" : "Dark mode") : undefined
-        }
-        className={`dashboard-ui-label group flex min-h-8 w-full items-center text-[var(--sidebar-muted)] transition-colors duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:text-[var(--sidebar-text)] ${
-          isCompact
-            ? "gap-1 px-[3px] py-0"
-            : "gap-1 rounded-md px-[3px] py-0 hover:bg-[var(--sidebar-hover)]"
-        }`}
-      >
-        <span
-          data-theme-toggle-origin
-          className={`relative grid size-8 shrink-0 place-items-center overflow-hidden rounded-[5px] transition-colors duration-200 ${
-            isCompact
-              ? "group-hover:bg-[var(--sidebar-hover-strong)]"
-              : ""
-          }`}
-        >
-          <Sun
-            className={`absolute size-[15px] text-[var(--sidebar-switch-icon)] transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-              isDarkTheme
-                ? "scale-50 rotate-90 opacity-0"
-                : "scale-100 rotate-0 opacity-100"
-            }`}
-            strokeWidth={1.7}
-          />
-          <Moon
-            className={`absolute size-[15px] text-[var(--sidebar-accent)] transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-              isDarkTheme
-                ? "scale-100 rotate-0 opacity-100"
-                : "scale-50 -rotate-90 opacity-0"
-            }`}
-            strokeWidth={1.7}
-          />
-        </span>
-        <span
-          className={`overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-300 ease-out ${
-            isCompact ? "max-w-0 opacity-0" : "max-w-[92px] opacity-100"
-          }`}
-        >
-          {isDarkTheme ? "Dark mode" : "Light mode"}
-        </span>
-      </button>
-
-      <button
-        type="button"
-        aria-label={isCompact ? "Expand sidebar" : "Collapse sidebar"}
-        aria-expanded={!isCompact}
-        onClick={toggleSidebar}
-        title={isCompact ? "Expand sidebar" : undefined}
-        className={`dashboard-ui-label group flex min-h-8 w-full items-center text-[var(--sidebar-muted)] transition-colors duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:text-[var(--sidebar-text)] ${
-          isCompact
-            ? "gap-1 px-[3px] py-0"
-            : "gap-1 rounded-md px-[3px] py-0 hover:bg-[var(--sidebar-hover)]"
-        }`}
-      >
-        <span
-          className={`grid size-8 shrink-0 place-items-center rounded-[5px] transition-colors duration-200 ${
-            isCompact
-              ? "group-hover:bg-[var(--sidebar-hover-strong)]"
-              : ""
-          }`}
-        >
-          {isCompact ? (
-            <PanelLeftOpen className="size-[15px]" strokeWidth={1.7} />
-          ) : (
-            <PanelLeftClose className="size-[15px]" strokeWidth={1.7} />
-          )}
-        </span>
-        <span
-          className={`overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-300 ease-out ${
-            isCompact ? "max-w-0 opacity-0" : "max-w-[132px] opacity-100"
-          }`}
-        >
-          Collapse sidebar
-        </span>
-      </button>
-
-      {isClient && isProfileMenuOpen
-        ? createPortal(
-          <div
-            ref={profilePopupRef}
-            role="dialog"
-            aria-modal="false"
-            aria-labelledby="sidebar-account-dialog-title"
-            className="account-popup-panel fixed z-[1000] max-h-[calc(100vh-24px)] overflow-y-auto rounded-[16px] border border-line bg-[var(--app-panel-bg)] p-4 text-left text-ink"
-            style={{
-              bottom: profilePopupPosition?.bottom ?? 16,
-              left: profilePopupPosition?.left ?? 16,
-              width: PROFILE_POPUP_WIDTH,
-            }}
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p
-                  id="sidebar-account-dialog-title"
-                  className="text-[17px] font-semibold leading-tight tracking-[-0.015em] text-ink"
-                >
-                  Account
-                </p>
-                <p className="dashboard-section-subtitle mt-1 text-muted">
-                  Your signed-in Social Manager web account.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsProfileMenuOpen(false)}
-                aria-label="Close account popup"
-                className="grid size-8 shrink-0 place-items-center rounded-lg text-muted transition hover:bg-card hover:text-ink"
-              >
-                <X className="size-4" strokeWidth={1.8} />
-              </button>
-            </div>
-
-            <div className="mt-4 flex items-center gap-3 rounded-[12px] bg-card px-3 py-3">
-              <span className="grid size-9 shrink-0 place-items-center rounded-full bg-paper">
-                <ProfileAvatar profile={profile} />
-              </span>
-              <div className="min-w-0">
-                <p className="dashboard-ui-label truncate text-ink">
-                  {profileName}
-                </p>
-                <p className="dashboard-ui-meta truncate font-normal text-muted">{profileDetail}</p>
-              </div>
-            </div>
-
-            <div className="mt-4">
-              <p className="dashboard-ui-label text-muted">
-                Known connections
-              </p>
-              <div className="mt-2 grid gap-2">
-                <div className="rounded-[10px] bg-card px-3 py-2.5">
-                  <p className="dashboard-ui-label text-ink">
-                    Social Manager Dashboard
-                  </p>
-                  <p className="dashboard-ui-meta mt-0.5 font-normal text-muted">
-                    Connected as {profileDetail}
-                  </p>
-                </div>
-                <div className="rounded-[10px] bg-card px-3 py-2.5">
-                  <p className="dashboard-ui-label text-ink">
-                    {providerSummary}
-                  </p>
-                  <p className="dashboard-ui-meta mt-0.5 font-normal text-muted">
-                    Authentication provider
-                  </p>
-                </div>
-                <div className="rounded-[10px] bg-card px-3 py-2.5">
-                  <p className="dashboard-ui-label text-ink">
-                    Current browser
-                  </p>
-                  <p className="dashboard-ui-meta mt-0.5 font-normal text-muted">
-                    Active session on this device
-                  </p>
-                </div>
-              </div>
-              <p className="dashboard-ui-meta mt-3 font-normal text-muted">
-                Other browser/device sessions are not tracked by this app yet.
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={logOut}
-              disabled={isLoggingOut}
-              className="dashboard-ui-label mt-4 flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-line bg-paper text-danger transition hover:bg-red-50 disabled:pointer-events-none disabled:opacity-60"
-            >
-              {isLoggingOut ? (
-                <LoaderCircle className="size-4 animate-spin" strokeWidth={1.8} />
-              ) : (
-                <LogOut className="size-4" strokeWidth={1.8} />
-              )}
-              Log out
-            </button>
-          </div>
-          ,
-          document.body,
-        )
-        : null}
-
-      <footer
-        className={`mx-auto mt-auto w-full transition-[background-color,border-color,padding] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-          isCompact
-            ? "p-0"
-            : "sidebar-profile-card-shadow rounded-[12px] border border-line bg-paper p-[3px]"
-        }`}
-      >
+      <div className="mt-auto flex flex-col gap-1">
         <button
-          ref={profileButtonRef}
           type="button"
-          onClick={() => setIsProfileMenuOpen((open) => !open)}
-          aria-haspopup="dialog"
-          aria-expanded={isProfileMenuOpen}
-          aria-label="Open account popup"
-          className={`flex w-full items-center gap-1 rounded-lg px-0 py-0 text-left ${
-            isCompact ? "justify-center" : ""
+          role="switch"
+          aria-checked={isDarkTheme}
+          aria-label={isDarkTheme ? "Use light mode" : "Use dark mode"}
+          onClick={toggleTheme}
+          title={
+            isCompact ? (isDarkTheme ? "Light mode" : "Dark mode") : undefined
+          }
+          className={`dashboard-ui-label group flex min-h-8 w-full items-center text-[var(--sidebar-muted)] transition-colors duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:text-[var(--sidebar-text)] ${
+            isCompact
+              ? "gap-1 px-[3px] py-0"
+              : "gap-1 rounded-md px-[3px] py-0 hover:bg-[var(--sidebar-hover)]"
           }`}
         >
-          <span className="grid size-8 shrink-0 place-items-center">
-            <ProfileAvatar profile={profile} />
+          <span
+            data-theme-toggle-origin
+            className={`relative grid size-8 shrink-0 place-items-center overflow-hidden rounded-[5px] transition-colors duration-200 ${
+              isCompact
+                ? "group-hover:bg-[var(--sidebar-hover-strong)]"
+                : ""
+            }`}
+          >
+            <Sun
+              className={`absolute size-[15px] text-[var(--sidebar-switch-icon)] transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                isDarkTheme
+                  ? "scale-50 rotate-90 opacity-0"
+                  : "scale-100 rotate-0 opacity-100"
+              }`}
+              strokeWidth={1.7}
+            />
+            <Moon
+              className={`absolute size-[15px] text-[var(--sidebar-accent)] transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                isDarkTheme
+                  ? "scale-100 rotate-0 opacity-100"
+                  : "scale-50 -rotate-90 opacity-0"
+              }`}
+              strokeWidth={1.7}
+            />
           </span>
           <span
-            className={`min-w-0 flex-1 overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-300 ease-out ${
-              isCompact ? "max-w-0 opacity-0" : "max-w-[150px] opacity-100"
+            className={`overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-300 ease-out ${
+              isCompact ? "max-w-0 opacity-0" : "max-w-[92px] opacity-100"
             }`}
           >
-            <span className="dashboard-ui-label block truncate text-[var(--sidebar-text)]">
-              {profileName}
-            </span>
-            <span className="dashboard-micro-text block truncate font-normal text-[var(--sidebar-dim)]">
-              {profileDetail}
-            </span>
+            {isDarkTheme ? "Dark mode" : "Light mode"}
           </span>
         </button>
-      </footer>
+
+        <button
+          type="button"
+          aria-label={isCompact ? "Expand sidebar" : "Collapse sidebar"}
+          aria-expanded={!isCompact}
+          onClick={toggleSidebar}
+          title={isCompact ? "Expand sidebar" : undefined}
+          className={`dashboard-ui-label group flex min-h-8 w-full items-center text-[var(--sidebar-muted)] transition-colors duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:text-[var(--sidebar-text)] ${
+            isCompact
+              ? "gap-1 px-[3px] py-0"
+              : "gap-1 rounded-md px-[3px] py-0 hover:bg-[var(--sidebar-hover)]"
+          }`}
+        >
+          <span
+            className={`grid size-8 shrink-0 place-items-center rounded-[5px] transition-colors duration-200 ${
+              isCompact
+                ? "group-hover:bg-[var(--sidebar-hover-strong)]"
+                : ""
+            }`}
+          >
+            {isCompact ? (
+              <PanelLeftOpen className="size-[15px]" strokeWidth={1.7} />
+            ) : (
+              <PanelLeftClose className="size-[15px]" strokeWidth={1.7} />
+            )}
+          </span>
+          <span
+            className={`overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-300 ease-out ${
+              isCompact ? "max-w-0 opacity-0" : "max-w-[132px] opacity-100"
+            }`}
+          >
+            Collapse sidebar
+          </span>
+        </button>
+
+        {isClient && isProfileMenuOpen
+          ? createPortal(
+            <div
+              ref={profilePopupRef}
+              role="dialog"
+              aria-modal="false"
+              aria-labelledby="sidebar-account-dialog-title"
+              className="account-popup-panel fixed z-[1000] max-h-[calc(100vh-24px)] overflow-y-auto rounded-[16px] border border-line bg-[var(--app-panel-bg)] p-4 text-left text-ink"
+              style={{
+                bottom: profilePopupPosition?.bottom ?? 16,
+                left: profilePopupPosition?.left ?? 16,
+                width: PROFILE_POPUP_WIDTH,
+              }}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p
+                    id="sidebar-account-dialog-title"
+                    className="text-[17px] font-semibold leading-tight tracking-[-0.015em] text-ink"
+                  >
+                    Account
+                  </p>
+                  <p className="dashboard-section-subtitle mt-1 text-muted">
+                    Your signed-in Social Manager web account.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsProfileMenuOpen(false)}
+                  aria-label="Close account popup"
+                  className="grid size-8 shrink-0 place-items-center rounded-lg text-muted transition hover:bg-card hover:text-ink"
+                >
+                  <X className="size-4" strokeWidth={1.8} />
+                </button>
+              </div>
+
+              <div className="mt-4 flex items-center gap-3 rounded-[12px] bg-card px-3 py-3">
+                <span className="grid size-9 shrink-0 place-items-center rounded-full bg-paper">
+                  <ProfileAvatar profile={profile} />
+                </span>
+                <div className="min-w-0">
+                  <p className="dashboard-ui-label truncate text-ink">
+                    {profileName}
+                  </p>
+                  <p className="dashboard-ui-meta truncate font-normal text-muted">{profileDetail}</p>
+                </div>
+              </div>
+
+              <div className="mt-4">
+                <p className="dashboard-ui-label text-muted">
+                  Known connections
+                </p>
+                <div className="mt-2 grid gap-2">
+                  <div className="rounded-[10px] bg-card px-3 py-2.5">
+                    <p className="dashboard-ui-label text-ink">
+                      Social Manager Dashboard
+                    </p>
+                    <p className="dashboard-ui-meta mt-0.5 font-normal text-muted">
+                      Connected as {profileDetail}
+                    </p>
+                  </div>
+                  <div className="rounded-[10px] bg-card px-3 py-2.5">
+                    <p className="dashboard-ui-label text-ink">
+                      {providerSummary}
+                    </p>
+                    <p className="dashboard-ui-meta mt-0.5 font-normal text-muted">
+                      Authentication provider
+                    </p>
+                  </div>
+                  <div className="rounded-[10px] bg-card px-3 py-2.5">
+                    <p className="dashboard-ui-label text-ink">
+                      Current browser
+                    </p>
+                    <p className="dashboard-ui-meta mt-0.5 font-normal text-muted">
+                      Active session on this device
+                    </p>
+                  </div>
+                </div>
+                <p className="dashboard-ui-meta mt-3 font-normal text-muted">
+                  Other browser/device sessions are not tracked by this app yet.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={logOut}
+                disabled={isLoggingOut}
+                className="dashboard-ui-label mt-4 flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-line bg-paper text-danger transition hover:bg-red-50 disabled:pointer-events-none disabled:opacity-60"
+              >
+                {isLoggingOut ? (
+                  <LoaderCircle className="size-4 animate-spin" strokeWidth={1.8} />
+                ) : (
+                  <LogOut className="size-4" strokeWidth={1.8} />
+                )}
+                Log out
+              </button>
+            </div>
+            ,
+            document.body,
+          )
+          : null}
+
+        <footer
+          className={`transition-[background-color,border-color,margin,padding,width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+            isCompact
+              ? "mx-auto w-full p-0"
+              : "sidebar-profile-card-shadow -mx-3 -mb-3 w-[calc(100%+1.5rem)] rounded-t-[16px] border border-line bg-paper p-2"
+          }`}
+        >
+          <button
+            ref={profileButtonRef}
+            type="button"
+            onClick={() => setIsProfileMenuOpen((open) => !open)}
+            aria-haspopup="dialog"
+            aria-expanded={isProfileMenuOpen}
+            aria-label="Open account popup"
+            className={`flex w-full items-center rounded-lg text-left transition-[gap,padding] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+              isCompact
+                ? "justify-center gap-1 px-0 py-0"
+                : "gap-2 px-2 py-2"
+            }`}
+          >
+            <span className="grid size-8 shrink-0 place-items-center">
+              <ProfileAvatar profile={profile} />
+            </span>
+            <span
+              className={`min-w-0 flex-1 overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-300 ease-out ${
+                isCompact ? "max-w-0 opacity-0" : "max-w-[150px] opacity-100"
+              }`}
+            >
+              <span className="dashboard-ui-label block truncate text-[var(--sidebar-text)]">
+                {profileName}
+              </span>
+              <span className="dashboard-micro-text block truncate font-normal text-[var(--sidebar-dim)]">
+                {profileDetail}
+              </span>
+            </span>
+          </button>
+        </footer>
+      </div>
     </aside>
   );
 }

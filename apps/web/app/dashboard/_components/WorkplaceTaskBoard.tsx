@@ -203,18 +203,6 @@ function formatDeadlineLabel(value: string) {
   return new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(parsed);
-}
-
-function formatDeadlineTime(value: string) {
-  const parsed = parseLocalDateTime(value);
-  if (!parsed) return "";
-
-  return new Intl.DateTimeFormat("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
   }).format(parsed);
 }
 
@@ -843,9 +831,6 @@ function DeadlineCalendar({
                         <span
                           className={`size-1.5 shrink-0 rounded-full ${URGENCY_DOT_STYLES[task.urgency]}`}
                         />
-                        <span className="shrink-0 text-[10px] opacity-70">
-                          {formatDeadlineTime(task.deadline)}
-                        </span>
                         <span className="truncate font-semibold">
                           {task.taskName}
                         </span>
