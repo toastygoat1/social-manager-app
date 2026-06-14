@@ -132,9 +132,6 @@ const inputClassName =
 const mutedInputClassName =
   "w-full rounded-md border border-line bg-paper px-2.5 py-2 text-xs text-muted outline-none transition placeholder:text-muted focus:border-cta focus:text-ink focus:ring-2 focus:ring-cta/15";
 
-const selectClassName =
-  "w-full rounded-lg border border-transparent bg-card/70 px-2.5 py-2 text-xs text-ink outline-none transition hover:border-line hover:bg-paper focus:border-cta focus:bg-paper focus:ring-2 focus:ring-cta/15 disabled:bg-card disabled:text-muted";
-
 function padDatePart(value: number) {
   return String(value).padStart(2, "0");
 }
@@ -226,6 +223,18 @@ function getAccountLabel(account: Account) {
     account.name ||
     (account.username ? `@${account.username}` : "Instagram account")
   );
+}
+
+function getAccountInitials(account: Account | null) {
+  if (!account) return "";
+
+  return getAccountLabel(account)
+    .replace(/^@/, "")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("");
 }
 
 function getErrorMessage(error: unknown) {
@@ -369,7 +378,7 @@ function SelectInput<T extends string>({
       aria-label={ariaLabel}
       value={value}
       onChange={(event) => onChange(event.target.value as T)}
-      className={`w-full rounded-full border border-transparent px-2.5 py-1.5 text-[10px] font-semibold outline-none transition hover:border-line focus:border-cta focus:ring-2 focus:ring-cta/15 ${className}`}
+      className={`w-full appearance-none rounded-full border border-transparent bg-none px-2.5 py-1.5 text-center text-[10px] font-semibold outline-none transition hover:border-line focus:border-cta focus:ring-2 focus:ring-cta/15 ${className}`}
     >
       {options.map((option) => (
         <option key={option} value={option}>
@@ -377,6 +386,25 @@ function SelectInput<T extends string>({
         </option>
       ))}
     </select>
+  );
+}
+
+function AccountAvatar({ account }: { account: Account | null }) {
+  const label = account ? getAccountLabel(account) : "No account selected";
+
+  return (
+    <span className="flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-full border border-line bg-paper text-[10px] font-semibold text-muted">
+      {account?.avatarUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={account.avatarUrl}
+          alt={`${label} profile picture`}
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        <span>{getAccountInitials(account) || "-"}</span>
+      )}
+    </span>
   );
 }
 
@@ -389,29 +417,81 @@ function AccountSelect({
   accounts: Account[];
   onChange: (accountId: string | null) => void;
 }) {
-  const selectedAccountId = accounts.some((account) => account.id === accountId)
-    ? accountId
-    : "";
+  const [isOpen, setIsOpen] = useState(false);
+  const selectedAccount =
+    accounts.find((account) => account.id === accountId) ?? null;
+  const label = selectedAccount
+    ? getAccountLabel(selectedAccount)
+    : accounts.length === 0
+      ? "No connected accounts"
+      : "Select account";
+
+  function chooseAccount(nextAccountId: string | null) {
+    onChange(nextAccountId);
+    setIsOpen(false);
+  }
 
   return (
-    <select
-      aria-label="Account"
-      value={selectedAccountId ?? ""}
-      disabled={accounts.length === 0}
-      onChange={(event) => onChange(event.target.value || null)}
-      className={selectClassName}
+    <div
+      className="relative w-full"
+      onBlur={(event) => {
+        const nextTarget = event.relatedTarget;
+        if (
+          !(nextTarget instanceof Node) ||
+          !event.currentTarget.contains(nextTarget)
+        ) {
+          setIsOpen(false);
+        }
+      }}
     >
-      {accounts.length === 0 ? (
-        <option value="">No connected accounts</option>
-      ) : (
-        <option value="">Select account</option>
-      )}
-      {accounts.map((account) => (
-        <option key={account.id} value={account.id}>
-          {getAccountLabel(account)}
-        </option>
-      ))}
-    </select>
+      <button
+        type="button"
+        aria-label="Account"
+        aria-expanded={isOpen}
+        aria-haspopup="listbox"
+        disabled={accounts.length === 0}
+        onClick={() => setIsOpen((current) => !current)}
+        className="flex w-full items-center gap-2 rounded-lg border border-transparent bg-card/70 px-2 py-1.5 text-left text-xs text-ink outline-none transition hover:border-line hover:bg-paper focus:border-cta focus:bg-paper focus:ring-2 focus:ring-cta/15 disabled:bg-card disabled:text-muted"
+      >
+        <AccountAvatar account={selectedAccount} />
+        <span className="min-w-0 flex-1 truncate">{label}</span>
+      </button>
+
+      {isOpen ? (
+        <div
+          role="listbox"
+          className="mt-1 max-h-44 overflow-y-auto rounded-lg border border-line bg-paper p-1 shadow-sm"
+        >
+          <button
+            type="button"
+            role="option"
+            aria-selected={!selectedAccount}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => chooseAccount(null)}
+            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-muted transition hover:bg-card hover:text-ink"
+          >
+            <AccountAvatar account={null} />
+            <span className="min-w-0 flex-1 truncate">No account</span>
+          </button>
+          {accounts.map((account) => (
+            <button
+              key={account.id}
+              type="button"
+              role="option"
+              aria-selected={selectedAccount?.id === account.id}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => chooseAccount(account.id)}
+              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-ink transition hover:bg-card"
+            >
+              <AccountAvatar account={account} />
+              <span className="min-w-0 flex-1 truncate">
+                {getAccountLabel(account)}
+              </span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -1095,10 +1175,6 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
     <p className="rounded-lg border border-danger/20 bg-danger/10 px-3 py-2 text-sm text-danger">
       {syncError}
     </p>
-  ) : isSyncing ? (
-    <p className="rounded-lg border border-line bg-card px-3 py-2 text-sm text-muted">
-      Syncing workspace...
-    </p>
   ) : null;
 
   return (
@@ -1203,7 +1279,7 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
                         className="flex h-full shrink-0 items-center border-r border-line/80 px-2.5 last:border-r-0"
                         style={{ width: column.width }}
                       >
-                        <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted">
+                        <span className="text-xs font-semibold text-muted">
                           {column.label}
                         </span>
                       </div>
