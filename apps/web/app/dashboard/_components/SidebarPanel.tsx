@@ -8,6 +8,7 @@ import {
   CalendarDays,
   ChevronDown,
   Columns2,
+  FileText,
   Home,
   Inbox,
   LoaderCircle,
@@ -45,6 +46,7 @@ type LucideIcon = ComponentType<
 
 export type SidebarKey =
   | "dashboard"
+  | "posts"
   | "workspace"
   | "scheduling"
   | "analytics"
@@ -88,6 +90,7 @@ type ProfilePopupPosition = {
 
 const NAV_ITEMS: NavItem[] = [
   { key: "dashboard", label: "Dashboard", Icon: Home, href: "/dashboard" },
+  { key: "posts", label: "Posts", Icon: FileText, href: "/posts" },
   { key: "workspace", label: "Workspace", Icon: Columns2, href: "/workspace" },
   {
     key: "scheduling",

@@ -1,5 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PostStatus } from '@social-manager/database';
+import {
+  PostStatus,
+  type PostType,
+  type Prisma,
+} from '@social-manager/database';
 import { MediaService } from '../media/media.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
@@ -68,6 +72,40 @@ const CHART_COLORS = [
 ];
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const UPLOAD_CHART_DAYS = 7;
+const POST_TYPE_LABELS: Record<PostType, string> = {
+  FEED: 'Post',
+  REEL: 'Reel',
+  STORY: 'Story',
+  CAROUSEL: 'Carousel',
+};
+const POST_STATUS_LABELS: Record<PostStatus, string> = {
+  DRAFT: 'Draft',
+  PENDING: 'Pending',
+  READY: 'Ready',
+  PUBLISHED: 'Published',
+};
+
+const DASHBOARD_CONTENT_POST_INCLUDE = {
+  instagramAccount: {
+    select: { id: true, username: true, displayName: true },
+  },
+  postAnalytics: {
+    orderBy: { fetchedAt: 'desc' },
+    take: 1,
+  },
+  postMedia: {
+    orderBy: { sortOrder: 'asc' },
+    take: 1,
+    include: { mediaAsset: true },
+  },
+  metadataValues: {
+    select: { fieldId: true, value: true },
+  },
+} satisfies Prisma.ContentPostInclude;
+
+type DashboardContentPost = Prisma.ContentPostGetPayload<{
+  include: typeof DASHBOARD_CONTENT_POST_INCLUDE;
+}>;
 
 type ContentRow = {
   id: string;
@@ -100,6 +138,12 @@ type DashboardOverview = {
   activityRows: ActivityRow[];
 };
 
+type DashboardPosts = {
+  accounts: AccountDto[];
+  metadataFields: MetadataFieldDto[];
+  contentRows: ContentRow[];
+};
+
 @Injectable()
 export class DashboardService {
   private readonly logger = new Logger(DashboardService.name);
@@ -110,8 +154,7 @@ export class DashboardService {
     private media: MediaService,
   ) {}
 
-  async getOverview(userId: string): Promise<DashboardOverview> {
-    const calendar = await this.buildCalendar(userId);
+  private async listActiveAccounts(userId: string): Promise<AccountDto[]> {
     const accountsRaw = await this.prisma.instagramAccount.findMany({
       where: { userId, isActive: true },
       orderBy: { createdAt: 'desc' },
@@ -123,7 +166,7 @@ export class DashboardService {
       },
     });
 
-    const accounts: AccountDto[] = accountsRaw.map((acct, idx) => ({
+    return accountsRaw.map((acct, idx) => ({
       id: acct.id,
       name: acct.displayName?.trim() || `@${acct.username}`,
       username: acct.username,
@@ -132,13 +175,103 @@ export class DashboardService {
       avatarUrl: acct.avatarUrl ?? null,
       tone: ACCOUNT_TONES[idx % ACCOUNT_TONES.length],
     }));
+  }
 
-    const accountIds = accountsRaw.map((a) => a.id);
-    const metadataFields = await this.prisma.contentMetadataField.findMany({
+  private listMetadataFields(userId: string): Promise<MetadataFieldDto[]> {
+    return this.prisma.contentMetadataField.findMany({
       where: { userId },
       orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
       select: { id: true, label: true, sortOrder: true },
     });
+  }
+
+  private async listContentRows(
+    accountIds: string[],
+    accounts: AccountDto[],
+    take?: number,
+  ): Promise<ContentRow[]> {
+    const posts = await this.prisma.contentPost.findMany({
+      where: { instagramAccountId: { in: accountIds } },
+      orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }],
+      ...(take === undefined ? {} : { take }),
+      include: DASHBOARD_CONTENT_POST_INCLUDE,
+    });
+
+    return this.mapContentRows(posts, accounts);
+  }
+
+  private async mapContentRows(
+    posts: DashboardContentPost[],
+    accounts: AccountDto[],
+  ): Promise<ContentRow[]> {
+    const accountById = new Map(accounts.map((a) => [a.id, a]));
+    const signedPreviewByPostId = await this.buildSignedPreviewMap(posts);
+
+    return posts.map((post) => {
+      const latest = post.postAnalytics[0];
+      const account = accountById.get(post.instagramAccountId) ?? {
+        id: post.instagramAccount.id,
+        name:
+          post.instagramAccount.displayName?.trim() ||
+          `@${post.instagramAccount.username}`,
+        username: post.instagramAccount.username,
+        displayName: post.instagramAccount.displayName ?? null,
+        platform: 'Instagram',
+        avatarUrl: null,
+        tone: 'blue',
+      };
+
+      return {
+        id: post.id,
+        account,
+        contents: post.title ?? post.caption?.slice(0, 60) ?? '—',
+        metadata: readPostMetadataValues(post.metadataValues),
+        type: POST_TYPE_LABELS[post.postType],
+        status: POST_STATUS_LABELS[post.status],
+        audio: '—',
+        datePost: (post.publishedAt ?? post.scheduledFor ?? post.createdAt)
+          .toISOString()
+          .slice(0, 10),
+        caption: post.caption?.slice(0, 60) ?? '—',
+        views: latest?.impressions ?? null,
+        likes: latest?.likeCount ?? null,
+        comments: latest?.commentsCount ?? null,
+        shares: latest?.sharesCount ?? null,
+        media: post.postMedia.length > 0 ? String(post.postMedia.length) : '—',
+        thumbnailUrl:
+          post.igThumbnailUrl ??
+          post.igMediaUrl ??
+          signedPreviewByPostId.get(post.id) ??
+          null,
+      };
+    });
+  }
+
+  async listPosts(userId: string): Promise<DashboardPosts> {
+    const [accounts, metadataFields] = await Promise.all([
+      this.listActiveAccounts(userId),
+      this.listMetadataFields(userId),
+    ]);
+    const accountIds = accounts.map((account) => account.id);
+
+    if (accountIds.length === 0) {
+      return { accounts, metadataFields, contentRows: [] };
+    }
+
+    return {
+      accounts,
+      metadataFields,
+      contentRows: await this.listContentRows(accountIds, accounts),
+    };
+  }
+
+  async getOverview(userId: string): Promise<DashboardOverview> {
+    const [calendar, accounts, metadataFields] = await Promise.all([
+      this.buildCalendar(userId),
+      this.listActiveAccounts(userId),
+      this.listMetadataFields(userId),
+    ]);
+    const accountIds = accounts.map((account) => account.id);
     const activityRows = await this.listActivity(userId);
 
     if (accountIds.length === 0) {
@@ -160,7 +293,7 @@ export class DashboardService {
     const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
 
-    const [thisMonthAgg, lastMonthAgg, recentPosts, uploadBuckets] =
+    const [thisMonthAgg, lastMonthAgg, contentRows, uploadBuckets] =
       await Promise.all([
         this.prisma.postAnalytics.aggregate({
           where: {
@@ -176,28 +309,7 @@ export class DashboardService {
           },
           _sum: { impressions: true, likeCount: true },
         }),
-        this.prisma.contentPost.findMany({
-          where: { instagramAccountId: { in: accountIds } },
-          orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }],
-          take: 20,
-          include: {
-            instagramAccount: {
-              select: { id: true, username: true, displayName: true },
-            },
-            postAnalytics: {
-              orderBy: { fetchedAt: 'desc' },
-              take: 1,
-            },
-            postMedia: {
-              orderBy: { sortOrder: 'asc' },
-              take: 1,
-              include: { mediaAsset: true },
-            },
-            metadataValues: {
-              select: { fieldId: true, value: true },
-            },
-          },
-        }),
+        this.listContentRows(accountIds, accounts, 20),
         this.prisma.contentPost.findMany({
           where: {
             instagramAccountId: { in: accountIds },
@@ -221,38 +333,6 @@ export class DashboardService {
       thisMonthAgg._sum.likeCount,
       lastMonthAgg._sum.likeCount,
     );
-
-    const accountById = new Map(accounts.map((a) => [a.id, a]));
-
-    const signedPreviewByPostId = await this.buildSignedPreviewMap(recentPosts);
-
-    const contentRows: ContentRow[] = recentPosts.map((post) => {
-      const latest = post.postAnalytics[0];
-      const account = accountById.get(post.instagramAccountId) ?? accounts[0];
-      return {
-        id: post.id,
-        account,
-        contents: post.title ?? post.caption?.slice(0, 60) ?? '—',
-        metadata: readPostMetadataValues(post.metadataValues),
-        type: post.postType,
-        status: post.status,
-        audio: '—',
-        datePost: (post.publishedAt ?? post.scheduledFor ?? post.createdAt)
-          .toISOString()
-          .slice(0, 10),
-        caption: post.caption?.slice(0, 60) ?? '—',
-        views: latest?.impressions ?? null,
-        likes: latest?.likeCount ?? null,
-        comments: latest?.commentsCount ?? null,
-        shares: latest?.sharesCount ?? null,
-        media: post.postMedia.length > 0 ? String(post.postMedia.length) : '—',
-        thumbnailUrl:
-          post.igThumbnailUrl ??
-          post.igMediaUrl ??
-          signedPreviewByPostId.get(post.id) ??
-          null,
-      };
-    });
 
     const uploadChart = buildUploadChart(
       uploadBuckets.map((p) => p.publishedAt),
@@ -442,9 +522,7 @@ export class DashboardService {
     const map = new Map<string, string>();
     const targets = posts.filter(
       (post) =>
-        !post.igThumbnailUrl &&
-        !post.igMediaUrl &&
-        post.postMedia.length > 0,
+        !post.igThumbnailUrl && !post.igMediaUrl && post.postMedia.length > 0,
     );
     if (targets.length === 0) return map;
 

@@ -13,6 +13,11 @@ export class DashboardController {
     return this.dashboardService.getOverview(req.user.userId);
   }
 
+  @Get('posts')
+  async listPosts(@Request() req: AuthedRequest) {
+    return this.dashboardService.listPosts(req.user.userId);
+  }
+
   @Get('activity')
   async listActivity(@Request() req: AuthedRequest) {
     return this.dashboardService.listActivity(req.user.userId);

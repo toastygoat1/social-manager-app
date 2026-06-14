@@ -26,6 +26,12 @@ type ContentRowsTableRow = ContentRow;
 type ContentRowsTableProps = {
   rows: ContentRowsTableRow[];
   metadataFields: MetadataFieldDefinition[];
+  title?: string;
+  summaryScope?: string;
+  itemLabel?: string;
+  emptyLabel?: string;
+  noSearchResultsLabel?: string;
+  searchPlaceholder?: string;
 };
 
 type ScrollbarMetrics = {
@@ -211,6 +217,12 @@ function Cell({
 export function ContentRowsTable({
   rows,
   metadataFields,
+  title = "Content Table",
+  summaryScope = "all statuses",
+  itemLabel = "items",
+  emptyLabel = "No content tracked yet",
+  noSearchResultsLabel = "No content matches your search",
+  searchPlaceholder = "Search content, account, status...",
 }: ContentRowsTableProps) {
   const router = useRouter();
   const sectionRef = useRef<HTMLElement>(null);
@@ -393,11 +405,11 @@ export function ContentRowsTable({
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="dashboard-card-title text-ink">
-            Content Table
+            {title}
           </h2>
           <p className="dashboard-section-subtitle mt-0.5 text-muted">
-            {rangeStart}-{rangeEnd} of {filteredRows.length} items / all
-            statuses
+            {rangeStart}-{rangeEnd} of {filteredRows.length} {itemLabel} /{" "}
+            {summaryScope}
           </p>
         </div>
         <div className="flex min-w-[240px] flex-1 flex-wrap items-center justify-end gap-2 sm:max-w-[470px]">
@@ -413,7 +425,7 @@ export function ContentRowsTable({
                 setQuery(event.target.value);
                 setPage(0);
               }}
-              placeholder="Search content, account, status..."
+              placeholder={searchPlaceholder}
               className="dashboard-ui-label h-9 w-full rounded-lg border border-line bg-paper pl-9 pr-3 text-ink outline-none transition placeholder:font-normal focus:border-[#b7b7b7] focus:bg-card"
               type="search"
             />
@@ -504,9 +516,7 @@ export function ContentRowsTable({
             >
               {filteredRows.length === 0 ? (
                 <div className="dashboard-body-text flex h-full items-center justify-center text-muted">
-                  {query
-                    ? "No content matches your search"
-                    : "No content tracked yet"}
+                  {query ? noSearchResultsLabel : emptyLabel}
                 </div>
               ) : (
                 visibleRows.map((row, index) => (
