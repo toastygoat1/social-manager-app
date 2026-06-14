@@ -69,15 +69,15 @@ const FOLDER_TONES = [
 ];
 
 const TASK_COLUMNS = [
-  { label: "Task Name", width: 230 },
-  { label: "Assignee", width: 150 },
+  { label: "Task Name", width: 240 },
+  { label: "Assignee", width: 135 },
   { label: "Urgency", width: 115 },
-  { label: "Account", width: 210 },
+  { label: "Account", width: 190 },
   { label: "Status", width: 135 },
-  { label: "Deadline", width: 190 },
-  { label: "Brief Execution", width: 320 },
-  { label: "Notes", width: 285 },
-  { label: "Input From", width: 135 },
+  { label: "Deadline", width: 185 },
+  { label: "Brief Execution", width: 300 },
+  { label: "Notes", width: 260 },
+  { label: "Input From", width: 125 },
 ];
 
 const TASK_TABLE_WIDTH = TASK_COLUMNS.reduce(
@@ -104,6 +104,13 @@ const STATUS_STYLES: Record<TaskStatus, string> = {
   Done: "bg-success/10 text-success",
 };
 
+const CALENDAR_EVENT_STYLES: Record<TaskStatus, string> = {
+  "Not started": "border-line bg-paper text-muted",
+  "In progress": "border-cta/20 bg-cta/10 text-cta",
+  Review: "border-[#d4a547]/25 bg-[#d4a547]/15 text-[#98640d]",
+  Done: "border-success/20 bg-success/10 text-success",
+};
+
 const URGENCY_OPTIONS: TaskUrgency[] = ["High", "Medium", "Low"];
 const STATUS_OPTIONS: TaskStatus[] = [
   "Not started",
@@ -120,13 +127,13 @@ type DeadlineCalendarCell = {
 };
 
 const inputClassName =
-  "w-full rounded-md border border-transparent bg-transparent px-2 py-1.5 text-xs text-ink outline-none transition placeholder:text-muted hover:border-line hover:bg-paper focus:border-cta focus:bg-paper focus:ring-2 focus:ring-cta/15";
+  "w-full rounded-md border border-line bg-paper px-2.5 py-2 text-xs text-ink outline-none transition placeholder:text-muted focus:border-cta focus:ring-2 focus:ring-cta/15";
 
 const mutedInputClassName =
-  "w-full rounded-md border border-transparent bg-transparent px-2 py-1.5 text-xs text-muted outline-none transition placeholder:text-muted hover:border-line hover:bg-paper focus:border-cta focus:bg-paper focus:text-ink focus:ring-2 focus:ring-cta/15";
+  "w-full rounded-md border border-line bg-paper px-2.5 py-2 text-xs text-muted outline-none transition placeholder:text-muted focus:border-cta focus:text-ink focus:ring-2 focus:ring-cta/15";
 
 const selectClassName =
-  "w-full rounded-md border border-line bg-paper px-2 py-1.5 text-xs text-ink outline-none transition focus:border-cta focus:ring-2 focus:ring-cta/15 disabled:bg-card disabled:text-muted";
+  "w-full rounded-lg border border-transparent bg-card/70 px-2.5 py-2 text-xs text-ink outline-none transition hover:border-line hover:bg-paper focus:border-cta focus:bg-paper focus:ring-2 focus:ring-cta/15 disabled:bg-card disabled:text-muted";
 
 function padDatePart(value: number) {
   return String(value).padStart(2, "0");
@@ -194,6 +201,16 @@ function formatDeadlineLabel(value: string) {
   }).format(parsed);
 }
 
+function formatDeadlineTime(value: string) {
+  const parsed = parseLocalDateTime(value);
+  if (!parsed) return "";
+
+  return new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(parsed);
+}
+
 function getFirstDeadlineDate(tasks: WorkplaceTask[]) {
   const sortedDates = tasks
     .map((task) => parseLocalDateTime(task.deadline))
@@ -227,7 +244,7 @@ function TaskCell({
 }) {
   return (
     <div
-      className={`flex min-h-[92px] shrink-0 items-start px-3 py-3 ${className}`}
+      className={`flex min-h-[78px] shrink-0 items-start px-2.5 py-2.5 ${className}`}
       style={{ width }}
     >
       {children}
@@ -310,7 +327,7 @@ function EditableTextCell({
   }
 
   return (
-    <div className="group/cell relative flex min-h-9 w-full items-center rounded-md px-2 py-1.5 transition hover:bg-card focus-within:bg-card">
+    <div className="group/cell relative flex min-h-9 w-full items-center rounded-md border border-transparent px-2 py-1.5 transition hover:border-line hover:bg-paper focus-within:border-cta focus-within:bg-paper">
       <span
         className={`min-w-0 pr-8 text-xs leading-5 ${
           multiline ? "max-h-[3.75rem] overflow-hidden" : "truncate"
@@ -324,7 +341,7 @@ function EditableTextCell({
         onClick={startEditing}
         aria-label={`Edit ${ariaLabel.toLowerCase()}`}
         title={`Edit ${ariaLabel.toLowerCase()}`}
-        className={`absolute right-1 flex size-7 items-center justify-center rounded-md text-muted opacity-0 transition hover:bg-paper hover:text-ink group-hover/cell:opacity-100 group-focus-within/cell:opacity-100 ${
+        className={`absolute right-1 flex size-7 items-center justify-center rounded-md text-muted opacity-0 transition hover:bg-card hover:text-ink group-hover/cell:opacity-100 group-focus-within/cell:opacity-100 ${
           multiline ? "top-1" : "top-1/2 -translate-y-1/2"
         }`}
       >
@@ -352,7 +369,7 @@ function SelectInput<T extends string>({
       aria-label={ariaLabel}
       value={value}
       onChange={(event) => onChange(event.target.value as T)}
-      className={`w-full rounded-full border border-transparent px-2 py-1 font-mono text-[10px] outline-none transition hover:border-line focus:border-cta focus:ring-2 focus:ring-cta/15 ${className}`}
+      className={`w-full rounded-full border border-transparent px-2.5 py-1.5 font-mono text-[10px] font-semibold outline-none transition hover:border-line focus:border-cta focus:ring-2 focus:ring-cta/15 ${className}`}
     >
       {options.map((option) => (
         <option key={option} value={option}>
@@ -406,14 +423,14 @@ function DateTimeInput({
   onChange: (value: string) => void;
 }) {
   return (
-    <span className="flex w-full items-center gap-1.5 text-muted">
-      <Clock3 className="size-3.5 shrink-0" strokeWidth={1.8} />
+    <span className="flex w-full items-center gap-2 rounded-lg border border-transparent bg-card/60 px-2 py-1.5 text-muted transition hover:border-line hover:bg-paper focus-within:border-cta focus-within:bg-paper focus-within:ring-2 focus-within:ring-cta/15">
+      <Clock3 className="size-3.5 shrink-0 text-cta" strokeWidth={1.8} />
       <input
         aria-label="Deadline"
         type="datetime-local"
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="min-w-0 flex-1 rounded-md border border-line bg-paper px-2 py-1.5 font-mono text-[11px] text-ink outline-none transition focus:border-cta focus:ring-2 focus:ring-cta/15"
+        className="min-w-0 flex-1 border-0 bg-transparent p-0 font-mono text-[11px] text-ink outline-none"
       />
     </span>
   );
@@ -540,38 +557,38 @@ function DeadlineCalendar({
   }
 
   return (
-    <section className="min-w-0 rounded-lg border border-line bg-card/40 p-3">
-      <header className="flex flex-wrap items-center justify-between gap-3">
+    <section className="min-w-0 rounded-[10px] border border-line bg-paper p-3">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-3">
         <div className="flex min-w-0 items-center gap-2">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-paper text-cta">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-cta/10 text-cta">
             <CalendarDays className="size-4" strokeWidth={1.8} />
           </span>
           <div className="min-w-0">
             <h3 className="truncate text-sm font-semibold text-ink">
               Deadline calendar
             </h3>
-            <p className="text-xs text-muted">
+            <p className="mt-0.5 text-xs text-muted">
               {deadlineCount} deadlines from this folder
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 rounded-lg border border-line bg-card p-1">
           <button
             type="button"
             aria-label="Previous month"
             onClick={() => shiftMonth(-1)}
-            className="flex size-9 items-center justify-center rounded-lg border border-line bg-paper text-muted transition hover:text-ink"
+            className="flex size-8 items-center justify-center rounded-md text-muted transition hover:bg-paper hover:text-ink"
           >
             <ChevronLeft className="size-4" strokeWidth={1.8} />
           </button>
-          <span className="min-w-[150px] text-center text-sm font-semibold text-ink">
+          <span className="min-w-[142px] text-center text-sm font-semibold text-ink">
             {formatMonthLabel(reference)}
           </span>
           <button
             type="button"
             aria-label="Next month"
             onClick={() => shiftMonth(1)}
-            className="flex size-9 items-center justify-center rounded-lg border border-line bg-paper text-muted transition hover:text-ink"
+            className="flex size-8 items-center justify-center rounded-md text-muted transition hover:bg-paper hover:text-ink"
           >
             <ChevronRight className="size-4" strokeWidth={1.8} />
           </button>
@@ -579,12 +596,12 @@ function DeadlineCalendar({
       </header>
 
       <div className="mt-3 overflow-x-auto">
-        <div className="min-w-[760px] overflow-hidden rounded-lg border border-line bg-paper">
+        <div className="min-w-[760px] overflow-hidden rounded-lg border border-line bg-card/40">
           <div className="grid grid-cols-7 border-b border-line bg-card">
             {CALENDAR_WEEKDAYS.map((day) => (
               <div
                 key={day}
-                className="border-r border-line px-3 py-2 text-xs font-semibold text-muted last:border-r-0"
+                className="border-r border-line px-3 py-2 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-muted last:border-r-0"
               >
                 {day}
               </div>
@@ -600,10 +617,14 @@ function DeadlineCalendar({
               return (
                 <div
                   key={cell.dateKey}
-                  className={`min-h-[116px] border-r border-t border-line p-2 first:border-t-0 ${
+                  className={`min-h-[104px] border-r border-line p-2.5 ${
+                    index >= 7 ? "border-t" : ""
+                  } ${
                     (index + 1) % 7 === 0 ? "border-r-0" : ""
                   } ${
-                    cell.outside ? "bg-card/45 text-muted" : "bg-paper"
+                    cell.outside
+                      ? "bg-card/50 text-muted"
+                      : "bg-paper"
                   } ${isToday ? "ring-2 ring-inset ring-cta/35" : ""}`}
                 >
                   <div className="mb-2 flex items-center justify-between gap-2">
@@ -619,8 +640,8 @@ function DeadlineCalendar({
                       {cell.day}
                     </span>
                     {dayEvents.length ? (
-                      <span className="font-mono text-[10px] text-muted">
-                        {dayEvents.length}
+                      <span className="rounded-full bg-paper px-1.5 py-0.5 font-mono text-[10px] text-muted">
+                        {dayEvents.length} due
                       </span>
                     ) : null}
                   </div>
@@ -631,11 +652,14 @@ function DeadlineCalendar({
                         title={`${task.taskName} - ${formatDeadlineLabel(
                           task.deadline,
                         )}`}
-                        className={`flex min-w-0 items-center gap-1.5 rounded-md px-2 py-1 text-left text-xs ${STATUS_STYLES[task.status]}`}
+                        className={`flex min-w-0 items-center gap-1.5 rounded-md border px-2 py-1 text-left text-[11px] ${CALENDAR_EVENT_STYLES[task.status]}`}
                       >
                         <span
                           className={`size-1.5 shrink-0 rounded-full ${URGENCY_DOT_STYLES[task.urgency]}`}
                         />
+                        <span className="shrink-0 font-mono text-[10px] opacity-70">
+                          {formatDeadlineTime(task.deadline)}
+                        </span>
                         <span className="truncate font-semibold">
                           {task.taskName}
                         </span>
@@ -675,10 +699,10 @@ function TaskRow({
 }) {
   return (
     <div
-      className="flex border-b border-line transition hover:bg-card/70"
+      className="group/row flex border-b border-line/80 bg-paper transition last:border-b-0 odd:bg-card/25 hover:bg-cta/5"
       style={{ width: TASK_TABLE_WIDTH }}
     >
-      <TaskCell width={230} className="items-center">
+      <TaskCell width={240} className="items-center">
         <EditableTextCell
           ariaLabel="Task name"
           value={task.taskName}
@@ -686,7 +710,7 @@ function TaskRow({
           strong
         />
       </TaskCell>
-      <TaskCell width={150} className="items-center">
+      <TaskCell width={135} className="items-center">
         <EditableTextCell
           ariaLabel="Assignee"
           value={task.assignee}
@@ -703,7 +727,7 @@ function TaskRow({
           className={URGENCY_STYLES[task.urgency]}
         />
       </TaskCell>
-      <TaskCell width={210} className="items-center">
+      <TaskCell width={190} className="items-center">
         <AccountSelect
           accountId={task.accountId}
           accounts={accounts}
@@ -719,13 +743,13 @@ function TaskRow({
           className={STATUS_STYLES[task.status]}
         />
       </TaskCell>
-      <TaskCell width={190} className="items-center">
+      <TaskCell width={185} className="items-center">
         <DateTimeInput
           value={task.deadline}
           onChange={(value) => onUpdate(workspaceId, task.id, "deadline", value)}
         />
       </TaskCell>
-      <TaskCell width={320}>
+      <TaskCell width={300}>
         <EditableTextCell
           ariaLabel="Brief execution"
           value={task.briefExecution}
@@ -735,7 +759,7 @@ function TaskRow({
           multiline
         />
       </TaskCell>
-      <TaskCell width={285}>
+      <TaskCell width={260}>
         <EditableTextCell
           ariaLabel="Notes"
           value={task.notes}
@@ -744,7 +768,7 @@ function TaskRow({
           muted
         />
       </TaskCell>
-      <TaskCell width={135} className="items-center">
+      <TaskCell width={125} className="items-center">
         <EditableTextCell
           ariaLabel="Input from"
           value={task.inputFrom}
@@ -1110,15 +1134,15 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
 
       {syncStatus}
 
-      <div className="min-h-[640px] rounded-lg border border-line bg-paper p-4">
+      <div className="min-h-[640px] rounded-[10px] border border-line bg-paper p-4">
         {selectedWorkspace ? (
           <>
-            <header className="flex flex-wrap items-start justify-between gap-4">
+            <header className="flex flex-wrap items-start justify-between gap-4 border-b border-line pb-4">
               <div className="min-w-0">
                 <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted">
-                  Selected folder
+                  Selected folder table
                 </p>
-                <h2 className="mt-1 truncate text-2xl font-semibold text-ink">
+                <h2 className="mt-1 truncate text-[22px] font-semibold leading-tight text-ink">
                   {selectedWorkspace.name}
                 </h2>
                 <p className="mt-1 text-sm text-muted">
@@ -1128,29 +1152,29 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
                 </p>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 rounded-lg border border-line px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <span className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-line bg-card px-2.5 font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
                   <TriangleAlert
                     className="size-3.5 text-danger"
                     strokeWidth={1.8}
                   />
                   {selectedStats.urgentTasks} urgent
                 </span>
-                <span className="inline-flex items-center gap-1.5 rounded-lg border border-line px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
+                <span className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-line bg-card px-2.5 font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
                   <CheckCircle2
                     className="size-3.5 text-success"
                     strokeWidth={1.8}
                   />
                   {selectedStats.completedTasks}/{selectedTasks.length} done
                 </span>
-                <span className="inline-flex items-center gap-1.5 rounded-lg border border-line px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
+                <span className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-line bg-card px-2.5 font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
                   <Clock3 className="size-3.5 text-cta" strokeWidth={1.8} />
                   {selectedStats.deadlines} deadlines
                 </span>
                 <button
                   type="button"
                   onClick={addTaskToSelectedFolder}
-                  className="inline-flex h-9 items-center gap-2 rounded-lg border border-line bg-paper px-3 text-sm font-semibold text-ink transition hover:border-cta hover:bg-card"
+                  className="inline-flex h-8 items-center gap-2 rounded-lg border border-ink bg-ink px-3 text-xs font-semibold text-paper transition hover:opacity-90"
                 >
                   <Plus className="size-4" strokeWidth={1.8} />
                   Add row
@@ -1158,7 +1182,7 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
                 <button
                   type="button"
                   onClick={() => deleteFolder(selectedWorkspace.id)}
-                  className="inline-flex h-9 items-center gap-2 rounded-lg border border-danger/30 bg-danger/10 px-3 text-sm font-semibold text-danger transition hover:bg-danger/15"
+                  className="inline-flex h-8 items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 text-xs font-semibold text-danger transition hover:bg-danger/15"
                 >
                   <Trash2 className="size-4" strokeWidth={1.8} />
                   Delete folder
@@ -1167,19 +1191,19 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
             </header>
 
             <div className="mt-4 flex min-w-0 flex-col gap-4">
-              <div className="min-w-0 overflow-hidden rounded-lg border border-line bg-paper">
+              <div className="min-w-0 overflow-hidden rounded-[10px] border border-line bg-card/30">
                 <div className="overflow-x-auto">
                   <div
-                    className="flex h-10 items-center border-b border-line bg-card/50"
+                    className="sticky top-0 z-10 flex h-9 items-center border-b border-line bg-card/95 backdrop-blur"
                     style={{ width: TASK_TABLE_WIDTH }}
                   >
                     {TASK_COLUMNS.map((column) => (
                       <div
                         key={column.label}
-                        className="flex h-full shrink-0 items-center px-3"
+                        className="flex h-full shrink-0 items-center px-2.5"
                         style={{ width: column.width }}
                       >
-                        <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-muted">
+                        <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-muted">
                           {column.label}
                         </span>
                       </div>
