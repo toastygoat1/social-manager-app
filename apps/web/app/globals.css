@@ -507,6 +507,26 @@ html.theme-circle-transition::view-transition-new(root) {
   --chart-8: #eaa36f;
 }
 
+.workspace-theme {
+  --bg: #f3f5f8;
+  --bg-light: #ffffff;
+  --bg-dark: #f8fafc;
+  --border: #e3e7ee;
+  --text: #171a1f;
+  --text-muted: #687386;
+  --chart-4: #6f7ad7;
+}
+
+:root[data-theme="dark"] .workspace-theme {
+  --bg: #181b22;
+  --bg-light: #20242d;
+  --bg-dark: #11141a;
+  --border: #303746;
+  --text: #f5f7fb;
+  --text-muted: #a8b0bf;
+  --chart-4: #8ea0ff;
+}
+
 .analytics-serif {
   font-family: Georgia, "Times New Roman", serif;
 }
