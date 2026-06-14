@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PostStatus } from '@social-manager/database';
+import { MediaService } from '../media/media.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
   GoogleService,
@@ -83,6 +84,7 @@ type ContentRow = {
   comments: number | null;
   shares: number | null;
   media: string;
+  thumbnailUrl: string | null;
 };
 
 type DashboardOverview = {
@@ -105,6 +107,7 @@ export class DashboardService {
   constructor(
     private prisma: PrismaService,
     private google: GoogleService,
+    private media: MediaService,
   ) {}
 
   async getOverview(userId: string): Promise<DashboardOverview> {
@@ -185,7 +188,11 @@ export class DashboardService {
               orderBy: { fetchedAt: 'desc' },
               take: 1,
             },
-            postMedia: { take: 1 },
+            postMedia: {
+              orderBy: { sortOrder: 'asc' },
+              take: 1,
+              include: { mediaAsset: true },
+            },
             metadataValues: {
               select: { fieldId: true, value: true },
             },
@@ -217,6 +224,8 @@ export class DashboardService {
 
     const accountById = new Map(accounts.map((a) => [a.id, a]));
 
+    const signedPreviewByPostId = await this.buildSignedPreviewMap(recentPosts);
+
     const contentRows: ContentRow[] = recentPosts.map((post) => {
       const latest = post.postAnalytics[0];
       const account = accountById.get(post.instagramAccountId) ?? accounts[0];
@@ -237,6 +246,11 @@ export class DashboardService {
         comments: latest?.commentsCount ?? null,
         shares: latest?.sharesCount ?? null,
         media: post.postMedia.length > 0 ? String(post.postMedia.length) : '—',
+        thumbnailUrl:
+          post.igThumbnailUrl ??
+          post.igMediaUrl ??
+          signedPreviewByPostId.get(post.id) ??
+          null,
       };
     });
 
@@ -415,6 +429,45 @@ export class DashboardService {
     }
 
     return buildMonthGrid(monthStart, monthEnd, eventDays);
+  }
+
+  private async buildSignedPreviewMap(
+    posts: {
+      id: string;
+      igThumbnailUrl: string | null;
+      igMediaUrl: string | null;
+      postMedia: { mediaAsset: { storagePath: string } }[];
+    }[],
+  ): Promise<Map<string, string>> {
+    const map = new Map<string, string>();
+    const targets = posts.filter(
+      (post) =>
+        !post.igThumbnailUrl &&
+        !post.igMediaUrl &&
+        post.postMedia.length > 0,
+    );
+    if (targets.length === 0) return map;
+
+    const results = await Promise.all(
+      targets.map(async (post) => {
+        const path = post.postMedia[0]?.mediaAsset.storagePath;
+        if (!path) return [post.id, null] as const;
+        try {
+          const url = await this.media.createSignedPreviewUrl(path);
+          return [post.id, url] as const;
+        } catch (error) {
+          this.logger.debug(
+            `Failed to sign preview for post ${post.id}: ${(error as Error).message}`,
+          );
+          return [post.id, null] as const;
+        }
+      }),
+    );
+
+    for (const [id, url] of results) {
+      if (url) map.set(id, url);
+    }
+    return map;
   }
 }
 

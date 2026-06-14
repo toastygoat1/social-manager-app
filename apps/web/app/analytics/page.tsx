@@ -132,13 +132,13 @@ export default async function AnalyticsPage({
     : [null, null];
 
   return (
-    <div className="flex min-h-screen items-start bg-page font-sans text-ink transition-colors duration-500">
+    <div className="app-shell-frame flex min-h-screen items-start gap-[2px] p-1 font-sans text-ink transition-colors duration-500">
       <Sidebar
         active="analytics"
         accounts={data.accounts}
         profile={getUserProfile(user)}
       />
-      <main className="analytics-theme flex min-w-0 flex-1 flex-col bg-page font-inter text-ink">
+      <main className="analytics-theme app-shell-panel flex min-w-0 flex-1 flex-col bg-paper font-inter text-ink">
         <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-4 px-5 py-8 sm:px-7 sm:py-9">
           <BannerHero
             accounts={data.accounts}

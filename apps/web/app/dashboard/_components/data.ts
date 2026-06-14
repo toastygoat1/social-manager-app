@@ -8,6 +8,8 @@ export type ChartBar = {
   label: string;
   value: number;
   color: string;
+  avatarUrl?: string | null;
+  fallback?: string;
   segments?: ChartBarSegment[];
 };
 
@@ -20,6 +22,10 @@ export type Account = {
   displayName?: string | null;
   platform: string;
   avatarUrl?: string | null;
+  bannerUrl?: string | null;
+  accentColor?: string | null;
+  nickname?: string | null;
+  note?: string | null;
   tone?: AccountTone;
 };
 
@@ -63,6 +69,7 @@ export type ContentRow = {
   comments: number | null;
   shares: number | null;
   media: string;
+  thumbnailUrl?: string | null;
 };
 
 export type MetadataFieldDefinition = {

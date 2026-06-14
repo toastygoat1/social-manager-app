@@ -9,6 +9,9 @@ node_modules
 dist
 coverage
 
+# MCP connector OAuth state (issued tokens/clients)
+.mcp-oauth-store.json
+
 packages/database/generated/
 .prisma
 turbo
@@ -18,3 +21,4 @@ turbo
 Thumbs.db
 
 .claude/
+./impeccable/

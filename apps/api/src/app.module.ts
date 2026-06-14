@@ -13,6 +13,8 @@ import { SchedulerModule } from './scheduler/scheduler.module.js';
 import { MediaModule } from './media/media.module.js';
 import { AnalyticsModule } from './analytics/analytics.module.js';
 import { AiModule } from './ai/ai.module.js';
+import { WorkspaceModule } from './workspace/workspace.module.js';
+import { McpModule } from './mcp/mcp.module.js';
 
 @Module({
   imports: [
@@ -37,6 +39,8 @@ import { AiModule } from './ai/ai.module.js';
     MediaModule,
     AnalyticsModule,
     AiModule,
+    WorkspaceModule,
+    McpModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],

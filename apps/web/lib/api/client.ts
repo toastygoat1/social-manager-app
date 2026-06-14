@@ -15,6 +15,11 @@ function buildUrl(path: string) {
 
 export { ApiError };
 
+function getDevBypassUserId() {
+  if (process.env.NODE_ENV === "production") return null;
+  return process.env.DEV_USER_ID ?? null;
+}
+
 function buildHeaders(
   auth: boolean,
   callerHeaders: HeadersInit | undefined,
@@ -25,6 +30,13 @@ function buildHeaders(
   if (auth && token) headers.set("Authorization", `Bearer ${token}`);
   if (body !== undefined && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
+  }
+  const devUserId = auth ? getDevBypassUserId() : null;
+  if (devUserId) {
+    headers.set("x-dev-user-id", devUserId);
+    if (process.env.DEV_USER_EMAIL) {
+      headers.set("x-dev-user-email", process.env.DEV_USER_EMAIL);
+    }
   }
   return headers;
 }

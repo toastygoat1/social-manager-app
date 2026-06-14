@@ -1,22 +1,24 @@
 "use client";
 
 import type { ComponentType, MouseEvent, SVGProps } from "react";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import {
   BarChart3,
   CalendarDays,
   ChevronDown,
+  Columns2,
   Home,
   Inbox,
-  LayoutGrid,
   LoaderCircle,
+  LogOut,
   Moon,
   PanelLeftClose,
   PanelLeftOpen,
   RefreshCw,
-  Settings,
   Sparkles,
   Sun,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -28,6 +30,7 @@ import {
   type ThemeMode,
 } from "@/app/theme-preferences";
 import { ApiError, apiFetchBrowser } from "@/lib/api/browser-client";
+import { createClient } from "@/lib/supabase/client";
 import type { UserProfile } from "@/lib/supabase/user-profile";
 import type { Account } from "./data";
 import {
@@ -42,6 +45,7 @@ type LucideIcon = ComponentType<
 
 export type SidebarKey =
   | "dashboard"
+  | "workspace"
   | "scheduling"
   | "analytics"
   | "chat"
@@ -77,8 +81,14 @@ type SidebarPanelProps = {
   profile?: UserProfile | null;
 };
 
+type ProfilePopupPosition = {
+  bottom: number;
+  left: number;
+};
+
 const NAV_ITEMS: NavItem[] = [
   { key: "dashboard", label: "Dashboard", Icon: Home, href: "/dashboard" },
+  { key: "workspace", label: "Workspace", Icon: Columns2, href: "/workspace" },
   {
     key: "scheduling",
     label: "Scheduler",
@@ -91,6 +101,7 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 const VISIBLE_ACCOUNT_COUNT = 8;
+const PROFILE_POPUP_WIDTH = 336;
 const AVATAR_COLORS = [
   "#e8855b",
   "#7b6cd9",
@@ -112,66 +123,36 @@ const ACCOUNT_TONE_COLORS: Record<string, string> = {
 function SnowflakeLogo(props: SVGProps<SVGSVGElement>) {
   return (
     <svg
-      viewBox="0 0 31 33"
-      fill="none"
       xmlns="http://www.w3.org/2000/svg"
+      viewBox="-50 -50 100 100"
+      fill="none"
       role="img"
       aria-label="Snowflake logo"
       {...props}
     >
-      <path
-        d="M15.5 4.54004L15.5 27.8859"
-        stroke="currentColor"
-        strokeWidth="2.09452"
-      />
-      <circle
-        cx="15.4993"
-        cy="2.91824"
-        r="1.87098"
-        stroke="currentColor"
-        strokeWidth="2.09452"
-      />
-      <path
-        d="M15.499 27.6357C16.5322 27.6357 17.37 28.4736 17.3701 29.5068C17.3701 30.5401 16.5323 31.3779 15.499 31.3779C14.4658 31.3778 13.6279 30.5401 13.6279 29.5068C13.6281 28.4737 14.4659 27.6359 15.499 27.6357Z"
-        stroke="currentColor"
-        strokeWidth="2.09452"
-      />
-      <path
-        d="M5.3916 10.375L25.6098 22.048"
-        stroke="currentColor"
-        strokeWidth="2.09452"
-      />
-      <circle
-        cx="3.98639"
-        cy="9.56466"
-        r="1.87098"
-        transform="rotate(-60 3.98639 9.56466)"
-        stroke="currentColor"
-        strokeWidth="2.09452"
-      />
-      <path
-        d="M25.392 21.9232C25.9086 21.0284 27.0531 20.7218 27.9479 21.2383C28.8428 21.7549 29.1495 22.8994 28.6328 23.7943C28.1161 24.6889 26.9716 24.9957 26.0768 24.4791C25.1822 23.9624 24.8755 22.8179 25.392 21.9232Z"
-        stroke="currentColor"
-        strokeWidth="2.09452"
-      />
-      <path
-        d="M25.6084 10.375L5.39025 22.048"
-        stroke="currentColor"
-        strokeWidth="2.09452"
-      />
-      <circle
-        cx="2.91824"
-        cy="2.91824"
-        r="1.87098"
-        transform="matrix(-0.5 -0.866025 -0.866025 0.5 30.999 10.6328)"
-        stroke="currentColor"
-        strokeWidth="2.09452"
-      />
-      <path
-        d="M5.60705 21.9232C5.09044 21.0284 3.94593 20.7218 3.05109 21.2383C2.15621 21.7549 1.84957 22.8994 2.36622 23.7943C2.88294 24.6889 4.02739 24.9957 4.92218 24.4791C5.8168 23.9624 6.12347 22.8179 5.60705 21.9232Z"
-        stroke="currentColor"
-        strokeWidth="2.09452"
-      />
+      <g fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="7">
+        <g>
+          <line x1="0" y1="-40" x2="0" y2="40" />
+          <line x1="-10" y1="-30" x2="0" y2="-40" />
+          <line x1="10" y1="-30" x2="0" y2="-40" />
+          <line x1="-10" y1="30" x2="0" y2="40" />
+          <line x1="10" y1="30" x2="0" y2="40" />
+        </g>
+        <g transform="rotate(60)">
+          <line x1="0" y1="-40" x2="0" y2="40" />
+          <line x1="-10" y1="-30" x2="0" y2="-40" />
+          <line x1="10" y1="-30" x2="0" y2="-40" />
+          <line x1="-10" y1="30" x2="0" y2="40" />
+          <line x1="10" y1="30" x2="0" y2="40" />
+        </g>
+        <g transform="rotate(120)">
+          <line x1="0" y1="-40" x2="0" y2="40" />
+          <line x1="-10" y1="-30" x2="0" y2="-40" />
+          <line x1="10" y1="-30" x2="0" y2="-40" />
+          <line x1="-10" y1="30" x2="0" y2="40" />
+          <line x1="10" y1="30" x2="0" y2="40" />
+        </g>
+      </g>
     </svg>
   );
 }
@@ -297,6 +278,24 @@ function getInsightsHref(accountId?: string | null) {
   return `/analytics?${params.toString()}`;
 }
 
+function getProviderLabel(provider: string) {
+  const normalized = provider.toLowerCase();
+
+  if (normalized === "google") return "Google";
+  if (normalized === "email") return "Email and password";
+  if (normalized === "github") return "GitHub";
+
+  return provider.charAt(0).toUpperCase() + provider.slice(1);
+}
+
+function getProviderSummary(profile?: UserProfile | null) {
+  if (!profile?.providers.length) {
+    return "Email and password";
+  }
+
+  return profile.providers.map(getProviderLabel).join(", ");
+}
+
 function AccountAvatar({
   account,
   index,
@@ -308,16 +307,16 @@ function AccountAvatar({
 
   return (
     <span
-      className="flex size-[22px] shrink-0 items-center justify-center overflow-hidden rounded-md text-[10px] font-semibold text-white"
+      className="dashboard-ui-meta flex size-[30px] shrink-0 items-center justify-center overflow-hidden rounded-full font-semibold text-white"
       style={{
         background: `linear-gradient(135deg, ${color}, ${color}cc)`,
       }}
     >
       <AvatarImage
         src={account.avatarUrl}
-        alt=""
-        width={22}
-        height={22}
+        alt={account.name}
+        width={30}
+        height={30}
         className="size-full object-cover"
         fallback={getInitials(account.name, "I")}
       />
@@ -367,25 +366,15 @@ function AccountRow({
   return (
     <li
       title={isCollapsed ? `${accountTitle} ${accountHandle}` : undefined}
-      className={`group flex min-h-8 w-full items-center transition-[gap,padding,background-color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-        isCollapsed
-          ? "justify-center gap-0 px-0 py-0"
-          : "min-h-8 gap-1 rounded-md px-2 py-1.5 hover:bg-[var(--sidebar-hover)]"
-      }`}
+      className="group flex min-h-8 w-full items-center gap-1 rounded-md px-[3px] py-0 transition-colors duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
     >
       <Link
         href={getInsightsHref(account.id)}
         aria-label={`View insights for ${account.name}`}
-        className={`flex min-w-0 flex-1 items-center transition-[gap] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-          isCollapsed ? "justify-center gap-0" : "gap-2"
-        }`}
+        className="flex min-w-0 flex-1 items-center gap-1"
       >
         <span
-          className={`grid shrink-0 place-items-center transition-colors duration-200 ${
-            isCollapsed
-              ? "size-8 rounded-[5px] group-hover:bg-[var(--sidebar-hover-strong)]"
-              : ""
-          }`}
+          className="grid size-8 shrink-0 place-items-center rounded-full"
         >
           <AccountAvatar account={account} index={index} />
         </span>
@@ -394,15 +383,15 @@ function AccountRow({
             isCollapsed ? "max-w-0 opacity-0" : "max-w-[142px] opacity-100"
           }`}
         >
-          <span className="block truncate text-[12.5px] font-medium leading-4 text-[var(--sidebar-text)]">
+          <span className="dashboard-ui-label block truncate text-[var(--sidebar-text)]">
             {accountTitle}
           </span>
-          <span className="block truncate text-[10.5px] leading-4 text-[var(--sidebar-dim)]">
+          <span className="dashboard-micro-text block truncate font-normal text-[var(--sidebar-dim)]">
             {accountHandle}
           </span>
         </span>
         <span
-          className={`shrink-0 overflow-hidden whitespace-nowrap font-mono text-[9.5px] font-semibold text-[var(--sidebar-dim)] transition-[max-width,opacity] duration-300 ease-out ${
+          className={`dashboard-micro-text shrink-0 overflow-hidden whitespace-nowrap font-semibold text-[var(--sidebar-dim)] transition-[max-width,opacity] duration-300 ease-out ${
             isCollapsed ? "max-w-0 opacity-0" : "max-w-[18px] opacity-100"
           }`}
         >
@@ -446,13 +435,13 @@ function ProfileAvatar({
 
   return (
     <span
-      className="flex size-[26px] shrink-0 items-center justify-center overflow-hidden rounded-[7px] bg-[#5e6ad2] text-[10.5px] font-semibold text-white"
+      className="dashboard-ui-meta flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#5e6ad2] font-semibold text-white"
     >
       <AvatarImage
         src={profile?.avatarUrl}
         alt={`${name} profile picture`}
-        width={26}
-        height={26}
+        width={32}
+        height={32}
         className="size-full object-cover"
         fallback={getInitials(name)}
       />
@@ -548,21 +537,128 @@ export function SidebarPanel({
     () => readAppThemeCookie() ?? initialTheme,
     () => initialTheme,
   );
+  const [selectedNavKey, setSelectedNavKey] = useState<SidebarKey>(active);
+  const [isNarrowViewport, setIsNarrowViewport] = useState(false);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+  const [profilePopupPosition, setProfilePopupPosition] =
+    useState<ProfilePopupPosition | null>(null);
+  const profileButtonRef = useRef<HTMLButtonElement>(null);
+  const profilePopupRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
   const visibleAccounts = accounts.slice(0, VISIBLE_ACCOUNT_COUNT);
   const additionalAccounts = accounts.slice(VISIBLE_ACCOUNT_COUNT);
   const profileName = getProfileName(profile);
   const profileDetail = getProfileDetail(profile);
+  const isCompact = isCollapsed || isNarrowViewport;
   const isDarkTheme = theme === "dark";
+  const providerSummary = getProviderSummary(profile);
+  const activeNavIndex = Math.max(
+    0,
+    NAV_ITEMS.findIndex((item) => item.key === selectedNavKey),
+  );
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   useEffect(() => {
     applyDocumentTheme(theme);
   }, [theme]);
+
+  useEffect(() => {
+    setSelectedNavKey(active);
+  }, [active]);
+
+  useEffect(() => {
+    const query = window.matchMedia("(max-width: 767px)");
+    const syncViewport = () => setIsNarrowViewport(query.matches);
+
+    syncViewport();
+    query.addEventListener("change", syncViewport);
+
+    return () => query.removeEventListener("change", syncViewport);
+  }, []);
+
+  useEffect(() => {
+    if (!isProfileMenuOpen) return;
+
+    function updateProfilePopupPosition() {
+      const trigger = profileButtonRef.current;
+      if (!trigger) return;
+
+      const rect = trigger.getBoundingClientRect();
+      const viewportPadding = 12;
+      const preferredLeft = isCompact ? rect.right + 10 : rect.left;
+      const left = Math.min(
+        Math.max(viewportPadding, preferredLeft),
+        window.innerWidth - PROFILE_POPUP_WIDTH - viewportPadding,
+      );
+      const bottom = Math.min(
+        window.innerHeight - viewportPadding,
+        window.innerHeight - rect.top + 10,
+      );
+
+      setProfilePopupPosition({ bottom, left });
+    }
+
+    function closeOnOutsidePointer(event: PointerEvent) {
+      const target = event.target as Node | null;
+
+      if (
+        target &&
+        (profilePopupRef.current?.contains(target) ||
+          profileButtonRef.current?.contains(target))
+      ) {
+        return;
+      }
+
+      setIsProfileMenuOpen(false);
+    }
+
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsProfileMenuOpen(false);
+      }
+    }
+
+    updateProfilePopupPosition();
+    window.addEventListener("resize", updateProfilePopupPosition);
+    window.addEventListener("scroll", updateProfilePopupPosition, true);
+    window.addEventListener("pointerdown", closeOnOutsidePointer, true);
+    window.addEventListener("keydown", closeOnEscape);
+
+    return () => {
+      window.removeEventListener("resize", updateProfilePopupPosition);
+      window.removeEventListener("scroll", updateProfilePopupPosition, true);
+      window.removeEventListener("pointerdown", closeOnOutsidePointer, true);
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [isCompact, isProfileMenuOpen]);
 
   function toggleSidebar() {
     const nextCollapsed = !isCollapsed;
 
     writeSidebarCollapsedCookie(nextCollapsed);
     window.dispatchEvent(new Event(SIDEBAR_COLLAPSED_EVENT));
+  }
+
+  async function logOut() {
+    setIsLoggingOut(true);
+
+    const supabase = createClient();
+    const { error } = await supabase.auth.signOut();
+
+    if (error) {
+      window.alert(error.message);
+      setIsLoggingOut(false);
+      return;
+    }
+
+    setIsProfileMenuOpen(false);
+    router.push("/");
+    router.refresh();
   }
 
   function toggleTheme(event: MouseEvent<HTMLButtonElement>) {
@@ -604,66 +700,70 @@ export function SidebarPanel({
   return (
     <aside
       data-theme={theme}
-      className={`sticky top-0 flex h-screen shrink-0 flex-col gap-[18px] overflow-y-auto border-r border-[var(--sidebar-border)] bg-[var(--sidebar-bg)] pb-3 pt-3.5 font-inter text-[var(--sidebar-text)] transition-[width,padding,background-color,border-color,color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
-        isCollapsed ? "w-16 px-2" : "w-[232px] px-3"
+      className={`app-shell-sidebar flex shrink-0 flex-col gap-4 overflow-y-auto px-3 pb-3 pt-4 font-inter text-[var(--sidebar-text)] transition-[width,background-color,border-color,color,box-shadow] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
+        isCompact ? "w-16" : "w-[218px]"
       }`}
     >
       <header
         className={`flex h-[33px] items-center pb-1 transition-[gap,padding] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-          isCollapsed ? "justify-center gap-0 px-0" : "gap-3 px-1.5"
+          isCompact ? "gap-1 px-[3px]" : "gap-4 px-[3px]"
         }`}
       >
-        <span className="flex shrink-0 items-center justify-center text-[var(--sidebar-accent)] transition-colors duration-500">
-          <SnowflakeLogo className="h-[33px] w-[31px]" />
+        <span className="grid size-8 shrink-0 place-items-center text-[var(--sidebar-accent)] transition-colors duration-500">
+          <SnowflakeLogo className="size-8" />
         </span>
         <span
           className={`min-w-0 overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-300 ease-out ${
-            isCollapsed ? "max-w-0 opacity-0" : "max-w-[120px] opacity-100"
+            isCompact ? "max-w-0 opacity-0" : "max-w-[120px] opacity-100"
           }`}
         >
-          <span className="block truncate text-sm font-semibold leading-4 text-[var(--sidebar-text)]">
+          <span className="dashboard-ui-label block truncate font-semibold text-[var(--sidebar-text)]">
             Snowflake
           </span>
         </span>
       </header>
 
-      <nav aria-label="Primary" className="flex flex-col gap-px">
+      <nav aria-label="Primary" className="relative mt-4 flex flex-col gap-1">
+        <span
+          aria-hidden="true"
+          className="sidebar-selected-shadow absolute left-[3px] top-0 z-0 h-8 rounded-[7px] bg-[var(--sidebar-accent)] transition-[transform,width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
+          style={{
+            transform: `translateY(${activeNavIndex * 36}px)`,
+            width: isCompact ? "32px" : "calc(100% - 6px)",
+          }}
+        />
         {NAV_ITEMS.map(({ key, label, Icon, href, badge }) => {
-          const isActive = key === active;
+          const isActive = key === selectedNavKey;
 
           return (
             <Link
               key={key}
               href={href}
-              aria-current={isActive ? "page" : undefined}
-              title={isCollapsed ? label : undefined}
-              className={`group relative flex min-h-8 w-full items-center rounded-md text-[12.5px] leading-4 transition-[gap,padding,background-color,color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-                isCollapsed
-                  ? "justify-center gap-0 px-0 py-0"
-                  : "gap-[9px] px-2 py-1.5"
-              } ${
+              aria-current={key === active ? "page" : undefined}
+              onClick={() => setSelectedNavKey(key)}
+              title={isCompact ? label : undefined}
+              className={`dashboard-ui-label group relative z-10 flex min-h-8 w-full items-center gap-1 rounded-md px-[3px] py-0 transition-colors duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
                 isActive
-                  ? `${
-                      isCollapsed ? "" : "bg-[var(--sidebar-hover)]"
-                    } font-medium text-[var(--sidebar-text)]`
+                  ? "font-medium text-[var(--sidebar-active-foreground)]"
                   : `text-[var(--sidebar-muted)] ${
-                      isCollapsed ? "" : "hover:bg-[var(--sidebar-hover)]"
+                      isCompact ? "" : "hover:bg-[var(--sidebar-hover)]"
                     } hover:text-[var(--sidebar-text)]`
               }`}
             >
               <span
-                className={`relative grid shrink-0 place-items-center transition-colors duration-200 ${
-                  isCollapsed
-                    ? `size-8 rounded-[5px] ${
-                        isActive
-                          ? "bg-[var(--sidebar-hover-strong)]"
-                          : "group-hover:bg-[var(--sidebar-hover-strong)]"
-                      }`
+                className={`relative grid size-8 shrink-0 place-items-center rounded-[5px] transition-colors duration-200 ${
+                  !isActive && isCompact
+                    ? "group-hover:bg-[var(--sidebar-hover-strong)]"
                     : ""
                 }`}
               >
-                <Icon className="size-[15px]" strokeWidth={1.7} />
-                {badge && isCollapsed ? (
+                <Icon
+                  className={`size-[18px] translate-y-[1px] transition-colors duration-300 ${
+                    isActive ? "text-[var(--sidebar-active-foreground)]" : ""
+                  }`}
+                  strokeWidth={1.8}
+                />
+                {badge && isCompact ? (
                   <span
                     aria-hidden="true"
                     className="absolute -right-1 -top-1 size-1.5 rounded-full bg-[var(--sidebar-dim)]"
@@ -672,15 +772,15 @@ export function SidebarPanel({
               </span>
               <span
                 className={`truncate transition-[max-width,opacity] duration-300 ease-out ${
-                  isCollapsed
+                  isCompact
                     ? "max-w-0 opacity-0"
                     : "max-w-[110px] opacity-100"
                 }`}
               >
                 {label}
               </span>
-              {badge && !isCollapsed ? (
-                <span className="ml-auto rounded-full bg-[var(--sidebar-hover-strong)] px-1.5 py-px text-[10.5px] leading-4 text-[var(--sidebar-muted)] transition-colors duration-500">
+              {badge && !isCompact ? (
+                <span className="dashboard-micro-text ml-auto rounded-full bg-[var(--sidebar-hover-strong)] px-1.5 py-px text-[var(--sidebar-muted)] transition-colors duration-500">
                   {badge}
                 </span>
               ) : null}
@@ -689,79 +789,36 @@ export function SidebarPanel({
         })}
       </nav>
 
-      <section aria-label="Accounts" className="flex flex-col gap-1">
-        <div
-          className={`flex items-center justify-between overflow-hidden px-2 text-[10.5px] font-medium uppercase text-[var(--sidebar-dim)] transition-[height,margin,opacity,color] duration-300 ease-out ${
-            isCollapsed ? "mb-0 h-0 opacity-0" : "mb-1 h-4 opacity-100"
-          }`}
-        >
-          <h2>Accounts</h2>
-          <span>{accounts.length}</span>
-        </div>
-
-        <Link
-          href={getInsightsHref()}
-          title={isCollapsed ? "All accounts" : undefined}
-          className={`group flex min-h-8 w-full items-center transition-[gap,padding,background-color,box-shadow] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-            isCollapsed
-              ? "justify-center gap-0 px-0 py-0"
-              : "min-h-8 gap-2 rounded-md bg-[var(--sidebar-hover)] px-2 py-1.5 shadow-[inset_0_0_0_1px_var(--sidebar-border)]"
-          }`}
-        >
-          <span
-            className={`grid shrink-0 place-items-center transition-colors duration-200 ${
-              isCollapsed
-                ? "size-8 rounded-[5px] group-hover:bg-[var(--sidebar-hover-strong)]"
-                : ""
-            }`}
-          >
-            <span className="grid size-[22px] shrink-0 place-items-center rounded-md border border-dashed border-[var(--sidebar-dashed)] text-[var(--sidebar-muted)] transition-colors duration-500">
-              <LayoutGrid className="size-[13px]" strokeWidth={1.7} />
-            </span>
-          </span>
-          <span
-            className={`min-w-0 flex-1 overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-300 ease-out ${
-              isCollapsed ? "max-w-0 opacity-0" : "max-w-[132px] opacity-100"
-            }`}
-          >
-            <span className="block truncate text-[12.5px] font-medium leading-4 text-[var(--sidebar-text)]">
-              All accounts
-            </span>
-            <span className="block text-[10.5px] leading-4 text-[var(--sidebar-dim)]">
-              {accounts.length} connected
-            </span>
-          </span>
-        </Link>
-
-        {accounts.length === 0 && !isCollapsed ? (
-          <p className="px-2 py-3 text-[12.5px] leading-5 text-[var(--sidebar-dim)]">
+      <section aria-label="Accounts" className="flex flex-col gap-4">
+        {accounts.length === 0 && !isCompact ? (
+          <p className="dashboard-ui-label px-2 py-3 text-[var(--sidebar-dim)]">
             No accounts connected yet
           </p>
         ) : (
-          <ul className="flex flex-col gap-px">
+          <ul className="flex flex-col gap-1">
             {visibleAccounts.map((account, index) => (
               <AccountRow
                 key={account.id}
                 account={account}
                 index={index}
-                isCollapsed={isCollapsed}
+                isCollapsed={isCompact}
               />
             ))}
           </ul>
         )}
 
-        {additionalAccounts.length > 0 && isCollapsed ? (
+        {additionalAccounts.length > 0 && isCompact ? (
           <div
             title={`${additionalAccounts.length} more connected accounts`}
-            className="mx-auto flex size-8 items-center justify-center rounded-[5px] text-[11px] font-medium text-[var(--sidebar-dim)] transition-colors hover:bg-[var(--sidebar-hover-strong)]"
+            className="dashboard-ui-meta mx-auto flex size-8 items-center justify-center rounded-[5px] text-[var(--sidebar-dim)]"
           >
             +{additionalAccounts.length}
           </div>
         ) : null}
 
-        {additionalAccounts.length > 0 && !isCollapsed ? (
+        {additionalAccounts.length > 0 && !isCompact ? (
           <details className="group">
-            <summary className="flex min-h-8 cursor-pointer list-none items-center gap-2 rounded-md px-2 py-1.5 text-[12.5px] text-[var(--sidebar-muted)] transition-colors hover:bg-[var(--sidebar-hover)] hover:text-[var(--sidebar-text)] [&::-webkit-details-marker]:hidden">
+            <summary className="dashboard-ui-label flex min-h-8 cursor-pointer list-none items-center gap-2 rounded-md px-2 py-1.5 text-[var(--sidebar-muted)] transition-colors hover:bg-[var(--sidebar-hover)] hover:text-[var(--sidebar-text)] [&::-webkit-details-marker]:hidden">
               <span className="grid size-[22px] shrink-0 place-items-center rounded-md border border-dashed border-[var(--sidebar-dashed)] text-[var(--sidebar-muted)]">
                 <ChevronDown
                   className="size-[13px] transition-transform group-open:rotate-180"
@@ -793,20 +850,20 @@ export function SidebarPanel({
         aria-label={isDarkTheme ? "Use light mode" : "Use dark mode"}
         onClick={toggleTheme}
         title={
-          isCollapsed ? (isDarkTheme ? "Light mode" : "Dark mode") : undefined
+          isCompact ? (isDarkTheme ? "Light mode" : "Dark mode") : undefined
         }
-        className={`group mt-auto flex min-h-8 w-full items-center text-[12.5px] text-[var(--sidebar-muted)] transition-[gap,padding,background-color,color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:text-[var(--sidebar-text)] ${
-          isCollapsed
-            ? "justify-center gap-0 px-0 py-0"
-            : "gap-2 rounded-md px-2 py-1.5 hover:bg-[var(--sidebar-hover)]"
+        className={`dashboard-ui-label group flex min-h-8 w-full items-center text-[var(--sidebar-muted)] transition-colors duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:text-[var(--sidebar-text)] ${
+          isCompact
+            ? "gap-1 px-[3px] py-0"
+            : "gap-1 rounded-md px-[3px] py-0 hover:bg-[var(--sidebar-hover)]"
         }`}
       >
         <span
           data-theme-toggle-origin
-          className={`relative grid shrink-0 place-items-center overflow-hidden transition-colors duration-200 ${
-            isCollapsed
-              ? "size-8 rounded-[5px] group-hover:bg-[var(--sidebar-hover-strong)]"
-              : "size-[22px]"
+          className={`relative grid size-8 shrink-0 place-items-center overflow-hidden rounded-[5px] transition-colors duration-200 ${
+            isCompact
+              ? "group-hover:bg-[var(--sidebar-hover-strong)]"
+              : ""
           }`}
         >
           <Sun
@@ -828,50 +885,33 @@ export function SidebarPanel({
         </span>
         <span
           className={`overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-300 ease-out ${
-            isCollapsed ? "max-w-0 opacity-0" : "max-w-[88px] opacity-100"
+            isCompact ? "max-w-0 opacity-0" : "max-w-[92px] opacity-100"
           }`}
         >
-          Dark mode
-        </span>
-        <span
-          aria-hidden="true"
-          className={`relative h-5 w-9 shrink-0 overflow-hidden rounded-full bg-[var(--sidebar-switch-bg)] transition-[max-width,opacity,background-color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-            isCollapsed ? "ml-0 max-w-0 opacity-0" : "ml-auto max-w-9 opacity-100"
-          }`}
-        >
-          <span
-            className={`absolute left-0.5 top-0.5 z-10 size-4 rounded-full bg-[var(--sidebar-switch-knob)] shadow-sm transition-[transform,background-color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-              isDarkTheme ? "translate-x-4" : "translate-x-0"
-            }`}
-          />
-          <span
-            className={`absolute inset-0 rounded-full bg-[var(--sidebar-switch-active)] transition-opacity duration-300 ${
-              isDarkTheme ? "opacity-35" : "opacity-0"
-            }`}
-          />
+          {isDarkTheme ? "Dark mode" : "Light mode"}
         </span>
       </button>
 
       <button
         type="button"
-        aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-        aria-expanded={!isCollapsed}
+        aria-label={isCompact ? "Expand sidebar" : "Collapse sidebar"}
+        aria-expanded={!isCompact}
         onClick={toggleSidebar}
-        title={isCollapsed ? "Expand sidebar" : undefined}
-        className={`group flex min-h-8 w-full items-center text-[12.5px] text-[var(--sidebar-muted)] transition-[gap,padding,background-color,color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:text-[var(--sidebar-text)] ${
-          isCollapsed
-            ? "justify-center gap-0 px-0 py-0"
-            : "gap-2 rounded-md px-2 py-1.5 hover:bg-[var(--sidebar-hover)]"
+        title={isCompact ? "Expand sidebar" : undefined}
+        className={`dashboard-ui-label group flex min-h-8 w-full items-center text-[var(--sidebar-muted)] transition-colors duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:text-[var(--sidebar-text)] ${
+          isCompact
+            ? "gap-1 px-[3px] py-0"
+            : "gap-1 rounded-md px-[3px] py-0 hover:bg-[var(--sidebar-hover)]"
         }`}
       >
         <span
-          className={`grid shrink-0 place-items-center transition-colors duration-200 ${
-            isCollapsed
-              ? "size-8 rounded-[5px] group-hover:bg-[var(--sidebar-hover-strong)]"
+          className={`grid size-8 shrink-0 place-items-center rounded-[5px] transition-colors duration-200 ${
+            isCompact
+              ? "group-hover:bg-[var(--sidebar-hover-strong)]"
               : ""
           }`}
         >
-          {isCollapsed ? (
+          {isCompact ? (
             <PanelLeftOpen className="size-[15px]" strokeWidth={1.7} />
           ) : (
             <PanelLeftClose className="size-[15px]" strokeWidth={1.7} />
@@ -879,40 +919,149 @@ export function SidebarPanel({
         </span>
         <span
           className={`overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-300 ease-out ${
-            isCollapsed ? "max-w-0 opacity-0" : "max-w-[132px] opacity-100"
+            isCompact ? "max-w-0 opacity-0" : "max-w-[132px] opacity-100"
           }`}
         >
           Collapse sidebar
         </span>
       </button>
 
+      {isClient && isProfileMenuOpen
+        ? createPortal(
+          <div
+            ref={profilePopupRef}
+            role="dialog"
+            aria-modal="false"
+            aria-labelledby="sidebar-account-dialog-title"
+            className="account-popup-panel fixed z-[1000] max-h-[calc(100vh-24px)] overflow-y-auto rounded-[16px] border border-line bg-[var(--app-panel-bg)] p-4 text-left text-ink"
+            style={{
+              bottom: profilePopupPosition?.bottom ?? 16,
+              left: profilePopupPosition?.left ?? 16,
+              width: PROFILE_POPUP_WIDTH,
+            }}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p
+                  id="sidebar-account-dialog-title"
+                  className="text-[17px] font-semibold leading-tight tracking-[-0.015em] text-ink"
+                >
+                  Account
+                </p>
+                <p className="dashboard-section-subtitle mt-1 text-muted">
+                  Your signed-in Social Manager web account.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsProfileMenuOpen(false)}
+                aria-label="Close account popup"
+                className="grid size-8 shrink-0 place-items-center rounded-lg text-muted transition hover:bg-card hover:text-ink"
+              >
+                <X className="size-4" strokeWidth={1.8} />
+              </button>
+            </div>
+
+            <div className="mt-4 flex items-center gap-3 rounded-[12px] bg-card px-3 py-3">
+              <span className="grid size-9 shrink-0 place-items-center rounded-full bg-paper">
+                <ProfileAvatar profile={profile} />
+              </span>
+              <div className="min-w-0">
+                <p className="dashboard-ui-label truncate text-ink">
+                  {profileName}
+                </p>
+                <p className="dashboard-ui-meta truncate font-normal text-muted">{profileDetail}</p>
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <p className="dashboard-ui-label text-muted">
+                Known connections
+              </p>
+              <div className="mt-2 grid gap-2">
+                <div className="rounded-[10px] bg-card px-3 py-2.5">
+                  <p className="dashboard-ui-label text-ink">
+                    Social Manager Dashboard
+                  </p>
+                  <p className="dashboard-ui-meta mt-0.5 font-normal text-muted">
+                    Connected as {profileDetail}
+                  </p>
+                </div>
+                <div className="rounded-[10px] bg-card px-3 py-2.5">
+                  <p className="dashboard-ui-label text-ink">
+                    {providerSummary}
+                  </p>
+                  <p className="dashboard-ui-meta mt-0.5 font-normal text-muted">
+                    Authentication provider
+                  </p>
+                </div>
+                <div className="rounded-[10px] bg-card px-3 py-2.5">
+                  <p className="dashboard-ui-label text-ink">
+                    Current browser
+                  </p>
+                  <p className="dashboard-ui-meta mt-0.5 font-normal text-muted">
+                    Active session on this device
+                  </p>
+                </div>
+              </div>
+              <p className="dashboard-ui-meta mt-3 font-normal text-muted">
+                Other browser/device sessions are not tracked by this app yet.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={logOut}
+              disabled={isLoggingOut}
+              className="dashboard-ui-label mt-4 flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-line bg-paper text-danger transition hover:bg-red-50 disabled:pointer-events-none disabled:opacity-60"
+            >
+              {isLoggingOut ? (
+                <LoaderCircle className="size-4 animate-spin" strokeWidth={1.8} />
+              ) : (
+                <LogOut className="size-4" strokeWidth={1.8} />
+              )}
+              Log out
+            </button>
+          </div>
+          ,
+          document.body,
+        )
+        : null}
+
       <footer
-        className={`flex items-center border-t border-[var(--sidebar-border)] pb-1 pt-3 transition-[gap,padding,border-color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-          isCollapsed ? "justify-center gap-0 px-0" : "gap-2 px-1.5"
+        className={`mx-auto mt-auto w-full transition-[background-color,border-color,padding] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+          isCompact
+            ? "p-0"
+            : "sidebar-profile-card-shadow rounded-[12px] border border-line bg-paper p-[3px]"
         }`}
       >
-        <ProfileAvatar profile={profile} />
-        <span
-          className={`min-w-0 flex-1 overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-300 ease-out ${
-            isCollapsed ? "max-w-0 opacity-0" : "max-w-[140px] opacity-100"
+        <button
+          ref={profileButtonRef}
+          type="button"
+          onClick={() => setIsProfileMenuOpen((open) => !open)}
+          aria-haspopup="dialog"
+          aria-expanded={isProfileMenuOpen}
+          aria-label="Open account popup"
+          className={`flex w-full items-center gap-1 rounded-lg px-0 py-0 text-left ${
+            isCompact ? "justify-center" : ""
           }`}
         >
-          <span className="block truncate text-xs font-medium leading-4 text-[var(--sidebar-text)]">
-            {profileName}
+          <span className="grid size-8 shrink-0 place-items-center">
+            <ProfileAvatar profile={profile} />
           </span>
-          <span className="block truncate text-[10.5px] leading-4 text-[var(--sidebar-dim)]">
-            {profileDetail}
-          </span>
-        </span>
-        {isCollapsed ? null : (
-          <button
-            type="button"
-            aria-label="Settings"
-            className="grid size-7 shrink-0 place-items-center rounded-md text-[var(--sidebar-muted)] transition-colors hover:bg-[var(--sidebar-hover)] hover:text-[var(--sidebar-text)]"
+          <span
+            className={`min-w-0 flex-1 overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-300 ease-out ${
+              isCompact ? "max-w-0 opacity-0" : "max-w-[150px] opacity-100"
+            }`}
           >
-            <Settings className="size-3.5" strokeWidth={1.7} />
-          </button>
-        )}
+            <span className="dashboard-ui-label block truncate text-[var(--sidebar-text)]">
+              {profileName}
+            </span>
+            <span className="dashboard-micro-text block truncate font-normal text-[var(--sidebar-dim)]">
+              {profileDetail}
+            </span>
+          </span>
+        </button>
       </footer>
     </aside>
   );

@@ -23,6 +23,8 @@ model User {
   googleIntegration     GoogleIntegration?
   contentMetadataFields ContentMetadataField[]
   aiBatchReports        AiBatchReport[]
+  workspaceBoardState   WorkspaceBoardState?
+  workspaceFolders      WorkspaceFolder[]
 
   @@map("users")
 }
@@ -47,6 +49,11 @@ model InstagramAccount {
   displayName          String?              @map("display_name")
   accountType          InstagramAccountType @map("account_type")
   avatarUrl            String?              @map("avatar_url")
+  bannerUrl            String?              @map("banner_url")
+  bannerStoragePath    String?              @map("banner_storage_path")
+  accentColor          String?              @map("accent_color")
+  nickname             String?
+  note                 String?
   accessTokenEncrypted String               @map("access_token_encrypted")
   pageId               String?              @map("page_id")
   isActive             Boolean              @default(true) @map("is_active")
@@ -64,6 +71,8 @@ model InstagramAccount {
   aiKnowledge          AiKnowledge[]
   aiProcedures         AiProcedure[]
   aiBatchReports       AiBatchReport[]
+  workspaceTasks       WorkspaceTask[]
+  workspaceTaskAccounts WorkspaceTaskAccount[]
   user                 User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   webhookEvents        WebhookEvent[]
 
@@ -193,6 +202,65 @@ model ContentPostMetadataValue {
   @@unique([contentPostId, fieldId])
   @@index([fieldId])
   @@map("content_post_metadata_values")
+}
+
+model WorkspaceBoardState {
+  userId        String   @id @map("user_id")
+  initializedAt DateTime @default(now()) @map("initialized_at")
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("workspace_board_states")
+}
+
+model WorkspaceFolder {
+  id        String          @id @default(uuid())
+  userId    String          @map("user_id")
+  name      String
+  sortOrder Int             @default(0) @map("sort_order")
+  createdAt DateTime        @default(now()) @map("created_at")
+  updatedAt DateTime        @updatedAt @map("updated_at")
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tasks     WorkspaceTask[]
+
+  @@index([userId, sortOrder])
+  @@map("workspace_folders")
+}
+
+model WorkspaceTask {
+  id                 String            @id @default(uuid())
+  folderId           String            @map("folder_id")
+  instagramAccountId String?           @map("instagram_account_id")
+  taskName           String            @map("task_name")
+  assignee           String
+  urgency            String            @default("Medium")
+  status             String            @default("Not started")
+  deadline           DateTime
+  briefExecution     String            @map("brief_execution") @db.Text
+  notes              String            @db.Text
+  inputFrom          String            @map("input_from")
+  sortOrder          Int               @default(0) @map("sort_order")
+  createdAt          DateTime          @default(now()) @map("created_at")
+  updatedAt          DateTime          @updatedAt @map("updated_at")
+  folder             WorkspaceFolder   @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  instagramAccount   InstagramAccount? @relation(fields: [instagramAccountId], references: [id], onDelete: SetNull)
+  taskAccounts       WorkspaceTaskAccount[]
+
+  @@index([folderId, sortOrder])
+  @@index([instagramAccountId])
+  @@index([deadline])
+  @@map("workspace_tasks")
+}
+
+model WorkspaceTaskAccount {
+  taskId             String           @map("task_id")
+  instagramAccountId String           @map("instagram_account_id")
+  createdAt          DateTime         @default(now()) @map("created_at")
+  task               WorkspaceTask    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  instagramAccount   InstagramAccount @relation(fields: [instagramAccountId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, instagramAccountId])
+  @@index([instagramAccountId])
+  @@map("workspace_task_accounts")
 }
 
 model PostMedia {

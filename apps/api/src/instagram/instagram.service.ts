@@ -21,6 +21,7 @@ import {
   WebhookProcessingStatus,
   WebhookSource,
 } from '@social-manager/database';
+import { MediaService } from '../media/media.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AddInstagramAccountDto } from './dto/add-instagram-account.dto.js';
 import { CompleteInstagramOAuthDto } from './dto/complete-instagram-oauth.dto.js';
@@ -42,6 +43,11 @@ const SAFE_INSTAGRAM_ACCOUNT_SELECT = {
   displayName: true,
   accountType: true,
   avatarUrl: true,
+  bannerUrl: true,
+  bannerStoragePath: true,
+  accentColor: true,
+  nickname: true,
+  note: true,
   pageId: true,
   isActive: true,
   tokenExpiresAt: true,
@@ -131,6 +137,7 @@ const BACKFILL_INSIGHT_METRICS = [
 const DEFAULT_BACKFILL_MEDIA_LIMIT = 250;
 const MAX_BACKFILL_MEDIA_LIMIT = 1000;
 const BACKFILL_PAGE_SIZE = 100;
+const PROFILE_REFRESH_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
 type DashboardInsightMetric = (typeof DASHBOARD_INSIGHT_METRICS)[number];
 type DashboardMetric = DashboardInsightMetric | 'likes';
@@ -324,6 +331,7 @@ export class InstagramService {
   constructor(
     private prisma: PrismaService,
     private config: ConfigService,
+    private media: MediaService,
     @Optional() private readonly aiAutoAnalysis: AiAutoAnalysisService | null,
   ) {}
 
@@ -339,20 +347,22 @@ export class InstagramService {
       select: SAFE_INSTAGRAM_ACCOUNT_SELECT,
     });
 
-    const missingProfileIds = accounts
-      .filter((account) => !account.avatarUrl || !account.displayName)
+    const withBanners = await this.attachSignedBanners(accounts);
+
+    const profileSyncIds = withBanners
+      .filter((account) => this.shouldRefreshAccountProfile(account))
       .map((account) => account.id);
 
-    if (missingProfileIds.length === 0) return accounts;
+    if (profileSyncIds.length === 0) return withBanners;
 
     const syncedProfiles = await this.syncMissingAccountProfiles(
       userId,
-      missingProfileIds,
+      profileSyncIds,
     );
 
-    if (syncedProfiles.size === 0) return accounts;
+    if (syncedProfiles.size === 0) return withBanners;
 
-    return accounts.map((account) => {
+    return withBanners.map((account) => {
       const syncedProfile = syncedProfiles.get(account.id);
 
       return {
@@ -361,6 +371,182 @@ export class InstagramService {
         displayName: syncedProfile?.displayName ?? account.displayName,
       };
     });
+  }
+
+  private async attachSignedBanners<
+    T extends { bannerStoragePath: string | null; bannerUrl: string | null },
+  >(accounts: T[]): Promise<T[]> {
+    return Promise.all(
+      accounts.map(async (account) => {
+        if (!account.bannerStoragePath) return account;
+        try {
+          const signed = await this.media.createSignedPreviewUrl(
+            account.bannerStoragePath,
+          );
+          if (!signed) return account;
+          return { ...account, bannerUrl: signed };
+        } catch {
+          return account;
+        }
+      }),
+    );
+  }
+
+  private shouldRefreshAccountProfile(
+    account: Pick<
+      SafeInstagramAccount,
+      'avatarUrl' | 'displayName' | 'updatedAt'
+    >,
+  ) {
+    if (!account.avatarUrl || !account.displayName) return true;
+    if (!this.isRefreshableRemoteAvatar(account.avatarUrl)) return false;
+
+    const updatedAt = account.updatedAt.getTime();
+    if (Number.isNaN(updatedAt)) return true;
+
+    return Date.now() - updatedAt > PROFILE_REFRESH_INTERVAL_MS;
+  }
+
+  private isRefreshableRemoteAvatar(avatarUrl: string) {
+    try {
+      const hostname = new URL(avatarUrl).hostname;
+
+      return (
+        hostname === 'cdninstagram.com' ||
+        hostname.endsWith('.cdninstagram.com') ||
+        hostname === 'fbcdn.net' ||
+        hostname.endsWith('.fbcdn.net') ||
+        hostname === 'fbsbx.com' ||
+        hostname.endsWith('.fbsbx.com')
+      );
+    } catch {
+      return true;
+    }
+  }
+
+  async updatePersonalization(
+    userId: string,
+    accountId: string,
+    data: {
+      bannerUrl?: string | null;
+      accentColor?: string | null;
+      nickname?: string | null;
+      note?: string | null;
+    },
+  ) {
+    const account = await this.prisma.instagramAccount.findFirst({
+      where: { id: accountId, userId },
+      select: { id: true },
+    });
+
+    if (!account) {
+      throw new NotFoundException('Instagram account was not found.');
+    }
+
+    const updated = await this.prisma.instagramAccount.update({
+      where: { id: accountId },
+      data: {
+        bannerUrl: data.bannerUrl ?? null,
+        accentColor: data.accentColor ?? null,
+        nickname: data.nickname ?? null,
+        note: data.note ?? null,
+      },
+      select: SAFE_INSTAGRAM_ACCOUNT_SELECT,
+    });
+
+    const [withBanner] = await this.attachSignedBanners([updated]);
+    return withBanner;
+  }
+
+  async createBannerUploadUrl(
+    user: AuthUser,
+    accountId: string,
+    file: { name: string; mimeType: string; fileSize: number },
+  ) {
+    const account = await this.prisma.instagramAccount.findFirst({
+      where: { id: accountId, userId: user.userId },
+      select: { id: true },
+    });
+    if (!account) {
+      throw new NotFoundException('Instagram account was not found.');
+    }
+
+    const { uploads } = await this.media.createUploadUrls(user, [file]);
+    const upload = uploads[0];
+    if (!upload) {
+      throw new InternalServerErrorException('Failed to create banner upload URL');
+    }
+    return upload;
+  }
+
+  async confirmBannerUpload(
+    userId: string,
+    accountId: string,
+    storagePath: string,
+  ) {
+    if (!storagePath.startsWith(`${userId}/`)) {
+      throw new BadRequestException('Invalid banner path');
+    }
+
+    const account = await this.prisma.instagramAccount.findFirst({
+      where: { id: accountId, userId },
+      select: { id: true, bannerStoragePath: true },
+    });
+    if (!account) {
+      throw new NotFoundException('Instagram account was not found.');
+    }
+
+    if (
+      account.bannerStoragePath &&
+      account.bannerStoragePath !== storagePath
+    ) {
+      try {
+        await this.media.deleteByPath(account.bannerStoragePath);
+      } catch (error) {
+        this.logger.warn(
+          `Could not remove previous banner ${account.bannerStoragePath}: ${(error as Error).message}`,
+        );
+      }
+    }
+
+    const updated = await this.prisma.instagramAccount.update({
+      where: { id: accountId },
+      data: {
+        bannerStoragePath: storagePath,
+        bannerUrl: null,
+      },
+      select: SAFE_INSTAGRAM_ACCOUNT_SELECT,
+    });
+
+    const [withBanner] = await this.attachSignedBanners([updated]);
+    return withBanner;
+  }
+
+  async clearBanner(userId: string, accountId: string) {
+    const account = await this.prisma.instagramAccount.findFirst({
+      where: { id: accountId, userId },
+      select: { id: true, bannerStoragePath: true },
+    });
+    if (!account) {
+      throw new NotFoundException('Instagram account was not found.');
+    }
+
+    if (account.bannerStoragePath) {
+      try {
+        await this.media.deleteByPath(account.bannerStoragePath);
+      } catch (error) {
+        this.logger.warn(
+          `Could not remove banner ${account.bannerStoragePath}: ${(error as Error).message}`,
+        );
+      }
+    }
+
+    const updated = await this.prisma.instagramAccount.update({
+      where: { id: accountId },
+      data: { bannerStoragePath: null, bannerUrl: null },
+      select: SAFE_INSTAGRAM_ACCOUNT_SELECT,
+    });
+    return updated;
   }
 
   async removeAccount(userId: string, accountId: string) {
@@ -1328,11 +1514,14 @@ export class InstagramService {
           );
           const data: Prisma.InstagramAccountUpdateInput = {};
 
-          if (!account.avatarUrl && profile.avatarUrl) {
+          if (profile.avatarUrl && profile.avatarUrl !== account.avatarUrl) {
             data.avatarUrl = profile.avatarUrl;
           }
 
-          if (!account.displayName && profile.displayName) {
+          if (
+            profile.displayName &&
+            profile.displayName !== account.displayName
+          ) {
             data.displayName = profile.displayName;
           }
 

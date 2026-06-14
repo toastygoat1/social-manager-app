@@ -1,43 +1,24 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  CalendarPlus,
+  ChevronLeft,
+  ChevronRight,
+  Clock3,
+  FileText,
+  Loader2,
+  X,
+} from "lucide-react";
+import { apiFetchBrowser, ApiError } from "@/lib/api/browser-client";
 import type { CalendarMonth } from "./data";
-import { ConnectGoogleButton } from "./ConnectGoogleButton";
-import { apiFetchBrowser } from "@/lib/api/browser-client";
 
-const WEEKDAYS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
-const MONTHS = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
-const MONTHS_SHORT = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-];
+type CalendarCardProps = {
+  calendar: CalendarMonth | null;
+  todayIso: string;
+};
 
-type ViewMode = "month" | "week";
-
-type CalEvent = {
+type GoogleCalendarEvent = {
   id: string;
   summary: string;
   start: string | null;
@@ -45,446 +26,1245 @@ type CalEvent = {
   allDay: boolean;
 };
 
-function pad2(n: number): string {
-  return String(n).padStart(2, "0");
-}
+type ViewMode = "month" | "week";
 
-function dateKey(d: Date): string {
-  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-}
-
-function addDays(d: Date, days: number): Date {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate() + days);
-}
-
-function startOfWeek(d: Date): Date {
-  return addDays(d, -d.getDay());
-}
-
-function eventDateKey(evt: CalEvent): string | null {
-  if (!evt.start) return null;
-  if (evt.allDay) return evt.start.slice(0, 10);
-  const d = new Date(evt.start);
-  return dateKey(d);
-}
-
-function ChevronLeft() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
-      <path d="M15 6l-6 6 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function ChevronRight() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
-      <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function ChevronDown({ open }: { open: boolean }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      className={`h-3 w-3 transition-transform ${open ? "rotate-180" : ""}`}
-    >
-      <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function CalendarIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
-      <rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="1.5" />
-      <path d="M3 9h18M8 3v4M16 3v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function GridIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
-      <rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="1.5" />
-      <rect x="14" y="3" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="1.5" />
-      <rect x="3" y="14" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="1.5" />
-      <rect x="14" y="14" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="1.5" />
-    </svg>
-  );
-}
-
-type GridCell = {
+type WeekEvent = {
+  id: string;
   day: number;
-  muted: boolean;
-  isEvent: boolean;
-  isToday: boolean;
+  title: string;
+  time: string;
+  start: number;
+  end: number;
+  color: string;
+  background: string;
 };
 
-function buildGrid(
-  year: number,
-  month: number,
-  eventDays: Set<number>,
-  today: Date,
-): GridCell[] {
-  const firstDay = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const prevMonthLastDay = new Date(year, month, 0).getDate();
-  const isCurrentMonth =
-    today.getFullYear() === year && today.getMonth() === month;
-
-  const cells: GridCell[] = [];
-  for (let i = firstDay - 1; i >= 0; i--) {
-    cells.push({ day: prevMonthLastDay - i, muted: true, isEvent: false, isToday: false });
-  }
-  for (let d = 1; d <= daysInMonth; d++) {
-    cells.push({
-      day: d,
-      muted: false,
-      isEvent: eventDays.has(d),
-      isToday: isCurrentMonth && today.getDate() === d,
-    });
-  }
-  let nextDay = 1;
-  const total = 42;
-  while (cells.length < total) {
-    cells.push({ day: nextDay++, muted: true, isEvent: false, isToday: false });
-  }
-  return cells;
-}
-
-function weekRangeLabel(weekStart: Date): string {
-  const end = addDays(weekStart, 6);
-  const startMonth = MONTHS_SHORT[weekStart.getMonth()];
-  const endMonth = MONTHS_SHORT[end.getMonth()];
-  if (weekStart.getMonth() === end.getMonth()) {
-    return `${startMonth} ${weekStart.getDate()} – ${end.getDate()}, ${end.getFullYear()}`;
-  }
-  return `${startMonth} ${weekStart.getDate()} – ${endMonth} ${end.getDate()}, ${end.getFullYear()}`;
-}
-
-type CalendarCardProps = {
-  calendar: CalendarMonth | null;
+type MonthEvent = {
+  id: string;
+  dateKey: string;
+  title: string;
+  time: string;
+  color: string;
+  background: string;
 };
 
-export function CalendarCard({ calendar }: CalendarCardProps) {
+type MonthCell = {
+  date: Date;
+  key: string;
+  outside: boolean;
+};
+
+type CreateEventDraft = {
+  summary: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  allDay: boolean;
+  description: string;
+};
+
+type CreateEventResponse = {
+  event: GoogleCalendarEvent;
+};
+
+const START_HOUR = 0;
+const END_HOUR = 24;
+const HOUR_HEIGHT = 70;
+const CALENDAR_HEADER_HEIGHT = 92;
+const CALENDAR_DAY_HEADER_HEIGHT = 40;
+const CALENDAR_BODY_HEIGHT = 430;
+export const CALENDAR_CARD_HEIGHT =
+  CALENDAR_HEADER_HEIGHT + CALENDAR_DAY_HEADER_HEIGHT + CALENDAR_BODY_HEIGHT;
+const TIME_RAIL_WIDTH = 70;
+const VISIBLE_DAY_COUNT = 7;
+const WEEK_START = new Date(2026, 4, 17);
+const MONTH_WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const HOURS = Array.from(
+  { length: END_HOUR - START_HOUR + 1 },
+  (_, index) => START_HOUR + index,
+);
+const EVENT_PALETTE = [
+  { color: "#8B75FE", background: "#F2EFFF" },
+  { color: "#D0525C", background: "#FFF0F0" },
+  { color: "#3F9BEA", background: "#EEF8FF" },
+  { color: "#4E8D93", background: "#F0FAFA" },
+  { color: "#FA962F", background: "#FFF7E7" },
+];
+const DESIGN_EVENTS: WeekEvent[] = [
+  {
+    id: "weekly-kickoff",
+    day: 1,
+    title: "Weekly kickoff",
+    time: "8:30 AM",
+    start: 8.5,
+    end: 9.5,
+    color: "#8B75FE",
+    background: "#F2EFFF",
+  },
+  {
+    id: "fintech-wireframes",
+    day: 1,
+    title: "Fintech app wireframes",
+    time: "10:00 AM",
+    start: 10,
+    end: 11.55,
+    color: "#4E8D93",
+    background: "#F0FAFA",
+  },
+  {
+    id: "invoice",
+    day: 1,
+    title: "Invoice: Acme Co.",
+    time: "2:30 PM",
+    start: 13.5,
+    end: 14.35,
+    color: "#FA962F",
+    background: "#FFF7E7",
+  },
+  {
+    id: "client-call",
+    day: 2,
+    title: "Client call: John/Novi",
+    time: "9:00 AM",
+    start: 9,
+    end: 9.75,
+    color: "#D0525C",
+    background: "#FFF0F0",
+  },
+  {
+    id: "design-review",
+    day: 2,
+    title: "Design review Fintech",
+    time: "12:00 PM",
+    start: 11.65,
+    end: 13.4,
+    color: "#4E8D93",
+    background: "#F0FAFA",
+  },
+  {
+    id: "deep-work",
+    day: 3,
+    title: "Deep work: UI kit",
+    time: "9:00 AM",
+    start: 9,
+    end: 10.45,
+    color: "#3F9BEA",
+    background: "#EEF8FF",
+  },
+  {
+    id: "lunch",
+    day: 3,
+    title: "Lunch w/Mia",
+    time: "12:30 PM",
+    start: 12.5,
+    end: 13.5,
+    color: "#FF4F2E",
+    background: "#FFF6ED",
+  },
+  {
+    id: "figma-session",
+    day: 4,
+    title: "Figma session: SaaS dashboard",
+    time: "8:30 AM",
+    start: 8.5,
+    end: 9.9,
+    color: "#4E8D93",
+    background: "#F0FAFA",
+  },
+  {
+    id: "feedback",
+    day: 4,
+    title: "Feedback call: Orion",
+    time: "10:30 AM",
+    start: 10.5,
+    end: 11.8,
+    color: "#D0525C",
+    background: "#FFF0F0",
+  },
+  {
+    id: "bookkeeping",
+    day: 4,
+    title: "Bookkeeping",
+    time: "1:00 PM",
+    start: 13,
+    end: 13.85,
+    color: "#FA962F",
+    background: "#FFF9EA",
+  },
+  {
+    id: "weekly-review",
+    day: 5,
+    title: "Weekly review",
+    time: "8:30 AM",
+    start: 8.5,
+    end: 9.5,
+    color: "#8B75FE",
+    background: "#F2EFFF",
+  },
+  {
+    id: "handoff",
+    day: 5,
+    title: "Handoff: Fintech v1",
+    time: "10:30 AM",
+    start: 10.5,
+    end: 13,
+    color: "#4E8D93",
+    background: "#F0FAFA",
+  },
+];
+
+function addDays(date: Date, days: number) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
+}
+
+function addMonths(date: Date, months: number) {
+  return new Date(date.getFullYear(), date.getMonth() + months, 1);
+}
+
+function startOfDay(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function startOfWeek(date: Date) {
+  return addDays(startOfDay(date), -date.getDay());
+}
+
+function startOfMonth(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function endOfMonthRange(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth() + 1, 1);
+}
+
+function toDateKey(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function formatHour(hour: number) {
+  if (hour === 0 || hour === 24) return "12 AM";
+  if (hour === 12) return "12 PM";
+  if (hour > 12) return `${hour - 12} PM`;
+  return `${hour} AM`;
+}
+
+function formatTime(date: Date) {
+  return new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function dayLabel(date: Date) {
+  return date.toLocaleDateString("en-US", {
+    weekday: "short",
+    day: "numeric",
+  });
+}
+
+function weekRangeLabel(weekStart: Date) {
+  const weekEnd = addDays(weekStart, 6);
+  const startDay = weekStart.getDate();
+  const endDay = weekEnd.getDate();
+  const month = weekStart.toLocaleDateString("en-US", { month: "short" });
+  const endMonth = weekEnd.toLocaleDateString("en-US", { month: "short" });
+
+  if (month === endMonth) return `${startDay}-${endDay} ${month}`;
+  return `${startDay} ${month}-${endDay} ${endMonth}`;
+}
+
+function monthLabel(date: Date) {
+  return date.toLocaleDateString("en-US", {
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function titleDateLabel(date: Date) {
+  return date.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function titleWeekdayLabel(date: Date) {
+  return date.toLocaleDateString("en-US", { weekday: "long" });
+}
+
+function buildMonthCells(anchorDate: Date): MonthCell[] {
+  const firstOfMonth = startOfMonth(anchorDate);
+  const firstVisible = startOfWeek(firstOfMonth);
+
+  return Array.from({ length: 42 }, (_, index) => {
+    const date = addDays(firstVisible, index);
+    return {
+      date,
+      key: toDateKey(date),
+      outside: date.getMonth() !== anchorDate.getMonth(),
+    };
+  });
+}
+
+function getPalette(index: number) {
+  return EVENT_PALETTE[index % EVENT_PALETTE.length];
+}
+
+function mapCalendarEventToWeekEvent(
+  event: GoogleCalendarEvent,
+  weekStart: Date,
+  index: number,
+): WeekEvent | null {
+  if (!event.start) return null;
+
+  const startDate = event.allDay
+    ? new Date(`${event.start.slice(0, 10)}T00:00:00`)
+    : new Date(event.start);
+  const endDate =
+    !event.allDay && event.end ? new Date(event.end) : null;
+  const startOfEventDay = startOfDay(startDate);
+  const day = Math.floor(
+    (startOfEventDay.getTime() - weekStart.getTime()) / 86_400_000,
+  );
+
+  if (day < 0 || day >= VISIBLE_DAY_COUNT) return null;
+
+  const start = event.allDay
+    ? START_HOUR
+    : (startDate.getTime() - startOfEventDay.getTime()) / 3_600_000;
+  const rawEnd = endDate
+    ? (endDate.getTime() - startOfEventDay.getTime()) / 3_600_000
+    : event.allDay
+      ? start + 1
+      : start + 1;
+  const end = Math.max(start + 0.4, rawEnd);
+  const palette = getPalette(index);
+
+  return {
+    id: event.id,
+    day,
+    title: event.summary || "Untitled event",
+    time: event.allDay ? "All day" : formatTime(startDate),
+    start: Math.max(START_HOUR, Math.min(END_HOUR, start)),
+    end: Math.max(START_HOUR, Math.min(END_HOUR, end)),
+    color: palette.color,
+    background: palette.background,
+  };
+}
+
+function mapCalendarEventToMonthEvent(
+  event: GoogleCalendarEvent,
+  index: number,
+): MonthEvent | null {
+  if (!event.start) return null;
+
+  const palette = getPalette(index);
+  const startDate = event.allDay
+    ? new Date(`${event.start.slice(0, 10)}T00:00:00`)
+    : new Date(event.start);
+
+  return {
+    id: event.id,
+    dateKey: toDateKey(startDate),
+    title: event.summary || "Untitled event",
+    time: event.allDay ? "All day" : formatTime(startDate),
+    color: palette.color,
+    background: palette.background,
+  };
+}
+
+function eventSortValue(event: GoogleCalendarEvent) {
+  if (!event.start) return Number.MAX_SAFE_INTEGER;
+  if (event.allDay) {
+    return new Date(`${event.start.slice(0, 10)}T00:00:00`).getTime();
+  }
+  return new Date(event.start).getTime();
+}
+
+function sortEvents(events: GoogleCalendarEvent[]) {
+  return [...events].sort((a, b) => eventSortValue(a) - eventSortValue(b));
+}
+
+function timeFromMinutes(minutes: number) {
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
+}
+
+function defaultTimesForDate(dateKey: string) {
+  const now = new Date();
+  let startMinutes = 9 * 60;
+
+  if (dateKey === toDateKey(now)) {
+    startMinutes =
+      Math.ceil((now.getHours() * 60 + now.getMinutes() + 15) / 30) * 30;
+    startMinutes = Math.min(startMinutes, 22 * 60);
+  }
+
+  return {
+    startTime: timeFromMinutes(startMinutes),
+    endTime: timeFromMinutes(startMinutes + 60),
+  };
+}
+
+function createDefaultDraft(dateKey: string): CreateEventDraft {
+  const { startTime, endTime } = defaultTimesForDate(dateKey);
+  return {
+    summary: "",
+    date: dateKey,
+    startTime,
+    endTime,
+    allDay: false,
+    description: "",
+  };
+}
+
+function addDaysToDateKey(dateKey: string, days: number) {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  const date = new Date(year, month - 1, day + days);
+  return toDateKey(date);
+}
+
+function localDateTimeToIso(dateKey: string, time: string) {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  const [hours, minutes] = time.split(":").map(Number);
+  return new Date(year, month - 1, day, hours, minutes).toISOString();
+}
+
+function eventDateLabel(dateKey: string) {
+  return new Intl.DateTimeFormat("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  }).format(new Date(`${dateKey}T00:00:00`));
+}
+
+function apiErrorMessage(error: unknown) {
+  if (error instanceof ApiError) {
+    const body = error.body;
+    if (body && typeof body === "object") {
+      const message = (body as Record<string, unknown>).message;
+      if (typeof message === "string") return message;
+      if (Array.isArray(message) && typeof message[0] === "string") {
+        return message[0];
+      }
+    }
+  }
+  return "Google Calendar could not create this event.";
+}
+
+function designEventsForWeek(weekStart: Date) {
+  if (toDateKey(weekStart) !== toDateKey(WEEK_START)) return [];
+  return DESIGN_EVENTS;
+}
+
+function designEventsForMonth(anchorDate: Date): MonthEvent[] {
+  if (
+    anchorDate.getFullYear() !== WEEK_START.getFullYear() ||
+    anchorDate.getMonth() !== WEEK_START.getMonth()
+  ) {
+    return [];
+  }
+
+  return DESIGN_EVENTS.map((event) => {
+    const date = addDays(WEEK_START, event.day);
+    return {
+      id: event.id,
+      dateKey: toDateKey(date),
+      title: event.title,
+      time: event.time,
+      color: event.color,
+      background: event.background,
+    };
+  });
+}
+
+function groupEventsByDate(events: MonthEvent[]) {
+  const grouped = new Map<string, MonthEvent[]>();
+  for (const event of events) {
+    const list = grouped.get(event.dateKey) ?? [];
+    list.push(event);
+    grouped.set(event.dateKey, list);
+  }
+  return grouped;
+}
+
+function ViewModeSlider({
+  value,
+  onChange,
+}: {
+  value: ViewMode;
+  onChange: (value: ViewMode) => void;
+}) {
+  const activeLeft = value === "month" ? "4px" : "70px";
+
   return (
-    <div className="flex h-full shrink-0 flex-col items-start overflow-hidden rounded-2xl border border-line bg-card p-6">
-      <div className="flex h-[274px] w-[595px] flex-col overflow-hidden rounded-md border border-line bg-paper">
-        {calendar ? (
-          <CalendarView calendar={calendar} />
-        ) : (
-          <div className="flex flex-1 flex-col items-center justify-center gap-2 text-sm text-muted">
-            <span>No Google Calendar connected</span>
-            <ConnectGoogleButton />
-          </div>
-        )}
-      </div>
+    <div className="dashboard-ui-label relative grid h-10 w-[140px] grid-cols-2 rounded-[10px] border border-line bg-paper p-1 text-muted">
+      <span
+        aria-hidden="true"
+        className="absolute top-1 bottom-1 rounded-[7px] bg-[var(--calendar-control-active-bg)] transition-[left] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
+        style={{ left: activeLeft, width: "66px" }}
+      />
+      {(["month", "week"] as ViewMode[]).map((mode) => {
+        const active = value === mode;
+        return (
+          <button
+            key={mode}
+            type="button"
+            aria-pressed={active}
+            onClick={() => onChange(mode)}
+            className={`relative z-10 rounded-[7px] capitalize transition-colors duration-200 ${
+              active
+                ? "text-[var(--calendar-control-active-fg)]"
+                : "text-muted hover:text-ink"
+            }`}
+          >
+            {mode}
+          </button>
+        );
+      })}
     </div>
   );
 }
 
-function CalendarView({ calendar }: { calendar: CalendarMonth }) {
-  const today = useMemo(() => new Date(), []);
-  const [mode, setMode] = useState<ViewMode>("month");
-  const [anchor, setAnchor] = useState(
-    () => new Date(today.getFullYear(), today.getMonth(), today.getDate()),
-  );
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const [pickerYear, setPickerYear] = useState(today.getFullYear());
-  const pickerRef = useRef<HTMLDivElement | null>(null);
+export function CalendarCard({ calendar, todayIso }: CalendarCardProps) {
+  const [currentTime, setCurrentTime] = useState(() => new Date(todayIso));
+  const today = useMemo(() => startOfDay(currentTime), [currentTime]);
+  const todayKey = toDateKey(today);
+  const [viewMode, setViewMode] = useState<ViewMode>("week");
+  const [anchorDate, setAnchorDate] = useState(() => today);
+  const [calendarEvents, setCalendarEvents] = useState<GoogleCalendarEvent[]>([]);
+  const [draft, setDraft] = useState<CreateEventDraft | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const weekScrollRef = useRef<HTMLDivElement>(null);
+  const lastAutoScrolledWeekRef = useRef<string | null>(null);
 
-  const viewYear = anchor.getFullYear();
-  const viewMonth = anchor.getMonth();
-  const weekStart = useMemo(() => startOfWeek(anchor), [anchor]);
+  const weekStart = useMemo(() => startOfWeek(anchorDate), [anchorDate]);
   const weekDays = useMemo(
-    () => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
+    () =>
+      Array.from({ length: VISIBLE_DAY_COUNT }, (_, index) =>
+        addDays(weekStart, index),
+      ),
     [weekStart],
   );
-
-  const initialMonthCache = useMemo<Record<string, number[]>>(() => {
-    const days = calendar.cells
-      .filter((c) => !c.muted && c.prefix)
-      .map((c) => c.day);
-    return { [`${today.getFullYear()}-${today.getMonth()}`]: days };
-  }, [calendar, today]);
-
-  const [monthCache, setMonthCache] =
-    useState<Record<string, number[]>>(initialMonthCache);
-  const [weekCache, setWeekCache] = useState<Record<string, CalEvent[]>>({});
+  const monthCells = useMemo(() => buildMonthCells(anchorDate), [anchorDate]);
+  const bodyHeight = (END_HOUR - START_HOUR) * HOUR_HEIGHT;
+  const visibleRange = useMemo(
+    () => ({
+      start: viewMode === "week" ? weekStart : startOfMonth(anchorDate),
+      end:
+        viewMode === "week"
+          ? addDays(weekStart, 7)
+          : endOfMonthRange(anchorDate),
+    }),
+    [anchorDate, viewMode, weekStart],
+  );
+  const selectedDay = anchorDate;
+  const selectedDateKey = toDateKey(selectedDay);
+  const currentTimeTop =
+    (currentTime.getHours() + currentTime.getMinutes() / 60 - START_HOUR) *
+    HOUR_HEIGHT;
+  const showCurrentTimeLine =
+    weekDays.some((day) => toDateKey(day) === todayKey) &&
+    currentTimeTop >= 0 &&
+    currentTimeTop <= bodyHeight;
+  const periodLabel =
+    viewMode === "week" ? weekRangeLabel(weekStart) : monthLabel(anchorDate);
 
   useEffect(() => {
-    if (mode !== "month") return;
-    const key = `${viewYear}-${viewMonth}`;
-    if (monthCache[key]) return;
+    setCurrentTime(new Date());
+    const interval = window.setInterval(() => setCurrentTime(new Date()), 60_000);
+    return () => window.clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const scrollTarget = weekScrollRef.current;
+    const weekKey = toDateKey(weekStart);
+    if (
+      viewMode !== "week" ||
+      !showCurrentTimeLine ||
+      !scrollTarget ||
+      lastAutoScrolledWeekRef.current === weekKey
+    ) {
+      return;
+    }
+
+    scrollTarget.scrollTop = Math.max(
+      0,
+      currentTimeTop - CALENDAR_BODY_HEIGHT * 0.45,
+    );
+    lastAutoScrolledWeekRef.current = weekKey;
+  }, [currentTimeTop, showCurrentTimeLine, viewMode, weekStart]);
+
+  const displayedWeekEvents = useMemo(() => {
+    if (!calendar) return designEventsForWeek(weekStart);
+    return calendarEvents
+      .map((event, index) =>
+        mapCalendarEventToWeekEvent(event, weekStart, index),
+      )
+      .filter((event): event is WeekEvent => Boolean(event));
+  }, [calendar, calendarEvents, weekStart]);
+
+  const displayedMonthEvents = useMemo(() => {
+    const events = calendar
+      ? calendarEvents
+          .map((event, index) => mapCalendarEventToMonthEvent(event, index))
+          .filter((event): event is MonthEvent => Boolean(event))
+      : designEventsForMonth(anchorDate);
+    return groupEventsByDate(events);
+  }, [anchorDate, calendar, calendarEvents]);
+
+  useEffect(() => {
+    if (!calendar) return;
+
     let cancelled = false;
-    apiFetchBrowser<{ eventDays: number[] }>(
-      `/integrations/google/calendar?year=${viewYear}&month=${viewMonth + 1}`,
+
+    apiFetchBrowser<{ events: GoogleCalendarEvent[] }>(
+      `/integrations/google/calendar/events?start=${encodeURIComponent(visibleRange.start.toISOString())}&end=${encodeURIComponent(visibleRange.end.toISOString())}`,
     )
-      .then((res) => {
-        if (!cancelled) {
-          setMonthCache((prev) => ({ ...prev, [key]: res.eventDays }));
-        }
+      .then((result) => {
+        if (!cancelled) setCalendarEvents(sortEvents(result.events));
       })
       .catch(() => {
-        if (!cancelled) setMonthCache((prev) => ({ ...prev, [key]: [] }));
+        if (!cancelled) setCalendarEvents([]);
       });
+
     return () => {
       cancelled = true;
     };
-  }, [mode, viewYear, viewMonth, monthCache]);
+  }, [calendar, visibleRange]);
 
   useEffect(() => {
-    if (mode !== "week") return;
-    const key = dateKey(weekStart);
-    if (weekCache[key]) return;
-    let cancelled = false;
-    const start = weekStart.toISOString();
-    const end = addDays(weekStart, 7).toISOString();
-    apiFetchBrowser<{ events: CalEvent[] }>(
-      `/integrations/google/calendar/events?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`,
-    )
-      .then((res) => {
-        if (!cancelled) {
-          setWeekCache((prev) => ({ ...prev, [key]: res.events }));
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setWeekCache((prev) => ({ ...prev, [key]: [] }));
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [mode, weekStart, weekCache]);
+    if (!successMessage) return;
+    const timeout = window.setTimeout(() => setSuccessMessage(null), 3500);
+    return () => window.clearTimeout(timeout);
+  }, [successMessage]);
 
   useEffect(() => {
-    if (!pickerOpen) return;
-    function onPointerDown(event: MouseEvent) {
-      if (!pickerRef.current?.contains(event.target as Node)) {
-        setPickerOpen(false);
+    if (!draft) return;
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape" && !isSaving) {
+        setDraft(null);
+        setFormError(null);
       }
     }
-    document.addEventListener("mousedown", onPointerDown);
-    return () => document.removeEventListener("mousedown", onPointerDown);
-  }, [pickerOpen]);
 
-  const grid = useMemo(() => {
-    const days = new Set(monthCache[`${viewYear}-${viewMonth}`] ?? []);
-    return buildGrid(viewYear, viewMonth, days, today);
-  }, [viewYear, viewMonth, monthCache, today]);
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [draft, isSaving]);
 
-  const weekEvents = weekCache[dateKey(weekStart)] ?? [];
+  function shiftPeriod(delta: number) {
+    setAnchorDate((date) =>
+      viewMode === "week" ? addDays(date, delta * 7) : addMonths(date, delta),
+    );
+  }
 
-  function shift(delta: number) {
-    if (mode === "month") {
-      setAnchor(new Date(viewYear, viewMonth + delta, 1));
+  function selectDate(date: Date) {
+    setAnchorDate(startOfDay(date));
+  }
+
+  function jumpToToday() {
+    selectDate(today);
+  }
+
+  function openCreateEvent() {
+    if (!calendar) return;
+    setDraft(createDefaultDraft(selectedDateKey));
+    setFormError(null);
+    setSuccessMessage(null);
+  }
+
+  function closeCreateEvent() {
+    if (isSaving) return;
+    setDraft(null);
+    setFormError(null);
+  }
+
+  function updateDraft(next: Partial<CreateEventDraft>) {
+    setDraft((current) => (current ? { ...current, ...next } : current));
+    setFormError(null);
+  }
+
+  async function submitCreateEvent() {
+    if (!draft || isSaving) return;
+
+    const summary = draft.summary.trim();
+    if (!summary) {
+      setFormError("Add a title before saving this event.");
+      return;
+    }
+
+    let startsAt: string;
+    let endsAt: string;
+    if (draft.allDay) {
+      startsAt = draft.date;
+      endsAt = addDaysToDateKey(draft.date, 1);
     } else {
-      setAnchor(addDays(anchor, delta * 7));
+      if (!draft.startTime || !draft.endTime) {
+        setFormError("Choose a start and end time.");
+        return;
+      }
+      startsAt = localDateTimeToIso(draft.date, draft.startTime);
+      endsAt = localDateTimeToIso(draft.date, draft.endTime);
+      if (new Date(endsAt) <= new Date(startsAt)) {
+        setFormError("End time must be after start time.");
+        return;
+      }
+    }
+
+    setIsSaving(true);
+    setFormError(null);
+
+    try {
+      const result = await apiFetchBrowser<CreateEventResponse>(
+        "/integrations/google/calendar/events",
+        {
+          method: "POST",
+          body: {
+            summary,
+            description: draft.description.trim() || undefined,
+            startsAt,
+            endsAt,
+            allDay: draft.allDay,
+            timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          },
+        },
+      );
+
+      setCalendarEvents((current) => {
+        const nextEvents = current.filter((event) => event.id !== result.event.id);
+        return sortEvents([...nextEvents, result.event]);
+      });
+      setAnchorDate(new Date(`${draft.date}T00:00:00`));
+      setDraft(null);
+      setSuccessMessage("Event added.");
+    } catch (error) {
+      setFormError(apiErrorMessage(error));
+    } finally {
+      setIsSaving(false);
     }
   }
-
-  function togglePicker() {
-    setPickerYear(viewYear);
-    setPickerOpen((open) => !open);
-  }
-
-  function selectMonth(monthIndex: number) {
-    setAnchor(new Date(pickerYear, monthIndex, 1));
-    setPickerOpen(false);
-  }
-
-  const rowCount = Math.ceil(grid.length / 7);
-  const lastRowStart = (rowCount - 1) * 7;
-  const periodLabel =
-    mode === "month"
-      ? `${MONTHS[viewMonth]} ${viewYear}`
-      : weekRangeLabel(weekStart);
 
   return (
     <>
-      <div className="flex items-center justify-between border-b border-line px-3 py-2">
-        <div className="flex items-center gap-2 text-ink">
-          <button
-            type="button"
-            onClick={() => shift(-1)}
-            className="text-muted hover:text-ink"
-            aria-label={mode === "month" ? "Previous month" : "Previous week"}
-          >
-            <ChevronLeft />
-          </button>
-          <button
-            type="button"
-            onClick={() => shift(1)}
-            className="text-muted hover:text-ink"
-            aria-label={mode === "month" ? "Next month" : "Next week"}
-          >
-            <ChevronRight />
-          </button>
-          <div className="relative" ref={pickerRef}>
+      <section
+        data-dashboard-calendar-card
+        className="flex shrink-0 flex-col overflow-hidden rounded-[16px] border border-line bg-paper"
+        style={{
+          alignSelf: "start",
+          height: CALENDAR_CARD_HEIGHT,
+          maxHeight: CALENDAR_CARD_HEIGHT,
+          minHeight: CALENDAR_CARD_HEIGHT,
+        }}
+      >
+        <header
+          className="flex items-center justify-between border-b border-line px-6"
+          style={{ height: CALENDAR_HEADER_HEIGHT }}
+        >
+          <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={togglePicker}
-              className="ml-1 flex items-center gap-1 text-sm font-medium"
-              aria-label="Pick month and year"
+              onClick={jumpToToday}
+              aria-label={`Select today, ${titleDateLabel(today)}`}
+              title="Jump to today"
+              className="grid size-14 overflow-hidden rounded-[8px] border border-line text-center transition hover:border-[#b7b7b7] hover:bg-card"
             >
-              {periodLabel}
-              <ChevronDown open={pickerOpen} />
+              <span className="dashboard-ui-meta grid place-items-center bg-[var(--calendar-date-month-bg)] uppercase text-muted">
+                {today.toLocaleDateString("en-US", { month: "short" })}
+              </span>
+              <span className="grid place-items-center bg-paper text-[17px] font-semibold leading-none tracking-[-0.02em] text-ink">
+                {today.getDate()}
+              </span>
             </button>
-            {pickerOpen ? (
-              <div className="absolute left-0 top-full z-10 mt-1 w-56 rounded-md border border-line bg-paper p-2 shadow-lg">
-                <div className="mb-2 flex items-center justify-between text-ink">
-                  <button
-                    type="button"
-                    onClick={() => setPickerYear((y) => y - 1)}
-                    className="text-muted hover:text-ink"
-                    aria-label="Previous year"
-                  >
-                    <ChevronLeft />
-                  </button>
-                  <span className="text-sm font-medium">{pickerYear}</span>
-                  <button
-                    type="button"
-                    onClick={() => setPickerYear((y) => y + 1)}
-                    className="text-muted hover:text-ink"
-                    aria-label="Next year"
-                  >
-                    <ChevronRight />
-                  </button>
-                </div>
-                <div className="grid grid-cols-3 gap-1">
-                  {MONTHS_SHORT.map((label, index) => {
-                    const selected =
-                      index === viewMonth && pickerYear === viewYear;
-                    return (
-                      <button
-                        key={label}
-                        type="button"
-                        onClick={() => selectMonth(index)}
-                        className={`rounded px-2 py-1 text-xs ${
-                          selected
-                            ? "bg-cta text-paper"
-                            : "text-ink hover:bg-line"
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : null}
+            <div>
+              <p className="text-[17px] font-semibold leading-tight tracking-[-0.015em] text-ink">
+                {titleDateLabel(selectedDay)}
+              </p>
+              <p className="dashboard-section-subtitle mt-0.5 text-muted">
+                {titleWeekdayLabel(selectedDay)}
+              </p>
+            </div>
           </div>
-        </div>
-        <div className="flex items-center">
-          <button
-            type="button"
-            aria-label="Month view"
-            aria-pressed={mode === "month"}
-            onClick={() => setMode("month")}
-            className={`flex size-7 items-center justify-center rounded-l-md border border-line ${
-              mode === "month" ? "bg-card text-ink" : "bg-paper text-muted"
-            }`}
-          >
-            <CalendarIcon />
-          </button>
-          <button
-            type="button"
-            aria-label="Week view"
-            aria-pressed={mode === "week"}
-            onClick={() => setMode("week")}
-            className={`flex size-7 items-center justify-center rounded-r-md border border-l-0 border-line ${
-              mode === "week" ? "bg-card text-ink" : "bg-paper text-muted"
-            }`}
-          >
-            <GridIcon />
-          </button>
-        </div>
-      </div>
 
-      {mode === "month" ? (
-        <>
-          <div className="grid grid-cols-7 border-b border-line text-[10px] font-medium text-muted">
-            {WEEKDAYS.map((day) => (
-              <div key={day} className="px-2 py-1">
-                {day}
-              </div>
-            ))}
-          </div>
-          <div
-            className="grid flex-1 grid-cols-7"
-            style={{ gridTemplateRows: `repeat(${rowCount}, minmax(0, 1fr))` }}
-          >
-            {grid.map((cell, index) => (
-              <div
-                key={index}
-                className={`border-r border-b border-line px-2 py-1 text-[11px] ${
-                  cell.muted ? "text-muted" : "text-ink"
-                } ${index % 7 === 6 ? "border-r-0" : ""} ${
-                  index >= lastRowStart ? "border-b-0" : ""
-                }`}
+          <div className="flex items-center gap-2">
+            {successMessage ? (
+              <span className="dashboard-ui-meta rounded-full bg-success/10 px-2.5 py-1 text-success">
+                {successMessage}
+              </span>
+            ) : null}
+            <button
+              type="button"
+              onClick={openCreateEvent}
+              disabled={!calendar}
+              title={
+                calendar
+                  ? `Add event on ${eventDateLabel(selectedDateKey)}`
+                  : "Connect Google Calendar to add events"
+              }
+              className="dashboard-ui-label inline-flex h-10 items-center gap-1.5 rounded-[10px] bg-[var(--calendar-control-active-bg)] px-3 text-[var(--calendar-control-active-fg)] transition hover:bg-[var(--calendar-control-hover-bg)] disabled:cursor-not-allowed disabled:bg-[var(--calendar-control-disabled-bg)] disabled:text-[var(--calendar-control-disabled-fg)]"
+            >
+              <CalendarPlus className="size-4" strokeWidth={1.8} />
+              Add event
+            </button>
+            <div className="dashboard-ui-label flex h-10 items-center gap-3 rounded-[10px] border border-line bg-paper px-3 text-muted">
+              <button
+                type="button"
+                aria-label={`Previous ${viewMode}`}
+                onClick={() => shiftPeriod(-1)}
+                className="-ml-1 grid size-5 place-items-center rounded-full transition hover:bg-card hover:text-ink"
               >
-                <span className="flex items-center gap-1">
-                  <span
-                    className={
-                      cell.isToday
-                        ? "inline-flex h-5 w-5 items-center justify-center rounded-full bg-cta text-paper"
-                        : ""
-                    }
-                  >
-                    {cell.day}
-                  </span>
-                  {cell.isEvent ? (
-                    <span className="h-1 w-1 rounded-full bg-cta" aria-hidden="true" />
-                  ) : null}
-                </span>
-              </div>
-            ))}
-          </div>
-        </>
-      ) : (
-        <div className="grid flex-1 grid-cols-7 overflow-hidden">
-          {weekDays.map((day) => {
-            const isToday = dateKey(day) === dateKey(today);
-            const dayEvents = weekEvents.filter(
-              (e) => eventDateKey(e) === dateKey(day),
-            );
-            return (
-              <div
-                key={dateKey(day)}
-                className="flex min-w-0 flex-col border-r border-line last:border-r-0"
+                <ChevronLeft className="size-4" strokeWidth={1.8} />
+              </button>
+              <span className="min-w-[92px] text-center">
+                {periodLabel}
+              </span>
+              <button
+                type="button"
+                aria-label={`Next ${viewMode}`}
+                onClick={() => shiftPeriod(1)}
+                className="-mr-1 grid size-5 place-items-center rounded-full transition hover:bg-card hover:text-ink"
               >
-                <div className="flex flex-col items-center gap-0.5 border-b border-line py-1.5">
-                  <span className="text-[10px] font-medium tracking-wider text-muted">
-                    {WEEKDAYS[day.getDay()]}
-                  </span>
-                  <span
-                    className={`inline-flex h-6 w-6 items-center justify-center text-sm font-semibold ${
-                      isToday
-                        ? "rounded-full bg-cta text-paper"
-                        : "text-ink"
-                    }`}
+                <ChevronRight className="size-4" strokeWidth={1.8} />
+              </button>
+            </div>
+            <ViewModeSlider value={viewMode} onChange={setViewMode} />
+          </div>
+        </header>
+
+        {viewMode === "week" ? (
+          <>
+            <div
+              className="dashboard-ui-label grid border-b border-line text-center text-muted"
+              style={{
+                height: CALENDAR_DAY_HEADER_HEIGHT,
+                gridTemplateColumns: `${TIME_RAIL_WIDTH}px repeat(${VISIBLE_DAY_COUNT}, minmax(0, 1fr))`,
+              }}
+            >
+              <div className="border-r border-line" />
+              {weekDays.map((day) => {
+                const dayKey = toDateKey(day);
+                const selected = dayKey === selectedDateKey;
+                const isToday = dayKey === todayKey;
+                return (
+                  <div
+                    key={dayKey}
+                    className="border-r border-line last:border-r-0"
                   >
-                    {day.getDate()}
-                  </span>
-                </div>
-                <div className="flex flex-1 flex-col gap-1 overflow-y-auto p-1">
-                  {dayEvents.map((e) => (
-                    <div
-                      key={e.id}
-                      title={e.summary}
-                      className="rounded border border-line bg-card px-1.5 py-1 text-[9px] font-medium leading-tight text-ink line-clamp-2"
+                    <button
+                      type="button"
+                      aria-pressed={selected}
+                      onClick={() => selectDate(day)}
+                      className={`h-full w-full transition ${
+                        selected
+                          ? "bg-[var(--calendar-today-bg)] text-ink"
+                          : "hover:bg-card/70 hover:text-ink"
+                      } ${isToday && !selected ? "text-ink" : ""}`}
                     >
-                      {e.summary}
+                      {dayLabel(day)}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div
+              ref={weekScrollRef}
+              className="scrollbar-none relative shrink-0 overflow-y-auto overflow-x-hidden"
+              style={{ height: CALENDAR_BODY_HEIGHT }}
+            >
+              <div className="relative" style={{ height: bodyHeight }}>
+                <div
+                  className="absolute inset-0 grid"
+                  style={{
+                    gridTemplateColumns: `${TIME_RAIL_WIDTH}px repeat(${VISIBLE_DAY_COUNT}, minmax(0, 1fr))`,
+                  }}
+                >
+                  <div className="border-r border-line" />
+                  {weekDays.map((day) => (
+                    <div
+                      key={`column-${toDateKey(day)}`}
+                      className="border-r border-line last:border-r-0"
+                    />
+                  ))}
+                </div>
+
+                {HOURS.map((hour) => {
+                  const top = (hour - START_HOUR) * HOUR_HEIGHT;
+                  return (
+                    <div key={hour}>
+                      <span
+                        className="dashboard-ui-label absolute left-0 w-[70px] -translate-y-1/2 pr-4 text-right text-muted"
+                        style={{ top }}
+                      >
+                        {formatHour(hour)}
+                      </span>
+                      <span
+                        className="absolute right-0 border-t border-line"
+                        style={{ left: TIME_RAIL_WIDTH, top }}
+                      />
+                    </div>
+                  );
+                })}
+
+                {showCurrentTimeLine ? (
+                  <div
+                    className="absolute right-0 z-20 h-px bg-[#8A8A8A]"
+                    style={{
+                      left: TIME_RAIL_WIDTH,
+                      top: currentTimeTop,
+                    }}
+                  >
+                    <span className="absolute left-[-2px] top-[-34px] h-[68px] w-1 rounded-full bg-[#3F3F3F]" />
+                  </div>
+                ) : null}
+
+                <div
+                  className="absolute bottom-0 top-0 grid"
+                  style={{
+                    left: TIME_RAIL_WIDTH,
+                    right: 0,
+                    gridTemplateColumns: `repeat(${VISIBLE_DAY_COUNT}, minmax(0, 1fr))`,
+                  }}
+                >
+                  {weekDays.map((day, dayIndex) => (
+                    <div key={`events-${toDateKey(day)}`} className="relative">
+                      {displayedWeekEvents
+                        .filter((event) => event.day === dayIndex)
+                        .map((event) => {
+                          const top = (event.start - START_HOUR) * HOUR_HEIGHT;
+                          const height = Math.max(
+                            44,
+                            (event.end - event.start) * HOUR_HEIGHT - 8,
+                          );
+
+                          return (
+                            <article
+                              key={event.id}
+                              className="absolute left-1 right-1 rounded-[7px] px-2.5 py-2"
+                              style={{
+                                top,
+                                height,
+                                backgroundColor: event.background,
+                                color: event.color,
+                              }}
+                            >
+                              <p className="dashboard-ui-label line-clamp-2 font-semibold leading-[1.18]">
+                                {event.title}
+                              </p>
+                              <p className="dashboard-ui-meta mt-1 leading-none">
+                                {event.time}
+                              </p>
+                            </article>
+                          );
+                        })}
                     </div>
                   ))}
                 </div>
               </div>
-            );
-          })}
-        </div>
-      )}
+            </div>
+          </>
+        ) : (
+          <>
+            <div
+              className="dashboard-ui-label grid grid-cols-7 border-b border-line text-center text-muted"
+              style={{ height: CALENDAR_DAY_HEADER_HEIGHT }}
+            >
+              {MONTH_WEEKDAY_LABELS.map((label) => (
+                <div
+                  key={label}
+                  className="flex items-center justify-center border-r border-line last:border-r-0"
+                >
+                  {label}
+                </div>
+              ))}
+            </div>
+
+            <div
+              className="grid shrink-0 grid-cols-7 overflow-hidden"
+              style={{
+                height: CALENDAR_BODY_HEIGHT,
+                gridTemplateRows: "repeat(6, minmax(0, 1fr))",
+              }}
+            >
+              {monthCells.map((cell, index) => {
+                const events = displayedMonthEvents.get(cell.key) ?? [];
+                const isLastColumn = index % 7 === 6;
+                const isLastRow = index >= monthCells.length - 7;
+                const selected = cell.key === selectedDateKey;
+                const isToday = cell.key === todayKey;
+                return (
+                  <button
+                    key={cell.key}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => selectDate(cell.date)}
+                    className={`min-w-0 border-line px-2 py-1.5 text-left transition ${
+                      isLastColumn ? "" : "border-r"
+                    } ${isLastRow ? "" : "border-b"} ${
+                      selected ? "bg-card" : "hover:bg-card/70"
+                    }`}
+                  >
+                    <span
+                      className={`dashboard-ui-label inline-flex size-5 items-center justify-center rounded-full ${
+                        selected
+                          ? "bg-[var(--calendar-control-active-bg)] text-[var(--calendar-control-active-fg)]"
+                          : isToday
+                            ? "bg-[var(--calendar-today-bg)] text-ink"
+                            : cell.outside
+                              ? "text-muted/55"
+                              : "text-muted"
+                      }`}
+                    >
+                      {cell.date.getDate()}
+                    </span>
+                    <span className="mt-1 grid gap-1">
+                      {events.slice(0, 1).map((event) => (
+                        <span
+                          key={event.id}
+                          className="rounded-[7px] px-2 py-1"
+                          style={{
+                            backgroundColor: event.background,
+                            color: event.color,
+                          }}
+                        >
+                          <span className="dashboard-ui-meta block truncate font-semibold leading-tight">
+                            {event.title}
+                          </span>
+                          <span className="dashboard-micro-text mt-0.5 block leading-none">
+                            {event.time}
+                          </span>
+                        </span>
+                      ))}
+                      {events.length > 1 ? (
+                        <span className="dashboard-micro-text text-muted">
+                          +{events.length - 1} more
+                        </span>
+                      ) : null}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </section>
+      {draft ? (
+        <CreateEventModal
+          draft={draft}
+          error={formError}
+          saving={isSaving}
+          onChange={updateDraft}
+          onClose={closeCreateEvent}
+          onSubmit={submitCreateEvent}
+        />
+      ) : null}
     </>
+  );
+}
+
+type CreateEventModalProps = {
+  draft: CreateEventDraft;
+  error: string | null;
+  saving: boolean;
+  onChange: (next: Partial<CreateEventDraft>) => void;
+  onClose: () => void;
+  onSubmit: () => Promise<void> | void;
+};
+
+function CreateEventModal({
+  draft,
+  error,
+  saving,
+  onChange,
+  onClose,
+  onSubmit,
+}: CreateEventModalProps) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#16140f]/45 px-4 py-6 backdrop-blur-sm">
+      <button
+        type="button"
+        className="absolute inset-0 cursor-default"
+        onClick={onClose}
+        aria-label="Close event dialog"
+      />
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          void onSubmit();
+        }}
+        className="relative w-full max-w-[520px] overflow-hidden rounded-2xl border border-line bg-paper"
+      >
+        <header className="flex items-start justify-between gap-4 border-b border-line bg-card px-5 py-4">
+          <div>
+            <p className="dashboard-micro-text font-semibold uppercase tracking-[0.08em] text-muted">
+              Google Calendar
+            </p>
+            <h2 className="dashboard-card-title mt-1 text-ink">
+              Add event
+            </h2>
+            <p className="dashboard-section-subtitle mt-1 text-muted">
+              {eventDateLabel(draft.date)}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={saving}
+            className="inline-flex size-8 items-center justify-center rounded-lg border border-line bg-paper text-muted transition hover:border-cta hover:text-ink disabled:cursor-not-allowed disabled:opacity-60"
+            aria-label="Close"
+          >
+            <X className="size-4" />
+          </button>
+        </header>
+
+        <div className="space-y-4 px-5 py-5">
+          <label className="block">
+            <span className="dashboard-ui-meta font-semibold text-muted">
+              Title
+            </span>
+            <input
+              value={draft.summary}
+              onChange={(event) => onChange({ summary: event.target.value })}
+              placeholder="Content planning sync"
+              maxLength={160}
+              className="dashboard-body-text mt-1.5 w-full rounded-lg border border-line bg-card px-3 py-2.5 text-ink outline-none transition placeholder:text-muted focus:border-cta focus:ring-2 focus:ring-cta/15"
+              autoFocus
+            />
+          </label>
+
+          <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+            <label className="block">
+              <span className="dashboard-ui-meta font-semibold text-muted">
+                Date
+              </span>
+              <div className="mt-1.5 flex items-center gap-2 rounded-lg border border-line bg-card px-3 py-2">
+                <CalendarPlus className="size-4 text-muted" />
+                <input
+                  type="date"
+                  value={draft.date}
+                  onChange={(event) => onChange({ date: event.target.value })}
+                  className="dashboard-body-text min-w-0 flex-1 bg-transparent text-ink outline-none"
+                />
+              </div>
+            </label>
+
+            <div className="flex items-end">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={draft.allDay}
+                onClick={() => onChange({ allDay: !draft.allDay })}
+                className={`dashboard-ui-label flex h-[42px] items-center gap-2 rounded-lg border px-3 font-semibold transition ${
+                  draft.allDay
+                    ? "border-cta bg-cta/10 text-cta"
+                    : "border-line bg-card text-muted"
+                }`}
+              >
+                <span
+                  className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition ${
+                    draft.allDay ? "bg-[#657de8]" : "bg-[#d8d2c8]"
+                  }`}
+                >
+                  <span
+                    className={`absolute left-0.5 size-4 rounded-full bg-white transition ${
+                      draft.allDay ? "translate-x-4" : ""
+                    }`}
+                  />
+                </span>
+                All day
+              </button>
+            </div>
+          </div>
+
+          {!draft.allDay ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block">
+                <span className="dashboard-ui-meta font-semibold text-muted">
+                  Start
+                </span>
+                <div className="mt-1.5 flex items-center gap-2 rounded-lg border border-line bg-card px-3 py-2">
+                  <Clock3 className="size-4 text-muted" />
+                  <input
+                    type="time"
+                    value={draft.startTime}
+                    onChange={(event) =>
+                      onChange({ startTime: event.target.value })
+                    }
+                    className="dashboard-body-text min-w-0 flex-1 bg-transparent text-ink outline-none"
+                  />
+                </div>
+              </label>
+              <label className="block">
+                <span className="dashboard-ui-meta font-semibold text-muted">
+                  End
+                </span>
+                <div className="mt-1.5 flex items-center gap-2 rounded-lg border border-line bg-card px-3 py-2">
+                  <Clock3 className="size-4 text-muted" />
+                  <input
+                    type="time"
+                    value={draft.endTime}
+                    onChange={(event) =>
+                      onChange({ endTime: event.target.value })
+                    }
+                    className="dashboard-body-text min-w-0 flex-1 bg-transparent text-ink outline-none"
+                  />
+                </div>
+              </label>
+            </div>
+          ) : null}
+
+          <label className="block">
+            <span className="dashboard-ui-meta font-semibold text-muted">
+              Notes
+            </span>
+            <div className="mt-1.5 flex gap-2 rounded-lg border border-line bg-card px-3 py-2.5 focus-within:border-cta focus-within:ring-2 focus-within:ring-cta/15">
+              <FileText className="mt-0.5 size-4 shrink-0 text-muted" />
+              <textarea
+                value={draft.description}
+                onChange={(event) =>
+                  onChange({ description: event.target.value })
+                }
+                placeholder="Campaign notes, event details, or links"
+                rows={3}
+                maxLength={2000}
+                className="dashboard-body-text min-w-0 flex-1 resize-none bg-transparent text-ink outline-none placeholder:text-muted"
+              />
+            </div>
+          </label>
+
+          {error ? (
+            <p className="dashboard-ui-label rounded-lg border border-danger/20 bg-danger/10 px-3 py-2 text-danger">
+              {error}
+            </p>
+          ) : null}
+        </div>
+
+        <footer className="flex flex-wrap items-center justify-end gap-2 border-t border-line bg-card px-5 py-4">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={saving}
+            className="dashboard-ui-label rounded-lg border border-line bg-paper px-4 py-2 font-semibold text-ink transition hover:border-cta disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={saving}
+            className="dashboard-ui-label inline-flex min-w-[126px] items-center justify-center gap-2 rounded-lg bg-[#657de8] px-4 py-2 font-semibold text-white transition hover:bg-[#586fe0] disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            {saving ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <CalendarPlus className="size-4" />
+            )}
+            {saving ? "Saving" : "Save event"}
+          </button>
+        </footer>
+      </form>
+    </div>
   );
 }

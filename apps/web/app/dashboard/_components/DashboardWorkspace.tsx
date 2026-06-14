@@ -1,11 +1,16 @@
 import type { UserProfile } from "@/lib/supabase/user-profile";
-import { AccountChip } from "./AccountChip";
-import { ConnectAccountsButton } from "./ConnectAccountsButton";
+import { CalendarCard, CALENDAR_CARD_HEIGHT } from "./CalendarCard";
 import { ContentTable } from "./ContentTable";
-import { EditorialCalendar } from "./EditorialCalendar";
 import { LiveActivityPanel } from "./LiveActivityPanel";
-import { WorkplaceTaskBoard } from "./WorkplaceTaskBoard";
-import type { ContentRow, DashboardData, StatMetric } from "./data";
+import { MyAccountsCarousel } from "./MyAccountsCarousel";
+import {
+  PublishedChart,
+  type PublishedBar,
+} from "./PublishedChart";
+import { RecentPostsPanel } from "./RecentPostsPanel";
+import { StatusStatCard } from "./StatusStatCard";
+import { emptyBreakdown, normalizePostFormat } from "./post-formats";
+import type { ContentRow, DashboardData } from "./data";
 
 type ConnectionStatus = {
   source: "instagram";
@@ -20,216 +25,117 @@ type DashboardWorkspaceProps = {
   todayIso: string;
 };
 
-type MetricCardProps = {
-  title: string;
-  value: string;
-  delta?: string | null;
-  positive?: boolean;
-  detail: string;
-};
+type StatusGroup = "pending" | "draft" | "ready" | "published";
 
-function formatCompact(value: number | null) {
-  if (value === null) return "-";
-  return new Intl.NumberFormat("en-US", {
-    notation: "compact",
-    maximumFractionDigits: 1,
-  }).format(value);
+const GREETING_NAME_MAX_LENGTH = 18;
+const FIXED_DASHBOARD_LAYOUT = {
+  viewportWidth: 1920,
+  viewportHeight: 1080,
+  mainWidth: 1460,
+  mainPaddingX: 24,
+  mainPaddingY: 20,
+  cardGap: 24,
+  leftColumnWidth: 1008,
+  rightColumnWidth: 380,
+  statCardWidth: 320,
+  statCardHeight: 180,
+  publishedCardWidth: 1008,
+  publishedCardHeight: 420,
+  recentPostsCardWidth: 380,
+  recentPostsCardHeight: 624,
+  recentPostsTopOffset: 82,
+} as const;
+
+function classifyStatus(status: string): StatusGroup | "other" {
+  const normalized = status.toLowerCase();
+  if (normalized.includes("publish")) return "published";
+  if (normalized.includes("draft")) return "draft";
+  if (
+    normalized.includes("ready") ||
+    normalized.includes("approved") ||
+    normalized.includes("scheduled")
+  ) {
+    return "ready";
+  }
+  if (
+    normalized.includes("pending") ||
+    normalized.includes("review")
+  ) {
+    return "pending";
+  }
+  return "other";
 }
 
-function formatCount(value: number | null) {
-  return value === null ? "-" : value.toLocaleString("en-US");
-}
-
-function formatPercent(value: number | null) {
-  return value === null ? "-" : `${value.toFixed(1)}%`;
-}
-
-function normalizeStatus(status: string) {
-  return status.toLowerCase();
-}
-
-function rowDate(row: ContentRow) {
-  const parsed = new Date(`${row.datePost}T00:00:00`);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
-}
-
-function displayName(profile: UserProfile) {
-  return profile.name?.trim() || profile.email?.split("@")[0] || "there";
-}
-
-function formatDelta(metric: StatMetric) {
-  if (metric.delta === null || metric.trend === null) return null;
-  return `${metric.trend === "up" ? "+" : "-"}${metric.delta}%`;
-}
-
-function getPostsThisWeek(rows: ContentRow[], today: Date) {
-  const start = new Date(today);
-  start.setDate(today.getDate() - today.getDay());
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(start);
-  end.setDate(start.getDate() + 7);
-
-  return rows.filter((row) => {
-    const date = rowDate(row);
-    return date && date >= start && date < end;
-  }).length;
-}
-
-function getReviewRows(rows: ContentRow[]) {
-  return rows.filter((row) =>
-    ["pending", "review", "in review", "draft"].some((status) =>
-      normalizeStatus(row.status).includes(status),
-    ),
+function buildStatusBreakdown(
+  rows: ContentRow[],
+  group: StatusGroup,
+) {
+  const breakdown = emptyBreakdown();
+  for (const row of rows) {
+    if (classifyStatus(row.status) !== group) continue;
+    const format = normalizePostFormat(row.type);
+    breakdown[format] += 1;
+  }
+  const total = (Object.values(breakdown) as number[]).reduce(
+    (sum, value) => sum + value,
+    0,
   );
+  return { breakdown, total };
 }
 
-function getEngagement(data: DashboardData) {
-  if (!data.views.value || data.likes.value === null) return null;
-  return (data.likes.value / data.views.value) * 100;
+function buildPublishedBars(data: DashboardData): {
+  bars: PublishedBar[];
+  total: number;
+} {
+  const map = new Map<string, PublishedBar>();
+  let total = 0;
+
+  for (const account of data.accounts) {
+    map.set(account.id, {
+      accountId: account.id,
+      account,
+      total: 0,
+      breakdown: emptyBreakdown(),
+    });
+  }
+
+  for (const row of data.contentRows) {
+    if (classifyStatus(row.status) !== "published") continue;
+    const format = normalizePostFormat(row.type);
+    total += 1;
+    const existing =
+      map.get(row.account.id) ??
+      {
+        accountId: row.account.id,
+        account: row.account,
+        total: 0,
+        breakdown: emptyBreakdown(),
+      };
+    existing.total += 1;
+    existing.breakdown[format] += 1;
+    map.set(row.account.id, existing);
+  }
+
+  const bars = [...map.values()].sort((a, b) => b.total - a.total);
+  return { bars, total };
 }
 
-function MetricCard({
-  title,
-  value,
-  delta,
-  positive = true,
-  detail,
-}: MetricCardProps) {
-  return (
-    <article className="flex min-w-0 flex-col gap-5 rounded-[10px] border border-line bg-paper p-[18px] transition-colors duration-500">
-      <div className="flex items-start justify-between gap-2">
-        <h2 className="font-mono text-[11px] uppercase tracking-[0.05em] text-muted">
-          {title}
-        </h2>
-        {delta ? (
-          <span
-            className={`font-mono text-[11px] ${positive ? "text-success" : "text-danger"}`}
-          >
-            {delta}
-          </span>
-        ) : null}
-      </div>
-      <p className="font-mono text-[30px] font-medium leading-none text-ink">
-        {value}
-      </p>
-      <p className="font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
-        {detail}
-      </p>
-    </article>
-  );
+function getGreetingName(profile: UserProfile) {
+  if (profile.name) return profile.name;
+  if (profile.email) {
+    const handle = profile.email.split("@")[0];
+    return handle.charAt(0).toUpperCase() + handle.slice(1);
+  }
+  return "there";
 }
 
-function Metrics({ data, today }: { data: DashboardData; today: Date }) {
-  const reviewRows = getReviewRows(data.contentRows);
-  const engagement = getEngagement(data);
+function shortenAtWordBoundary(value: string, maxLength = GREETING_NAME_MAX_LENGTH) {
+  const normalized = value.trim().replace(/\s+/g, " ");
+  if (normalized.length <= maxLength) return normalized;
 
-  return (
-    <section
-      aria-label="Performance summary"
-      className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
-    >
-      <MetricCard
-        title="Total views"
-        value={formatCompact(data.views.value)}
-        delta={formatDelta(data.views)}
-        positive={data.views.trend !== "down"}
-        detail="Instagram analytics"
-      />
-      <MetricCard
-        title="Listed posts this week"
-        value={formatCount(getPostsThisWeek(data.contentRows, today))}
-        detail="From scheduled content"
-      />
-      <MetricCard
-        title="Engagement rate"
-        value={formatPercent(engagement)}
-        detail="Likes divided by views"
-      />
-      <MetricCard
-        title="Awaiting review"
-        value={formatCount(reviewRows.length)}
-        delta={reviewRows.length > 0 ? "Needs eyes" : null}
-        positive={reviewRows.length === 0}
-        detail="From scheduled content"
-      />
-    </section>
-  );
-}
-
-function DashboardHero({
-  data,
-  profile,
-  reviewCount,
-}: {
-  data: DashboardData;
-  profile: UserProfile;
-  reviewCount: number;
-}) {
-  return (
-    <section className="pb-2">
-      <div>
-        <h1 className="analytics-serif max-w-4xl text-5xl font-normal leading-none text-ink sm:text-6xl lg:text-7xl">
-          Good morning, {displayName(profile)}.
-        </h1>
-        <p className="mt-4 max-w-2xl text-sm text-muted">
-          {data.contentRows.length} content items tracked across{" "}
-          {data.accounts.length} account
-          {data.accounts.length === 1 ? "" : "s"}.
-          {reviewCount > 0
-            ? ` ${reviewCount} need your review.`
-            : " Content reviews are clear."}
-        </p>
-      </div>
-    </section>
-  );
-}
-
-function AccountsPanel({
-  accounts,
-  connectionStatus,
-}: {
-  accounts: DashboardData["accounts"];
-  connectionStatus: ConnectionStatus;
-}) {
-  return (
-    <section className="rounded-[10px] border border-line bg-paper p-[18px]">
-      <header className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-ink">Accounts</h2>
-        <ConnectAccountsButton />
-      </header>
-
-      {connectionStatus ? (
-        <p
-          className={`mt-3 rounded-lg px-2.5 py-2 text-[11px] ${
-            connectionStatus.tone === "success"
-              ? "bg-success/10 text-success"
-              : "bg-danger/10 text-danger"
-          }`}
-        >
-          {connectionStatus.message}
-        </p>
-      ) : null}
-
-      <ul className="mt-3 space-y-2">
-        {accounts.slice(0, 4).map((account) => (
-          <li key={account.id}>
-            <AccountChip
-              accountId={account.id}
-              name={account.name}
-              platform={account.platform}
-              avatarUrl={account.avatarUrl}
-              className="w-full !bg-card"
-            />
-          </li>
-        ))}
-      </ul>
-      {accounts.length === 0 ? (
-        <p className="mt-6 text-xs text-muted">
-          No Instagram accounts connected yet.
-        </p>
-      ) : null}
-    </section>
-  );
+  const lastSpace = normalized.slice(0, maxLength + 1).lastIndexOf(" ");
+  const end = lastSpace > 0 ? lastSpace : maxLength;
+  return normalized.slice(0, end);
 }
 
 export function DashboardWorkspace({
@@ -238,25 +144,111 @@ export function DashboardWorkspace({
   connectionStatus,
   todayIso,
 }: DashboardWorkspaceProps) {
-  const today = new Date(todayIso);
-  const reviewCount = getReviewRows(data.contentRows).length;
+  const greetingName = shortenAtWordBoundary(getGreetingName(profile));
+  const pending = buildStatusBreakdown(data.contentRows, "pending");
+  const draft = buildStatusBreakdown(data.contentRows, "draft");
+  const ready = buildStatusBreakdown(data.contentRows, "ready");
+  const { bars: publishedBars, total: publishedTotal } =
+    buildPublishedBars(data);
 
   return (
-    <div className="analytics-theme min-h-screen bg-page font-inter text-ink transition-colors duration-500">
-      <main className="mx-auto flex w-full max-w-[1440px] flex-col gap-4 px-5 py-8 sm:px-7 sm:py-9">
-        <DashboardHero data={data} profile={profile} reviewCount={reviewCount} />
-        <Metrics data={data} today={today} />
-        <div>
-          <EditorialCalendar calendar={data.calendar} todayIso={todayIso} />
-        </div>
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_318px]">
-          <WorkplaceTaskBoard accounts={data.accounts} />
-          <div className="grid gap-4">
-            <AccountsPanel
-              accounts={data.accounts}
-              connectionStatus={connectionStatus}
+    <div className="app-shell-fill dashboard-type bg-paper font-inter text-ink transition-colors duration-500">
+      <main
+        className="mx-auto flex max-w-none shrink-0 flex-col"
+        style={{
+          width: FIXED_DASHBOARD_LAYOUT.mainWidth,
+          gap: FIXED_DASHBOARD_LAYOUT.cardGap,
+          padding: `${FIXED_DASHBOARD_LAYOUT.mainPaddingY}px ${FIXED_DASHBOARD_LAYOUT.mainPaddingX}px`,
+        }}
+      >
+        <div
+          className="grid items-start"
+          style={{
+            gap: FIXED_DASHBOARD_LAYOUT.cardGap,
+            gridTemplateColumns: `${FIXED_DASHBOARD_LAYOUT.leftColumnWidth}px ${FIXED_DASHBOARD_LAYOUT.rightColumnWidth}px`,
+          }}
+        >
+          <div
+            className="flex min-w-0 flex-col"
+            style={{ gap: FIXED_DASHBOARD_LAYOUT.cardGap }}
+          >
+            <h1 className="dashboard-page-title text-ink">
+              Good morning, {greetingName}
+            </h1>
+
+            {connectionStatus ? (
+              <p
+                className={`dashboard-ui-label rounded-[10px] px-3 py-2 ${
+                  connectionStatus.tone === "success"
+                    ? "bg-success/10 text-success"
+                    : "bg-danger/10 text-danger"
+                }`}
+              >
+                {connectionStatus.message}
+              </p>
+            ) : null}
+
+            <div
+              className="grid"
+              style={{
+                gap: FIXED_DASHBOARD_LAYOUT.cardGap,
+                gridTemplateColumns: `repeat(3, ${FIXED_DASHBOARD_LAYOUT.statCardWidth}px)`,
+              }}
+            >
+              <StatusStatCard
+                label="Pending"
+                total={pending.total}
+                breakdown={pending.breakdown}
+                cardWidth={FIXED_DASHBOARD_LAYOUT.statCardWidth}
+                cardHeight={FIXED_DASHBOARD_LAYOUT.statCardHeight}
+              />
+              <StatusStatCard
+                label="Draft"
+                total={draft.total}
+                breakdown={draft.breakdown}
+                cardWidth={FIXED_DASHBOARD_LAYOUT.statCardWidth}
+                cardHeight={FIXED_DASHBOARD_LAYOUT.statCardHeight}
+              />
+              <StatusStatCard
+                label="Ready"
+                total={ready.total}
+                breakdown={ready.breakdown}
+                cardWidth={FIXED_DASHBOARD_LAYOUT.statCardWidth}
+                cardHeight={FIXED_DASHBOARD_LAYOUT.statCardHeight}
+              />
+            </div>
+
+            <PublishedChart
+              total={publishedTotal}
+              bars={publishedBars}
+              cardWidth={FIXED_DASHBOARD_LAYOUT.publishedCardWidth}
+              cardHeight={FIXED_DASHBOARD_LAYOUT.publishedCardHeight}
             />
+          </div>
+
+          <div
+            className="relative min-w-0"
+            style={{
+              width: FIXED_DASHBOARD_LAYOUT.recentPostsCardWidth,
+              height: FIXED_DASHBOARD_LAYOUT.recentPostsCardHeight,
+              marginTop: FIXED_DASHBOARD_LAYOUT.recentPostsTopOffset,
+            }}
+          >
+            <RecentPostsPanel rows={data.contentRows} />
+          </div>
+        </div>
+
+        <MyAccountsCarousel accounts={data.accounts} />
+
+        <div
+          className="grid items-start gap-6 lg:grid-cols-[300px_minmax(0,1fr)]"
+          style={{ gridAutoRows: CALENDAR_CARD_HEIGHT }}
+        >
+          <div style={{ height: CALENDAR_CARD_HEIGHT }}>
             <LiveActivityPanel initialRows={data.activityRows} />
+          </div>
+          <div style={{ height: CALENDAR_CARD_HEIGHT }}>
+            <CalendarCard calendar={data.calendar} todayIso={todayIso} />
           </div>
         </div>
 
