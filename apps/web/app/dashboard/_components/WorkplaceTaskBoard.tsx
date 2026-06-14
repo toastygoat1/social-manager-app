@@ -86,9 +86,9 @@ const TASK_TABLE_WIDTH = TASK_COLUMNS.reduce(
 );
 
 const URGENCY_STYLES: Record<TaskUrgency, string> = {
-  High: "bg-danger/10 text-danger",
-  Medium: "bg-cta/10 text-cta",
-  Low: "bg-success/10 text-success",
+  High: "text-danger",
+  Medium: "text-cta",
+  Low: "text-success",
 };
 
 const URGENCY_DOT_STYLES: Record<TaskUrgency, string> = {
@@ -98,10 +98,10 @@ const URGENCY_DOT_STYLES: Record<TaskUrgency, string> = {
 };
 
 const STATUS_STYLES: Record<TaskStatus, string> = {
-  "Not started": "bg-card text-muted",
-  "In progress": "bg-cta/10 text-cta",
-  Review: "bg-neutral-100 text-neutral-700",
-  Done: "bg-success/10 text-success",
+  "Not started": "text-muted",
+  "In progress": "text-cta",
+  Review: "text-neutral-700",
+  Done: "text-success",
 };
 
 const CALENDAR_EVENT_STYLES: Record<TaskStatus, string> = {
@@ -127,10 +127,10 @@ type DeadlineCalendarCell = {
 };
 
 const inputClassName =
-  "w-full rounded-md border border-line bg-paper px-2.5 py-2 text-xs text-ink outline-none transition placeholder:text-muted focus:border-cta focus:ring-2 focus:ring-cta/15";
+  "w-full bg-transparent px-2 py-1.5 text-xs text-ink outline-none transition placeholder:text-muted focus:text-ink";
 
 const mutedInputClassName =
-  "w-full rounded-md border border-line bg-paper px-2.5 py-2 text-xs text-muted outline-none transition placeholder:text-muted focus:border-cta focus:text-ink focus:ring-2 focus:ring-cta/15";
+  "w-full bg-transparent px-2 py-1.5 text-xs text-muted outline-none transition placeholder:text-muted focus:text-ink";
 
 function padDatePart(value: number) {
   return String(value).padStart(2, "0");
@@ -336,7 +336,7 @@ function EditableTextCell({
   }
 
   return (
-    <div className="group/cell relative flex min-h-9 w-full items-center rounded-md border border-transparent px-2 py-1.5 transition hover:border-line hover:bg-paper focus-within:border-cta focus-within:bg-paper">
+    <div className="group/cell relative flex min-h-9 w-full items-center px-2 py-1.5">
       <span
         className={`min-w-0 pr-8 text-xs leading-5 ${
           multiline ? "max-h-[3.75rem] overflow-hidden" : "truncate"
@@ -378,7 +378,7 @@ function SelectInput<T extends string>({
       aria-label={ariaLabel}
       value={value}
       onChange={(event) => onChange(event.target.value as T)}
-      className={`w-full appearance-none rounded-full border border-transparent bg-none px-2.5 py-1.5 text-center text-[10px] font-semibold outline-none transition hover:border-line focus:border-cta focus:ring-2 focus:ring-cta/15 ${className}`}
+      className={`w-full appearance-none border-0 bg-transparent px-2 py-1.5 text-center text-xs font-semibold outline-none ${className}`}
     >
       {options.map((option) => (
         <option key={option} value={option}>
@@ -393,7 +393,7 @@ function AccountAvatar({ account }: { account: Account | null }) {
   const label = account ? getAccountLabel(account) : "No account selected";
 
   return (
-    <span className="flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-full border border-line bg-paper text-[10px] font-semibold text-muted">
+    <span className="flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-card text-xs font-semibold text-muted">
       {account?.avatarUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -451,7 +451,7 @@ function AccountSelect({
         aria-haspopup="listbox"
         disabled={accounts.length === 0}
         onClick={() => setIsOpen((current) => !current)}
-        className="flex w-full items-center gap-2 rounded-lg border border-transparent bg-card/70 px-2 py-1.5 text-left text-xs text-ink outline-none transition hover:border-line hover:bg-paper focus:border-cta focus:bg-paper focus:ring-2 focus:ring-cta/15 disabled:bg-card disabled:text-muted"
+        className="flex w-full items-center gap-2 bg-transparent px-2 py-1.5 text-left text-xs text-ink outline-none transition hover:text-ink focus:text-ink disabled:text-muted"
       >
         <AccountAvatar account={selectedAccount} />
         <span className="min-w-0 flex-1 truncate">{label}</span>
@@ -503,14 +503,13 @@ function DateTimeInput({
   onChange: (value: string) => void;
 }) {
   return (
-    <span className="flex w-full items-center gap-2 rounded-lg border border-transparent bg-card/60 px-2 py-1.5 text-muted transition hover:border-line hover:bg-paper focus-within:border-cta focus-within:bg-paper focus-within:ring-2 focus-within:ring-cta/15">
-      <Clock3 className="size-3.5 shrink-0 text-cta" strokeWidth={1.8} />
+    <span className="flex w-full items-center px-2 py-1.5">
       <input
         aria-label="Deadline"
         type="datetime-local"
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="min-w-0 flex-1 border-0 bg-transparent p-0 text-[11px] text-ink outline-none"
+        className="schedule-datetime-input min-w-0 flex-1 border-0 bg-transparent p-0 text-xs text-ink outline-none"
       />
     </span>
   );
