@@ -4,7 +4,6 @@ import {
   useCallback,
   useEffect,
   useMemo,
-  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -199,6 +198,17 @@ function formatDeadlineLabel(value: string) {
   }).format(parsed);
 }
 
+function formatDeadlineCellValue(value: string) {
+  const parsed = parseLocalDateTime(value);
+  if (!parsed) return "No deadline";
+
+  return `${padDatePart(parsed.getDate())}/${padDatePart(
+    parsed.getMonth() + 1,
+  )}/${parsed.getFullYear()}, ${padDatePart(parsed.getHours())}:${padDatePart(
+    parsed.getMinutes(),
+  )}`;
+}
+
 function formatDeadlineTime(value: string) {
   const parsed = parseLocalDateTime(value);
   if (!parsed) return "";
@@ -216,6 +226,14 @@ function getFirstDeadlineDate(tasks: WorkplaceTask[]) {
     .sort((a, b) => a.getTime() - b.getTime());
 
   return sortedDates[0] ?? null;
+}
+
+function toLocalDateTimeValue(date: Date) {
+  return `${date.getFullYear()}-${padDatePart(
+    date.getMonth() + 1,
+  )}-${padDatePart(date.getDate())}T${padDatePart(
+    date.getHours(),
+  )}:${padDatePart(date.getMinutes())}`;
 }
 
 function getAccountLabel(account: Account) {
@@ -503,32 +521,232 @@ function DateTimeInput({
   value: string;
   onChange: (value: string) => void;
 }) {
-  const inputRef = useRef<HTMLInputElement>(null);
+  const parsedValue = parseLocalDateTime(value) ?? new Date();
+  const [isOpen, setIsOpen] = useState(false);
+  const [referenceMonth, setReferenceMonth] = useState(
+    () => new Date(parsedValue.getFullYear(), parsedValue.getMonth(), 1),
+  );
+  const [hourDraft, setHourDraft] = useState(() =>
+    padDatePart(parsedValue.getHours()),
+  );
+  const [minuteDraft, setMinuteDraft] = useState(() =>
+    padDatePart(parsedValue.getMinutes()),
+  );
+  const cells = useMemo(
+    () => buildDeadlineCalendarCells(referenceMonth),
+    [referenceMonth],
+  );
+  const selectedDateKey = toDateKey(parsedValue);
+  const todayKey = toDateKey(new Date());
 
-  function openDateTimePicker() {
-    const input = inputRef.current;
-    if (!input) return;
+  function syncPickerDraftsFromValue() {
+    const nextDate = parseLocalDateTime(value) ?? new Date();
+    setReferenceMonth(new Date(nextDate.getFullYear(), nextDate.getMonth(), 1));
+    setHourDraft(padDatePart(nextDate.getHours()));
+    setMinuteDraft(padDatePart(nextDate.getMinutes()));
+  }
 
-    input.focus();
-    if (typeof input.showPicker === "function") {
-      input.showPicker();
+  function getDraftTime() {
+    const hour = Number.parseInt(hourDraft, 10);
+    const minute = Number.parseInt(minuteDraft, 10);
+
+    return {
+      hour: Number.isFinite(hour)
+        ? Math.min(Math.max(hour, 0), 23)
+        : parsedValue.getHours(),
+      minute: Number.isFinite(minute)
+        ? Math.min(Math.max(minute, 0), 59)
+        : parsedValue.getMinutes(),
+    };
+  }
+
+  function updateDeadline(date: Date) {
+    onChange(toLocalDateTimeValue(date));
+  }
+
+  function selectDate(date: Date) {
+    const { hour, minute } = getDraftTime();
+    updateDeadline(
+      new Date(date.getFullYear(), date.getMonth(), date.getDate(), hour, minute),
+    );
+  }
+
+  function commitTime() {
+    const { hour, minute } = getDraftTime();
+    setHourDraft(padDatePart(hour));
+    setMinuteDraft(padDatePart(minute));
+    updateDeadline(
+      new Date(
+        parsedValue.getFullYear(),
+        parsedValue.getMonth(),
+        parsedValue.getDate(),
+        hour,
+        minute,
+      ),
+    );
+  }
+
+  function shiftPickerMonth(monthOffset: number) {
+    setReferenceMonth(
+      new Date(
+        referenceMonth.getFullYear(),
+        referenceMonth.getMonth() + monthOffset,
+        1,
+      ),
+    );
+  }
+
+  function updateTimeDraft(
+    nextValue: string,
+    setter: (value: string) => void,
+  ) {
+    setter(nextValue.replace(/\D/g, "").slice(0, 2));
+  }
+
+  function togglePicker() {
+    if (!isOpen) {
+      syncPickerDraftsFromValue();
     }
+    setIsOpen((current) => !current);
   }
 
   return (
-    <span
-      className="flex w-full cursor-text items-center px-2 py-1.5"
-      onClick={openDateTimePicker}
+    <div
+      className="relative w-full"
+      onBlur={(event) => {
+        const nextTarget = event.relatedTarget;
+        if (
+          !(nextTarget instanceof Node) ||
+          !event.currentTarget.contains(nextTarget)
+        ) {
+          commitTime();
+          setIsOpen(false);
+        }
+      }}
+      onKeyDown={(event) => {
+        if (event.key === "Escape") {
+          setIsOpen(false);
+        }
+      }}
     >
-      <input
-        ref={inputRef}
+      <button
+        type="button"
         aria-label="Deadline"
-        type="datetime-local"
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="schedule-datetime-input min-w-0 flex-1 border-0 bg-transparent p-0 text-xs text-ink outline-none"
-      />
-    </span>
+        aria-expanded={isOpen}
+        aria-haspopup="dialog"
+        onClick={togglePicker}
+        className="flex w-full items-center px-2 py-1.5 text-left text-xs text-ink outline-none transition hover:text-cta focus:text-cta"
+      >
+        <span className="truncate">{formatDeadlineCellValue(value)}</span>
+      </button>
+
+      {isOpen ? (
+        <div
+          role="dialog"
+          aria-label="Choose deadline"
+          className="absolute left-0 top-full z-50 mt-1 w-[320px] rounded-lg border border-line bg-paper p-3 shadow-xl"
+        >
+          <header className="flex items-center justify-between gap-2">
+            <button
+              type="button"
+              aria-label="Previous month"
+              onClick={() => shiftPickerMonth(-1)}
+              className="flex size-8 items-center justify-center rounded-md text-muted transition hover:bg-card hover:text-ink"
+            >
+              <ChevronLeft className="size-4" strokeWidth={1.8} />
+            </button>
+            <span className="text-sm font-semibold text-ink">
+              {formatMonthLabel(referenceMonth)}
+            </span>
+            <button
+              type="button"
+              aria-label="Next month"
+              onClick={() => shiftPickerMonth(1)}
+              className="flex size-8 items-center justify-center rounded-md text-muted transition hover:bg-card hover:text-ink"
+            >
+              <ChevronRight className="size-4" strokeWidth={1.8} />
+            </button>
+          </header>
+
+          <div className="mt-3 grid grid-cols-7 gap-1 text-center text-xs">
+            {CALENDAR_WEEKDAYS.map((day) => (
+              <span key={day} className="py-1 font-semibold text-muted">
+                {day}
+              </span>
+            ))}
+            {cells.map((cell) => {
+              const selected = cell.dateKey === selectedDateKey;
+              const today = cell.dateKey === todayKey;
+
+              return (
+                <button
+                  key={cell.dateKey}
+                  type="button"
+                  onClick={() => selectDate(cell.date)}
+                  className={`flex h-8 items-center justify-center rounded-md text-xs transition ${
+                    selected
+                      ? "bg-ink text-paper"
+                      : today
+                        ? "border border-cta text-cta"
+                        : cell.outside
+                          ? "text-muted/70 hover:bg-card hover:text-ink"
+                          : "text-ink hover:bg-card"
+                  }`}
+                >
+                  {cell.day}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="mt-3 flex items-end gap-2 border-t border-line pt-3">
+            <label className="flex flex-1 flex-col gap-1 text-xs text-muted">
+              Hour
+              <input
+                aria-label="Deadline hour"
+                inputMode="numeric"
+                value={hourDraft}
+                onBlur={commitTime}
+                onChange={(event) =>
+                  updateTimeDraft(event.target.value, setHourDraft)
+                }
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") commitTime();
+                }}
+                className="h-9 rounded-md border border-line bg-paper px-2 text-xs text-ink outline-none focus:border-cta"
+              />
+            </label>
+            <span className="pb-2 text-sm font-semibold text-muted">:</span>
+            <label className="flex flex-1 flex-col gap-1 text-xs text-muted">
+              Minute
+              <input
+                aria-label="Deadline minute"
+                inputMode="numeric"
+                value={minuteDraft}
+                onBlur={commitTime}
+                onChange={(event) =>
+                  updateTimeDraft(event.target.value, setMinuteDraft)
+                }
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") commitTime();
+                }}
+                className="h-9 rounded-md border border-line bg-paper px-2 text-xs text-ink outline-none focus:border-cta"
+              />
+            </label>
+            <button
+              type="button"
+              onClick={() => {
+                commitTime();
+                setIsOpen(false);
+              }}
+              className="h-9 rounded-md bg-ink px-3 text-xs font-semibold text-paper transition hover:opacity-90"
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 }
 
