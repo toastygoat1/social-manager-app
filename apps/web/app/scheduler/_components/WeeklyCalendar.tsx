@@ -1,4 +1,3 @@
-import { Loader2 } from "lucide-react";
 import { AgendaEventCard } from "./AgendaEventCard";
 import {
   getDateDropProps,
@@ -31,7 +30,6 @@ type Props = {
 export function WeeklyCalendar({
   reference,
   events,
-  loading,
   onOpenPost,
   dragController,
 }: Props) {
@@ -56,12 +54,6 @@ export function WeeklyCalendar({
 
   return (
     <section className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-[#fffdf9]">
-      {loading ? (
-        <div className="absolute right-3 top-3 z-20 flex items-center gap-1.5 rounded-full border border-[#e7e1d6] bg-paper px-2.5 py-1 text-[10px] font-medium text-[#777167] shadow-sm">
-          <Loader2 className="size-3 animate-spin" strokeWidth={2} />
-          Loading
-        </div>
-      ) : null}
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div
           className={`sticky top-0 z-10 grid ${GRID_COLS} border-b border-[#e7e1d6] bg-[#f8f6f1]`}

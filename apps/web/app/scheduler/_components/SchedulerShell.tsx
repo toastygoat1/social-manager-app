@@ -113,8 +113,6 @@ export function SchedulerShell({ initialReferenceIso, initialData }: Props) {
     setReference(next);
   };
 
-  const goToday = () => setReference(new Date());
-
   const openPost = (event: SchedulerEvent) => {
     if (event.source !== "scheduled_post" || !event.id.startsWith("post:")) {
       return;
@@ -288,7 +286,6 @@ export function SchedulerShell({ initialReferenceIso, initialData }: Props) {
         onViewChange={setView}
         onPrev={() => shiftReference(-1)}
         onNext={() => shiftReference(1)}
-        onToday={goToday}
         onCreated={refresh}
         referenceIso={reference.toISOString()}
       />

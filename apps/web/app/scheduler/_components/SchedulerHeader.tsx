@@ -14,6 +14,7 @@ import {
   PlusSquare,
 } from "lucide-react";
 import { CreatePostModal, type CreatePostType } from "./CreatePostModal";
+import { formatPeriodLabel } from "./data";
 
 export type SchedulerView = "month" | "week" | "list";
 
@@ -22,7 +23,6 @@ type Props = {
   onViewChange: (view: SchedulerView) => void;
   onPrev: () => void;
   onNext: () => void;
-  onToday: () => void;
   onCreated: () => void;
   referenceIso: string;
 };
@@ -68,45 +68,41 @@ export function SchedulerHeader({
   onViewChange,
   onPrev,
   onNext,
-  onToday,
   onCreated,
   referenceIso,
 }: Props) {
   const [createOpen, setCreateOpen] = useState(false);
   const [modalType, setModalType] = useState<CreatePostType | null>(null);
+  const periodLabel = formatPeriodLabel(view, new Date(referenceIso));
 
   return (
     <header className="relative z-20 shrink-0 border-b border-[#e8e3da] bg-[#fffdf9]">
-      <div className="flex min-h-[74px] flex-wrap items-center justify-between gap-4 px-4 py-3 lg:px-6">
+      <div className="grid min-h-[74px] grid-cols-1 items-center gap-3 px-4 py-3 md:grid-cols-[minmax(180px,1fr)_auto_minmax(180px,1fr)] lg:px-6">
         <DateHeader referenceIso={referenceIso} />
 
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 items-center rounded-md border border-[#e7e1d6] bg-paper">
-            <button
-              type="button"
-              aria-label="Previous period"
-              onClick={onPrev}
-              className="flex size-8 items-center justify-center text-[#6d665d] hover:bg-[#f4f1eb]"
-            >
-              <ChevronLeft className="size-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={onToday}
-              className="h-full border-x border-[#e7e1d6] px-3 text-[11px] font-medium text-[#544e46] hover:bg-[#f4f1eb]"
-            >
-              Today
-            </button>
-            <button
-              type="button"
-              aria-label="Next period"
-              onClick={onNext}
-              className="flex size-8 items-center justify-center text-[#6d665d] hover:bg-[#f4f1eb]"
-            >
-              <ChevronRight className="size-3.5" />
-            </button>
-          </div>
+        <div className="flex items-center justify-center gap-3">
+          <button
+            type="button"
+            aria-label="Previous period"
+            onClick={onPrev}
+            className="flex size-8 items-center justify-center rounded-md border border-[#e7e1d6] bg-paper text-[#6d665d] hover:bg-[#f4f1eb]"
+          >
+            <ChevronLeft className="size-3.5" />
+          </button>
+          <h1 className="min-w-[190px] text-center text-[17px] font-semibold tracking-[-0.02em] text-[#171510]">
+            {periodLabel}
+          </h1>
+          <button
+            type="button"
+            aria-label="Next period"
+            onClick={onNext}
+            className="flex size-8 items-center justify-center rounded-md border border-[#e7e1d6] bg-paper text-[#6d665d] hover:bg-[#f4f1eb]"
+          >
+            <ChevronRight className="size-3.5" />
+          </button>
+        </div>
 
+        <div className="flex items-center gap-2 md:justify-end">
           <div className="flex h-8 overflow-hidden rounded-md border border-[#e7e1d6] bg-paper">
             {VIEW_OPTIONS.map(({ view: optionView, label, Icon }, index) => (
               <ViewButton

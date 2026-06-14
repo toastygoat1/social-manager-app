@@ -1,4 +1,4 @@
-import { GripVertical, Loader2 } from "lucide-react";
+import { GripVertical } from "lucide-react";
 import {
   canDragSchedulerEvent,
   getDateDropProps,
@@ -134,7 +134,7 @@ function DayCell({
           : ""
       } ${isToday && !isDropTarget ? "z-[1] bg-[#f4f6ff] ring-2 ring-inset ring-[#6682fa]" : ""}`}
     >
-      <div className="mb-1 flex h-4 items-center justify-between gap-2">
+      <div className="mb-1 flex h-4 items-center gap-2">
         <span
           className={`text-[10px] font-semibold ${
             isToday
@@ -146,9 +146,6 @@ function DayCell({
         >
           {cell.day}
         </span>
-        {events.length ? (
-          <span className="text-[9px] text-[#9a948b]">{events.length}</span>
-        ) : null}
       </div>
       <div className="flex flex-col gap-1">
         {visibleEvents.map((event) => (
@@ -182,7 +179,6 @@ export function MonthlyCalendar({
   reference,
   todayIso,
   events,
-  loading,
   onOpenPost,
   dragController,
 }: Props) {
@@ -197,12 +193,6 @@ export function MonthlyCalendar({
 
   return (
     <div className="relative flex min-h-0 w-full flex-1 flex-col overflow-hidden bg-[#fffdf9]">
-      {loading ? (
-        <div className="absolute right-3 top-2 z-10 flex items-center gap-1.5 rounded-full border border-[#e7e1d6] bg-paper px-2.5 py-1 text-[10px] font-medium text-[#777167] shadow-sm">
-          <Loader2 className="size-3 animate-spin" strokeWidth={2} />
-          Loading
-        </div>
-      ) : null}
       <div className="grid h-8 shrink-0 grid-cols-7 border-b border-[#e7e1d6] bg-[#f8f6f1]">
         {MONTH_DAYS.map((day) => (
           <div

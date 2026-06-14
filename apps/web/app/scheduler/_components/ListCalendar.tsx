@@ -1,4 +1,3 @@
-import { Loader2 } from "lucide-react";
 import { AgendaEventCard } from "./AgendaEventCard";
 import { type SchedulerEvent, toIsoDate } from "./data";
 import {
@@ -34,12 +33,6 @@ export function ListCalendar({
 
   return (
     <section className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-[#fffdf9]">
-      {loading ? (
-        <div className="absolute right-4 top-3 z-10 flex items-center gap-1.5 rounded-full border border-[#e7e1d6] bg-paper px-2.5 py-1 text-[10px] font-medium text-[#777167] shadow-sm">
-          <Loader2 className="size-3 animate-spin" strokeWidth={2} />
-          Loading
-        </div>
-      ) : null}
       <header className="flex shrink-0 items-center justify-between border-b border-[#e7e1d6] bg-[#f8f6f1] px-5 py-3">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#898278]">
