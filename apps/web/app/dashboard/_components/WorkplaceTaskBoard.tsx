@@ -61,11 +61,11 @@ const EMPTY_TASKS: WorkplaceTask[] = [];
 const CALENDAR_WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const FOLDER_TONES = [
   { body: "#fb858b", tab: "#ff9a9f", spine: "#2b2b2b" },
-  { body: "#f28a72", tab: "#ffad9a", spine: "#333333" },
-  { body: "#f6a04d", tab: "#ffc36f", spine: "#2d2d2d" },
-  { body: "#7fc8b8", tab: "#9de1d4", spine: "#2e3433" },
+  { body: "#f07aa4", tab: "#ffabc8", spine: "#333333" },
   { body: "#89a7ff", tab: "#aebfff", spine: "#2b3145" },
+  { body: "#7fc8b8", tab: "#9de1d4", spine: "#2e3433" },
   { body: "#c393e8", tab: "#dab4fb", spine: "#31273d" },
+  { body: "#6daee8", tab: "#9bcaf5", spine: "#273447" },
 ];
 
 const TASK_COLUMNS = [
@@ -87,27 +87,27 @@ const TASK_TABLE_WIDTH = TASK_COLUMNS.reduce(
 
 const URGENCY_STYLES: Record<TaskUrgency, string> = {
   High: "bg-danger/10 text-danger",
-  Medium: "bg-[#d4a547]/15 text-[#98640d]",
+  Medium: "bg-cta/10 text-cta",
   Low: "bg-success/10 text-success",
 };
 
 const URGENCY_DOT_STYLES: Record<TaskUrgency, string> = {
   High: "bg-danger",
-  Medium: "bg-[#d4a547]",
+  Medium: "bg-cta",
   Low: "bg-success",
 };
 
 const STATUS_STYLES: Record<TaskStatus, string> = {
   "Not started": "bg-card text-muted",
   "In progress": "bg-cta/10 text-cta",
-  Review: "bg-[#d4a547]/15 text-[#98640d]",
+  Review: "bg-[#6f7ad7]/12 text-[#4f5cbf]",
   Done: "bg-success/10 text-success",
 };
 
 const CALENDAR_EVENT_STYLES: Record<TaskStatus, string> = {
   "Not started": "border-line bg-paper text-muted",
   "In progress": "border-cta/20 bg-cta/10 text-cta",
-  Review: "border-[#d4a547]/25 bg-[#d4a547]/15 text-[#98640d]",
+  Review: "border-[#6f7ad7]/25 bg-[#6f7ad7]/12 text-[#4f5cbf]",
   Done: "border-success/20 bg-success/10 text-success",
 };
 
@@ -244,7 +244,7 @@ function TaskCell({
 }) {
   return (
     <div
-      className={`flex min-h-[78px] shrink-0 items-start px-2.5 py-2.5 ${className}`}
+      className={`flex min-h-[78px] shrink-0 items-start border-r border-line/80 px-2.5 py-2.5 last:border-r-0 ${className}`}
       style={{ width }}
     >
       {children}
@@ -369,7 +369,7 @@ function SelectInput<T extends string>({
       aria-label={ariaLabel}
       value={value}
       onChange={(event) => onChange(event.target.value as T)}
-      className={`w-full rounded-full border border-transparent px-2.5 py-1.5 font-mono text-[10px] font-semibold outline-none transition hover:border-line focus:border-cta focus:ring-2 focus:ring-cta/15 ${className}`}
+      className={`w-full rounded-full border border-transparent px-2.5 py-1.5 text-[10px] font-semibold outline-none transition hover:border-line focus:border-cta focus:ring-2 focus:ring-cta/15 ${className}`}
     >
       {options.map((option) => (
         <option key={option} value={option}>
@@ -430,7 +430,7 @@ function DateTimeInput({
         type="datetime-local"
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="min-w-0 flex-1 border-0 bg-transparent p-0 font-mono text-[11px] text-ink outline-none"
+        className="min-w-0 flex-1 border-0 bg-transparent p-0 text-[11px] text-ink outline-none"
       />
     </span>
   );
@@ -500,7 +500,7 @@ function FolderTile({
         <span className="block max-w-full truncate text-[11px] font-semibold leading-none">
           {workspace.name}
         </span>
-        <span className="block font-mono text-[10px] leading-none text-muted">
+        <span className="block text-[10px] leading-none text-muted">
           {workspace.tasks.length} rows
         </span>
       </button>
@@ -601,7 +601,7 @@ function DeadlineCalendar({
             {CALENDAR_WEEKDAYS.map((day) => (
               <div
                 key={day}
-                className="border-r border-line px-3 py-2 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-muted last:border-r-0"
+                className="border-r border-line px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted last:border-r-0"
               >
                 {day}
               </div>
@@ -640,7 +640,7 @@ function DeadlineCalendar({
                       {cell.day}
                     </span>
                     {dayEvents.length ? (
-                      <span className="rounded-full bg-paper px-1.5 py-0.5 font-mono text-[10px] text-muted">
+                      <span className="rounded-full bg-paper px-1.5 py-0.5 text-[10px] text-muted">
                         {dayEvents.length} due
                       </span>
                     ) : null}
@@ -657,7 +657,7 @@ function DeadlineCalendar({
                         <span
                           className={`size-1.5 shrink-0 rounded-full ${URGENCY_DOT_STYLES[task.urgency]}`}
                         />
-                        <span className="shrink-0 font-mono text-[10px] opacity-70">
+                        <span className="shrink-0 text-[10px] opacity-70">
                           {formatDeadlineTime(task.deadline)}
                         </span>
                         <span className="truncate font-semibold">
@@ -1139,7 +1139,7 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
           <>
             <header className="flex flex-wrap items-start justify-between gap-4 border-b border-line pb-4">
               <div className="min-w-0">
-                <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted">
+                <p className="text-[10px] uppercase tracking-[0.08em] text-muted">
                   Selected folder table
                 </p>
                 <h2 className="mt-1 truncate text-[22px] font-semibold leading-tight text-ink">
@@ -1153,21 +1153,21 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
               </div>
 
               <div className="flex flex-wrap items-center justify-end gap-2">
-                <span className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-line bg-card px-2.5 font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
+                <span className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-line bg-card px-2.5 text-[10px] uppercase tracking-[0.04em] text-muted">
                   <TriangleAlert
                     className="size-3.5 text-danger"
                     strokeWidth={1.8}
                   />
                   {selectedStats.urgentTasks} urgent
                 </span>
-                <span className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-line bg-card px-2.5 font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
+                <span className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-line bg-card px-2.5 text-[10px] uppercase tracking-[0.04em] text-muted">
                   <CheckCircle2
                     className="size-3.5 text-success"
                     strokeWidth={1.8}
                   />
                   {selectedStats.completedTasks}/{selectedTasks.length} done
                 </span>
-                <span className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-line bg-card px-2.5 font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
+                <span className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-line bg-card px-2.5 text-[10px] uppercase tracking-[0.04em] text-muted">
                   <Clock3 className="size-3.5 text-cta" strokeWidth={1.8} />
                   {selectedStats.deadlines} deadlines
                 </span>
@@ -1200,10 +1200,10 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
                     {TASK_COLUMNS.map((column) => (
                       <div
                         key={column.label}
-                        className="flex h-full shrink-0 items-center px-2.5"
+                        className="flex h-full shrink-0 items-center border-r border-line/80 px-2.5 last:border-r-0"
                         style={{ width: column.width }}
                       >
-                        <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-muted">
+                        <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted">
                           {column.label}
                         </span>
                       </div>
