@@ -72,6 +72,7 @@ model InstagramAccount {
   aiProcedures         AiProcedure[]
   aiBatchReports       AiBatchReport[]
   workspaceTasks       WorkspaceTask[]
+  workspaceTaskAccounts WorkspaceTaskAccount[]
   user                 User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   webhookEvents        WebhookEvent[]
 
@@ -242,11 +243,24 @@ model WorkspaceTask {
   updatedAt          DateTime          @updatedAt @map("updated_at")
   folder             WorkspaceFolder   @relation(fields: [folderId], references: [id], onDelete: Cascade)
   instagramAccount   InstagramAccount? @relation(fields: [instagramAccountId], references: [id], onDelete: SetNull)
+  taskAccounts       WorkspaceTaskAccount[]
 
   @@index([folderId, sortOrder])
   @@index([instagramAccountId])
   @@index([deadline])
   @@map("workspace_tasks")
+}
+
+model WorkspaceTaskAccount {
+  taskId             String           @map("task_id")
+  instagramAccountId String           @map("instagram_account_id")
+  createdAt          DateTime         @default(now()) @map("created_at")
+  task               WorkspaceTask    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  instagramAccount   InstagramAccount @relation(fields: [instagramAccountId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, instagramAccountId])
+  @@index([instagramAccountId])
+  @@map("workspace_task_accounts")
 }
 
 model PostMedia {

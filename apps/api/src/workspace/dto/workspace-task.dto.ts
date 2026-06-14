@@ -1,5 +1,8 @@
 import {
+  ArrayMaxSize,
+  ArrayUnique,
   IsIn,
+  IsArray,
   IsOptional,
   IsString,
   IsUUID,
@@ -35,6 +38,13 @@ export class CreateWorkspaceTaskDto {
   @IsOptional()
   @IsUUID()
   accountId?: string | null;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @ArrayUnique()
+  @IsUUID(undefined, { each: true })
+  accountIds?: string[] | null;
 
   @IsOptional()
   @IsIn(WORKSPACE_TASK_STATUSES)
@@ -78,6 +88,13 @@ export class UpdateWorkspaceTaskDto {
   @IsOptional()
   @IsUUID()
   accountId?: string | null;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @ArrayUnique()
+  @IsUUID(undefined, { each: true })
+  accountIds?: string[] | null;
 
   @IsOptional()
   @IsIn(WORKSPACE_TASK_STATUSES)

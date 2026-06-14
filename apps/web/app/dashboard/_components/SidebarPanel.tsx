@@ -307,7 +307,7 @@ function AccountAvatar({
 
   return (
     <span
-      className="dashboard-ui-meta flex size-[26px] shrink-0 items-center justify-center overflow-hidden rounded-full font-semibold text-white"
+      className="dashboard-ui-meta flex size-[30px] shrink-0 items-center justify-center overflow-hidden rounded-full font-semibold text-white"
       style={{
         background: `linear-gradient(135deg, ${color}, ${color}cc)`,
       }}
@@ -315,8 +315,8 @@ function AccountAvatar({
       <AvatarImage
         src={account.avatarUrl}
         alt={account.name}
-        width={26}
-        height={26}
+        width={30}
+        height={30}
         className="size-full object-cover"
         fallback={getInitials(account.name, "I")}
       />
@@ -435,13 +435,13 @@ function ProfileAvatar({
 
   return (
     <span
-      className="dashboard-ui-meta flex size-[26px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#5e6ad2] font-semibold text-white"
+      className="dashboard-ui-meta flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#5e6ad2] font-semibold text-white"
     >
       <AvatarImage
         src={profile?.avatarUrl}
         alt={`${name} profile picture`}
-        width={26}
-        height={26}
+        width={32}
+        height={32}
         className="size-full object-cover"
         fallback={getInitials(name)}
       />
@@ -852,7 +852,7 @@ export function SidebarPanel({
         title={
           isCompact ? (isDarkTheme ? "Light mode" : "Dark mode") : undefined
         }
-        className={`dashboard-ui-label group mt-auto flex min-h-8 w-full items-center text-[var(--sidebar-muted)] transition-colors duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:text-[var(--sidebar-text)] ${
+        className={`dashboard-ui-label group flex min-h-8 w-full items-center text-[var(--sidebar-muted)] transition-colors duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:text-[var(--sidebar-text)] ${
           isCompact
             ? "gap-1 px-[3px] py-0"
             : "gap-1 rounded-md px-[3px] py-0 hover:bg-[var(--sidebar-hover)]"
@@ -1028,7 +1028,7 @@ export function SidebarPanel({
         )
         : null}
 
-      <footer className="sidebar-profile-card-shadow mx-auto w-full rounded-[12px] border border-line bg-paper p-[3px]">
+      <footer className="sidebar-profile-card-shadow mx-auto mt-auto w-full rounded-[12px] border border-line bg-paper p-[3px]">
         <button
           ref={profileButtonRef}
           type="button"

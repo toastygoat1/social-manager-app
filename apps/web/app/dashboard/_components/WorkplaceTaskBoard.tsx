@@ -10,6 +10,7 @@ import {
 import { createPortal } from "react-dom";
 import {
   CalendarDays,
+  Check,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -39,6 +40,7 @@ type WorkplaceTask = {
   assignee: string;
   urgency: TaskUrgency;
   accountId: string | null;
+  accountIds: string[];
   status: TaskStatus;
   deadline: string;
   briefExecution: string;
@@ -61,7 +63,7 @@ type WorkspaceFoldersResponse = {
   folders: Workspace[];
 };
 
-type EditableTaskField = Exclude<keyof WorkplaceTask, "id">;
+type EditableTaskField = Exclude<keyof WorkplaceTask, "id" | "accountId">;
 
 const WORKSPACE_FOLDERS_ENDPOINT = "/workspace/folders";
 const EMPTY_SELECTED_WORKSPACE_ID = "";
@@ -245,6 +247,11 @@ function getAccountInitials(account: Account | null) {
     .join("");
 }
 
+function getTaskAccountIds(task: WorkplaceTask) {
+  if (Array.isArray(task.accountIds)) return task.accountIds;
+  return task.accountId ? [task.accountId] : [];
+}
+
 function getErrorMessage(error: unknown) {
   if (error instanceof Error) return error.message;
   return "Workspace sync failed. Please try again.";
@@ -416,31 +423,75 @@ function AccountAvatar({ account }: { account: Account | null }) {
   );
 }
 
+function AccountAvatarStack({ accounts }: { accounts: Account[] }) {
+  if (accounts.length === 0) {
+    return <AccountAvatar account={null} />;
+  }
+
+  return (
+    <span className="flex shrink-0 -space-x-2">
+      {accounts.slice(0, 2).map((account) => (
+        <span
+          key={account.id}
+          className="rounded-full border border-paper bg-paper"
+        >
+          <AccountAvatar account={account} />
+        </span>
+      ))}
+      {accounts.length > 2 ? (
+        <span className="flex size-6 items-center justify-center rounded-full border border-paper bg-card text-[10px] font-semibold text-muted">
+          +{accounts.length - 2}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
 function AccountSelect({
-  accountId,
+  accountIds,
   accounts,
   onChange,
 }: {
-  accountId: string | null;
+  accountIds: string[];
   accounts: Account[];
-  onChange: (accountId: string | null) => void;
+  onChange: (accountIds: string[]) => void;
 }) {
   const [menuAnchorRect, setMenuAnchorRect] =
     useState<FloatingAnchorRect | null>(null);
-  const selectedAccount =
-    accounts.find((account) => account.id === accountId) ?? null;
+  const accountById = useMemo(
+    () => new Map(accounts.map((account) => [account.id, account])),
+    [accounts],
+  );
+  const selectedAccountIds = new Set(accountIds);
+  const selectedAccounts = accountIds
+    .map((accountId) => accountById.get(accountId))
+    .filter((account): account is Account => Boolean(account));
   const menuPosition = menuAnchorRect
-    ? getFloatingPopoverPosition(menuAnchorRect, 220, 220)
+    ? getFloatingPopoverPosition(menuAnchorRect, 240, 260)
     : null;
-  const label = selectedAccount
-    ? getAccountLabel(selectedAccount)
+  const label = selectedAccounts.length
+    ? selectedAccounts.length === 1
+      ? getAccountLabel(selectedAccounts[0])
+      : `${getAccountLabel(selectedAccounts[0])} +${selectedAccounts.length - 1}`
     : accounts.length === 0
       ? "No connected accounts"
       : "Select account";
+  const title =
+    selectedAccounts.length > 0
+      ? selectedAccounts.map((account) => getAccountLabel(account)).join(", ")
+      : label;
 
-  function chooseAccount(nextAccountId: string | null) {
-    onChange(nextAccountId);
-    setMenuAnchorRect(null);
+  function clearAccounts() {
+    onChange([]);
+  }
+
+  function toggleAccount(accountId: string) {
+    if (selectedAccountIds.has(accountId)) {
+      onChange(accountIds.filter((selectedId) => selectedId !== accountId));
+      return;
+    }
+
+    onChange([...accountIds, accountId]);
   }
 
   function toggleAccountMenu(trigger: HTMLElement) {
@@ -459,8 +510,9 @@ function AccountSelect({
         disabled={accounts.length === 0}
         onClick={(event) => toggleAccountMenu(event.currentTarget)}
         className="flex w-full items-center gap-2 bg-transparent px-2 py-1.5 text-left text-xs text-ink outline-none transition hover:text-ink focus:text-ink disabled:text-muted"
+        title={title}
       >
-        <AccountAvatar account={selectedAccount} />
+        <AccountAvatarStack accounts={selectedAccounts} />
         <span className="min-w-0 flex-1 truncate">{label}</span>
       </button>
 
@@ -479,35 +531,47 @@ function AccountSelect({
                 style={{
                   left: menuPosition.left,
                   top: menuPosition.top,
-                  width: Math.max(220, menuAnchorRect.width),
+                  width: Math.max(240, menuAnchorRect.width),
                 }}
                 onMouseDown={(event) => event.stopPropagation()}
               >
                 <button
                   type="button"
                   role="option"
-                  aria-selected={!selectedAccount}
-                  onClick={() => chooseAccount(null)}
+                  aria-selected={selectedAccounts.length === 0}
+                  onClick={clearAccounts}
                   className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-muted transition hover:bg-card hover:text-ink"
                 >
                   <AccountAvatar account={null} />
                   <span className="min-w-0 flex-1 truncate">No account</span>
+                  {selectedAccounts.length === 0 ? (
+                    <Check className="size-3.5" strokeWidth={2} />
+                  ) : null}
                 </button>
-                {accounts.map((account) => (
-                  <button
-                    key={account.id}
-                    type="button"
-                    role="option"
-                    aria-selected={selectedAccount?.id === account.id}
-                    onClick={() => chooseAccount(account.id)}
-                    className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-ink transition hover:bg-card"
-                  >
-                    <AccountAvatar account={account} />
-                    <span className="min-w-0 flex-1 truncate">
-                      {getAccountLabel(account)}
-                    </span>
-                  </button>
-                ))}
+                {accounts.map((account) => {
+                  const selected = selectedAccountIds.has(account.id);
+
+                  return (
+                    <button
+                      key={account.id}
+                      type="button"
+                      role="option"
+                      aria-selected={selected}
+                      onClick={() => toggleAccount(account.id)}
+                      className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition hover:bg-card ${
+                        selected ? "font-semibold text-ink" : "text-ink"
+                      }`}
+                    >
+                      <AccountAvatar account={account} />
+                      <span className="min-w-0 flex-1 truncate">
+                        {getAccountLabel(account)}
+                      </span>
+                      {selected ? (
+                        <Check className="size-3.5" strokeWidth={2} />
+                      ) : null}
+                    </button>
+                  );
+                })}
               </div>
             </div>,
             document.body,
@@ -819,6 +883,8 @@ function TaskRow({
     value: WorkplaceTask[K],
   ) => void;
 }) {
+  const taskAccountIds = getTaskAccountIds(task);
+
   return (
     <div
       className="group/row flex border-b border-line/80 bg-paper transition last:border-b-0 odd:bg-card/25 hover:bg-cta/5"
@@ -851,9 +917,9 @@ function TaskRow({
       </TaskCell>
       <TaskCell width={190} className="items-center">
         <AccountSelect
-          accountId={task.accountId}
+          accountIds={taskAccountIds}
           accounts={accounts}
-          onChange={(value) => onUpdate(workspaceId, task.id, "accountId", value)}
+          onChange={(value) => onUpdate(workspaceId, task.id, "accountIds", value)}
         />
       </TaskCell>
       <TaskCell width={135} className="items-center">
@@ -1064,9 +1130,19 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
         workspace.id === workspaceId
           ? {
               ...workspace,
-              tasks: workspace.tasks.map((task) =>
-                task.id === taskId ? { ...task, [field]: value } : task,
-              ),
+              tasks: workspace.tasks.map((task) => {
+                if (task.id !== taskId) return task;
+
+                const nextTask = { ...task, [field]: value };
+                if (field === "accountIds") {
+                  return {
+                    ...nextTask,
+                    accountId: (value as string[])[0] ?? null,
+                  };
+                }
+
+                return nextTask;
+              }),
             }
           : workspace,
       ),
@@ -1321,7 +1397,7 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
                         className="flex h-full shrink-0 items-center border-r border-line/80 px-2.5 last:border-r-0"
                         style={{ width: column.width }}
                       >
-                        <span className="text-xs font-semibold text-muted">
+                        <span className="px-2 text-xs font-semibold text-muted">
                           {column.label}
                         </span>
                       </div>

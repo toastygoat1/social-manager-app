@@ -204,7 +204,8 @@ body {
 .app-shell-sidebar {
   position: sticky;
   top: var(--app-shell-padding);
-  border-right: 1px solid var(--app-panel-border);
+  border-right: 1px solid var(--sidebar-border);
+  background: var(--sidebar-bg);
   height: var(--app-shell-panel-height);
 }
 
