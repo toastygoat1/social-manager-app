@@ -4,6 +4,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -502,9 +503,25 @@ function DateTimeInput({
   value: string;
   onChange: (value: string) => void;
 }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  function openDateTimePicker() {
+    const input = inputRef.current;
+    if (!input) return;
+
+    input.focus();
+    if (typeof input.showPicker === "function") {
+      input.showPicker();
+    }
+  }
+
   return (
-    <span className="flex w-full items-center px-2 py-1.5">
+    <span
+      className="flex w-full cursor-text items-center px-2 py-1.5"
+      onClick={openDateTimePicker}
+    >
       <input
+        ref={inputRef}
         aria-label="Deadline"
         type="datetime-local"
         value={value}
