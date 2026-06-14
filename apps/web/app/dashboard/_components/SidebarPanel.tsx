@@ -1033,7 +1033,7 @@ export function SidebarPanel({
           className={`transition-[background-color,border-color,margin,padding,width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
             isCompact
               ? "mx-auto w-full p-0"
-              : "sidebar-profile-card-shadow -mx-3 -mb-3 w-[calc(100%+1.5rem)] rounded-t-[16px] border border-line bg-paper p-2"
+              : "sidebar-profile-card-shadow -mx-1.5 w-[calc(100%+0.75rem)] rounded-[14px] border border-line bg-paper p-1.5"
           }`}
         >
           <button

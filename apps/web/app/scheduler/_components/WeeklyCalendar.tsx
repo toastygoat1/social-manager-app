@@ -55,82 +55,77 @@ export function WeeklyCalendar({
   }
 
   return (
-    <section className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-[#e7e1d6] bg-[#fffdf9]">
+    <section className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-[#fffdf9]">
       {loading ? (
         <div className="absolute right-3 top-3 z-20 flex items-center gap-1.5 rounded-full border border-[#e7e1d6] bg-paper px-2.5 py-1 text-[10px] font-medium text-[#777167] shadow-sm">
           <Loader2 className="size-3 animate-spin" strokeWidth={2} />
           Loading
         </div>
       ) : null}
-      <div className={`grid ${GRID_COLS} shrink-0 border-b border-[#e7e1d6] bg-[#f8f6f1]`}>
-        <div className="border-r border-[#eee9df]" />
-        {weekDays.map((day) => {
-          const isDropTarget = dragController?.dropTargetIso === day.iso;
-          return (
-            <div
-              key={day.iso}
-              {...getDateDropProps(dragController, day.iso)}
-              className={`flex flex-col items-center justify-center gap-0.5 border-r border-[#eee9df] py-2.5 transition-colors last:border-r-0 ${
-                isDropTarget
-                  ? "bg-[#eef2ff] ring-2 ring-inset ring-[#607ffc]"
-                  : ""
-              }`}
-            >
-              <span className="text-[9px] font-semibold tracking-[0.12em] text-[#898278]">
-                {day.label}
-              </span>
-              <span className="text-sm font-medium text-[#302b23]">
-                {day.date}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-
-      {allDayEvents.length ? (
-        <div className={`grid ${GRID_COLS} shrink-0 border-b border-[#eee9df]`}>
-          <span className="px-2 pt-3 text-right text-[9px] font-semibold text-[#8a8379]">
-            ALL DAY
-          </span>
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div
+          className={`sticky top-0 z-10 grid ${GRID_COLS} border-b border-[#e7e1d6] bg-[#f8f6f1]`}
+        >
+          <div className="border-r border-[#eee9df]" />
           {weekDays.map((day) => {
             const isDropTarget = dragController?.dropTargetIso === day.iso;
             return (
               <div
                 key={day.iso}
                 {...getDateDropProps(dragController, day.iso)}
-                className={`flex flex-col gap-1 border-l border-[#eee9df] p-1.5 transition-colors ${
+                className={`flex flex-col items-center justify-center gap-0.5 border-r border-[#eee9df] py-2.5 transition-colors last:border-r-0 ${
                   isDropTarget
                     ? "bg-[#eef2ff] ring-2 ring-inset ring-[#607ffc]"
                     : ""
                 }`}
               >
-                {allDayEvents
-                  .filter(
-                    (event) => toIsoDate(new Date(event.start)) === day.iso,
-                  )
-                  .map((event) => (
-                    <AgendaEventCard
-                      key={event.id}
-                      event={event}
-                      compact
-                      onOpenPost={onOpenPost}
-                      dragController={dragController}
-                    />
-                  ))}
+                <span className="text-[9px] font-semibold tracking-[0.12em] text-[#898278]">
+                  {day.label}
+                </span>
+                <span className="text-sm font-medium text-[#302b23]">
+                  {day.date}
+                </span>
               </div>
             );
           })}
         </div>
-      ) : null}
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        {!loading && events.length === 0 ? (
-          <div className="pointer-events-none absolute inset-x-12 top-32 z-10 flex justify-center">
-            <p className="rounded-lg border border-[#eee9df] bg-paper px-4 py-3 text-sm text-[#817a70]">
-              Nothing scheduled this week.
-            </p>
+        {allDayEvents.length ? (
+          <div className={`grid ${GRID_COLS} border-b border-[#eee9df]`}>
+            <span className="px-2 pt-3 text-right text-[9px] font-semibold text-[#8a8379]">
+              ALL DAY
+            </span>
+            {weekDays.map((day) => {
+              const isDropTarget = dragController?.dropTargetIso === day.iso;
+              return (
+                <div
+                  key={day.iso}
+                  {...getDateDropProps(dragController, day.iso)}
+                  className={`flex flex-col gap-1 border-l border-[#eee9df] p-1.5 transition-colors ${
+                    isDropTarget
+                      ? "bg-[#eef2ff] ring-2 ring-inset ring-[#607ffc]"
+                      : ""
+                  }`}
+                >
+                  {allDayEvents
+                    .filter(
+                      (event) => toIsoDate(new Date(event.start)) === day.iso,
+                    )
+                    .map((event) => (
+                      <AgendaEventCard
+                        key={event.id}
+                        event={event}
+                        compact
+                        onOpenPost={onOpenPost}
+                        dragController={dragController}
+                      />
+                    ))}
+                </div>
+              );
+            })}
           </div>
         ) : null}
+
         {hours.map((hour) => (
           <div
             key={hour}

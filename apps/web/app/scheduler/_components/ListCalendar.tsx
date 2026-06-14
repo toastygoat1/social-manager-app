@@ -33,7 +33,7 @@ export function ListCalendar({
   }
 
   return (
-    <section className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-[#e7e1d6] bg-[#fffdf9]">
+    <section className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-[#fffdf9]">
       {loading ? (
         <div className="absolute right-4 top-3 z-10 flex items-center gap-1.5 rounded-full border border-[#e7e1d6] bg-paper px-2.5 py-1 text-[10px] font-medium text-[#777167] shadow-sm">
           <Loader2 className="size-3 animate-spin" strokeWidth={2} />

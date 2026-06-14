@@ -10,8 +10,6 @@ import {
 } from "react";
 import { ApiError, apiFetchBrowser } from "@/lib/api/browser-client";
 import { SchedulerHeader, type SchedulerView } from "./SchedulerHeader";
-import { SchedulerWorkPanel } from "./SchedulerWorkPanel";
-import { DailyCalendar } from "./DailyCalendar";
 import { ListCalendar } from "./ListCalendar";
 import { MonthlyCalendar } from "./MonthlyCalendar";
 import { PostDetailsModal } from "./PostDetailsModal";
@@ -22,13 +20,9 @@ import {
 import { WeeklyCalendar } from "./WeeklyCalendar";
 import {
   type SchedulerEvent,
-  type SchedulerFailedPost,
-  type SchedulerWorkItems,
   type SchedulerData,
   EMPTY_SCHEDULER,
-  EMPTY_WORK_ITEMS,
   formatPeriodLabel,
-  rangeForDay,
   rangeForMonth,
   rangeForWeek,
   toIsoDate,
@@ -53,9 +47,6 @@ export function SchedulerShell({ initialReferenceIso, initialData }: Props) {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
-  const [workItems, setWorkItems] = useState<SchedulerWorkItems>(EMPTY_WORK_ITEMS);
-  const [failedPosts, setFailedPosts] = useState<SchedulerFailedPost[]>([]);
-  const [operationsLoading, setOperationsLoading] = useState(false);
   const [draggingEvent, setDraggingEvent] = useState<SchedulerEvent | null>(null);
   const [dropTargetIso, setDropTargetIso] = useState<string | null>(null);
   const [movingEventId, setMovingEventId] = useState<string | null>(null);
@@ -66,7 +57,6 @@ export function SchedulerShell({ initialReferenceIso, initialData }: Props) {
   const range = useMemo(
     () => {
       if (view === "week") return rangeForWeek(reference);
-      if (view === "day") return rangeForDay(reference);
       return rangeForMonth(reference);
     },
     [view, reference],
@@ -97,27 +87,6 @@ export function SchedulerShell({ initialReferenceIso, initialData }: Props) {
     }
   }, [range.from, range.to]);
 
-  const fetchOperations = useCallback(async () => {
-    setOperationsLoading(true);
-    try {
-      const [nextWorkItems, nextFailedPosts] = await Promise.all([
-        apiFetchBrowser<SchedulerWorkItems>("/scheduler/work-items"),
-        apiFetchBrowser<SchedulerFailedPost[]>("/scheduler/failed-posts"),
-      ]);
-      setWorkItems(nextWorkItems);
-      setFailedPosts(nextFailedPosts);
-    } catch {
-      setWorkItems(EMPTY_WORK_ITEMS);
-      setFailedPosts([]);
-    } finally {
-      setOperationsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void fetchOperations();
-  }, [fetchOperations]);
-
   useEffect(() => {
     if (skipNextFetchRef.current) {
       skipNextFetchRef.current = false;
@@ -128,22 +97,18 @@ export function SchedulerShell({ initialReferenceIso, initialData }: Props) {
 
   const refresh = useCallback(() => {
     skipNextFetchRef.current = false;
-    void Promise.all([fetchEvents(), fetchOperations()]);
-  }, [fetchEvents, fetchOperations]);
+    void fetchEvents();
+  }, [fetchEvents]);
 
   const periodLabel = formatPeriodLabel(view, reference);
   const todayIso = useMemo(
     () => toIsoDate(new Date(initialReferenceIso)),
     [initialReferenceIso],
   );
-  const scheduledCount = data.events.length;
-
   const shiftReference = (delta: number) => {
     const next = new Date(reference);
     if (view === "week") {
       next.setDate(next.getDate() + delta * 7);
-    } else if (view === "day") {
-      next.setDate(next.getDate() + delta);
     } else {
       next.setMonth(next.getMonth() + delta);
     }
@@ -212,7 +177,6 @@ export function SchedulerShell({ initialReferenceIso, initialData }: Props) {
         } else {
           void fetchEvents();
         }
-        void fetchOperations();
       } catch (moveError) {
         setData(previousData);
         setNotice({
@@ -223,7 +187,7 @@ export function SchedulerShell({ initialReferenceIso, initialData }: Props) {
         setMovingEventId(null);
       }
     },
-    [data, fetchEvents, fetchOperations, range.from, range.to],
+    [data, fetchEvents, range.from, range.to],
   );
 
   const handleEventDragStart = useCallback(
@@ -325,21 +289,11 @@ export function SchedulerShell({ initialReferenceIso, initialData }: Props) {
         view={view}
         onViewChange={setView}
         periodLabel={periodLabel}
-        scheduledCount={scheduledCount}
         onPrev={() => shiftReference(-1)}
         onNext={() => shiftReference(1)}
         onToday={goToday}
         onCreated={refresh}
         referenceIso={reference.toISOString()}
-        workflowPanel={
-          <SchedulerWorkPanel
-            workItems={workItems}
-            failedPosts={failedPosts}
-            loading={operationsLoading}
-            onOpenPost={setSelectedPostId}
-            onChanged={refresh}
-          />
-        }
       />
       {notice ? (
         <div
@@ -357,7 +311,7 @@ export function SchedulerShell({ initialReferenceIso, initialData }: Props) {
           {errorMessage}
         </div>
       ) : null}
-      <main className="flex min-h-0 flex-1 flex-col px-4 pt-2">
+      <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {view === "month" ? (
           <MonthlyCalendar
             reference={reference}
@@ -375,14 +329,6 @@ export function SchedulerShell({ initialReferenceIso, initialData }: Props) {
             onOpenPost={openPost}
             dragController={dragController}
           />
-        ) : view === "day" ? (
-          <DailyCalendar
-            reference={reference}
-            events={data.events}
-            loading={loading}
-            onOpenPost={openPost}
-            dragController={dragController}
-          />
         ) : (
           <ListCalendar
             reference={reference}
@@ -393,35 +339,12 @@ export function SchedulerShell({ initialReferenceIso, initialData }: Props) {
           />
         )}
       </main>
-      <footer className="flex h-8 shrink-0 items-center justify-between px-5 text-[10px] text-[#7c766c]">
-        <div className="flex items-center gap-3">
-          <span className="font-semibold uppercase tracking-[0.12em]">Status</span>
-          <LegendDot color="bg-[#607ffc]" label="Scheduled" />
-          <LegendDot color="bg-[#c79545]" label="In review" />
-          <LegendDot color="bg-[#8c8982]" label="Draft" />
-          <LegendDot color="bg-[#d05c48]" label="Failed" />
-        </div>
-        <p>
-          Post scheduler{" "}
-          <span className="px-2 text-[#d5d0c7]">|</span>
-          Auto-publish on - timezone local
-        </p>
-      </footer>
       <PostDetailsModal
         postId={selectedPostId}
         onClose={() => setSelectedPostId(null)}
         onChanged={refresh}
       />
     </div>
-  );
-}
-
-function LegendDot({ color, label }: { color: string; label: string }) {
-  return (
-    <span className="inline-flex items-center gap-1.5">
-      <span className={`size-1.5 rounded-sm ${color}`} />
-      {label}
-    </span>
   );
 }
 
