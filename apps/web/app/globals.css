@@ -508,23 +508,23 @@ html.theme-circle-transition::view-transition-new(root) {
 }
 
 .workspace-theme {
-  --bg: #f3f5f8;
+  --bg: #ffffff;
   --bg-light: #ffffff;
-  --bg-dark: #f8fafc;
-  --border: #e3e7ee;
-  --text: #171a1f;
-  --text-muted: #687386;
-  --chart-4: #6f7ad7;
+  --bg-dark: #ffffff;
+  --border: #e8e8e8;
+  --text: #171717;
+  --text-muted: #737373;
+  --chart-4: #737373;
 }
 
 :root[data-theme="dark"] .workspace-theme {
-  --bg: #181b22;
-  --bg-light: #20242d;
-  --bg-dark: #11141a;
-  --border: #303746;
-  --text: #f5f7fb;
-  --text-muted: #a8b0bf;
-  --chart-4: #8ea0ff;
+  --bg: #181818;
+  --bg-light: #202020;
+  --bg-dark: #111111;
+  --border: #303030;
+  --text: #f5f5f5;
+  --text-muted: #a3a3a3;
+  --chart-4: #a3a3a3;
 }
 
 .analytics-serif {
