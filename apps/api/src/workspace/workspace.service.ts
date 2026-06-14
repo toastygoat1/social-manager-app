@@ -135,9 +135,17 @@ const DEFAULT_FOLDERS: DefaultFolder[] = [
   },
 ];
 
+const WORKSPACE_TASK_INCLUDE = {
+  taskAccounts: {
+    orderBy: { createdAt: 'asc' },
+    select: { instagramAccountId: true },
+  },
+} satisfies Prisma.WorkspaceTaskInclude;
+
 const WORKSPACE_FOLDER_INCLUDE = {
   tasks: {
     orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+    include: WORKSPACE_TASK_INCLUDE,
   },
 } satisfies Prisma.WorkspaceFolderInclude;
 
@@ -145,7 +153,9 @@ type WorkspaceFolderRecord = Prisma.WorkspaceFolderGetPayload<{
   include: typeof WORKSPACE_FOLDER_INCLUDE;
 }>;
 
-type WorkspaceTaskRecord = Prisma.WorkspaceTaskGetPayload<object>;
+type WorkspaceTaskRecord = Prisma.WorkspaceTaskGetPayload<{
+  include: typeof WORKSPACE_TASK_INCLUDE;
+}>;
 
 function padDatePart(value: number) {
   return String(value).padStart(2, '0');
@@ -180,8 +190,19 @@ function trimOrFallback(value: string | undefined, fallback: string) {
   return trimmed ? trimmed : fallback;
 }
 
-function hasAccountId(value: UpdateWorkspaceTaskDto): boolean {
-  return Boolean(Object.prototype.hasOwnProperty.call(value, 'accountId'));
+function hasOwnField(value: object, field: string): boolean {
+  return Object.hasOwn(value, field);
+}
+
+function hasAccountSelection(value: UpdateWorkspaceTaskDto): boolean {
+  return hasOwnField(value, 'accountIds') || hasOwnField(value, 'accountId');
+}
+
+function getRequestedAccountIds(
+  value: CreateWorkspaceTaskDto | UpdateWorkspaceTaskDto,
+): string[] {
+  if (hasOwnField(value, 'accountIds')) return value.accountIds ?? [];
+  return value.accountId ? [value.accountId] : [];
 }
 
 @Injectable()
@@ -250,15 +271,26 @@ export class WorkspaceService {
     const taskCount = await this.prisma.workspaceTask.count({
       where: { folderId },
     });
-    const accountId = await this.resolveAccountId(userId, body.accountId);
+    const accountIds = await this.resolveAccountIds(
+      userId,
+      getRequestedAccountIds(body),
+    );
     const deadline = parseDeadline(body.deadline) ?? defaultDeadline();
 
     const task = await this.prisma.workspaceTask.create({
       data: {
         folder: { connect: { id: folderId } },
-        instagramAccount: accountId
-          ? { connect: { id: accountId } }
+        instagramAccount: accountIds[0]
+          ? { connect: { id: accountIds[0] } }
           : undefined,
+        taskAccounts:
+          accountIds.length > 0
+            ? {
+                create: accountIds.map((accountId) => ({
+                  instagramAccount: { connect: { id: accountId } },
+                })),
+              }
+            : undefined,
         taskName: trimOrFallback(body.taskName, `New task ${taskCount + 1}`),
         assignee: trimOrFallback(body.assignee, 'Unassigned'),
         urgency: body.urgency ?? 'Medium',
@@ -269,6 +301,7 @@ export class WorkspaceService {
         inputFrom: trimOrFallback(body.inputFrom, 'Manual'),
         sortOrder: taskCount,
       },
+      include: WORKSPACE_TASK_INCLUDE,
     });
 
     return this.mapTask(task);
@@ -301,16 +334,26 @@ export class WorkspaceService {
     if (body.notes !== undefined) data.notes = body.notes;
     if (body.inputFrom !== undefined) data.inputFrom = body.inputFrom;
 
-    if (hasAccountId(body)) {
-      const accountId = await this.resolveAccountId(userId, body.accountId);
-      data.instagramAccount = accountId
-        ? { connect: { id: accountId } }
+    if (hasAccountSelection(body)) {
+      const accountIds = await this.resolveAccountIds(
+        userId,
+        getRequestedAccountIds(body),
+      );
+      data.instagramAccount = accountIds[0]
+        ? { connect: { id: accountIds[0] } }
         : { disconnect: true };
+      data.taskAccounts = {
+        deleteMany: {},
+        create: accountIds.map((accountId) => ({
+          instagramAccount: { connect: { id: accountId } },
+        })),
+      };
     }
 
     const task = await this.prisma.workspaceTask.update({
       where: { id: taskId },
       data,
+      include: WORKSPACE_TASK_INCLUDE,
     });
 
     return this.mapTask(task);
@@ -387,20 +430,27 @@ export class WorkspaceService {
     }
   }
 
-  private async resolveAccountId(
+  private async resolveAccountIds(
     userId: string,
-    accountId: string | null | undefined,
-  ) {
-    if (!accountId) return null;
+    accountIds: string[] | null | undefined,
+  ): Promise<string[]> {
+    const uniqueAccountIds = [
+      ...new Set((accountIds ?? []).map((accountId) => accountId.trim())),
+    ].filter(Boolean);
+    if (uniqueAccountIds.length === 0) return [];
 
-    const account = await this.prisma.instagramAccount.findFirst({
-      where: { id: accountId, userId, isActive: true },
+    const accounts = await this.prisma.instagramAccount.findMany({
+      where: { id: { in: uniqueAccountIds }, userId, isActive: true },
       select: { id: true },
     });
-    if (!account) {
+    if (accounts.length !== uniqueAccountIds.length) {
       throw new BadRequestException('Account is not connected to this user');
     }
-    return account.id;
+
+    const connectedAccountIds = new Set(accounts.map((account) => account.id));
+    return uniqueAccountIds.filter((accountId) =>
+      connectedAccountIds.has(accountId),
+    );
   }
 
   private async findFolders(userId: string, email: string) {
@@ -423,12 +473,20 @@ export class WorkspaceService {
   }
 
   private mapTask(task: WorkspaceTaskRecord) {
+    const accountIds =
+      task.taskAccounts.length > 0
+        ? task.taskAccounts.map((taskAccount) => taskAccount.instagramAccountId)
+        : task.instagramAccountId
+          ? [task.instagramAccountId]
+          : [];
+
     return {
       id: task.id,
       taskName: task.taskName,
       assignee: task.assignee,
       urgency: task.urgency,
-      accountId: task.instagramAccountId,
+      accountId: accountIds[0] ?? null,
+      accountIds,
       status: task.status,
       deadline: toDateTimeLocalValue(task.deadline),
       briefExecution: task.briefExecution,
