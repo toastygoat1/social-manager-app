@@ -26,12 +26,6 @@ type ContentRowsTableRow = ContentRow;
 type ContentRowsTableProps = {
   rows: ContentRowsTableRow[];
   metadataFields: MetadataFieldDefinition[];
-  title?: string;
-  summaryScope?: string;
-  itemLabel?: string;
-  emptyLabel?: string;
-  noSearchResultsLabel?: string;
-  searchPlaceholder?: string;
 };
 
 type ScrollbarMetrics = {
@@ -49,6 +43,7 @@ type ColumnDefinition = {
   align?: ColumnAlign;
 };
 
+const SCROLLBAR_THUMB_MIN_WIDTH = 44;
 const METADATA_MIN_WIDTH = 120;
 const METADATA_MAX_WIDTH = 190;
 const COLLAPSED_ROWS = 10;
@@ -118,6 +113,10 @@ function displayText(value: string | null | undefined) {
   }
 
   return trimmed;
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
 }
 
 function AccountPill({ row }: { row: ContentRowsTableRow }) {
@@ -217,16 +216,11 @@ function Cell({
 export function ContentRowsTable({
   rows,
   metadataFields,
-  title = "Content Table",
-  summaryScope = "all statuses",
-  itemLabel = "items",
-  emptyLabel = "No content tracked yet",
-  noSearchResultsLabel = "No content matches your search",
-  searchPlaceholder = "Search content, account, status...",
 }: ContentRowsTableProps) {
   const router = useRouter();
   const sectionRef = useRef<HTMLElement>(null);
   const scrollViewportRef = useRef<HTMLDivElement>(null);
+  const scrollbarTrackRef = useRef<HTMLDivElement>(null);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [isExpanded, setIsExpanded] = useState(false);
@@ -278,41 +272,85 @@ export function ContentRowsTable({
 
     const maxScrollLeft = viewport.scrollWidth - viewport.clientWidth;
     if (maxScrollLeft <= 1) {
-      setScrollbarMetrics({
-        isScrollable: false,
-        thumbLeft: 0,
-        thumbWidth: 0,
-        scrollPercent: 0,
+      setScrollbarMetrics((current) => {
+        if (
+          !current.isScrollable &&
+          current.thumbLeft === 0 &&
+          current.thumbWidth === 0 &&
+          current.scrollPercent === 0
+        ) {
+          return current;
+        }
+
+        return {
+          isScrollable: false,
+          thumbLeft: 0,
+          thumbWidth: 0,
+          scrollPercent: 0,
+        };
       });
       return;
     }
 
-    const trackWidth = viewport.clientWidth;
+    const trackWidth =
+      scrollbarTrackRef.current?.clientWidth ?? viewport.clientWidth;
     const thumbWidth = Math.min(
       trackWidth,
-      Math.max(44, (viewport.clientWidth / viewport.scrollWidth) * trackWidth),
+      Math.max(
+        SCROLLBAR_THUMB_MIN_WIDTH,
+        (viewport.clientWidth / viewport.scrollWidth) * trackWidth,
+      ),
     );
     const maxThumbLeft = Math.max(0, trackWidth - thumbWidth);
     const thumbLeft =
       maxThumbLeft > 0 ? (viewport.scrollLeft / maxScrollLeft) * maxThumbLeft : 0;
-
-    setScrollbarMetrics({
+    const nextMetrics = {
       isScrollable: true,
       thumbLeft,
       thumbWidth,
       scrollPercent: (viewport.scrollLeft / maxScrollLeft) * 100,
+    };
+
+    setScrollbarMetrics((current) => {
+      if (
+        current.isScrollable === nextMetrics.isScrollable &&
+        Math.abs(current.thumbLeft - nextMetrics.thumbLeft) < 0.5 &&
+        Math.abs(current.thumbWidth - nextMetrics.thumbWidth) < 0.5 &&
+        Math.abs(current.scrollPercent - nextMetrics.scrollPercent) < 0.5
+      ) {
+        return current;
+      }
+
+      return nextMetrics;
     });
   }
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(syncScrollbarMetrics);
+    const resizeObserver =
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(syncScrollbarMetrics);
+    const viewport = scrollViewportRef.current;
+    const track = scrollbarTrackRef.current;
+
+    if (viewport) resizeObserver?.observe(viewport);
+    if (track) resizeObserver?.observe(track);
+
     window.addEventListener("resize", syncScrollbarMetrics);
 
     return () => {
       window.cancelAnimationFrame(frame);
+      resizeObserver?.disconnect();
       window.removeEventListener("resize", syncScrollbarMetrics);
     };
-  }, [filteredRows.length, metadataFields.length, rowsPerPage, totalWidth]);
+  }, [
+    filteredRows.length,
+    metadataFields.length,
+    rowsPerPage,
+    scrollbarMetrics.isScrollable,
+    totalWidth,
+  ]);
 
   function scrollWithTable(deltaRows: number) {
     if (deltaRows <= 0) return;
@@ -348,27 +386,53 @@ export function ContentRowsTable({
     setPage(Math.max(0, Math.min(nextPage, totalPages - 1)));
   }
 
-  function moveHorizontalScroll(clientX: number, track: HTMLElement) {
+  function getScrollbarGeometry(track: HTMLElement) {
     const viewport = scrollViewportRef.current;
-    if (!viewport) return;
+    if (!viewport) return null;
 
     const rect = track.getBoundingClientRect();
     const maxScrollLeft = Math.max(
       0,
       viewport.scrollWidth - viewport.clientWidth,
     );
+    if (rect.width <= 0 || maxScrollLeft <= 0) return null;
+
     const thumbWidth = Math.min(
       rect.width,
-      Math.max(44, (viewport.clientWidth / viewport.scrollWidth) * rect.width),
+      Math.max(
+        SCROLLBAR_THUMB_MIN_WIDTH,
+        (viewport.clientWidth / viewport.scrollWidth) * rect.width,
+      ),
     );
     const maxThumbLeft = Math.max(0, rect.width - thumbWidth);
-    const nextThumbLeft = Math.min(
+
+    return {
+      maxScrollLeft,
       maxThumbLeft,
-      Math.max(0, clientX - rect.left - thumbWidth / 2),
+      rect,
+      thumbWidth,
+      viewport,
+    };
+  }
+
+  function moveHorizontalScroll(
+    clientX: number,
+    track: HTMLElement,
+    pointerOffset: number,
+  ) {
+    const geometry = getScrollbarGeometry(track);
+    if (!geometry) return;
+
+    const nextThumbLeft = clamp(
+      clientX - geometry.rect.left - pointerOffset,
+      0,
+      geometry.maxThumbLeft,
     );
 
-    viewport.scrollLeft =
-      maxThumbLeft > 0 ? (nextThumbLeft / maxThumbLeft) * maxScrollLeft : 0;
+    geometry.viewport.scrollLeft =
+      geometry.maxThumbLeft > 0
+        ? (nextThumbLeft / geometry.maxThumbLeft) * geometry.maxScrollLeft
+        : 0;
     syncScrollbarMetrics();
   }
 
@@ -378,15 +442,35 @@ export function ContentRowsTable({
     event.preventDefault();
 
     const track = event.currentTarget;
-    moveHorizontalScroll(event.clientX, track);
+    const geometry = getScrollbarGeometry(track);
+    if (!geometry) return;
+
+    const pointerTarget = event.target;
+    const thumb =
+      pointerTarget instanceof Element
+        ? pointerTarget.closest(".content-table-scrollbar-thumb")
+        : null;
+    const pointerOffset =
+      thumb instanceof HTMLElement
+        ? clamp(
+            event.clientX - thumb.getBoundingClientRect().left,
+            0,
+            geometry.thumbWidth,
+          )
+        : geometry.thumbWidth / 2;
+
+    moveHorizontalScroll(event.clientX, track, pointerOffset);
     track.setPointerCapture(event.pointerId);
 
     function handlePointerMove(pointerEvent: PointerEvent) {
-      moveHorizontalScroll(pointerEvent.clientX, track);
+      moveHorizontalScroll(pointerEvent.clientX, track, pointerOffset);
     }
 
     function cleanup(pointerEvent: PointerEvent) {
-      track.releasePointerCapture(pointerEvent.pointerId);
+      if (track.hasPointerCapture(pointerEvent.pointerId)) {
+        track.releasePointerCapture(pointerEvent.pointerId);
+      }
+
       track.removeEventListener("pointermove", handlePointerMove);
       track.removeEventListener("pointerup", cleanup);
       track.removeEventListener("pointercancel", cleanup);
@@ -405,11 +489,11 @@ export function ContentRowsTable({
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="dashboard-card-title text-ink">
-            {title}
+            Content Table
           </h2>
           <p className="dashboard-section-subtitle mt-0.5 text-muted">
-            {rangeStart}-{rangeEnd} of {filteredRows.length} {itemLabel} /{" "}
-            {summaryScope}
+            {rangeStart}-{rangeEnd} of {filteredRows.length} items / all
+            statuses
           </p>
         </div>
         <div className="flex min-w-[240px] flex-1 flex-wrap items-center justify-end gap-2 sm:max-w-[470px]">
@@ -425,7 +509,7 @@ export function ContentRowsTable({
                 setQuery(event.target.value);
                 setPage(0);
               }}
-              placeholder={searchPlaceholder}
+              placeholder="Search content, account, status..."
               className="dashboard-ui-label h-9 w-full rounded-lg border border-line bg-paper pl-9 pr-3 text-ink outline-none transition placeholder:font-normal focus:border-[#b7b7b7] focus:bg-card"
               type="search"
             />
@@ -516,7 +600,9 @@ export function ContentRowsTable({
             >
               {filteredRows.length === 0 ? (
                 <div className="dashboard-body-text flex h-full items-center justify-center text-muted">
-                  {query ? noSearchResultsLabel : emptyLabel}
+                  {query
+                    ? "No content matches your search"
+                    : "No content tracked yet"}
                 </div>
               ) : (
                 visibleRows.map((row, index) => (
@@ -535,6 +621,7 @@ export function ContentRowsTable({
       </div>
       {scrollbarMetrics.isScrollable ? (
         <div
+          ref={scrollbarTrackRef}
           className="content-table-scrollbar-track -mx-6"
           role="scrollbar"
           aria-controls="content-table-scroll-area"

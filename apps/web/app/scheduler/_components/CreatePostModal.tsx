@@ -44,8 +44,8 @@ import {
   type InstagramRuleMediaItem,
 } from "./instagram-media-rules";
 
-export type CreatePostType = "post" | "story" | "reels";
-type ComposePostType = CreatePostType | "carousel";
+export type CreatePostType = "post" | "story" | "reels" | "carousel";
+type ComposePostType = CreatePostType;
 type SubmitAction = "schedule" | "post-now" | "draft";
 
 type Props = {
@@ -1207,18 +1207,13 @@ export function CreatePostModal({
                   placeholder="Write a caption..."
                   className="h-[82px] w-full resize-none bg-transparent px-3 py-2.5 text-[11px] leading-5 text-[#302b23] placeholder:text-[#9a9388] focus:outline-none"
                 />
-                <div className="flex h-7 items-center justify-between border-t border-[#eee9df] px-3 text-[9px] text-[#827a71]">
+                <div className="flex min-h-7 flex-wrap items-center gap-x-3 gap-y-1 border-t border-[#eee9df] px-3 py-1.5 text-[9px] text-[#827a71]">
+                  <span>{captionCount} / 2,200 characters</span>
                   <span>
-                    {captionCount} / 2,200 - {hashtagCount} hashtag{hashtagCount === 1 ? "" : "s"} - {mentionCount} mention{mentionCount === 1 ? "" : "s"}
+                    {hashtagCount} hashtag{hashtagCount === 1 ? "" : "s"}
                   </span>
-                  <span className="inline-flex items-center gap-2">
-                    <span className="flex gap-0.5">
-                      <span className="h-1 w-3 bg-[#6e9d76]" />
-                      <span className="h-1 w-3 bg-[#6e9d76]" />
-                      <span className="h-1 w-3 bg-[#6e9d76]" />
-                      <span className="h-1 w-3 bg-[#ded9cf]" />
-                    </span>
-                    Readability: good
+                  <span>
+                    {mentionCount} mention{mentionCount === 1 ? "" : "s"}
                   </span>
                 </div>
               </div>
@@ -1538,27 +1533,27 @@ export function CreatePostModal({
           </aside>
         </div>
 
-        <footer className="flex h-[56px] shrink-0 items-center justify-between gap-4 border-t border-[#ece7de] bg-paper px-6">
+        <footer className="flex min-h-[64px] shrink-0 flex-wrap items-center justify-between gap-3 border-t border-[#ece7de] bg-[#fffdfa] px-6 py-3">
           <button
             type="button"
             disabled={scheduleDisabled}
             onClick={() => void handleSubmit("draft")}
-            className="h-8 rounded-md border border-[#e7e1d6] bg-paper px-4 text-[11px] font-medium text-[#615a50] transition-colors hover:bg-[#f7f5ef] disabled:opacity-50"
+            className="h-9 rounded-lg border border-[#e7e1d6] bg-paper px-4 text-[11px] font-medium text-[#615a50] shadow-sm transition-colors hover:bg-[#f7f5ef] disabled:opacity-50"
           >
             {submittingAction === "draft" ? "Saving..." : "Save as draft"}
           </button>
-          <div className="flex items-center gap-2">
-            <div className="relative flex h-9 w-[142px] items-center rounded-lg border border-[#e7e1d6] bg-paper p-1 text-[10px]">
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <div className="relative grid h-9 w-[154px] grid-cols-2 items-center rounded-lg border border-[#e7e1d6] bg-[#f7f5ef] p-1 text-[10px]">
               <span
                 aria-hidden="true"
-                className={`absolute bottom-1 left-1 top-1 w-[calc(50%-4px)] rounded-md bg-[#f1eee8] shadow-sm transition-transform duration-300 ease-out ${
+                className={`absolute bottom-1 left-1 top-1 w-[calc(50%-4px)] rounded-md bg-paper shadow-sm transition-transform duration-300 ease-out ${
                   primaryAction === "schedule" ? "translate-x-full" : "translate-x-0"
                 }`}
               />
               <button
                 type="button"
                 onClick={() => setPrimaryAction("post-now")}
-                className={`relative z-[1] h-full flex-1 transition-colors duration-300 ${
+                className={`relative z-[1] h-full rounded-md transition-colors duration-300 ${
                   primaryAction === "post-now" ? "font-semibold text-[#302b23]" : "text-[#756e64]"
                 }`}
               >
@@ -1567,7 +1562,7 @@ export function CreatePostModal({
               <button
                 type="button"
                 onClick={() => setPrimaryAction("schedule")}
-                className={`relative z-[1] h-full flex-1 transition-colors duration-300 ${
+                className={`relative z-[1] h-full rounded-md transition-colors duration-300 ${
                   primaryAction === "schedule" ? "font-semibold text-[#302b23]" : "text-[#756e64]"
                 }`}
               >
@@ -1576,33 +1571,31 @@ export function CreatePostModal({
             </div>
             <label
               onClick={showSchedulePicker}
-              className={`flex h-9 cursor-pointer items-center gap-2 overflow-hidden rounded-lg bg-paper transition-[width,opacity,transform,border-color,padding] duration-300 ease-out ${
+              className={`flex h-9 cursor-pointer items-center gap-2 overflow-hidden rounded-lg bg-paper shadow-sm transition-[width,opacity,transform,border-color,padding] duration-300 ease-out ${
                 primaryAction === "schedule"
                   ? "w-[214px] translate-x-0 border border-[#e7e1d6] px-3 opacity-100"
                   : "pointer-events-none w-0 translate-x-2 border border-transparent px-0 opacity-0"
               }`}
             >
-                <Calendar className="size-3.5 text-[#756e64]" strokeWidth={1.8} />
-                <input
-                  ref={scheduledForRef}
-                  aria-label="Scheduled date and time"
-                  type="datetime-local"
-                  value={scheduledFor}
-                  min={minScheduledFor}
-                  onChange={(e) => setScheduledFor(e.target.value)}
-                  className="schedule-datetime-input min-w-[170px] cursor-pointer bg-transparent text-[10px] font-medium text-[#4e4840] focus:outline-none"
-                />
+              <Calendar className="size-3.5 text-[#756e64]" strokeWidth={1.8} />
+              <input
+                ref={scheduledForRef}
+                aria-label="Scheduled date and time"
+                type="datetime-local"
+                value={scheduledFor}
+                min={minScheduledFor}
+                onChange={(e) => setScheduledFor(e.target.value)}
+                className="schedule-datetime-input min-w-[170px] cursor-pointer bg-transparent text-[10px] font-medium text-[#4e4840] focus:outline-none"
+              />
             </label>
-            <div className="flex h-9 items-center rounded-lg bg-[#171510] text-white">
-              <button
-                type="button"
-                disabled={scheduleDisabled}
-                onClick={() => void handleSubmit(primaryAction)}
-                className="flex h-full items-center rounded-lg px-5 text-[11px] font-semibold disabled:opacity-60"
-              >
-                {submitButtonLabel}
-              </button>
-            </div>
+            <button
+              type="button"
+              disabled={scheduleDisabled}
+              onClick={() => void handleSubmit(primaryAction)}
+              className="flex h-9 min-w-[112px] items-center justify-center rounded-lg bg-[#171510] px-5 text-[11px] font-semibold text-white shadow-sm transition-colors hover:bg-[#24211b] disabled:opacity-60"
+            >
+              {submitButtonLabel}
+            </button>
           </div>
         </footer>
       </div>

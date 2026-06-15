@@ -1,8 +1,7 @@
 "use client";
 
 import type { ComponentType, MouseEvent, SVGProps } from "react";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { createPortal } from "react-dom";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import {
   BarChart3,
   CalendarDays,
@@ -12,14 +11,12 @@ import {
   Home,
   Inbox,
   LoaderCircle,
-  LogOut,
   Moon,
   PanelLeftClose,
   PanelLeftOpen,
   RefreshCw,
   Sparkles,
   Sun,
-  X,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -31,7 +28,6 @@ import {
   type ThemeMode,
 } from "@/app/theme-preferences";
 import { ApiError, apiFetchBrowser } from "@/lib/api/browser-client";
-import { createClient } from "@/lib/supabase/client";
 import type { UserProfile } from "@/lib/supabase/user-profile";
 import type { Account } from "./data";
 import {
@@ -51,10 +47,13 @@ export type SidebarKey =
   | "scheduling"
   | "analytics"
   | "chat"
-  | "snow-ai";
+  | "snow-ai"
+  | "account";
+
+type SidebarNavKey = Exclude<SidebarKey, "account">;
 
 type NavItem = {
-  key: SidebarKey;
+  key: SidebarNavKey;
   label: string;
   Icon: LucideIcon;
   href: string;
@@ -83,11 +82,6 @@ type SidebarPanelProps = {
   profile?: UserProfile | null;
 };
 
-type ProfilePopupPosition = {
-  bottom: number;
-  left: number;
-};
-
 const NAV_ITEMS: NavItem[] = [
   { key: "dashboard", label: "Dashboard", Icon: Home, href: "/dashboard" },
   { key: "posts", label: "Posts", Icon: FileText, href: "/posts" },
@@ -104,7 +98,6 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 const VISIBLE_ACCOUNT_COUNT = 8;
-const PROFILE_POPUP_WIDTH = 336;
 const AVATAR_COLORS = [
   "#e8855b",
   "#7b6cd9",
@@ -281,24 +274,6 @@ function getInsightsHref(accountId?: string | null) {
   return `/analytics?${params.toString()}`;
 }
 
-function getProviderLabel(provider: string) {
-  const normalized = provider.toLowerCase();
-
-  if (normalized === "google") return "Google";
-  if (normalized === "email") return "Email and password";
-  if (normalized === "github") return "GitHub";
-
-  return provider.charAt(0).toUpperCase() + provider.slice(1);
-}
-
-function getProviderSummary(profile?: UserProfile | null) {
-  if (!profile?.providers.length) {
-    return "Email and password";
-  }
-
-  return profile.providers.map(getProviderLabel).join(", ");
-}
-
 function AccountAvatar({
   account,
   index,
@@ -452,6 +427,10 @@ function ProfileAvatar({
   );
 }
 
+function getSidebarNavKey(key: SidebarKey): SidebarNavKey | null {
+  return key === "account" ? null : key;
+}
+
 function readSidebarCollapsedCookie() {
   const cookiePrefix = `${SIDEBAR_COLLAPSED_COOKIE}=`;
   const cookie = document.cookie
@@ -540,38 +519,27 @@ export function SidebarPanel({
     () => readAppThemeCookie() ?? initialTheme,
     () => initialTheme,
   );
-  const [selectedNavKey, setSelectedNavKey] = useState<SidebarKey>(active);
+  const [selectedNavKey, setSelectedNavKey] = useState<SidebarNavKey | null>(
+    () => getSidebarNavKey(active),
+  );
   const [isNarrowViewport, setIsNarrowViewport] = useState(false);
-  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [isClient, setIsClient] = useState(false);
-  const [profilePopupPosition, setProfilePopupPosition] =
-    useState<ProfilePopupPosition | null>(null);
-  const profileButtonRef = useRef<HTMLButtonElement>(null);
-  const profilePopupRef = useRef<HTMLDivElement>(null);
-  const router = useRouter();
   const visibleAccounts = accounts.slice(0, VISIBLE_ACCOUNT_COUNT);
   const additionalAccounts = accounts.slice(VISIBLE_ACCOUNT_COUNT);
   const profileName = getProfileName(profile);
   const profileDetail = getProfileDetail(profile);
   const isCompact = isCollapsed || isNarrowViewport;
   const isDarkTheme = theme === "dark";
-  const providerSummary = getProviderSummary(profile);
-  const activeNavIndex = Math.max(
-    0,
-    NAV_ITEMS.findIndex((item) => item.key === selectedNavKey),
+  const isAccountActive = active === "account";
+  const activeNavIndex = NAV_ITEMS.findIndex(
+    (item) => item.key === selectedNavKey,
   );
-
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
 
   useEffect(() => {
     applyDocumentTheme(theme);
   }, [theme]);
 
   useEffect(() => {
-    setSelectedNavKey(active);
+    setSelectedNavKey(getSidebarNavKey(active));
   }, [active]);
 
   useEffect(() => {
@@ -584,84 +552,11 @@ export function SidebarPanel({
     return () => query.removeEventListener("change", syncViewport);
   }, []);
 
-  useEffect(() => {
-    if (!isProfileMenuOpen) return;
-
-    function updateProfilePopupPosition() {
-      const trigger = profileButtonRef.current;
-      if (!trigger) return;
-
-      const rect = trigger.getBoundingClientRect();
-      const viewportPadding = 12;
-      const preferredLeft = isCompact ? rect.right + 10 : rect.left;
-      const left = Math.min(
-        Math.max(viewportPadding, preferredLeft),
-        window.innerWidth - PROFILE_POPUP_WIDTH - viewportPadding,
-      );
-      const bottom = Math.min(
-        window.innerHeight - viewportPadding,
-        window.innerHeight - rect.top + 10,
-      );
-
-      setProfilePopupPosition({ bottom, left });
-    }
-
-    function closeOnOutsidePointer(event: PointerEvent) {
-      const target = event.target as Node | null;
-
-      if (
-        target &&
-        (profilePopupRef.current?.contains(target) ||
-          profileButtonRef.current?.contains(target))
-      ) {
-        return;
-      }
-
-      setIsProfileMenuOpen(false);
-    }
-
-    function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setIsProfileMenuOpen(false);
-      }
-    }
-
-    updateProfilePopupPosition();
-    window.addEventListener("resize", updateProfilePopupPosition);
-    window.addEventListener("scroll", updateProfilePopupPosition, true);
-    window.addEventListener("pointerdown", closeOnOutsidePointer, true);
-    window.addEventListener("keydown", closeOnEscape);
-
-    return () => {
-      window.removeEventListener("resize", updateProfilePopupPosition);
-      window.removeEventListener("scroll", updateProfilePopupPosition, true);
-      window.removeEventListener("pointerdown", closeOnOutsidePointer, true);
-      window.removeEventListener("keydown", closeOnEscape);
-    };
-  }, [isCompact, isProfileMenuOpen]);
-
   function toggleSidebar() {
     const nextCollapsed = !isCollapsed;
 
     writeSidebarCollapsedCookie(nextCollapsed);
     window.dispatchEvent(new Event(SIDEBAR_COLLAPSED_EVENT));
-  }
-
-  async function logOut() {
-    setIsLoggingOut(true);
-
-    const supabase = createClient();
-    const { error } = await supabase.auth.signOut();
-
-    if (error) {
-      window.alert(error.message);
-      setIsLoggingOut(false);
-      return;
-    }
-
-    setIsProfileMenuOpen(false);
-    router.push("/");
-    router.refresh();
   }
 
   function toggleTheme(event: MouseEvent<HTMLButtonElement>) {
@@ -727,14 +622,16 @@ export function SidebarPanel({
       </header>
 
       <nav aria-label="Primary" className="relative mt-4 flex flex-col gap-1">
-        <span
-          aria-hidden="true"
-          className="sidebar-selected-shadow absolute left-[3px] top-0 z-0 h-8 rounded-[7px] bg-[var(--sidebar-accent)] transition-[transform,width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
-          style={{
-            transform: `translateY(${activeNavIndex * 36}px)`,
-            width: isCompact ? "32px" : "calc(100% - 6px)",
-          }}
-        />
+        {activeNavIndex >= 0 ? (
+          <span
+            aria-hidden="true"
+            className="sidebar-selected-shadow absolute left-[3px] top-0 z-0 h-8 rounded-[7px] bg-[var(--sidebar-accent)] transition-[transform,width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
+            style={{
+              transform: `translateY(${activeNavIndex * 36}px)`,
+              width: isCompact ? "32px" : "calc(100% - 6px)",
+            }}
+          />
+        ) : null}
         {NAV_ITEMS.map(({ key, label, Icon, href, badge }) => {
           const isActive = key === selectedNavKey;
 
@@ -930,108 +827,6 @@ export function SidebarPanel({
           </span>
         </button>
 
-        {isClient && isProfileMenuOpen
-          ? createPortal(
-            <div
-              ref={profilePopupRef}
-              role="dialog"
-              aria-modal="false"
-              aria-labelledby="sidebar-account-dialog-title"
-              className="account-popup-panel fixed z-[1000] max-h-[calc(100vh-24px)] overflow-y-auto rounded-[16px] border border-line bg-[var(--app-panel-bg)] p-4 text-left text-ink"
-              style={{
-                bottom: profilePopupPosition?.bottom ?? 16,
-                left: profilePopupPosition?.left ?? 16,
-                width: PROFILE_POPUP_WIDTH,
-              }}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p
-                    id="sidebar-account-dialog-title"
-                    className="text-[17px] font-semibold leading-tight tracking-[-0.015em] text-ink"
-                  >
-                    Account
-                  </p>
-                  <p className="dashboard-section-subtitle mt-1 text-muted">
-                    Your signed-in Social Manager web account.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsProfileMenuOpen(false)}
-                  aria-label="Close account popup"
-                  className="grid size-8 shrink-0 place-items-center rounded-lg text-muted transition hover:bg-card hover:text-ink"
-                >
-                  <X className="size-4" strokeWidth={1.8} />
-                </button>
-              </div>
-
-              <div className="mt-4 flex items-center gap-3 rounded-[12px] bg-card px-3 py-3">
-                <span className="grid size-9 shrink-0 place-items-center rounded-full bg-paper">
-                  <ProfileAvatar profile={profile} />
-                </span>
-                <div className="min-w-0">
-                  <p className="dashboard-ui-label truncate text-ink">
-                    {profileName}
-                  </p>
-                  <p className="dashboard-ui-meta truncate font-normal text-muted">{profileDetail}</p>
-                </div>
-              </div>
-
-              <div className="mt-4">
-                <p className="dashboard-ui-label text-muted">
-                  Known connections
-                </p>
-                <div className="mt-2 grid gap-2">
-                  <div className="rounded-[10px] bg-card px-3 py-2.5">
-                    <p className="dashboard-ui-label text-ink">
-                      Social Manager Dashboard
-                    </p>
-                    <p className="dashboard-ui-meta mt-0.5 font-normal text-muted">
-                      Connected as {profileDetail}
-                    </p>
-                  </div>
-                  <div className="rounded-[10px] bg-card px-3 py-2.5">
-                    <p className="dashboard-ui-label text-ink">
-                      {providerSummary}
-                    </p>
-                    <p className="dashboard-ui-meta mt-0.5 font-normal text-muted">
-                      Authentication provider
-                    </p>
-                  </div>
-                  <div className="rounded-[10px] bg-card px-3 py-2.5">
-                    <p className="dashboard-ui-label text-ink">
-                      Current browser
-                    </p>
-                    <p className="dashboard-ui-meta mt-0.5 font-normal text-muted">
-                      Active session on this device
-                    </p>
-                  </div>
-                </div>
-                <p className="dashboard-ui-meta mt-3 font-normal text-muted">
-                  Other browser/device sessions are not tracked by this app yet.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={logOut}
-                disabled={isLoggingOut}
-                className="dashboard-ui-label mt-4 flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-line bg-paper text-danger transition hover:bg-red-50 disabled:pointer-events-none disabled:opacity-60"
-              >
-                {isLoggingOut ? (
-                  <LoaderCircle className="size-4 animate-spin" strokeWidth={1.8} />
-                ) : (
-                  <LogOut className="size-4" strokeWidth={1.8} />
-                )}
-                Log out
-              </button>
-            </div>
-            ,
-            document.body,
-          )
-          : null}
-
         <footer
           className={`transition-[background-color,border-color,margin,padding,width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
             isCompact
@@ -1039,17 +834,18 @@ export function SidebarPanel({
               : "sidebar-profile-card-shadow -mx-1.5 w-[calc(100%+0.75rem)] rounded-[14px] border border-line bg-paper p-1.5"
           }`}
         >
-          <button
-            ref={profileButtonRef}
-            type="button"
-            onClick={() => setIsProfileMenuOpen((open) => !open)}
-            aria-haspopup="dialog"
-            aria-expanded={isProfileMenuOpen}
-            aria-label="Open account popup"
-            className={`flex w-full items-center rounded-lg text-left transition-[gap,padding] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+          <Link
+            href="/account"
+            aria-current={isAccountActive ? "page" : undefined}
+            title={isCompact ? "Account" : undefined}
+            className={`flex w-full items-center rounded-lg text-left transition-[gap,padding,background-color,color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
               isCompact
                 ? "justify-center gap-1 px-0 py-0"
                 : "gap-2 px-2 py-2"
+            } ${
+              isAccountActive
+                ? "bg-[var(--sidebar-hover-strong)]"
+                : "hover:bg-[var(--sidebar-hover)]"
             }`}
           >
             <span className="grid size-8 shrink-0 place-items-center">
@@ -1067,7 +863,7 @@ export function SidebarPanel({
                 {profileDetail}
               </span>
             </span>
-          </button>
+          </Link>
         </footer>
       </div>
     </aside>

@@ -79,11 +79,23 @@ export async function signUp(formData: FormData) {
 }
 
 export async function signOut() {
+  return signOutEverywhere();
+}
+
+async function signOutWithScope(scope: "local" | "global") {
   if (!hasSupabaseEnv()) {
     return redirect("/");
   }
 
   const supabase = await createClient();
-  await supabase.auth.signOut();
+  await supabase.auth.signOut({ scope });
   return redirect("/");
+}
+
+export async function signOutCurrentSession() {
+  return signOutWithScope("local");
+}
+
+export async function signOutEverywhere() {
+  return signOutWithScope("global");
 }

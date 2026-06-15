@@ -390,6 +390,18 @@ html.theme-circle-transition::view-transition-new(root) {
   }
 }
 
+@keyframes scheduler-create-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 .dashboard-item-enter {
   animation: dashboard-item-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
@@ -414,12 +426,18 @@ html.theme-circle-transition::view-transition-new(root) {
   transform-origin: left bottom;
 }
 
+.scheduler-create-menu {
+  animation: scheduler-create-menu-in 160ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  transform-origin: right top;
+}
+
 .content-table-scrollbar-track {
   position: relative;
   height: 14px;
   margin-top: 4px;
   cursor: pointer;
   touch-action: none;
+  user-select: none;
 }
 
 .content-table-scrollbar-track::before {
@@ -436,6 +454,7 @@ html.theme-circle-transition::view-transition-new(root) {
 
 .content-table-scrollbar-thumb {
   position: absolute;
+  display: block;
   top: 50%;
   min-width: 44px;
   height: 5px;
@@ -460,7 +479,8 @@ html.theme-circle-transition::view-transition-new(root) {
 
   .dashboard-item-enter,
   .dashboard-motion-card,
-  .account-popup-panel {
+  .account-popup-panel,
+  .scheduler-create-menu {
     animation: none !important;
     transition: none !important;
   }

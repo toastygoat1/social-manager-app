@@ -36,8 +36,14 @@ const CREATE_OPTIONS: {
   {
     Icon: ImageIcon,
     label: "Post",
-    body: "Schedule an image or carousel",
+    body: "Schedule a single feed image",
     type: "post",
+  },
+  {
+    Icon: ImageIcon,
+    label: "Carousel",
+    body: "Schedule multiple images or mixed media",
+    type: "carousel",
   },
   {
     Icon: PlusSquare,
@@ -80,7 +86,7 @@ export function SchedulerHeader({
       <div className="grid min-h-[74px] grid-cols-1 items-center gap-3 px-4 py-3 md:grid-cols-[minmax(180px,1fr)_auto_minmax(180px,1fr)] lg:px-6">
         <DateHeader referenceIso={referenceIso} />
 
-        <div className="flex items-center justify-center gap-3">
+        <div className="flex items-center justify-center gap-1.5">
           <button
             type="button"
             aria-label="Previous period"
@@ -89,7 +95,7 @@ export function SchedulerHeader({
           >
             <ChevronLeft className="size-3.5" />
           </button>
-          <h1 className="min-w-[190px] text-center text-[17px] font-semibold tracking-[-0.02em] text-[#171510]">
+          <h1 className="min-w-[168px] text-center text-[20px] font-normal tracking-[-0.01em] text-[#171510] [font-family:Georgia,serif]">
             {periodLabel}
           </h1>
           <button
@@ -120,15 +126,19 @@ export function SchedulerHeader({
             <button
               type="button"
               onClick={() => setCreateOpen((open) => !open)}
-              className="flex h-8 items-center gap-1.5 rounded-md bg-[#141310] px-3 text-[11px] font-semibold text-white"
+              className="flex h-8 items-center gap-1.5 rounded-md bg-[#141310] px-3 text-[11px] font-semibold text-white transition-transform duration-150 active:scale-[0.97]"
             >
               <Plus className="size-3" strokeWidth={2.5} />
               Create
-              <ChevronDown className="size-3" />
+              <ChevronDown
+                className={`size-3 transition-transform duration-150 ${
+                  createOpen ? "rotate-180" : ""
+                }`}
+              />
             </button>
 
             {createOpen ? (
-              <div className="absolute right-0 top-[38px] z-30 flex w-[256px] flex-col gap-1 rounded-lg border border-[#e8e3da] bg-paper p-2 shadow-lg">
+              <div className="scheduler-create-menu absolute right-0 top-[38px] z-30 flex w-[256px] flex-col gap-1 rounded-lg border border-[#e8e3da] bg-paper p-2 shadow-lg">
                 {CREATE_OPTIONS.map(({ Icon, label, body, type }) => (
                   <button
                     key={label}
