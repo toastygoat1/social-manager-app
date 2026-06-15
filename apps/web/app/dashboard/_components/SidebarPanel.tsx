@@ -529,7 +529,6 @@ export function SidebarPanel({
   const profileDetail = getProfileDetail(profile);
   const isCompact = isCollapsed || isNarrowViewport;
   const isDarkTheme = theme === "dark";
-  const isAccountActive = active === "account";
   const activeNavIndex = NAV_ITEMS.findIndex(
     (item) => item.key === selectedNavKey,
   );
@@ -836,19 +835,18 @@ export function SidebarPanel({
         >
           <Link
             href="/account"
-            aria-current={isAccountActive ? "page" : undefined}
             title={isCompact ? "Account" : undefined}
-            className={`flex w-full items-center rounded-lg text-left transition-[gap,padding,background-color,color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+            className={`group flex min-h-8 w-full items-center text-left transition-[gap,padding,background-color,color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
               isCompact
-                ? "justify-center gap-1 px-0 py-0"
-                : "gap-2 px-2 py-2"
-            } ${
-              isAccountActive
-                ? "bg-[var(--sidebar-hover-strong)]"
-                : "hover:bg-[var(--sidebar-hover)]"
+                ? "gap-1 px-[3px] py-0"
+                : "gap-2 rounded-lg px-2 py-2 hover:bg-[var(--sidebar-hover)]"
             }`}
           >
-            <span className="grid size-8 shrink-0 place-items-center">
+            <span
+              className={`grid size-8 shrink-0 place-items-center rounded-[5px] transition-colors duration-200 ${
+                isCompact ? "group-hover:bg-[var(--sidebar-hover-strong)]" : ""
+              }`}
+            >
               <ProfileAvatar profile={profile} />
             </span>
             <span

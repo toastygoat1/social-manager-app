@@ -1,7 +1,8 @@
 "use client";
 
+import { ArrowDown, ArrowUp, ChevronsUpDown, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { AvatarImage } from "@/app/_components/AvatarImage";
 import type {
   ContentRow,
@@ -18,6 +19,44 @@ type PostsTableProps = {
   rows: ContentRow[];
   metadataFields: MetadataFieldDefinition[];
 };
+
+type SortDirection = "asc" | "desc";
+type StaticSortKey =
+  | "title"
+  | "account"
+  | "datePost"
+  | "status"
+  | "distribution"
+  | "views"
+  | "likes"
+  | "comments"
+  | "shares";
+type SortKey = StaticSortKey | `metadata:${string}`;
+type SortState = {
+  key: SortKey;
+  direction: SortDirection;
+};
+type ColumnAlign = "left" | "right";
+type ColumnDefinition = {
+  key: SortKey;
+  label: string;
+  minWidth: number;
+  align?: ColumnAlign;
+};
+
+const STATIC_COLUMNS: ColumnDefinition[] = [
+  { key: "title", label: "Title", minWidth: 360 },
+  { key: "account", label: "Account", minWidth: 190 },
+  { key: "datePost", label: "Date published", minWidth: 150 },
+  { key: "status", label: "Status", minWidth: 130 },
+  { key: "distribution", label: "Distribution", minWidth: 150 },
+  { key: "views", label: "Views", minWidth: 110, align: "right" },
+  { key: "likes", label: "Likes", minWidth: 110, align: "right" },
+  { key: "comments", label: "Comments", minWidth: 120, align: "right" },
+  { key: "shares", label: "Shares", minWidth: 110, align: "right" },
+];
+
+const METADATA_COLUMN_MIN_WIDTH = 170;
 
 const TYPE_COLORS: Record<PostFormat, string> = {
   Post: "#5D9BFE",
@@ -130,23 +169,178 @@ function Thumbnail({ row }: { row: ContentRow }) {
   );
 }
 
-function AccountLine({ row }: { row: ContentRow }) {
+function AccountCell({ row }: { row: ContentRow }) {
   return (
-    <span className="mt-1 flex min-w-0 items-center gap-1.5 text-muted">
-      <span className="flex size-4 shrink-0 items-center justify-center overflow-hidden rounded-full">
+    <span
+      className="dashboard-ui-label inline-flex min-w-0 max-w-full items-center gap-2 text-ink"
+      title={row.account.name}
+    >
+      <span className="flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-full">
         <AvatarImage
           src={row.account.avatarUrl}
           alt={row.account.name}
-          width={16}
-          height={16}
-          className="size-4 rounded-full object-cover"
+          width={24}
+          height={24}
+          className="size-6 rounded-full object-cover"
           fallback={getInitials(row.account.name)}
         />
       </span>
-      <span className="dashboard-ui-meta truncate font-normal">
-        {row.account.name}
-      </span>
+      <span className="truncate">{row.account.name}</span>
     </span>
+  );
+}
+
+function getDistributionLabel(row: ContentRow) {
+  return [normalizePostFormat(row.type), displayText(row.media)]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function getSearchableText(row: ContentRow) {
+  return [
+    row.contents,
+    row.caption,
+    row.status,
+    row.datePost,
+    row.type,
+    row.media,
+    row.account.name,
+    row.account.username,
+    row.account.displayName,
+    row.account.platform,
+    ...Object.values(row.metadata ?? {}),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+function getSortValue(row: ContentRow, key: SortKey) {
+  if (key.startsWith("metadata:")) {
+    return row.metadata?.[key.slice("metadata:".length)] ?? null;
+  }
+
+  switch (key) {
+    case "title":
+      return row.contents;
+    case "account":
+      return row.account.name;
+    case "datePost":
+      return row.datePost;
+    case "status":
+      return row.status;
+    case "distribution":
+      return getDistributionLabel(row);
+    case "views":
+      return row.views;
+    case "likes":
+      return row.likes;
+    case "comments":
+      return row.comments;
+    case "shares":
+      return row.shares;
+  }
+}
+
+function isEmptySortValue(value: string | number | null | undefined) {
+  if (value === null || value === undefined) return true;
+  return typeof value === "string" ? displayText(value) === null : false;
+}
+
+function toComparableValue(value: string | number | null | undefined) {
+  if (typeof value === "number") return value;
+
+  const text = displayText(value)?.replace(/,/g, "") ?? "";
+  const numericValue = Number(text);
+  if (text && Number.isFinite(numericValue) && /^-?\d+(\.\d+)?$/.test(text)) {
+    return numericValue;
+  }
+
+  return text;
+}
+
+function compareSortValues(
+  left: string | number | null | undefined,
+  right: string | number | null | undefined,
+  direction: SortDirection,
+) {
+  const leftEmpty = isEmptySortValue(left);
+  const rightEmpty = isEmptySortValue(right);
+
+  if (leftEmpty || rightEmpty) {
+    if (leftEmpty && rightEmpty) return 0;
+    return leftEmpty ? 1 : -1;
+  }
+
+  const comparableLeft = toComparableValue(left);
+  const comparableRight = toComparableValue(right);
+  const result =
+    typeof comparableLeft === "number" && typeof comparableRight === "number"
+      ? comparableLeft - comparableRight
+      : String(comparableLeft).localeCompare(String(comparableRight), undefined, {
+          numeric: true,
+          sensitivity: "base",
+        });
+
+  return direction === "asc" ? result : -result;
+}
+
+function getDefaultSortDirection(key: SortKey): SortDirection {
+  return key === "datePost" ||
+    key === "views" ||
+    key === "likes" ||
+    key === "comments" ||
+    key === "shares"
+    ? "desc"
+    : "asc";
+}
+
+function getAriaSort(column: ColumnDefinition, sortState: SortState | null) {
+  if (sortState?.key !== column.key) return "none";
+  return sortState.direction === "asc" ? "ascending" : "descending";
+}
+
+function SortableHeader({
+  column,
+  sortState,
+  onSort,
+}: {
+  column: ColumnDefinition;
+  sortState: SortState | null;
+  onSort: (key: SortKey) => void;
+}) {
+  const isActive = sortState?.key === column.key;
+  const Icon = !isActive
+    ? ChevronsUpDown
+    : sortState.direction === "asc"
+      ? ArrowUp
+      : ArrowDown;
+
+  return (
+    <th
+      aria-sort={getAriaSort(column, sortState)}
+      className={`dashboard-ui-meta px-4 py-3 font-semibold text-ink ${
+        column.align === "right" ? "text-right" : "text-left"
+      }`}
+      style={{ minWidth: column.minWidth }}
+    >
+      <button
+        type="button"
+        onClick={() => onSort(column.key)}
+        className={`inline-flex max-w-full items-center gap-1.5 rounded-md text-inherit transition hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5e6ad2] ${
+          column.align === "right" ? "justify-end" : "justify-start"
+        }`}
+      >
+        <span className="truncate">{column.label}</span>
+        <Icon
+          aria-hidden="true"
+          className={`size-3.5 shrink-0 ${
+            isActive ? "text-ink" : "text-muted"
+          }`}
+          strokeWidth={1.8}
+        />
+      </button>
+    </th>
   );
 }
 
@@ -172,59 +366,109 @@ export function PostsTable({
 }: PostsTableProps) {
   const router = useRouter();
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [sortState, setSortState] = useState<SortState | null>(null);
+  const columns = useMemo<ColumnDefinition[]>(
+    () => [
+      ...STATIC_COLUMNS,
+      ...metadataFields.map((field) => ({
+        key: `metadata:${field.id}` as SortKey,
+        label: field.label,
+        minWidth: METADATA_COLUMN_MIN_WIDTH,
+      })),
+    ],
+    [metadataFields],
+  );
+  const tableMinWidth = useMemo(
+    () => columns.reduce((sum, column) => sum + column.minWidth, 0),
+    [columns],
+  );
+  const normalizedQuery = query.trim().toLowerCase();
+  const filteredRows = useMemo(() => {
+    if (!normalizedQuery) return rows;
+    return rows.filter((row) =>
+      getSearchableText(row).includes(normalizedQuery),
+    );
+  }, [normalizedQuery, rows]);
+  const visibleRows = useMemo(() => {
+    if (!sortState) return filteredRows;
+
+    return [...filteredRows].sort((left, right) =>
+      compareSortValues(
+        getSortValue(left, sortState.key),
+        getSortValue(right, sortState.key),
+        sortState.direction,
+      ),
+    );
+  }, [filteredRows, sortState]);
+
+  function handleSort(key: SortKey) {
+    setSortState((current) => {
+      if (current?.key === key) {
+        return {
+          key,
+          direction: current.direction === "asc" ? "desc" : "asc",
+        };
+      }
+
+      return {
+        key,
+        direction: getDefaultSortDirection(key),
+      };
+    });
+  }
 
   return (
-    <section className="w-full overflow-hidden border-b border-line bg-paper">
+    <section className="mx-5 my-4 flex min-w-0 flex-col overflow-hidden rounded-lg border border-line bg-paper sm:mx-7 sm:my-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-3 sm:px-5">
+        <label className="relative flex min-w-[240px] flex-1 items-center sm:max-w-[420px]">
+          <Search
+            aria-hidden="true"
+            className="pointer-events-none absolute left-3 size-3.5 text-muted"
+            strokeWidth={1.8}
+          />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search posts, accounts, status, metadata..."
+            className="dashboard-ui-label h-9 w-full rounded-lg border border-line bg-paper pl-9 pr-3 text-ink outline-none transition placeholder:font-normal focus:border-[#b7b7b7] focus:bg-card"
+            type="search"
+          />
+        </label>
+        <span className="dashboard-ui-meta text-muted">
+          {visibleRows.length} of {rows.length} posts
+        </span>
+      </div>
+
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[1180px] border-collapse text-left">
+        <table
+          className="w-full border-collapse text-left"
+          style={{ minWidth: tableMinWidth }}
+        >
           <thead className="bg-card">
             <tr className="border-b border-line">
-              <th className="dashboard-ui-meta min-w-[380px] px-5 py-3 font-semibold text-ink">
-                Title
-              </th>
-              <th className="dashboard-ui-meta min-w-[150px] px-4 py-3 font-semibold text-ink">
-                Date published
-              </th>
-              <th className="dashboard-ui-meta min-w-[130px] px-4 py-3 font-semibold text-ink">
-                Status
-              </th>
-              <th className="dashboard-ui-meta min-w-[150px] px-4 py-3 font-semibold text-ink">
-                Distribution
-              </th>
-              <th className="dashboard-ui-meta min-w-[110px] px-4 py-3 text-right font-semibold text-ink">
-                Views
-              </th>
-              <th className="dashboard-ui-meta min-w-[110px] px-4 py-3 text-right font-semibold text-ink">
-                Likes
-              </th>
-              <th className="dashboard-ui-meta min-w-[120px] px-4 py-3 text-right font-semibold text-ink">
-                Comments
-              </th>
-              <th className="dashboard-ui-meta min-w-[110px] px-4 py-3 text-right font-semibold text-ink">
-                Shares
-              </th>
-              {metadataFields.map((field) => (
-                <th
-                  key={field.id}
-                  className="dashboard-ui-meta min-w-[170px] px-4 py-3 font-semibold text-ink"
-                >
-                  {field.label}
-                </th>
+              {columns.map((column) => (
+                <SortableHeader
+                  key={column.key}
+                  column={column}
+                  sortState={sortState}
+                  onSort={handleSort}
+                />
               ))}
             </tr>
           </thead>
           <tbody>
-            {rows.length === 0 ? (
+            {visibleRows.length === 0 ? (
               <tr>
                 <td
-                  colSpan={8 + metadataFields.length}
+                  colSpan={columns.length}
                   className="dashboard-body-text px-5 py-12 text-center text-muted"
                 >
-                  No posts in this view yet
+                  {query ? "No posts match your search" : "No posts in this view yet"}
                 </td>
               </tr>
             ) : (
-              rows.map((row) => (
+              visibleRows.map((row) => (
                 <tr
                   key={row.id}
                   tabIndex={0}
@@ -240,16 +484,18 @@ export function PostsTable({
                   }}
                   className="group cursor-pointer border-b border-line transition-colors hover:bg-card focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#5e6ad2]"
                 >
-                  <td className="min-w-[380px] px-5 py-3 align-middle">
+                  <td className="px-5 py-3 align-middle">
                     <div className="flex min-w-0 items-center gap-3">
                       <Thumbnail row={row} />
                       <div className="min-w-0">
                         <p className="dashboard-ui-label truncate text-ink">
                           {displayText(row.contents) ?? "Untitled post"}
                         </p>
-                        <AccountLine row={row} />
                       </div>
                     </div>
+                  </td>
+                  <td className="px-4 py-3 align-middle">
+                    <AccountCell row={row} />
                   </td>
                   <td className="px-4 py-3 align-middle">
                     <span className="dashboard-ui-label whitespace-nowrap text-muted">
