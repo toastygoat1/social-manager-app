@@ -397,7 +397,6 @@ export class AiService {
               take: CHAT_ANALYTICS_POST_LIMIT,
               select: {
                 id: true,
-                title: true,
                 caption: true,
                 postType: true,
                 publishedAt: true,
@@ -429,7 +428,7 @@ export class AiService {
                 accountId: account.id,
                 accountName: formatAccountName(account),
                 id: post.id,
-                label: labelPost(post.title, post.caption, post.id),
+                label: labelPost(post.caption, post.id),
                 postType: post.postType,
                 publishedAt: post.publishedAt,
                 permalink: post.igPermalink,
@@ -895,8 +894,8 @@ function formatPostAnalyticsLine(post: ChatPostAnalyticsRow) {
   )}, engagement/reach=${formatPercent(post.engagement, post.reach)}${permalink}`;
 }
 
-function labelPost(title: string | null, caption: string | null, id: string) {
-  const value = title?.trim() || caption?.trim() || `Post ${id}`;
+function labelPost(caption: string | null, id: string) {
+  const value = caption?.trim() || `Post ${id}`;
   return value.length > 80 ? `${value.slice(0, 77)}...` : value;
 }
 

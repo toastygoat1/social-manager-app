@@ -354,7 +354,6 @@ function makePost(
   return {
     id: 'post-1',
     instagramAccountId: 'db-account-1',
-    title: 'Post',
     caption: 'Caption',
     postType: options.postType ?? PostType.FEED,
     status: PostStatus.READY,

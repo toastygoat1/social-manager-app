@@ -62,7 +62,7 @@ type AnalyticsMetric = {
 type RecentPost = {
   id: string;
   accountId: string;
-  title: string;
+  caption: string;
   mediaUrl: string | null;
   thumbnailUrl: string | null;
   mediaType: MediaType | null;
@@ -176,6 +176,12 @@ type AnalyticsNote = {
   id: string;
   accountId: string | null;
   body: string;
+  boardX: number;
+  boardY: number;
+  boardWidth: number;
+  boardHeight: number;
+  color: string;
+  zIndex: number;
   createdAt: string;
   updatedAt: string;
 };
@@ -380,6 +386,12 @@ const ANALYTICS_NOTE_SELECT = {
   id: true,
   instagramAccountId: true,
   body: true,
+  boardX: true,
+  boardY: true,
+  boardWidth: true,
+  boardHeight: true,
+  color: true,
+  zIndex: true,
   createdAt: true,
   updatedAt: true,
 } satisfies Prisma.AnalyticsNoteSelect;
@@ -580,6 +592,16 @@ export class AnalyticsService {
         userId,
         instagramAccountId: accountId,
         body,
+        ...(data.boardX !== undefined ? { boardX: data.boardX } : {}),
+        ...(data.boardY !== undefined ? { boardY: data.boardY } : {}),
+        ...(data.boardWidth !== undefined
+          ? { boardWidth: data.boardWidth }
+          : {}),
+        ...(data.boardHeight !== undefined
+          ? { boardHeight: data.boardHeight }
+          : {}),
+        ...(data.color !== undefined ? { color: data.color } : {}),
+        ...(data.zIndex !== undefined ? { zIndex: data.zIndex } : {}),
       },
       select: ANALYTICS_NOTE_SELECT,
     });
@@ -592,7 +614,8 @@ export class AnalyticsService {
     noteId: string,
     data: UpdateAnalyticsNoteDto,
   ) {
-    const body = normalizeNoteBody(data.body);
+    const body =
+      data.body === undefined ? undefined : normalizeNoteBody(data.body);
     const accountId =
       data.accountId === undefined ? undefined : data.accountId.trim() || null;
     await this.ensureOwnedNote(userId, noteId);
@@ -604,8 +627,18 @@ export class AnalyticsService {
     const note = await this.prisma.analyticsNote.update({
       where: { id: noteId },
       data: {
-        body,
+        ...(body !== undefined ? { body } : {}),
         ...(accountId !== undefined ? { instagramAccountId: accountId } : {}),
+        ...(data.boardX !== undefined ? { boardX: data.boardX } : {}),
+        ...(data.boardY !== undefined ? { boardY: data.boardY } : {}),
+        ...(data.boardWidth !== undefined
+          ? { boardWidth: data.boardWidth }
+          : {}),
+        ...(data.boardHeight !== undefined
+          ? { boardHeight: data.boardHeight }
+          : {}),
+        ...(data.color !== undefined ? { color: data.color } : {}),
+        ...(data.zIndex !== undefined ? { zIndex: data.zIndex } : {}),
       },
       select: ANALYTICS_NOTE_SELECT,
     });
@@ -716,7 +749,6 @@ export class AnalyticsService {
       take: MAX_REFRESH_POSTS,
       select: {
         id: true,
-        title: true,
         caption: true,
         igMediaId: true,
         instagramAccountId: true,
@@ -880,7 +912,7 @@ export class AnalyticsService {
         return {
           id: post.id,
           accountId: post.instagramAccountId,
-          title: truncate(post.caption, 48) ?? 'No caption',
+          caption: truncate(post.caption, 48) ?? 'No caption',
           mediaUrl,
           thumbnailUrl,
           mediaType,
@@ -1441,6 +1473,12 @@ function mapNote(note: AnalyticsNoteRecord): AnalyticsNote {
     id: note.id,
     accountId: note.instagramAccountId,
     body: note.body,
+    boardX: note.boardX,
+    boardY: note.boardY,
+    boardWidth: note.boardWidth,
+    boardHeight: note.boardHeight,
+    color: note.color,
+    zIndex: note.zIndex,
     createdAt: note.createdAt.toISOString(),
     updatedAt: note.updatedAt.toISOString(),
   };

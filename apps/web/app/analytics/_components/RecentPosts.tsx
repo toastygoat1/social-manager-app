@@ -66,7 +66,7 @@ function MediaPreview({ post }: { post: RecentPost }) {
       <div
         className="absolute inset-0 bg-cover bg-center"
         style={{ backgroundImage: `url("${previewImageUrl}")` }}
-        aria-label={post.title}
+        aria-label={post.caption}
         role="img"
       />
     );
@@ -196,7 +196,7 @@ export function RecentPosts({
                 <div className="flex w-full flex-col gap-3 p-3">
                   <div className="flex items-start justify-between gap-2">
                     <p className="line-clamp-2 min-h-9 text-[12px] leading-[18px] text-ink">
-                      {post.title}
+                      {post.caption}
                     </p>
                     <span className="shrink-0 font-mono text-[10px] text-muted">
                       {formatTimeAgo(post.publishedAt)}

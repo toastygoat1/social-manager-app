@@ -30,7 +30,6 @@ export type SchedulerData = {
 
 export type SchedulerPostDetail = {
   id: string;
-  title: string | null;
   caption: string | null;
   metadataFields: SchedulerMetadataField[];
   metadata: Record<string, string>;
@@ -91,7 +90,7 @@ export type SchedulerPostDetail = {
 
 export type SchedulerWorkItem = {
   id: string;
-  title: string;
+  caption: string;
   postType: SchedulerPostType;
   status: "pending" | "draft";
   accountUsername: string;
@@ -106,7 +105,7 @@ export type SchedulerWorkItems = {
 
 export type SchedulerFailedPost = {
   id: string;
-  title: string;
+  caption: string;
   postType: SchedulerPostType;
   accountUsername: string;
   scheduledFor: string | null;

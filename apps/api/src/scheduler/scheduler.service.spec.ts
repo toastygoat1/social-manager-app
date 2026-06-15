@@ -237,7 +237,6 @@ function makeScheduledPost(scheduledFor: Date) {
     igPermalink: null,
     igMediaUrl: null,
     igThumbnailUrl: null,
-    title: null,
     caption: null,
     publishedAt: null,
     createdAt: new Date('2026-06-01T09:00:00.000Z'),

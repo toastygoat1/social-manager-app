@@ -52,7 +52,7 @@ const TABLE_ROW_HEIGHT = 56;
 const TRAILING_COLUMN_WIDTH = 128;
 
 const LEADING_COLUMNS: ColumnDefinition[] = [
-  { label: "Content", width: 265 },
+  { label: "Caption", width: 265 },
   { label: "Account", width: 210 },
 ];
 
@@ -684,12 +684,13 @@ function Row({
   onOpenDetails: (postId: string) => void;
 }) {
   const datePost = displayText(row.datePost);
+  const caption = displayText(row.caption) ?? displayText(row.contents) ?? "No caption";
 
   return (
     <div
       role="button"
       tabIndex={0}
-      aria-label={`Open details for ${row.contents}`}
+      aria-label={`Open details for ${caption}`}
       onClick={() => onOpenDetails(row.id)}
       onKeyDown={(event) => {
         if (event.currentTarget !== event.target) return;
@@ -703,7 +704,7 @@ function Row({
     >
       <Cell width={265}>
         <span className="dashboard-ui-label truncate text-ink">
-          {row.contents}
+          {caption}
         </span>
       </Cell>
       <Cell width={210}>

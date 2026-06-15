@@ -533,7 +533,6 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
           method: "PATCH",
           body: {
             action,
-            title: "",
             caption,
             metadata,
             scheduledFor: scheduleIso,
@@ -711,7 +710,6 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
         {
           method: "PATCH",
           body: {
-            title: "",
             caption,
             metadata,
             scheduledFor: date.toISOString(),

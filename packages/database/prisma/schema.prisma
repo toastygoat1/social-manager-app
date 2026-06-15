@@ -164,7 +164,6 @@ model MediaAsset {
 model ContentPost {
   id                        String                     @id @default(uuid())
   instagramAccountId        String                     @map("instagram_account_id")
-  title                     String?
   caption                   String?
   postType                  PostType                   @map("post_type")
   status                    PostStatus                 @default(DRAFT)
@@ -439,6 +438,12 @@ model AnalyticsNote {
   userId             String            @map("user_id")
   instagramAccountId String?           @map("instagram_account_id")
   body               String
+  boardX             Int               @default(32) @map("board_x")
+  boardY             Int               @default(32) @map("board_y")
+  boardWidth         Int               @default(240) @map("board_width")
+  boardHeight        Int               @default(220) @map("board_height")
+  color              String            @default("yellow")
+  zIndex             Int               @default(1) @map("z_index")
   createdAt          DateTime          @default(now()) @map("created_at")
   updatedAt          DateTime          @updatedAt @map("updated_at")
   user               User              @relation(fields: [userId], references: [id], onDelete: Cascade)

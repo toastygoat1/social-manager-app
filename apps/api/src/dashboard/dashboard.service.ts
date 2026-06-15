@@ -374,7 +374,6 @@ export class DashboardService {
         take: 20,
         select: {
           id: true,
-          title: true,
           caption: true,
           postType: true,
           status: true,

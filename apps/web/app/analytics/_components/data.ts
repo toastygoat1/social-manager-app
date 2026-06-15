@@ -38,7 +38,7 @@ export type PostStat = {
 export type RecentPost = {
   id: string;
   accountId: string;
-  title: string;
+  caption: string;
   mediaUrl: string | null;
   thumbnailUrl: string | null;
   mediaType: "IMAGE" | "VIDEO" | null;
@@ -131,6 +131,12 @@ export type AnalyticsNote = {
   id: string;
   accountId: string | null;
   body: string;
+  boardX: number;
+  boardY: number;
+  boardWidth: number;
+  boardHeight: number;
+  color: string;
+  zIndex: number;
   createdAt: string;
   updatedAt: string;
 };

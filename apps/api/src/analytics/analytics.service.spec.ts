@@ -205,7 +205,7 @@ describe('AnalyticsService', () => {
       status: PostStatus.READY,
       scheduledFor: '2026-05-24T09:00:00Z',
       publishedAt: null,
-      title: 'Scheduled post',
+      caption: 'Scheduled post',
       withAnalytics: false,
     });
 
@@ -388,7 +388,7 @@ describe('AnalyticsService', () => {
     ]);
     expect(overview.contentRows[1]).toMatchObject({
       id: 'post-scheduled',
-      contents: 'A real caption',
+      contents: 'Scheduled post',
       views: null,
       likes: null,
       comments: null,
@@ -414,7 +414,7 @@ describe('AnalyticsService', () => {
       impressions: 40,
       reach: 30,
       publishedAt: '2026-05-22T08:00:00Z',
-      title: 'Newest post',
+      caption: 'Newest post',
     });
     const topPost = makePost({
       id: 'post-top',
@@ -425,7 +425,7 @@ describe('AnalyticsService', () => {
       impressions: 900,
       reach: 700,
       publishedAt: '2026-05-18T08:00:00Z',
-      title: 'Top post',
+      caption: 'Top post',
     });
 
     prisma.instagramAccount.findMany.mockResolvedValue([
@@ -677,8 +677,7 @@ describe('AnalyticsService', () => {
     prisma.contentPost.findMany.mockResolvedValue([
       {
         id: 'post-1',
-        title: 'Launch post',
-        caption: null,
+        caption: 'Launch post',
         igMediaId: 'ig-media-1',
         instagramAccountId: 'account-1',
       },
@@ -892,7 +891,7 @@ function makePost(input: {
   status?: PostStatus;
   scheduledFor?: string | null;
   publishedAt?: string | null;
-  title?: string;
+  caption?: string;
   withAnalytics?: boolean;
   withMedia?: boolean;
   localMediaType?: MediaType;
@@ -913,8 +912,7 @@ function makePost(input: {
   return {
     id: input.id,
     instagramAccountId: 'account-1',
-    title: input.title ?? 'Launch post',
-    caption: 'A real caption',
+    caption: input.caption ?? 'A real caption',
     postType: input.postType ?? PostType.FEED,
     status: input.status ?? PostStatus.PUBLISHED,
     scheduledFor,

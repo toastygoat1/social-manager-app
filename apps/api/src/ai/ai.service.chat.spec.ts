@@ -262,8 +262,7 @@ describe('AiService.chat()', () => {
     deps.prisma.contentPost.findMany.mockResolvedValue([
       {
         id: 'post-top',
-        title: 'Best reel',
-        caption: null,
+        caption: 'Best reel',
         postType: 'REEL',
         publishedAt: new Date('2026-06-04T10:00:00Z'),
         igPermalink: 'https://instagram.example/post-top',
@@ -332,8 +331,7 @@ describe('AiService.chat()', () => {
     deps.prisma.contentPost.findMany.mockResolvedValue([
       {
         id: 'post-top',
-        title: 'Best reel',
-        caption: null,
+        caption: 'Best reel',
         postType: 'REEL',
         publishedAt: new Date('2026-06-04T10:00:00Z'),
         igPermalink: null,

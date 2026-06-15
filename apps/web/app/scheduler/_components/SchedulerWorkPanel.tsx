@@ -121,7 +121,7 @@ export function SchedulerWorkPanel({
                     className="min-w-0 flex-1 text-left"
                   >
                     <p className="truncate text-sm font-semibold text-ink">
-                      {post.title}
+                      {post.caption}
                     </p>
                     <p className="truncate text-xs text-muted">
                       @{post.accountUsername} - {post.postType}
@@ -136,7 +136,7 @@ export function SchedulerWorkPanel({
                       disabled={retryingId === post.id}
                       onClick={() => void retry(post)}
                       className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-paper text-danger disabled:opacity-60"
-                      aria-label={`Retry ${post.title}`}
+                      aria-label={`Retry ${post.caption}`}
                     >
                       {retryingId === post.id ? (
                         <Loader2 className="size-4 animate-spin" />
@@ -226,7 +226,7 @@ function WorkItemCard({
       onClick={onOpen}
       className="min-w-[240px] rounded-lg border border-line bg-card p-3 text-left hover:border-cta-edge"
     >
-      <p className="truncate text-sm font-semibold text-ink">{post.title}</p>
+      <p className="truncate text-sm font-semibold text-ink">{post.caption}</p>
       <p className="truncate text-xs text-muted">
         @{post.accountUsername} - {post.postType}
       </p>

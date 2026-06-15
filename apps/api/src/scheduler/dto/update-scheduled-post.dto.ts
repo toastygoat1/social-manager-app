@@ -13,11 +13,6 @@ import { PostMetadataDto } from './post-metadata.dto.js';
 export class UpdateScheduledPostDto {
   @IsOptional()
   @IsString()
-  @MaxLength(200)
-  title?: string;
-
-  @IsOptional()
-  @IsString()
   @MaxLength(2200)
   caption?: string;
 

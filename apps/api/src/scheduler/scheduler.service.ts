@@ -103,7 +103,6 @@ type PostDetailRecord = Prisma.ContentPostGetPayload<{
 
 export type SchedulerPostDetail = {
   id: string;
-  title: string | null;
   caption: string | null;
   metadataFields: SchedulerMetadataField[];
   metadata: PostMetadata;
@@ -197,7 +196,7 @@ type FetchedInstagramComment = {
 
 export type SchedulerWorkItem = {
   id: string;
-  title: string;
+  caption: string;
   postType: PostType;
   status: 'pending' | 'draft';
   accountUsername: string;
@@ -207,7 +206,7 @@ export type SchedulerWorkItem = {
 
 export type SchedulerFailedPost = {
   id: string;
-  title: string;
+  caption: string;
   postType: PostType;
   accountUsername: string;
   scheduledFor: string | null;
@@ -377,7 +376,6 @@ export class SchedulerService {
       postType: PostType;
       action?: CreateEventAction;
       scheduledFor?: string;
-      title?: string;
       caption?: string;
       metadata?: PostMetadataInput[];
       requiresApproval?: boolean;
@@ -436,7 +434,6 @@ export class SchedulerService {
           postType: input.postType,
           scheduledFor,
           status,
-          title: null,
           caption: input.caption,
         },
       });
@@ -518,7 +515,7 @@ export class SchedulerService {
 
     const items = posts.map((post) => ({
       id: post.id,
-      title: formatPostCaption(post.caption),
+      caption: formatPostCaption(post.caption),
       postType: post.postType,
       status:
         post.status === PostStatus.PENDING
@@ -567,7 +564,7 @@ export class SchedulerService {
       return [
         {
           id: post.id,
-          title: formatPostCaption(post.caption),
+          caption: formatPostCaption(post.caption),
           postType: post.postType,
           accountUsername: post.instagramAccount.username,
           scheduledFor: post.scheduledFor?.toISOString() ?? null,
@@ -634,7 +631,6 @@ export class SchedulerService {
     input: {
       action?: UpdateDraftAction;
       scheduledFor?: string;
-      title?: string;
       caption?: string;
       metadata?: PostMetadataInput[];
       requiresApproval?: boolean;
@@ -687,7 +683,6 @@ export class SchedulerService {
       const result = await tx.contentPost.updateMany({
         where: { id: post.id, status: PostStatus.DRAFT },
         data: {
-          title: null,
           caption: normalizeOptionalText(input.caption),
           scheduledFor: next.scheduledFor,
           status: next.status,
@@ -737,7 +732,6 @@ export class SchedulerService {
     userId: string,
     contentPostId: string,
     input: {
-      title?: string;
       caption?: string;
       metadata?: PostMetadataInput[];
       scheduledFor?: string;
@@ -777,11 +771,9 @@ export class SchedulerService {
     }
 
     const data: {
-      title?: string | null;
       caption?: string | null;
       scheduledFor?: Date;
     } = {};
-    if (input.title !== undefined) data.title = null;
     if (input.caption !== undefined) {
       data.caption = normalizeOptionalText(input.caption);
     }
@@ -1071,7 +1063,6 @@ export class SchedulerService {
 
     return {
       id: post.id,
-      title: null,
       caption: post.caption,
       metadataFields,
       metadata: readPostMetadataValues(post.metadataValues),
