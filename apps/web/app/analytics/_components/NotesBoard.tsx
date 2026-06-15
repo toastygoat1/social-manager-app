@@ -250,6 +250,10 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
 
+function clampInt(value: number, min: number, max: number) {
+  return Math.round(clamp(value, min, max));
+}
+
 function getNumber(value: number, fallback: number) {
   return Number.isFinite(value) ? value : fallback;
 }
@@ -257,20 +261,28 @@ function getNumber(value: number, fallback: number) {
 function normalizeNoteForBoard(note: AnalyticsNote, index: number): BoardNote {
   return {
     ...note,
-    boardX: clamp(getNumber(note.boardX, BOARD_PADDING), 0, BOARD_MAX_POSITION),
-    boardY: clamp(getNumber(note.boardY, BOARD_PADDING), 0, BOARD_MAX_POSITION),
-    boardWidth: clamp(
+    boardX: clampInt(
+      getNumber(note.boardX, BOARD_PADDING),
+      0,
+      BOARD_MAX_POSITION,
+    ),
+    boardY: clampInt(
+      getNumber(note.boardY, BOARD_PADDING),
+      0,
+      BOARD_MAX_POSITION,
+    ),
+    boardWidth: clampInt(
       getNumber(note.boardWidth, DEFAULT_NOTE_WIDTH),
       MIN_NOTE_WIDTH,
       MAX_NOTE_WIDTH,
     ),
-    boardHeight: clamp(
+    boardHeight: clampInt(
       getNumber(note.boardHeight, DEFAULT_NOTE_HEIGHT),
       MIN_NOTE_HEIGHT,
       MAX_NOTE_HEIGHT,
     ),
     color: isNoteColor(note.color) ? note.color : DEFAULT_NOTE_COLOR,
-    zIndex: clamp(getNumber(note.zIndex, index + 1), 1, 10000),
+    zIndex: clampInt(getNumber(note.zIndex, index + 1), 1, 10000),
   };
 }
 
@@ -736,12 +748,12 @@ export function NotesBoard({
       const nextLayout =
         interaction.type === "move"
           ? {
-              boardX: clamp(
+              boardX: clampInt(
                 interaction.startBoardX + deltaX,
                 0,
                 BOARD_MAX_POSITION,
               ),
-              boardY: clamp(
+              boardY: clampInt(
                 interaction.startBoardY + deltaY,
                 0,
                 BOARD_MAX_POSITION,
@@ -753,12 +765,12 @@ export function NotesBoard({
           : {
               boardX: interaction.startBoardX,
               boardY: interaction.startBoardY,
-              boardWidth: clamp(
+              boardWidth: clampInt(
                 interaction.startWidth + deltaX,
                 MIN_NOTE_WIDTH,
                 MAX_NOTE_WIDTH,
               ),
-              boardHeight: clamp(
+              boardHeight: clampInt(
                 interaction.startHeight + deltaY,
                 MIN_NOTE_HEIGHT,
                 MAX_NOTE_HEIGHT,
