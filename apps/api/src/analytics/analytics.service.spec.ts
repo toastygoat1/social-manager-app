@@ -388,7 +388,7 @@ describe('AnalyticsService', () => {
     ]);
     expect(overview.contentRows[1]).toMatchObject({
       id: 'post-scheduled',
-      contents: 'Scheduled post',
+      contents: 'A real caption',
       views: null,
       likes: null,
       comments: null,

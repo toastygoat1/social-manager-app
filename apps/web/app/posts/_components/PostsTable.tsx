@@ -22,11 +22,11 @@ type PostsTableProps = {
 
 type SortDirection = "asc" | "desc";
 type StaticSortKey =
-  | "title"
+  | "caption"
   | "account"
   | "datePost"
   | "status"
-  | "distribution"
+  | "type"
   | "views"
   | "likes"
   | "comments"
@@ -45,11 +45,11 @@ type ColumnDefinition = {
 };
 
 const STATIC_COLUMNS: ColumnDefinition[] = [
-  { key: "title", label: "Title", minWidth: 360 },
+  { key: "caption", label: "Caption", minWidth: 360 },
   { key: "account", label: "Account", minWidth: 190 },
   { key: "datePost", label: "Date published", minWidth: 150 },
   { key: "status", label: "Status", minWidth: 130 },
-  { key: "distribution", label: "Distribution", minWidth: 150 },
+  { key: "type", label: "Type", minWidth: 150 },
   { key: "views", label: "Views", minWidth: 110, align: "right" },
   { key: "likes", label: "Likes", minWidth: 110, align: "right" },
   { key: "comments", label: "Comments", minWidth: 120, align: "right" },
@@ -190,12 +190,6 @@ function AccountCell({ row }: { row: ContentRow }) {
   );
 }
 
-function getDistributionLabel(row: ContentRow) {
-  return [normalizePostFormat(row.type), displayText(row.media)]
-    .filter(Boolean)
-    .join(" ");
-}
-
 function getSearchableText(row: ContentRow) {
   return [
     row.contents,
@@ -203,7 +197,6 @@ function getSearchableText(row: ContentRow) {
     row.status,
     row.datePost,
     row.type,
-    row.media,
     row.account.name,
     row.account.username,
     row.account.displayName,
@@ -221,16 +214,16 @@ function getSortValue(row: ContentRow, key: SortKey) {
   }
 
   switch (key) {
-    case "title":
-      return row.contents;
+    case "caption":
+      return row.caption;
     case "account":
       return row.account.name;
     case "datePost":
       return row.datePost;
     case "status":
       return row.status;
-    case "distribution":
-      return getDistributionLabel(row);
+    case "type":
+      return normalizePostFormat(row.type);
     case "views":
       return row.views;
     case "likes":
@@ -473,7 +466,7 @@ export function PostsTable({
                   key={row.id}
                   tabIndex={0}
                   role="button"
-                  aria-label={`Open details for ${row.contents}`}
+                  aria-label={`Open details for ${displayText(row.caption) ?? "post"}`}
                   onClick={() => setSelectedPostId(row.id)}
                   onKeyDown={(event) => {
                     if (event.currentTarget !== event.target) return;
@@ -489,7 +482,7 @@ export function PostsTable({
                       <Thumbnail row={row} />
                       <div className="min-w-0">
                         <p className="dashboard-ui-label truncate text-ink">
-                          {displayText(row.contents) ?? "Untitled post"}
+                          {displayText(row.caption) ?? "No caption"}
                         </p>
                       </div>
                     </div>
@@ -506,11 +499,8 @@ export function PostsTable({
                     <StatusPill status={row.status} />
                   </td>
                   <td className="px-4 py-3 align-middle">
-                    <div className="flex min-w-[132px] flex-col items-start gap-1">
+                    <div className="flex min-w-[132px] items-center">
                       <TypePill type={row.type} />
-                      <span className="dashboard-ui-meta text-muted">
-                        {displayText(row.media) ?? "Distribution"}
-                      </span>
                     </div>
                   </td>
                   <td className="px-4 py-3 text-right align-middle">

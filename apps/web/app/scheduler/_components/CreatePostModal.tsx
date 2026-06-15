@@ -600,7 +600,6 @@ export function CreatePostModal({
   >([]);
   const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([]);
   const [accountPickerOpen, setAccountPickerOpen] = useState(false);
-  const [title, setTitle] = useState("");
   const [caption, setCaption] = useState("");
   const [metadataFields, setMetadataFields] = useState<MetadataField[]>(() => [
     createMetadataField(),
@@ -972,7 +971,6 @@ export function CreatePostModal({
                     : TYPE_TO_POST_TYPE[composeType],
                 action: ACTION_TO_API[action],
                 scheduledFor: scheduledDate?.toISOString(),
-                title: title || undefined,
                 caption: caption || undefined,
                 metadata,
                 requiresApproval,
@@ -1002,7 +1000,6 @@ export function CreatePostModal({
         );
         return;
       }
-      setTitle("");
       setCaption("");
       setMetadataFields(metadataDefinitionsToFields(userMetadataFields));
       setMetadataEditing(false);
@@ -1055,12 +1052,7 @@ export function CreatePostModal({
   const visibleMetadataFields = metadataFields.filter(
     (field) => field.fieldId || field.label.trim() || field.value.trim(),
   );
-  const hasTitleAndCaption = Boolean(title.trim()) && Boolean(caption.trim());
-  const contentPrompt = !title.trim() && !caption.trim()
-    ? "Add a title and caption"
-    : !title.trim()
-      ? "Add a title"
-      : "Add a caption";
+  const hasCaption = Boolean(caption.trim());
   const availableAccounts = accounts.filter(
     (account) => !selectedAccountIds.includes(account.id),
   );
@@ -1192,13 +1184,6 @@ export function CreatePostModal({
                 </div>
               </div>
               <div className="overflow-hidden rounded-md border border-[#e7e1d6] bg-paper">
-                <input
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Post title"
-                  maxLength={200}
-                  className="h-9 w-full border-b border-[#eee9df] bg-transparent px-3 text-[11px] font-medium text-[#302b23] placeholder:text-[#9a9388] focus:outline-none"
-                />
                 <textarea
                   ref={captionRef}
                   value={caption}
@@ -1521,9 +1506,9 @@ export function CreatePostModal({
                     : "Add media before publishing"}
               </p>
               <MediaIssueList issues={mediaIssues} compact />
-              <p className={`mt-1 flex items-center gap-2 ${hasTitleAndCaption ? "text-[#568164]" : "text-[#a57630]"}`}>
-                {hasTitleAndCaption ? <Check className="size-3" /> : <CircleAlert className="size-3" />}
-                {hasTitleAndCaption ? "Title and caption added" : contentPrompt}
+              <p className={`mt-1 flex items-center gap-2 ${hasCaption ? "text-[#568164]" : "text-[#a57630]"}`}>
+                {hasCaption ? <Check className="size-3" /> : <CircleAlert className="size-3" />}
+                {hasCaption ? "Caption added" : "Add a caption"}
               </p>
               <p className={`mt-1 flex items-center gap-2 ${captionCount <= 125 ? "text-[#568164]" : "text-[#a57630]"}`}>
                 {captionCount <= 125 ? <Check className="size-3" /> : <CircleAlert className="size-3" />}

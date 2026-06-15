@@ -402,7 +402,6 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [title, setTitle] = useState("");
   const [caption, setCaption] = useState("");
   const [metadataFields, setMetadataFields] = useState<MetadataField[]>(() => [
     createMetadataField(),
@@ -426,7 +425,6 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
       .then((result) => {
         if (!active) return;
         setPost(result);
-        setTitle(result.title ?? "");
         setCaption(result.caption ?? "");
         setMetadataFields(
           metadataDefinitionsToFields(result.metadataFields, result.metadata),
@@ -535,7 +533,7 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
           method: "PATCH",
           body: {
             action,
-            title,
+            title: "",
             caption,
             metadata,
             scheduledFor: scheduleIso,
@@ -713,7 +711,7 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
         {
           method: "PATCH",
           body: {
-            title,
+            title: "",
             caption,
             metadata,
             scheduledFor: date.toISOString(),
@@ -889,7 +887,7 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
             </p>
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <h2 className="line-clamp-2 text-lg font-semibold leading-6 text-ink">
-                {post?.title || post?.caption || "Post details"}
+                {post?.caption || "Post details"}
               </h2>
               {post ? <StatusBadge status={post.status} /> : null}
             </div>
@@ -914,13 +912,6 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
             <section className="flex flex-col gap-5 border-b border-line p-7 md:border-b-0 md:border-r">
               {isEditable ? (
                 <>
-                  <input
-                    value={title}
-                    onChange={(event) => setTitle(event.target.value)}
-                    placeholder="Post title"
-                    maxLength={200}
-                    className="h-11 border-b border-line bg-transparent text-lg font-semibold text-ink placeholder:text-muted focus:outline-none"
-                  />
                   <textarea
                     value={caption}
                     onChange={(event) => setCaption(event.target.value)}
@@ -932,9 +923,6 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
                 </>
               ) : (
                 <>
-                  <h3 className="text-lg font-semibold text-ink">
-                    {post.title || "Untitled post"}
-                  </h3>
                   <p className="whitespace-pre-wrap rounded-xl bg-card p-4 text-sm leading-6 text-ink">
                     {post.caption || "No caption"}
                   </p>

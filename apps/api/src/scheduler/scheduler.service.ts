@@ -351,7 +351,7 @@ export class SchedulerService {
         return {
           id: `post:${post.id}`,
           source: 'scheduled_post',
-          title: post.title ?? post.caption?.slice(0, 60) ?? 'Untitled post',
+          title: formatPostCaption(post.caption),
           start: when.toISOString(),
           end: null,
           allDay: false,
@@ -436,7 +436,7 @@ export class SchedulerService {
           postType: input.postType,
           scheduledFor,
           status,
-          title: input.title,
+          title: null,
           caption: input.caption,
         },
       });
@@ -485,7 +485,7 @@ export class SchedulerService {
     return {
       id: `post:${post.id}`,
       source: 'scheduled_post',
-      title: post.title ?? post.caption?.slice(0, 60) ?? 'Untitled post',
+      title: formatPostCaption(post.caption),
       start: (
         post.scheduledFor ??
         post.publishedAt ??
@@ -518,7 +518,7 @@ export class SchedulerService {
 
     const items = posts.map((post) => ({
       id: post.id,
-      title: post.title ?? post.caption?.slice(0, 60) ?? 'Untitled post',
+      title: formatPostCaption(post.caption),
       postType: post.postType,
       status:
         post.status === PostStatus.PENDING
@@ -567,7 +567,7 @@ export class SchedulerService {
       return [
         {
           id: post.id,
-          title: post.title ?? post.caption?.slice(0, 60) ?? 'Untitled post',
+          title: formatPostCaption(post.caption),
           postType: post.postType,
           accountUsername: post.instagramAccount.username,
           scheduledFor: post.scheduledFor?.toISOString() ?? null,
@@ -687,7 +687,7 @@ export class SchedulerService {
       const result = await tx.contentPost.updateMany({
         where: { id: post.id, status: PostStatus.DRAFT },
         data: {
-          title: normalizeOptionalText(input.title),
+          title: null,
           caption: normalizeOptionalText(input.caption),
           scheduledFor: next.scheduledFor,
           status: next.status,
@@ -781,8 +781,7 @@ export class SchedulerService {
       caption?: string | null;
       scheduledFor?: Date;
     } = {};
-    if (input.title !== undefined)
-      data.title = normalizeOptionalText(input.title);
+    if (input.title !== undefined) data.title = null;
     if (input.caption !== undefined) {
       data.caption = normalizeOptionalText(input.caption);
     }
@@ -1072,7 +1071,7 @@ export class SchedulerService {
 
     return {
       id: post.id,
-      title: post.title,
+      title: null,
       caption: post.caption,
       metadataFields,
       metadata: readPostMetadataValues(post.metadataValues),
@@ -1513,6 +1512,13 @@ function readPostMetadataValues(
     metadata[item.fieldId] = item.value;
   }
   return metadata;
+}
+
+function formatPostCaption(
+  caption: string | null | undefined,
+  fallback = 'No caption',
+) {
+  return caption?.trim().slice(0, 60) || fallback;
 }
 
 function parseFutureSchedule(value: string): Date {

@@ -67,6 +67,11 @@ function parseDate(value: string) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function displayText(value: string | null | undefined) {
+  const trimmed = value?.trim();
+  return trimmed && trimmed !== "-" ? trimmed : null;
+}
+
 function ThumbnailPlaceholder({ format }: { format: PostFormat }) {
   const color = RECENT_POST_FORMAT_COLORS[format];
   return (
@@ -176,13 +181,15 @@ export function RecentPostsPanel({ rows }: RecentPostsPanelProps) {
             const format = normalizePostFormat(row.type);
             const preview = getThumbnail(row);
             const color = RECENT_POST_FORMAT_COLORS[format];
+            const captionLabel =
+              displayText(row.caption) ?? displayText(row.contents) ?? "No caption";
 
             return (
               <button
                 type="button"
                 key={row.id}
                 onClick={() => setSelectedPostId(row.id)}
-                aria-label={`Open details for ${row.contents || "Untitled post"}`}
+                aria-label={`Open details for ${captionLabel}`}
                 className="dashboard-item-enter dashboard-motion-card group grid shrink-0 grid-cols-[92px_minmax(0,1fr)] gap-3 rounded-[12px] border p-2.5 text-left"
                 style={{
                   animationDelay: `${Math.min(index * 35, 280)}ms`,
@@ -232,13 +239,8 @@ export function RecentPostsPanel({ rows }: RecentPostsPanelProps) {
                   </header>
                   <div className="min-w-0">
                     <p className="dashboard-ui-label truncate text-ink">
-                      {row.contents || "Untitled"}
+                      {captionLabel}
                     </p>
-                    {row.caption ? (
-                      <p className="dashboard-ui-meta mt-1 line-clamp-2 font-normal text-muted">
-                        {row.caption}
-                      </p>
-                    ) : null}
                   </div>
                 </div>
               </button>

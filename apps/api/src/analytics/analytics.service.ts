@@ -791,7 +791,7 @@ export class AnalyticsService {
         result.failed += 1;
         result.errors.push({
           postId: post.id,
-          title: post.title ?? truncate(post.caption, 40) ?? 'Untitled post',
+          title: truncate(post.caption, 40) ?? 'No caption',
           message,
         });
       }
@@ -880,7 +880,7 @@ export class AnalyticsService {
         return {
           id: post.id,
           accountId: post.instagramAccountId,
-          title: post.title ?? truncate(post.caption, 48) ?? 'Untitled post',
+          title: truncate(post.caption, 48) ?? 'No caption',
           mediaUrl,
           thumbnailUrl,
           mediaType,
@@ -938,7 +938,7 @@ export class AnalyticsService {
         return {
           id: post.id,
           account,
-          contents: post.title ?? truncate(post.caption, 60) ?? 'Untitled post',
+          contents: truncate(post.caption, 60) ?? 'No caption',
           metadata: readPostMetadataValues(post.metadataValues),
           type: POST_TYPE_LABELS[post.postType],
           status: formatPostStatus(post.status),
@@ -1924,7 +1924,7 @@ function buildContentCalendar(
     const day = post.publishedAt.getDate();
     const events = eventsByDay.get(day) ?? [];
     events.push({
-      label: truncate(post.title ?? post.caption, 18) ?? 'Untitled',
+      label: truncate(post.caption, 18) ?? 'No caption',
       time: formatTime(post.publishedAt),
       color: POST_TYPE_COLORS[post.postType],
     });

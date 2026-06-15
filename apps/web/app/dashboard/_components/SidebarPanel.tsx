@@ -836,17 +836,11 @@ export function SidebarPanel({
           <Link
             href="/account"
             title={isCompact ? "Account" : undefined}
-            className={`group flex min-h-8 w-full items-center text-left transition-[gap,padding,background-color,color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-              isCompact
-                ? "gap-1 px-[3px] py-0"
-                : "gap-2 rounded-lg px-2 py-2 hover:bg-[var(--sidebar-hover)]"
+            className={`flex min-h-8 w-full items-center text-left transition-[gap,padding,color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+              isCompact ? "gap-1 px-[3px] py-0" : "gap-2 rounded-lg px-2 py-2"
             }`}
           >
-            <span
-              className={`grid size-8 shrink-0 place-items-center rounded-[5px] transition-colors duration-200 ${
-                isCompact ? "group-hover:bg-[var(--sidebar-hover-strong)]" : ""
-              }`}
-            >
+            <span className="grid size-8 shrink-0 place-items-center rounded-[5px]">
               <ProfileAvatar profile={profile} />
             </span>
             <span

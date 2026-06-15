@@ -224,7 +224,7 @@ export class DashboardService {
       return {
         id: post.id,
         account,
-        contents: post.title ?? post.caption?.slice(0, 60) ?? '—',
+        contents: formatPostCaption(post.caption, '—'),
         metadata: readPostMetadataValues(post.metadataValues),
         type: POST_TYPE_LABELS[post.postType],
         status: POST_STATUS_LABELS[post.status],
@@ -416,7 +416,7 @@ export class DashboardService {
     });
 
     const postActivity = posts.map<ActivityRow>((post) => {
-      const label = post.title ?? post.caption?.slice(0, 60) ?? 'Untitled post';
+      const label = formatPostCaption(post.caption);
       const accountName =
         post.instagramAccount.displayName?.trim() ||
         `@${post.instagramAccount.username}`;
@@ -622,6 +622,13 @@ function readPostMetadataValues(
     metadata[item.fieldId] = item.value;
   }
   return metadata;
+}
+
+function formatPostCaption(
+  caption: string | null | undefined,
+  fallback = 'No caption',
+) {
+  return caption?.trim().slice(0, 60) || fallback;
 }
 
 function formatActivityDate(value: Date | null) {
