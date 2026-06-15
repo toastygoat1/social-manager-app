@@ -1,6 +1,8 @@
 import {
+  ArrayMaxSize,
   IsIn,
   IsInt,
+  IsArray,
   IsOptional,
   IsString,
   Max,
@@ -26,6 +28,13 @@ export class CreateAnalyticsNoteDto {
   @IsString()
   @MaxLength(64)
   accountId?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsString({ each: true })
+  @MaxLength(64, { each: true })
+  accountIds?: string[];
 
   @IsOptional()
   @IsInt()

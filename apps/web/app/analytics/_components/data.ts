@@ -130,6 +130,7 @@ export type Recommendation = { title: string; body: string };
 export type AnalyticsNote = {
   id: string;
   accountId: string | null;
+  accountIds: string[];
   body: string;
   boardX: number;
   boardY: number;

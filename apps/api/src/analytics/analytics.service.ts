@@ -175,6 +175,7 @@ type Recommendation = { title: string; body: string };
 type AnalyticsNote = {
   id: string;
   accountId: string | null;
+  accountIds: string[];
   body: string;
   boardX: number;
   boardY: number;
@@ -385,6 +386,7 @@ const ANALYTICS_POST_INCLUDE = {
 const ANALYTICS_NOTE_SELECT = {
   id: true,
   instagramAccountId: true,
+  accountIds: true,
   body: true,
   boardX: true,
   boardY: true,
@@ -581,16 +583,19 @@ export class AnalyticsService {
 
   async createNote(userId: string, data: CreateAnalyticsNoteDto) {
     const body = normalizeNoteBody(data.body);
-    const accountId = data.accountId?.trim() || null;
+    const accountIds = normalizeNoteAccountIds(
+      data.accountIds,
+      data.accountId ? [data.accountId] : [],
+    );
+    const accountId = accountIds[0] ?? null;
 
-    if (accountId) {
-      await this.ensureOwnedAccount(userId, accountId);
-    }
+    await this.ensureOwnedAccounts(userId, accountIds);
 
     const note = await this.prisma.analyticsNote.create({
       data: {
         userId,
         instagramAccountId: accountId,
+        accountIds,
         body,
         ...(data.boardX !== undefined ? { boardX: data.boardX } : {}),
         ...(data.boardY !== undefined ? { boardY: data.boardY } : {}),
@@ -616,11 +621,24 @@ export class AnalyticsService {
   ) {
     const body =
       data.body === undefined ? undefined : normalizeNoteBody(data.body);
-    const accountId =
+    const legacyAccountId =
       data.accountId === undefined ? undefined : data.accountId.trim() || null;
+    const accountIds =
+      data.accountIds !== undefined
+        ? normalizeNoteAccountIds(data.accountIds)
+        : legacyAccountId !== undefined
+          ? normalizeNoteAccountIds(
+              undefined,
+              legacyAccountId ? [legacyAccountId] : [],
+            )
+          : undefined;
+    const accountId =
+      accountIds !== undefined ? (accountIds[0] ?? null) : legacyAccountId;
     await this.ensureOwnedNote(userId, noteId);
 
-    if (accountId) {
+    if (accountIds !== undefined) {
+      await this.ensureOwnedAccounts(userId, accountIds);
+    } else if (accountId) {
       await this.ensureOwnedAccount(userId, accountId);
     }
 
@@ -629,6 +647,7 @@ export class AnalyticsService {
       data: {
         ...(body !== undefined ? { body } : {}),
         ...(accountId !== undefined ? { instagramAccountId: accountId } : {}),
+        ...(accountIds !== undefined ? { accountIds } : {}),
         ...(data.boardX !== undefined ? { boardX: data.boardX } : {}),
         ...(data.boardY !== undefined ? { boardY: data.boardY } : {}),
         ...(data.boardWidth !== undefined
@@ -662,7 +681,14 @@ export class AnalyticsService {
     const notes = await this.prisma.analyticsNote.findMany({
       where: {
         userId,
-        ...(accountId ? { instagramAccountId: accountId } : {}),
+        ...(accountId
+          ? {
+              OR: [
+                { instagramAccountId: accountId },
+                { accountIds: { has: accountId } },
+              ],
+            }
+          : {}),
       },
       orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
       take: 20,
@@ -679,6 +705,20 @@ export class AnalyticsService {
     });
 
     if (!account) {
+      throw new NotFoundException('Instagram account was not found.');
+    }
+  }
+
+  private async ensureOwnedAccounts(userId: string, accountIds: string[]) {
+    if (accountIds.length === 0) return;
+
+    const accounts = await this.prisma.instagramAccount.findMany({
+      where: { id: { in: accountIds }, userId, isActive: true },
+      select: { id: true },
+    });
+    const ownedIds = new Set(accounts.map((account) => account.id));
+
+    if (accountIds.some((accountId) => !ownedIds.has(accountId))) {
       throw new NotFoundException('Instagram account was not found.');
     }
   }
@@ -1472,6 +1512,12 @@ function mapNote(note: AnalyticsNoteRecord): AnalyticsNote {
   return {
     id: note.id,
     accountId: note.instagramAccountId,
+    accountIds:
+      note.accountIds.length > 0
+        ? note.accountIds
+        : note.instagramAccountId
+          ? [note.instagramAccountId]
+          : [],
     body: note.body,
     boardX: note.boardX,
     boardY: note.boardY,
@@ -1482,6 +1528,17 @@ function mapNote(note: AnalyticsNoteRecord): AnalyticsNote {
     createdAt: note.createdAt.toISOString(),
     updatedAt: note.updatedAt.toISOString(),
   };
+}
+
+function normalizeNoteAccountIds(
+  accountIds: string[] | undefined,
+  fallback: string[] = [],
+) {
+  const cleanIds = (accountIds ?? fallback)
+    .map((accountId) => accountId.trim())
+    .filter(Boolean);
+
+  return [...new Set(cleanIds)];
 }
 
 function normalizeNoteBody(value: string) {

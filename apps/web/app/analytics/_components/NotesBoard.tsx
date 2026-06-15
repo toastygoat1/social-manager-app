@@ -37,7 +37,12 @@ type NoteStyle = {
   swatch: string;
 };
 
-type BoardNote = Omit<AnalyticsNote, "color"> & { color: NoteColor };
+type BoardNote = Omit<AnalyticsNote, "color" | "accountIds"> & {
+  accountIds: string[];
+  color: NoteColor;
+};
+
+type ResizeEdge = "n" | "e" | "s" | "w";
 
 type BoardInteraction = {
   noteId: string;
@@ -49,6 +54,7 @@ type BoardInteraction = {
   startHeight: number;
   zIndex: number;
   latestLayout: NoteLayoutPatch;
+  edge?: ResizeEdge;
   type: "move" | "resize";
 };
 
@@ -67,6 +73,7 @@ type NotePatch = Partial<
     | "boardHeight"
     | "color"
     | "zIndex"
+    | "accountIds"
   >
 > & {
   accountId?: string | null;
@@ -140,11 +147,12 @@ const MIN_NOTE_WIDTH = 180;
 const MIN_NOTE_HEIGHT = 160;
 const MAX_NOTE_WIDTH = 520;
 const MAX_NOTE_HEIGHT = 520;
+const BOARD_WIDTH = 1040;
 const BOARD_PADDING = 32;
-const BOARD_MIN_WIDTH = 1040;
 const BOARD_MIN_HEIGHT = 620;
-const BOARD_MAX_POSITION = 2400;
+const BOARD_MAX_Y = 5000;
 const NOTE_GAP = 28;
+const TOOLBAR_WIDTH = 430;
 const BOARD_REFRESH_MS = 6000;
 const BOARD_CHANNEL = "analytics-notes-board";
 
@@ -209,24 +217,36 @@ function getNumber(value: number, fallback: number) {
   return Number.isFinite(value) ? value : fallback;
 }
 
+function getNoteAccountIds(note: AnalyticsNote | BoardNote) {
+  if (note.accountIds.length > 0) return note.accountIds;
+  return note.accountId ? [note.accountId] : [];
+}
+
+function getMaxBoardX(width: number) {
+  return Math.max(0, BOARD_WIDTH - width - BOARD_PADDING);
+}
+
+function clampBoardX(value: number, width: number) {
+  return clampInt(value, 0, getMaxBoardX(width));
+}
+
 function normalizeNoteForBoard(note: AnalyticsNote, index: number): BoardNote {
+  const boardWidth = clampInt(
+    getNumber(note.boardWidth, DEFAULT_NOTE_WIDTH),
+    MIN_NOTE_WIDTH,
+    MAX_NOTE_WIDTH,
+  );
+
   return {
     ...note,
-    boardX: clampInt(
-      getNumber(note.boardX, BOARD_PADDING),
-      0,
-      BOARD_MAX_POSITION,
-    ),
+    accountIds: getNoteAccountIds(note),
+    boardX: clampBoardX(getNumber(note.boardX, BOARD_PADDING), boardWidth),
     boardY: clampInt(
       getNumber(note.boardY, BOARD_PADDING),
       0,
-      BOARD_MAX_POSITION,
+      BOARD_MAX_Y,
     ),
-    boardWidth: clampInt(
-      getNumber(note.boardWidth, DEFAULT_NOTE_WIDTH),
-      MIN_NOTE_WIDTH,
-      MAX_NOTE_WIDTH,
-    ),
+    boardWidth,
     boardHeight: clampInt(
       getNumber(note.boardHeight, DEFAULT_NOTE_HEIGHT),
       MIN_NOTE_HEIGHT,
@@ -239,7 +259,13 @@ function normalizeNoteForBoard(note: AnalyticsNote, index: number): BoardNote {
 
 function getNextNoteLayout(notes: AnalyticsNote[]) {
   const index = notes.length;
-  const columns = 4;
+  const columns = Math.max(
+    1,
+    Math.floor(
+      (BOARD_WIDTH - BOARD_PADDING * 2 + NOTE_GAP) /
+        (DEFAULT_NOTE_WIDTH + NOTE_GAP),
+    ),
+  );
 
   return {
     boardX:
@@ -265,10 +291,10 @@ function getBoardSize(notes: AnalyticsNote[], composerLayout: NoteLayoutPatch) {
 
   return extents.reduce(
     (size, extent) => ({
-      width: Math.max(size.width, extent.right + BOARD_PADDING),
+      width: BOARD_WIDTH,
       height: Math.max(size.height, extent.bottom + BOARD_PADDING),
     }),
-    { width: BOARD_MIN_WIDTH, height: BOARD_MIN_HEIGHT },
+    { width: BOARD_WIDTH, height: BOARD_MIN_HEIGHT },
   );
 }
 
@@ -362,6 +388,19 @@ export function NotesBoard({
     () => getBoardSize(boardNotes, composerLayout),
     [boardNotes, composerLayout],
   );
+  const selectedNote = selectedNoteId
+    ? boardNotes.find((note) => note.id === selectedNoteId) ?? null
+    : null;
+  const toolbarPosition = selectedNote
+    ? {
+        left: clampInt(
+          selectedNote.boardX,
+          BOARD_PADDING / 2,
+          BOARD_WIDTH - TOOLBAR_WIDTH - BOARD_PADDING / 2,
+        ),
+        top: Math.max(BOARD_PADDING / 2, selectedNote.boardY - 56),
+      }
+    : null;
 
   useEffect(() => {
     if (interactionRef.current) return;
@@ -480,6 +519,7 @@ export function NotesBoard({
         body: {
           body,
           accountId: composerAccount?.id,
+          accountIds: composerAccount ? [composerAccount.id] : [],
           boardX: composerLayout.boardX,
           boardY: composerLayout.boardY,
           boardWidth: composerLayout.boardWidth,
@@ -519,6 +559,33 @@ export function NotesBoard({
     void patchNote(noteId, { body }, "Note could not be updated.");
   }
 
+  function toggleNoteAccount(noteId: string, accountId: string) {
+    const note = boardNotes.find((boardNote) => boardNote.id === noteId);
+    if (!note) return;
+
+    const selectedIds = new Set(note.accountIds);
+    if (selectedIds.has(accountId)) {
+      selectedIds.delete(accountId);
+    } else {
+      selectedIds.add(accountId);
+    }
+
+    const accountIds = accounts
+      .map((account) => account.id)
+      .filter((candidateId) => selectedIds.has(candidateId));
+    const primaryAccountId = accountIds[0] ?? null;
+
+    updateLocalNote(noteId, {
+      accountId: primaryAccountId,
+      accountIds,
+    });
+    void patchNote(
+      noteId,
+      { accountId: primaryAccountId, accountIds },
+      "Note accounts could not be updated.",
+    );
+  }
+
   function changeNoteColor(noteId: string, color: NoteColor) {
     const nextZIndex = topZIndex + 1;
 
@@ -535,6 +602,7 @@ export function NotesBoard({
     event: PointerEvent<HTMLElement>,
     note: AnalyticsNote,
     type: BoardInteraction["type"],
+    edge?: ResizeEdge,
   ) {
     if (event.button !== 0 || (type === "move" && isControlTarget(event.target))) {
       return;
@@ -560,6 +628,7 @@ export function NotesBoard({
         boardHeight: note.boardHeight,
         zIndex: nextZIndex,
       },
+      edge,
       type,
     };
 
@@ -573,38 +642,68 @@ export function NotesBoard({
 
       const deltaX = pointerEvent.clientX - interaction.startPointerX;
       const deltaY = pointerEvent.clientY - interaction.startPointerY;
-      const nextLayout =
-        interaction.type === "move"
-          ? {
-              boardX: clampInt(
-                interaction.startBoardX + deltaX,
-                0,
-                BOARD_MAX_POSITION,
-              ),
-              boardY: clampInt(
-                interaction.startBoardY + deltaY,
-                0,
-                BOARD_MAX_POSITION,
-              ),
-              boardWidth: interaction.startWidth,
-              boardHeight: interaction.startHeight,
-              zIndex: interaction.zIndex,
-            }
-          : {
-              boardX: interaction.startBoardX,
-              boardY: interaction.startBoardY,
-              boardWidth: clampInt(
-                interaction.startWidth + deltaX,
-                MIN_NOTE_WIDTH,
-                MAX_NOTE_WIDTH,
-              ),
-              boardHeight: clampInt(
-                interaction.startHeight + deltaY,
-                MIN_NOTE_HEIGHT,
-                MAX_NOTE_HEIGHT,
-              ),
-              zIndex: interaction.zIndex,
-            };
+      let nextX = interaction.startBoardX;
+      let nextY = interaction.startBoardY;
+      let nextWidth = interaction.startWidth;
+      let nextHeight = interaction.startHeight;
+
+      if (interaction.type === "move") {
+        nextX = clampBoardX(interaction.startBoardX + deltaX, nextWidth);
+        nextY = clampInt(interaction.startBoardY + deltaY, 0, BOARD_MAX_Y);
+      } else {
+        const edgeName = interaction.edge;
+
+        if (edgeName === "e") {
+          nextWidth = clampInt(
+            interaction.startWidth + deltaX,
+            MIN_NOTE_WIDTH,
+            Math.min(
+              MAX_NOTE_WIDTH,
+              BOARD_WIDTH - interaction.startBoardX - BOARD_PADDING,
+            ),
+          );
+        }
+
+        if (edgeName === "w") {
+          const fixedRight = interaction.startBoardX + interaction.startWidth;
+          nextWidth = clampInt(
+            interaction.startWidth - deltaX,
+            MIN_NOTE_WIDTH,
+            Math.min(MAX_NOTE_WIDTH, fixedRight),
+          );
+          nextX = clampInt(fixedRight - nextWidth, 0, fixedRight - MIN_NOTE_WIDTH);
+        }
+
+        if (edgeName === "s") {
+          nextHeight = clampInt(
+            interaction.startHeight + deltaY,
+            MIN_NOTE_HEIGHT,
+            MAX_NOTE_HEIGHT,
+          );
+        }
+
+        if (edgeName === "n") {
+          const fixedBottom = interaction.startBoardY + interaction.startHeight;
+          nextHeight = clampInt(
+            interaction.startHeight - deltaY,
+            MIN_NOTE_HEIGHT,
+            Math.min(MAX_NOTE_HEIGHT, fixedBottom),
+          );
+          nextY = clampInt(
+            fixedBottom - nextHeight,
+            0,
+            fixedBottom - MIN_NOTE_HEIGHT,
+          );
+        }
+      }
+
+      const nextLayout = {
+        boardX: nextX,
+        boardY: nextY,
+        boardWidth: nextWidth,
+        boardHeight: nextHeight,
+        zIndex: interaction.zIndex,
+      };
 
       interaction.latestLayout = nextLayout;
       updateLocalNote(interaction.noteId, nextLayout);
@@ -639,7 +738,7 @@ export function NotesBoard({
   }
 
   return (
-    <section className="flex min-w-0 flex-col gap-4 overflow-hidden rounded-[10px] border border-line bg-paper p-[18px]">
+    <section className="flex min-w-0 flex-col gap-3">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <StickyNote className="size-4 text-[#9b6b13]" strokeWidth={1.8} />
@@ -673,12 +772,15 @@ export function NotesBoard({
         </p>
       ) : null}
 
-      <div className="h-[620px] overflow-auto rounded-lg border border-line bg-[#efede7] p-3 shadow-inner">
+      <div className="overflow-x-auto">
         <div
-          className="relative rounded-md border border-[#d7d2c6] bg-[#fbfaf6]"
+          onPointerDown={(event) => {
+            if (event.currentTarget === event.target) setSelectedNoteId(null);
+          }}
+          className="relative border border-[#d7d2c6] bg-[#fbfaf6]"
           style={
             {
-              width: boardSize.width,
+              width: BOARD_WIDTH,
               height: boardSize.height,
               backgroundImage:
                 "radial-gradient(circle, rgba(47,42,31,0.13) 1px, transparent 1px)",
@@ -686,6 +788,58 @@ export function NotesBoard({
             } satisfies CSSProperties
           }
         >
+          {selectedNote && toolbarPosition ? (
+            <div
+              className="absolute z-[10050] flex h-10 items-center gap-1 rounded-md border border-[#d9d5ca] bg-white px-2 shadow-[0_10px_24px_rgba(47,42,31,0.16)]"
+              style={{
+                left: toolbarPosition.left,
+                top: toolbarPosition.top,
+                width: TOOLBAR_WIDTH,
+              }}
+            >
+              <details className="relative">
+                <summary className="flex h-8 cursor-pointer list-none items-center gap-2 rounded px-2 text-xs font-medium text-[#3b3324] transition hover:bg-[#f3f1ea]">
+                  <span>Accounts</span>
+                  <span className="rounded bg-[#ede9de] px-1.5 py-0.5 font-mono text-[10px] text-[#6e6046]">
+                    {selectedNote.accountIds.length || "None"}
+                  </span>
+                </summary>
+                <div className="absolute left-0 top-10 z-[10060] flex max-h-64 w-64 flex-col gap-1 overflow-y-auto rounded-md border border-[#d9d5ca] bg-white p-2 shadow-[0_12px_24px_rgba(47,42,31,0.18)]">
+                  {accounts.map((account) => {
+                    const isChecked = selectedNote.accountIds.includes(account.id);
+
+                    return (
+                      <label
+                        key={account.id}
+                        className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-xs text-[#3b3324] hover:bg-[#f3f1ea]"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() =>
+                            toggleNoteAccount(selectedNote.id, account.id)
+                          }
+                          className="size-3.5 accent-[#2f2a1f]"
+                        />
+                        <span className="min-w-0 truncate">
+                          {getAccountTitle(account)}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </details>
+              <span className="h-6 w-px bg-[#d9d5ca]" />
+              <ColorSwatches
+                disabled={Boolean(pendingAction)}
+                onChange={(nextColor) =>
+                  changeNoteColor(selectedNote.id, nextColor)
+                }
+                value={selectedNote.color}
+              />
+            </div>
+          ) : null}
+
           {boardNotes.map((note) => {
             const isSelected = selectedNoteId === note.id;
             const color = isNoteColor(note.color) ? note.color : DEFAULT_NOTE_COLOR;
@@ -714,7 +868,7 @@ export function NotesBoard({
                   />
                 </div>
 
-                <div className="min-h-0 flex-1 px-3 py-3">
+                <div className="min-h-0 flex-1 px-3 pb-3 pt-2">
                   <textarea
                     value={note.body}
                     onChange={(event) =>
@@ -728,23 +882,42 @@ export function NotesBoard({
                   />
                 </div>
 
-                <div className="mt-auto flex h-10 shrink-0 items-center border-t border-black/10 px-3">
-                  <ColorSwatches
-                    disabled={Boolean(pendingAction)}
-                    onChange={(nextColor) => changeNoteColor(note.id, nextColor)}
-                    value={color}
-                  />
-                </div>
-
                 <button
                   type="button"
-                  onPointerDown={(event) => startInteraction(event, note, "resize")}
+                  onPointerDown={(event) =>
+                    startInteraction(event, note, "resize", "n")
+                  }
                   title="Resize note"
                   aria-label="Resize note"
-                  className="absolute bottom-1 right-1 flex size-5 cursor-nwse-resize items-center justify-center rounded-sm text-[#6e6046]/55 transition hover:text-[#2f2a1f]"
-                >
-                  <span className="absolute bottom-1 right-1 size-2.5 border-b border-r border-current" />
-                </button>
+                  className="absolute left-2 right-2 top-0 h-2 cursor-ns-resize"
+                />
+                <button
+                  type="button"
+                  onPointerDown={(event) =>
+                    startInteraction(event, note, "resize", "e")
+                  }
+                  title="Resize note"
+                  aria-label="Resize note"
+                  className="absolute bottom-2 right-0 top-2 w-2 cursor-ew-resize"
+                />
+                <button
+                  type="button"
+                  onPointerDown={(event) =>
+                    startInteraction(event, note, "resize", "s")
+                  }
+                  title="Resize note"
+                  aria-label="Resize note"
+                  className="absolute bottom-0 left-2 right-2 h-2 cursor-ns-resize"
+                />
+                <button
+                  type="button"
+                  onPointerDown={(event) =>
+                    startInteraction(event, note, "resize", "w")
+                  }
+                  title="Resize note"
+                  aria-label="Resize note"
+                  className="absolute bottom-2 left-0 top-2 w-2 cursor-ew-resize"
+                />
               </article>
             );
           })}
@@ -788,12 +961,7 @@ export function NotesBoard({
                 />
               </div>
 
-              <div className="mt-auto flex h-10 shrink-0 items-center justify-between gap-2 border-t border-black/10 px-3">
-                <ColorSwatches
-                  disabled={pendingAction === "create"}
-                  onChange={setDraftColor}
-                  value={draftColor}
-                />
+              <div className="mt-auto flex h-10 shrink-0 items-center justify-end border-t border-black/10 px-3">
                 <button
                   type="submit"
                   disabled={!canCreate || pendingAction === "create"}

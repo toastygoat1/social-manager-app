@@ -581,10 +581,11 @@ describe('AnalyticsService', () => {
   it('creates an account-scoped analytics note', async () => {
     const createdAt = new Date('2026-05-23T10:00:00Z');
     const updatedAt = new Date('2026-05-23T10:00:00Z');
-    prisma.instagramAccount.findFirst.mockResolvedValue({ id: 'account-1' });
+    prisma.instagramAccount.findMany.mockResolvedValue([{ id: 'account-1' }]);
     prisma.analyticsNote.create.mockResolvedValue({
       id: 'note-1',
       instagramAccountId: 'account-1',
+      accountIds: ['account-1'],
       body: 'Watch comment spikes after the reel.',
       createdAt,
       updatedAt,
@@ -595,14 +596,15 @@ describe('AnalyticsService', () => {
       body: '  Watch comment spikes after the reel.  ',
     });
 
-    expect(prisma.instagramAccount.findFirst).toHaveBeenCalledWith({
-      where: { id: 'account-1', userId: 'user-1', isActive: true },
+    expect(prisma.instagramAccount.findMany).toHaveBeenCalledWith({
+      where: { id: { in: ['account-1'] }, userId: 'user-1', isActive: true },
       select: { id: true },
     });
     expect(prisma.analyticsNote.create).toHaveBeenCalledWith({
       data: {
         userId: 'user-1',
         instagramAccountId: 'account-1',
+        accountIds: ['account-1'],
         body: 'Watch comment spikes after the reel.',
       },
       select: expect.objectContaining({
@@ -613,6 +615,7 @@ describe('AnalyticsService', () => {
     expect(note).toEqual({
       id: 'note-1',
       accountId: 'account-1',
+      accountIds: ['account-1'],
       body: 'Watch comment spikes after the reel.',
       createdAt: '2026-05-23T10:00:00.000Z',
       updatedAt: '2026-05-23T10:00:00.000Z',
@@ -623,10 +626,11 @@ describe('AnalyticsService', () => {
     const createdAt = new Date('2026-05-23T10:00:00Z');
     const updatedAt = new Date('2026-05-23T10:05:00Z');
     prisma.analyticsNote.findFirst.mockResolvedValue({ id: 'note-1' });
-    prisma.instagramAccount.findFirst.mockResolvedValue({ id: 'account-2' });
+    prisma.instagramAccount.findMany.mockResolvedValue([{ id: 'account-2' }]);
     prisma.analyticsNote.update.mockResolvedValue({
       id: 'note-1',
       instagramAccountId: 'account-2',
+      accountIds: ['account-2'],
       body: 'Move this note to account two.',
       createdAt,
       updatedAt,
@@ -641,8 +645,8 @@ describe('AnalyticsService', () => {
       where: { id: 'note-1', userId: 'user-1' },
       select: { id: true },
     });
-    expect(prisma.instagramAccount.findFirst).toHaveBeenCalledWith({
-      where: { id: 'account-2', userId: 'user-1', isActive: true },
+    expect(prisma.instagramAccount.findMany).toHaveBeenCalledWith({
+      where: { id: { in: ['account-2'] }, userId: 'user-1', isActive: true },
       select: { id: true },
     });
     expect(prisma.analyticsNote.update).toHaveBeenCalledWith({
@@ -650,6 +654,7 @@ describe('AnalyticsService', () => {
       data: {
         body: 'Move this note to account two.',
         instagramAccountId: 'account-2',
+        accountIds: ['account-2'],
       },
       select: expect.objectContaining({
         id: true,
@@ -659,6 +664,7 @@ describe('AnalyticsService', () => {
     expect(note).toEqual({
       id: 'note-1',
       accountId: 'account-2',
+      accountIds: ['account-2'],
       body: 'Move this note to account two.',
       createdAt: '2026-05-23T10:00:00.000Z',
       updatedAt: '2026-05-23T10:05:00.000Z',

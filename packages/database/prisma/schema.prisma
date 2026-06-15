@@ -437,6 +437,7 @@ model AnalyticsNote {
   id                 String            @id @default(uuid())
   userId             String            @map("user_id")
   instagramAccountId String?           @map("instagram_account_id")
+  accountIds         String[]          @default([]) @map("account_ids")
   body               String
   boardX             Int               @default(32) @map("board_x")
   boardY             Int               @default(32) @map("board_y")
