@@ -8,6 +8,7 @@ import {
   type CSSProperties,
   type FormEvent,
   type PointerEvent,
+  type WheelEvent,
 } from "react";
 import { useRouter } from "next/navigation";
 import { LoaderCircle, Minus, Plus, StickyNote, X } from "lucide-react";
@@ -141,11 +142,11 @@ const MIN_NOTE_WIDTH = 180;
 const MIN_NOTE_HEIGHT = 160;
 const MAX_NOTE_WIDTH = 520;
 const MAX_NOTE_HEIGHT = 520;
-const BOARD_WIDTH = 1040;
+const DEFAULT_BOARD_WIDTH = 1040;
 const BOARD_CANVAS_HEIGHT = 1200;
 const BOARD_VIEWPORT_HEIGHT = 620;
 const BOARD_PADDING = 32;
-const MIN_BOARD_ZOOM = 0.7;
+const MIN_BOARD_ZOOM = 0.5;
 const MAX_BOARD_ZOOM = 1.4;
 const BOARD_ZOOM_STEP = 0.1;
 const NOTE_GAP = 28;
@@ -221,12 +222,12 @@ function getNoteAccountIds(note: AnalyticsNote | BoardNote) {
   return note.accountId ? [note.accountId] : [];
 }
 
-function getMaxBoardX(width: number) {
-  return Math.max(0, BOARD_WIDTH - width - BOARD_PADDING);
+function getMaxBoardX(width: number, boardWidth: number) {
+  return Math.max(0, boardWidth - width - BOARD_PADDING);
 }
 
-function clampBoardX(value: number, width: number) {
-  return clampInt(value, 0, getMaxBoardX(width));
+function clampBoardX(value: number, width: number, boardWidth: number) {
+  return clampInt(value, 0, getMaxBoardX(width, boardWidth));
 }
 
 function getMaxBoardY(height: number) {
@@ -237,8 +238,12 @@ function clampBoardY(value: number, height: number) {
   return clampInt(value, 0, getMaxBoardY(height));
 }
 
-function normalizeNoteForBoard(note: AnalyticsNote, index: number): BoardNote {
-  const boardWidth = clampInt(
+function normalizeNoteForBoard(
+  note: AnalyticsNote,
+  index: number,
+  boardWidth: number,
+): BoardNote {
+  const noteWidth = clampInt(
     getNumber(note.boardWidth, DEFAULT_NOTE_WIDTH),
     MIN_NOTE_WIDTH,
     MAX_NOTE_WIDTH,
@@ -252,21 +257,25 @@ function normalizeNoteForBoard(note: AnalyticsNote, index: number): BoardNote {
   return {
     ...note,
     accountIds: getNoteAccountIds(note),
-    boardX: clampBoardX(getNumber(note.boardX, BOARD_PADDING), boardWidth),
+    boardX: clampBoardX(
+      getNumber(note.boardX, BOARD_PADDING),
+      noteWidth,
+      boardWidth,
+    ),
     boardY: clampBoardY(getNumber(note.boardY, BOARD_PADDING), boardHeight),
-    boardWidth,
+    boardWidth: noteWidth,
     boardHeight,
     color: isNoteColor(note.color) ? note.color : DEFAULT_NOTE_COLOR,
     zIndex: clampInt(getNumber(note.zIndex, index + 1), 1, 10000),
   };
 }
 
-function getNextNoteLayout(notes: AnalyticsNote[]) {
+function getNextNoteLayout(notes: AnalyticsNote[], boardWidth: number) {
   const index = notes.length;
   const columns = Math.max(
     1,
     Math.floor(
-      (BOARD_WIDTH - BOARD_PADDING * 2 + NOTE_GAP) /
+      (boardWidth - BOARD_PADDING * 2 + NOTE_GAP) /
         (DEFAULT_NOTE_WIDTH + NOTE_GAP),
     ),
   );
@@ -330,9 +339,14 @@ export function NotesBoard({
   selectedAccountId,
 }: NotesBoardProps) {
   const router = useRouter();
+  const boardViewportRef = useRef<HTMLDivElement | null>(null);
+  const [boardWidth, setBoardWidth] = useState(DEFAULT_BOARD_WIDTH);
   const normalizedNotes = useMemo(
-    () => notes.map((note, index) => normalizeNoteForBoard(note, index)),
-    [notes],
+    () =>
+      notes.map((note, index) =>
+        normalizeNoteForBoard(note, index, boardWidth),
+      ),
+    [boardWidth, notes],
   );
   const accountById = useMemo(
     () => new Map(accounts.map((account) => [account.id, account])),
@@ -345,7 +359,7 @@ export function NotesBoard({
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [isComposerOpen, setIsComposerOpen] = useState(false);
   const [composerLayout, setComposerLayout] = useState<NoteLayoutPatch>({
-    ...getNextNoteLayout(normalizedNotes),
+    ...getNextNoteLayout(normalizedNotes, boardWidth),
     zIndex: 1,
   });
   const [draft, setDraft] = useState("");
@@ -356,6 +370,7 @@ export function NotesBoard({
     getDefaultNoteColor(selectedAccount, 0),
   );
   const [zoom, setZoom] = useState(1);
+  const [isInteracting, setIsInteracting] = useState(false);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const interactionRef = useRef<BoardInteraction | null>(null);
@@ -379,11 +394,32 @@ export function NotesBoard({
         left: clampInt(
           selectedNote.boardX,
           BOARD_PADDING / 2,
-          BOARD_WIDTH - TOOLBAR_WIDTH - BOARD_PADDING / 2,
+          Math.max(
+            BOARD_PADDING / 2,
+            boardWidth - TOOLBAR_WIDTH - BOARD_PADDING / 2,
+          ),
         ),
         top: Math.max(BOARD_PADDING / 2, selectedNote.boardY - 56),
       }
     : null;
+
+  useEffect(() => {
+    const element = boardViewportRef.current;
+    if (!element) return;
+
+    const updateBoardWidth = () => {
+      setBoardWidth(Math.max(320, Math.round(element.clientWidth)));
+    };
+
+    updateBoardWidth();
+
+    if (!("ResizeObserver" in window)) return;
+
+    const observer = new ResizeObserver(updateBoardWidth);
+    observer.observe(element);
+
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     if (interactionRef.current) return;
@@ -448,6 +484,13 @@ export function NotesBoard({
     );
   }
 
+  function handleBoardWheel(event: WheelEvent<HTMLDivElement>) {
+    if (event.deltaY === 0) return;
+
+    event.preventDefault();
+    changeZoom(event.deltaY > 0 ? -BOARD_ZOOM_STEP : BOARD_ZOOM_STEP);
+  }
+
   async function patchNote(
     noteId: string,
     body: NotePatch,
@@ -463,7 +506,9 @@ export function NotesBoard({
       );
       setBoardNotes((currentNotes) =>
         currentNotes.map((note, index) =>
-          note.id === noteId ? normalizeNoteForBoard(updatedNote, index) : note,
+          note.id === noteId
+            ? normalizeNoteForBoard(updatedNote, index, boardWidth)
+            : note,
         ),
       );
       notifyBoardChange();
@@ -485,7 +530,7 @@ export function NotesBoard({
   }
 
   function openComposer() {
-    const layout = getNextNoteLayout(boardNotes);
+    const layout = getNextNoteLayout(boardNotes, boardWidth);
     const color = getDefaultNoteColor(composerAccount, boardNotes.length);
 
     setComposerLayout({ ...layout, zIndex: topZIndex + 1 });
@@ -522,7 +567,7 @@ export function NotesBoard({
           },
         },
       );
-      const normalizedNote = normalizeNoteForBoard(createdNote, 0);
+      const normalizedNote = normalizeNoteForBoard(createdNote, 0, boardWidth);
 
       setBoardNotes((currentNotes) => [normalizedNote, ...currentNotes]);
       setSelectedNoteId(createdNote.id);
@@ -630,6 +675,7 @@ export function NotesBoard({
     };
 
     interactionRef.current = start;
+    setIsInteracting(true);
     setSelectedNoteId(note.id);
     updateLocalNote(note.id, { zIndex: nextZIndex });
 
@@ -645,7 +691,11 @@ export function NotesBoard({
       let nextHeight = interaction.startHeight;
 
       if (interaction.type === "move") {
-        nextX = clampBoardX(interaction.startBoardX + deltaX, nextWidth);
+        nextX = clampBoardX(
+          interaction.startBoardX + deltaX,
+          nextWidth,
+          boardWidth,
+        );
         nextY = clampBoardY(interaction.startBoardY + deltaY, nextHeight);
       } else {
         const edgeName = interaction.edge;
@@ -656,7 +706,7 @@ export function NotesBoard({
             MIN_NOTE_WIDTH,
             Math.min(
               MAX_NOTE_WIDTH,
-              BOARD_WIDTH - interaction.startBoardX - BOARD_PADDING,
+              boardWidth - interaction.startBoardX - BOARD_PADDING,
             ),
           );
         }
@@ -738,6 +788,7 @@ export function NotesBoard({
       window.removeEventListener("pointercancel", handlePointerEnd);
       interactionRef.current = null;
       cleanupInteractionRef.current = null;
+      setIsInteracting(false);
     };
   }
 
@@ -804,22 +855,24 @@ export function NotesBoard({
       ) : null}
 
       <div
+        ref={boardViewportRef}
+        onWheel={handleBoardWheel}
         onPointerDown={(event) => {
           if (event.currentTarget === event.target) setSelectedNoteId(null);
         }}
-        className="w-full overflow-auto border border-[#d7d2c6] bg-white"
+        className="w-full overflow-hidden border border-[#d7d2c6] bg-white"
         style={{ height: BOARD_VIEWPORT_HEIGHT }}
       >
         <div
           className="relative"
           style={
             {
-              width: BOARD_WIDTH * zoom,
+              width: boardWidth * zoom,
               height: BOARD_CANVAS_HEIGHT * zoom,
             } satisfies CSSProperties
           }
         >
-          {selectedNote && toolbarPosition ? (
+          {selectedNote && toolbarPosition && !isInteracting ? (
             <div
               className="absolute z-[10050] flex h-10 items-center gap-1 rounded-md border border-[#d9d5ca] bg-white px-2 shadow-[0_10px_24px_rgba(47,42,31,0.16)]"
               style={{
@@ -886,7 +939,7 @@ export function NotesBoard({
             className="relative origin-top-left bg-white"
             style={
               {
-                width: BOARD_WIDTH,
+                width: boardWidth,
                 height: BOARD_CANVAS_HEIGHT,
                 transform: `scale(${zoom})`,
                 transformOrigin: "top left",
@@ -906,7 +959,7 @@ export function NotesBoard({
                   onPointerDown={(event) =>
                     startInteraction(event, note, "move")
                   }
-                  className={`absolute flex cursor-grab flex-col overflow-hidden rounded-md border text-[#2f2a1f] shadow-[0_12px_24px_rgba(47,42,31,0.13)] transition-shadow hover:shadow-[0_16px_30px_rgba(47,42,31,0.2)] active:cursor-grabbing ${style.paper} ${style.border} ${
+                  className={`absolute flex cursor-default flex-col overflow-hidden rounded-md border text-[#2f2a1f] shadow-[0_12px_24px_rgba(47,42,31,0.13)] transition-[outline-color,box-shadow] hover:outline hover:outline-2 hover:outline-offset-2 hover:outline-[#c8aa52] ${style.paper} ${style.border} ${
                     isSelected
                       ? `ring-2 ring-offset-2 ${style.activeBorder}`
                       : ""
@@ -921,7 +974,7 @@ export function NotesBoard({
                   }}
                 >
                   <div className="min-h-0 flex-1 p-3">
-                    {isSelected ? (
+                    {isSelected && !isInteracting ? (
                       <textarea
                         value={note.body}
                         onChange={(event) =>
@@ -934,7 +987,7 @@ export function NotesBoard({
                         className="h-full w-full cursor-text resize-none border-0 bg-transparent text-sm leading-6 text-[#2f2a1f] outline-none placeholder:text-[#8a7958]"
                       />
                     ) : (
-                      <p className="h-full whitespace-pre-wrap break-words text-sm leading-6 text-[#2f2a1f]">
+                      <p className="h-full cursor-default whitespace-pre-wrap break-words text-sm leading-6 text-[#2f2a1f]">
                         {note.body}
                       </p>
                     )}
@@ -949,7 +1002,7 @@ export function NotesBoard({
                         }
                         title="Resize note"
                         aria-label="Resize note"
-                        className="absolute left-2 right-2 top-0 h-2 cursor-ns-resize rounded-full transition hover:bg-black/10"
+                        className="absolute left-2 right-2 top-0 h-2 cursor-ns-resize bg-transparent"
                       />
                       <button
                         type="button"
@@ -958,7 +1011,7 @@ export function NotesBoard({
                         }
                         title="Resize note"
                         aria-label="Resize note"
-                        className="absolute bottom-2 right-0 top-2 w-2 cursor-ew-resize rounded-full transition hover:bg-black/10"
+                        className="absolute bottom-2 right-0 top-2 w-2 cursor-ew-resize bg-transparent"
                       />
                       <button
                         type="button"
@@ -967,7 +1020,7 @@ export function NotesBoard({
                         }
                         title="Resize note"
                         aria-label="Resize note"
-                        className="absolute bottom-0 left-2 right-2 h-2 cursor-ns-resize rounded-full transition hover:bg-black/10"
+                        className="absolute bottom-0 left-2 right-2 h-2 cursor-ns-resize bg-transparent"
                       />
                       <button
                         type="button"
@@ -976,7 +1029,7 @@ export function NotesBoard({
                         }
                         title="Resize note"
                         aria-label="Resize note"
-                        className="absolute bottom-2 left-0 top-2 w-2 cursor-ew-resize rounded-full transition hover:bg-black/10"
+                        className="absolute bottom-2 left-0 top-2 w-2 cursor-ew-resize bg-transparent"
                       />
                     </>
                   ) : null}
