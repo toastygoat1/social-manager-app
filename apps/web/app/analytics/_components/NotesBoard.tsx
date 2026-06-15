@@ -11,17 +11,12 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Check,
   Grip,
   LoaderCircle,
-  Maximize2,
-  Pencil,
   Plus,
   StickyNote,
-  Trash2,
   X,
 } from "lucide-react";
-import { AvatarImage } from "@/app/_components/AvatarImage";
 import type { Account } from "@/app/dashboard/_components/data";
 import { ApiError, apiFetchBrowser } from "@/lib/api/browser-client";
 import type { AnalyticsNote } from "./data";
@@ -39,7 +34,6 @@ type NoteStyle = {
   paper: string;
   border: string;
   activeBorder: string;
-  control: string;
   swatch: string;
 };
 
@@ -84,7 +78,6 @@ const NOTE_COLORS = {
     paper: "bg-[#fff2ad]",
     border: "border-[#e3c75e]",
     activeBorder: "ring-[#b98712]",
-    control: "hover:bg-[#fff8cf]",
     swatch: "#fff2ad",
   },
   blue: {
@@ -92,7 +85,6 @@ const NOTE_COLORS = {
     paper: "bg-[#dff4ff]",
     border: "border-[#93c8df]",
     activeBorder: "ring-[#367f9e]",
-    control: "hover:bg-[#f0fbff]",
     swatch: "#dff4ff",
   },
   pink: {
@@ -100,7 +92,6 @@ const NOTE_COLORS = {
     paper: "bg-[#ffe2ec]",
     border: "border-[#e8a5bc]",
     activeBorder: "ring-[#b84f75]",
-    control: "hover:bg-[#fff2f6]",
     swatch: "#ffe2ec",
   },
   green: {
@@ -108,7 +99,6 @@ const NOTE_COLORS = {
     paper: "bg-[#e5f6d3]",
     border: "border-[#aac985]",
     activeBorder: "ring-[#638a35]",
-    control: "hover:bg-[#f3fbeb]",
     swatch: "#e5f6d3",
   },
   lavender: {
@@ -116,7 +106,6 @@ const NOTE_COLORS = {
     paper: "bg-[#eee6ff]",
     border: "border-[#b9a7df]",
     activeBorder: "ring-[#7259aa]",
-    control: "hover:bg-[#f7f2ff]",
     swatch: "#eee6ff",
   },
   white: {
@@ -124,7 +113,6 @@ const NOTE_COLORS = {
     paper: "bg-white",
     border: "border-[#d9d5ca]",
     activeBorder: "ring-[#716a5e]",
-    control: "hover:bg-[#f7f5ef]",
     swatch: "#ffffff",
   },
 } satisfies Record<NoteColor, NoteStyle>;
@@ -169,33 +157,6 @@ function getApiErrorMessage(error: unknown) {
   return Array.isArray(message) ? message[0] : message;
 }
 
-function formatNoteDate(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-
-  return date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  });
-}
-
-function getInitials(label: string | null | undefined, fallback = "IG") {
-  const cleanLabel = label?.replace(/^@/, "").split("@")[0].trim();
-
-  if (!cleanLabel) return fallback;
-
-  const parts = cleanLabel.split(/[\s._-]+/).filter(Boolean);
-  const initials =
-    parts.length > 1
-      ? parts
-          .slice(0, 2)
-          .map((part) => part.charAt(0))
-          .join("")
-      : cleanLabel.slice(0, 2);
-
-  return initials.toUpperCase();
-}
-
 function getAccountTitle(account: Account | null | undefined) {
   if (!account) return "Unattached";
 
@@ -205,16 +166,6 @@ function getAccountTitle(account: Account | null | undefined) {
     account.username?.replace(/^@/, "").trim() ||
     "Instagram"
   );
-}
-
-function getAccountHandle(account: Account | null | undefined) {
-  if (!account) return "No account";
-
-  const username =
-    account.username?.replace(/^@/, "").trim() ||
-    account.name.replace(/^@/, "").trim();
-
-  return username ? `@${username}` : account.platform;
 }
 
 function getDefaultDraftAccountId(
@@ -328,70 +279,6 @@ function isControlTarget(target: EventTarget | null) {
   );
 }
 
-function AccountAvatar({ account }: { account: Account | null }) {
-  const accountTitle = getAccountTitle(account);
-  const accountHandle = getAccountHandle(account);
-
-  return (
-    <span
-      aria-label={`${accountTitle} ${accountHandle}`}
-      title={`${accountTitle} ${accountHandle}`}
-      className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#2f2a1f] text-[10px] font-semibold text-white ring-2 ring-white/70"
-    >
-      <AvatarImage
-        src={account?.avatarUrl}
-        alt=""
-        width={32}
-        height={32}
-        className="size-full object-cover"
-        fallback={getInitials(account?.name ?? account?.username, "IG")}
-      />
-    </span>
-  );
-}
-
-function AccountSelect({
-  accounts,
-  disabled,
-  id,
-  label,
-  onChange,
-  value,
-}: {
-  accounts: Account[];
-  disabled?: boolean;
-  id: string;
-  label: string;
-  onChange: (value: string) => void;
-  value: string;
-}) {
-  return (
-    <label
-      htmlFor={id}
-      className="flex min-w-0 flex-col gap-1 font-mono text-[10px] uppercase tracking-[0.04em] text-[#6e6046]"
-    >
-      {label}
-      <select
-        id={id}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        disabled={disabled || accounts.length === 0}
-        className="h-9 min-w-0 rounded-md border border-black/10 bg-white/60 px-2 font-sans text-xs normal-case tracking-normal text-[#3b3324] outline-none transition focus:border-[#9b6b13] disabled:opacity-60"
-      >
-        {accounts.length === 0 ? (
-          <option value="">No accounts</option>
-        ) : (
-          accounts.map((account) => (
-            <option key={account.id} value={account.id}>
-              {getAccountTitle(account)}
-            </option>
-          ))
-        )}
-      </select>
-    </label>
-  );
-}
-
 function ColorSwatches({
   disabled,
   onChange,
@@ -457,9 +344,6 @@ export function NotesBoard({
   const [draftColor, setDraftColor] = useState<NoteColor>(() =>
     getDefaultNoteColor(selectedAccount, 0),
   );
-  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
-  const [editingBody, setEditingBody] = useState("");
-  const [editingAccountId, setEditingAccountId] = useState("");
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const interactionRef = useRef<BoardInteraction | null>(null);
@@ -517,7 +401,6 @@ export function NotesBoard({
       if (
         document.visibilityState === "visible" &&
         !interactionRef.current &&
-        !editingNoteId &&
         pendingAction === null
       ) {
         router.refresh();
@@ -525,7 +408,7 @@ export function NotesBoard({
     }, BOARD_REFRESH_MS);
 
     return () => window.clearInterval(refreshId);
-  }, [editingNoteId, pendingAction, router]);
+  }, [pendingAction, router]);
 
   useEffect(() => {
     return () => cleanupInteractionRef.current?.();
@@ -578,7 +461,6 @@ export function NotesBoard({
     setComposerLayout({ ...layout, zIndex: topZIndex + 1 });
     setDraftColor(color);
     setIsComposerOpen(true);
-    setEditingNoteId(null);
     setSelectedNoteId(null);
     setError(null);
   }
@@ -623,72 +505,18 @@ export function NotesBoard({
     }
   }
 
-  async function updateNote(noteId: string) {
-    const body = editingBody.trim();
-    if (!body || !editingAccountId) return;
+  function saveNoteBody(noteId: string) {
+    const note = boardNotes.find((boardNote) => boardNote.id === noteId);
+    const body = note?.body.trim();
 
-    setPendingAction(`update:${noteId}`);
-    setError(null);
-
-    const didUpdate = await patchNote(
-      noteId,
-      {
-        body,
-        accountId: editingAccountId,
-      },
-      "Note could not be updated.",
-    );
-
-    if (didUpdate) {
-      setEditingNoteId(null);
-      setEditingBody("");
-      setEditingAccountId("");
-    }
-
-    setPendingAction(null);
-  }
-
-  async function deleteNote(noteId: string) {
-    setPendingAction(`delete:${noteId}`);
-    setError(null);
-
-    try {
-      await apiFetchBrowser(`/analytics/notes/${encodeURIComponent(noteId)}`, {
-        method: "DELETE",
-      });
-      setBoardNotes((currentNotes) =>
-        currentNotes.filter((note) => note.id !== noteId),
-      );
-      if (selectedNoteId === noteId) setSelectedNoteId(null);
-      notifyBoardChange();
+    if (!note || !body) {
+      setError("Note cannot be empty.");
       router.refresh();
-    } catch (requestError) {
-      setError(
-        getApiErrorMessage(requestError) ?? "Note could not be deleted.",
-      );
-    } finally {
-      setPendingAction(null);
+      return;
     }
-  }
 
-  function startEditing(note: AnalyticsNote) {
-    const fallbackAccountId = getDefaultDraftAccountId(
-      accounts,
-      selectedAccountId,
-    );
-
-    cleanupInteractionRef.current?.();
-    setSelectedNoteId(note.id);
-    setEditingNoteId(note.id);
-    setEditingBody(note.body);
-    setEditingAccountId(note.accountId ?? fallbackAccountId);
     setError(null);
-  }
-
-  function cancelEditing() {
-    setEditingNoteId(null);
-    setEditingBody("");
-    setEditingAccountId("");
+    void patchNote(noteId, { body }, "Note could not be updated.");
   }
 
   function changeNoteColor(noteId: string, color: NoteColor) {
@@ -859,16 +687,7 @@ export function NotesBoard({
           }
         >
           {boardNotes.map((note) => {
-            const isEditing = editingNoteId === note.id;
             const isSelected = selectedNoteId === note.id;
-            const isUpdating = pendingAction === `update:${note.id}`;
-            const isDeleting = pendingAction === `delete:${note.id}`;
-            const noteAccount = note.accountId
-              ? accountById.get(note.accountId) ?? null
-              : null;
-            const editingAccount = editingAccountId
-              ? accountById.get(editingAccountId) ?? null
-              : null;
             const color = isNoteColor(note.color) ? note.color : DEFAULT_NOTE_COLOR;
             const style = NOTE_COLORS[color];
 
@@ -888,121 +707,33 @@ export function NotesBoard({
                   touchAction: "none",
                 }}
               >
-                <div className="flex h-10 shrink-0 items-center gap-2 border-b border-black/10 px-3">
+                <div className="flex h-8 shrink-0 items-center border-b border-black/10 px-3">
                   <Grip
                     className="size-4 shrink-0 text-[#6e6046]"
                     strokeWidth={1.7}
                   />
-                  <div className="min-w-0 flex-1">
-                    {isEditing ? (
-                      <span className="font-mono text-[10px] uppercase text-[#6e6046]">
-                        Edit
-                      </span>
-                    ) : (
-                      <span className="block truncate font-mono text-[10px] uppercase text-[#6e6046]">
-                        {formatNoteDate(note.updatedAt)}
-                      </span>
-                    )}
-                  </div>
-                  <AccountAvatar account={isEditing ? editingAccount : noteAccount} />
                 </div>
 
                 <div className="min-h-0 flex-1 px-3 py-3">
-                  {isEditing ? (
-                    <div className="flex h-full flex-col gap-3">
-                      <AccountSelect
-                        accounts={accounts}
-                        disabled={isUpdating}
-                        id={`note-account-${note.id}`}
-                        label="Account"
-                        onChange={setEditingAccountId}
-                        value={editingAccountId}
-                      />
-                      <textarea
-                        value={editingBody}
-                        onChange={(event) => setEditingBody(event.target.value)}
-                        maxLength={500}
-                        rows={5}
-                        className="min-h-0 flex-1 resize-none rounded-md border border-black/10 bg-white/50 px-3 py-2 text-sm leading-6 text-[#2f2a1f] outline-none transition focus:border-[#9b6b13]"
-                      />
-                    </div>
-                  ) : (
-                    <p className="h-full overflow-y-auto whitespace-pre-wrap break-words text-sm leading-6 text-[#2f2a1f]">
-                      {note.body}
-                    </p>
-                  )}
+                  <textarea
+                    value={note.body}
+                    onChange={(event) =>
+                      updateLocalNote(note.id, { body: event.target.value })
+                    }
+                    onBlur={() => saveNoteBody(note.id)}
+                    onFocus={() => setSelectedNoteId(note.id)}
+                    maxLength={500}
+                    placeholder="Write a note..."
+                    className="h-full w-full resize-none border-0 bg-transparent text-sm leading-6 text-[#2f2a1f] outline-none placeholder:text-[#8a7958]"
+                  />
                 </div>
 
-                <div className="mt-auto flex h-11 shrink-0 items-center justify-between gap-2 border-t border-black/10 px-2.5">
-                  {isSelected || isEditing ? (
-                    <ColorSwatches
-                      disabled={Boolean(pendingAction)}
-                      onChange={(nextColor) => changeNoteColor(note.id, nextColor)}
-                      value={color}
-                    />
-                  ) : (
-                    <span className="text-xs font-semibold text-[#6e6046]">
-                      {getAccountTitle(noteAccount)}
-                    </span>
-                  )}
-
-                  <div className="flex items-center gap-1">
-                    {isEditing ? (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => updateNote(note.id)}
-                          disabled={
-                            !editingBody.trim() || !editingAccountId || isUpdating
-                          }
-                          title="Save note"
-                          aria-label="Save note"
-                          className={`flex size-8 items-center justify-center rounded-md text-[#287447] transition ${style.control} disabled:pointer-events-none disabled:opacity-50`}
-                        >
-                          {isUpdating ? (
-                            <LoaderCircle className="size-4 animate-spin" />
-                          ) : (
-                            <Check className="size-4" />
-                          )}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={cancelEditing}
-                          title="Cancel"
-                          aria-label="Cancel"
-                          className={`flex size-8 items-center justify-center rounded-md text-[#6e6046] transition ${style.control} hover:text-[#2f2a1f]`}
-                        >
-                          <X className="size-4" />
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => startEditing(note)}
-                          title="Edit note"
-                          aria-label="Edit note"
-                          className={`flex size-8 items-center justify-center rounded-md text-[#6e6046] transition ${style.control} hover:text-[#2f2a1f]`}
-                        >
-                          <Pencil className="size-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => deleteNote(note.id)}
-                          disabled={isDeleting}
-                          title="Delete note"
-                          aria-label="Delete note"
-                          className={`flex size-8 items-center justify-center rounded-md text-[#6e6046] transition ${style.control} hover:text-[#a33d3d] disabled:pointer-events-none disabled:opacity-50`}
-                        >
-                          {isDeleting ? (
-                            <LoaderCircle className="size-4 animate-spin" />
-                          ) : (
-                            <Trash2 className="size-4" />
-                          )}
-                        </button>
-                      </>
-                    )}
-                  </div>
+                <div className="mt-auto flex h-10 shrink-0 items-center border-t border-black/10 px-3">
+                  <ColorSwatches
+                    disabled={Boolean(pendingAction)}
+                    onChange={(nextColor) => changeNoteColor(note.id, nextColor)}
+                    value={color}
+                  />
                 </div>
 
                 <button
@@ -1010,9 +741,9 @@ export function NotesBoard({
                   onPointerDown={(event) => startInteraction(event, note, "resize")}
                   title="Resize note"
                   aria-label="Resize note"
-                  className="absolute bottom-1 right-1 flex size-6 items-center justify-center rounded-md text-[#6e6046] transition hover:bg-white/45 hover:text-[#2f2a1f]"
+                  className="absolute bottom-1 right-1 flex size-5 cursor-nwse-resize items-center justify-center rounded-sm text-[#6e6046]/55 transition hover:text-[#2f2a1f]"
                 >
-                  <Maximize2 className="size-3.5" />
+                  <span className="absolute bottom-1 right-1 size-2.5 border-b border-r border-current" />
                 </button>
               </article>
             );
@@ -1030,8 +761,11 @@ export function NotesBoard({
                 zIndex: composerLayout.zIndex,
               }}
             >
-              <div className="flex h-10 shrink-0 items-center justify-between gap-3 border-b border-black/10 px-3">
-                <p className="text-sm font-semibold">New note</p>
+              <div className="flex h-8 shrink-0 items-center justify-between border-b border-black/10 px-3">
+                <Grip
+                  className="size-4 shrink-0 text-[#6e6046]"
+                  strokeWidth={1.7}
+                />
                 <button
                   type="button"
                   onClick={() => setIsComposerOpen(false)}
@@ -1043,58 +777,36 @@ export function NotesBoard({
                 </button>
               </div>
 
-              <div className="flex min-h-0 flex-1 flex-col gap-3 px-3 py-3">
-                {selectedAccount ? (
-                  <div className="flex items-center gap-2">
-                    <AccountAvatar account={selectedAccount} />
-                    <span className="min-w-0 truncate text-xs font-semibold">
-                      {getAccountTitle(selectedAccount)}
-                    </span>
-                  </div>
-                ) : (
-                  <AccountSelect
-                    accounts={accounts}
-                    disabled={pendingAction === "create"}
-                    id="new-note-account"
-                    label="Account"
-                    onChange={setDraftAccountId}
-                    value={draftAccountId}
-                  />
-                )}
+              <div className="flex min-h-0 flex-1 px-3 py-3">
                 <textarea
                   value={draft}
                   onChange={(event) => setDraft(event.target.value)}
                   maxLength={500}
                   rows={5}
                   placeholder="Write a note..."
-                  className="min-h-0 flex-1 resize-none rounded-md border border-black/10 bg-white/50 px-3 py-2 text-sm leading-6 text-[#2f2a1f] outline-none transition placeholder:text-[#8a7958] focus:border-[#9b6b13]"
+                  className="h-full w-full resize-none border-0 bg-transparent text-sm leading-6 text-[#2f2a1f] outline-none placeholder:text-[#8a7958]"
                 />
               </div>
 
-              <div className="mt-auto flex h-11 shrink-0 items-center justify-between gap-2 border-t border-black/10 px-2.5">
+              <div className="mt-auto flex h-10 shrink-0 items-center justify-between gap-2 border-t border-black/10 px-3">
                 <ColorSwatches
                   disabled={pendingAction === "create"}
                   onChange={setDraftColor}
                   value={draftColor}
                 />
-                <div className="flex items-center gap-2">
-                  <span className="font-mono text-[10px] text-[#6e6046]">
-                    {draft.length}/500
-                  </span>
-                  <button
-                    type="submit"
-                    disabled={!canCreate || pendingAction === "create"}
-                    title="Add note"
-                    aria-label="Add note"
-                    className="flex size-8 items-center justify-center rounded-md bg-[#2f2a1f] text-white transition hover:bg-[#4a402e] disabled:pointer-events-none disabled:opacity-60"
-                  >
-                    {pendingAction === "create" ? (
-                      <LoaderCircle className="size-4 animate-spin" />
-                    ) : (
-                      <Plus className="size-4" />
-                    )}
-                  </button>
-                </div>
+                <button
+                  type="submit"
+                  disabled={!canCreate || pendingAction === "create"}
+                  title="Add note"
+                  aria-label="Add note"
+                  className="flex size-8 items-center justify-center rounded-md bg-[#2f2a1f] text-white transition hover:bg-[#4a402e] disabled:pointer-events-none disabled:opacity-60"
+                >
+                  {pendingAction === "create" ? (
+                    <LoaderCircle className="size-4 animate-spin" />
+                  ) : (
+                    <Plus className="size-4" />
+                  )}
+                </button>
               </div>
             </form>
           ) : null}
