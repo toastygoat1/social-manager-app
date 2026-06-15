@@ -10,6 +10,8 @@ interface SupabaseJwtPayload {
   email: string;
   aud: string | string[];
   iss: string;
+  exp?: number;
+  session_id?: string;
   user_role?: string;
 }
 
@@ -69,6 +71,10 @@ export class SupabaseStrategy extends PassportStrategy(Strategy) {
       userId: payload.sub,
       email: payload.email,
       role: payload.user_role,
+      sessionId: payload.session_id,
+      sessionExpiresAt: payload.exp
+        ? new Date(payload.exp * 1000).toISOString()
+        : undefined,
     };
   }
 }

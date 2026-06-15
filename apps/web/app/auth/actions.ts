@@ -2,6 +2,10 @@
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import {
+  markAllAuthSessionsSignedOut,
+  markCurrentAuthSessionSignedOut,
+} from "@/lib/account-sessions";
 import { createClient } from "@/lib/supabase/server";
 
 function redirectWithMessage(path: string, message: string) {
@@ -85,6 +89,16 @@ export async function signOut() {
 async function signOutWithScope(scope: "local" | "global") {
   if (!hasSupabaseEnv()) {
     return redirect("/");
+  }
+
+  try {
+    if (scope === "local") {
+      await markCurrentAuthSessionSignedOut();
+    } else {
+      await markAllAuthSessionsSignedOut();
+    }
+  } catch {
+    // Supabase sign-out should still happen if our session audit API is down.
   }
 
   const supabase = await createClient();

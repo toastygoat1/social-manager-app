@@ -127,7 +127,7 @@ export default async function PostsPage({ searchParams }: PostsPageProps) {
           })}
         </nav>
 
-        <div className="mx-auto flex w-full max-w-[1440px] flex-col px-5 py-4 sm:px-7 sm:py-6">
+        <div className="flex w-full flex-col">
           <PostsTable
             rows={filteredRows}
             metadataFields={data.metadataFields}

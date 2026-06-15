@@ -15,6 +15,11 @@ import { AvatarImage } from "@/app/_components/AvatarImage";
 import { signOutCurrentSession, signOutEverywhere } from "@/app/auth/actions";
 import { Sidebar } from "@/app/dashboard/_components/Sidebar";
 import type { Account } from "@/app/dashboard/_components/data";
+import {
+  getAuthSessions,
+  trackCurrentAuthSession,
+  type AuthSessionRecord,
+} from "@/lib/account-sessions";
 import { getDashboardData } from "@/lib/dashboard-data";
 import { createClient } from "@/lib/supabase/server";
 import { getUserProfile, type UserProfile } from "@/lib/supabase/user-profile";
@@ -163,6 +168,43 @@ async function getAccountsForPage(shouldFetch: boolean) {
   }
 }
 
+async function getTrackedSessions(input: {
+  shouldFetch: boolean;
+  userAgent: string | null;
+  ipAddress: string | null;
+}) {
+  if (!input.shouldFetch) return [];
+
+  try {
+    await trackCurrentAuthSession({
+      userAgent: input.userAgent,
+      ipAddress: input.ipAddress,
+    });
+    const response = await getAuthSessions();
+    return response.sessions;
+  } catch {
+    return [];
+  }
+}
+
+function getSessionDevice(session: AuthSessionRecord) {
+  const browser = session.browser ?? "Unknown browser";
+  const operatingSystem = session.operatingSystem ?? "unknown device";
+
+  return `${browser} on ${operatingSystem}`;
+}
+
+function getSessionStatus(session: AuthSessionRecord) {
+  if (session.signedOutAt) return "Signed out";
+  if (session.isCurrent) return "Current";
+  return "Active";
+}
+
+function getSessionExpiresAt(session: AuthSessionRecord) {
+  if (session.signedOutAt) return formatDate(session.signedOutAt);
+  return session.expiresAt ? formatDate(session.expiresAt) : "Not available";
+}
+
 function InfoCard({
   icon: Icon,
   label,
@@ -250,10 +292,7 @@ export default async function AccountPage() {
     sessionExpiresAt = sessionResult.data.session?.expires_at ?? null;
   }
 
-  const [headersList, accounts] = await Promise.all([
-    headers(),
-    getAccountsForPage(supabaseConfigured),
-  ]);
+  const headersList = await headers();
   const profile = getUserProfile(user);
   const profileName = getProfileName(profile);
   const profileDetail = getProfileDetail(profile);
@@ -261,11 +300,42 @@ export default async function AccountPage() {
   const userAgent = headersList.get("user-agent");
   const browserName = getBrowserName(userAgent);
   const operatingSystem = getOperatingSystem(userAgent);
-  const requestIp = maskIpAddress(getRequestIp(headersList));
+  const requestIp = getRequestIp(headersList);
+  const maskedRequestIp = maskIpAddress(requestIp);
   const signedInAt = formatDate(user.last_sign_in_at ?? user.created_at);
   const sessionExpiry = devBypassUser
     ? "Development bypass"
     : formatDate(sessionExpiresAt);
+  const fallbackCurrentSession: AuthSessionRecord = {
+    id: "current",
+    browser: browserName,
+    operatingSystem,
+    ipAddressMasked: maskedRequestIp,
+    firstSeenAt: user.last_sign_in_at ?? user.created_at,
+    lastSeenAt: new Date().toISOString(),
+    expiresAt:
+      devBypassUser || !sessionExpiresAt
+        ? null
+        : new Date(sessionExpiresAt * 1000).toISOString(),
+    signedOutAt: null,
+    isCurrent: true,
+    status: "active",
+  };
+  const [accounts, trackedSessions] = await Promise.all([
+    getAccountsForPage(supabaseConfigured),
+    getTrackedSessions({
+      shouldFetch: supabaseConfigured,
+      userAgent,
+      ipAddress: requestIp,
+    }),
+  ]);
+  const sessions =
+    trackedSessions.length > 0 ? trackedSessions : [fallbackCurrentSession];
+  const currentSession =
+    sessions.find((session) => session.isCurrent) ?? fallbackCurrentSession;
+  const activeSessionCount = sessions.filter(
+    (session) => session.status === "active",
+  ).length;
 
   return (
     <div className="app-shell-frame flex min-h-screen items-start gap-[2px] p-1 font-sans text-ink transition-colors duration-500">
@@ -329,7 +399,7 @@ export default async function AccountPage() {
             <InfoCard
               icon={Monitor}
               label="Current session"
-              value={`${browserName} on ${operatingSystem}`}
+              value={getSessionDevice(currentSession)}
               detail="This is the browser session making the current request."
             />
             <InfoCard
@@ -340,9 +410,11 @@ export default async function AccountPage() {
             />
             <InfoCard
               icon={Clock3}
-              label="Session expires"
-              value={sessionExpiry}
-              detail="Supabase refreshes active sessions when the auth cookie is valid."
+              label="Known sessions"
+              value={`${activeSessionCount} active`}
+              detail={`${sessions.length} browser session${
+                sessions.length === 1 ? "" : "s"
+              } recorded for this account.`}
             />
           </section>
 
@@ -361,27 +433,55 @@ export default async function AccountPage() {
               </div>
 
               <div className="mt-5">
-                <DetailRow label="Status" value="Active on this browser" />
                 <DetailRow
-                  label="Device"
-                  value={`${browserName} on ${operatingSystem}`}
+                  label="Current browser"
+                  value={getSessionDevice(currentSession)}
                 />
-                <DetailRow label="Approximate source" value={requestIp} />
+                <DetailRow
+                  label="Approximate source"
+                  value={currentSession.ipAddressMasked ?? "Not available"}
+                />
                 <DetailRow label="Signed in" value={signedInAt} />
-                <DetailRow label="Session expiry" value={sessionExpiry} />
+                <DetailRow label="Current session expiry" value={sessionExpiry} />
                 <DetailRow label="User ID" value={user.id} />
               </div>
 
-              <div className="mt-5 rounded-lg border border-dashed border-line bg-card p-4">
-                <p className="dashboard-ui-label text-ink">
-                  Full device history
-                </p>
-                <p className="dashboard-ui-meta mt-2 font-normal leading-relaxed text-muted">
-                  This page can show the current browser session from Supabase
-                  Auth. A complete device list needs an API-backed session
-                  activity table, but signing out everywhere already
-                  revokes Supabase refresh tokens across devices.
-                </p>
+              <div className="mt-5 rounded-lg border border-line">
+                {sessions.map((session) => (
+                  <div
+                    key={session.id}
+                    className="flex flex-col gap-3 border-b border-line p-4 last:border-b-0 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="dashboard-ui-label text-ink">
+                          {getSessionDevice(session)}
+                        </p>
+                        <span
+                          className={`dashboard-ui-meta rounded-full px-2 py-0.5 font-normal ${
+                            session.signedOutAt
+                              ? "bg-card text-muted"
+                              : session.isCurrent
+                                ? "bg-ink text-paper"
+                                : "bg-card text-muted"
+                          }`}
+                        >
+                          {getSessionStatus(session)}
+                        </span>
+                      </div>
+                      <p className="dashboard-ui-meta mt-1 font-normal text-muted">
+                        Last active {formatDate(session.lastSeenAt)}
+                        {session.ipAddressMasked
+                          ? ` from ${session.ipAddressMasked}`
+                          : ""}
+                      </p>
+                    </div>
+                    <div className="dashboard-ui-meta shrink-0 font-normal text-muted">
+                      {session.signedOutAt ? "Signed out" : "Expires"}{" "}
+                      {getSessionExpiresAt(session)}
+                    </div>
+                  </div>
+                ))}
               </div>
             </section>
 

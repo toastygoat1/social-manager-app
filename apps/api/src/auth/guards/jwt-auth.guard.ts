@@ -12,10 +12,7 @@ interface RequestLike {
   user?: AuthUser;
 }
 
-function readHeader(
-  req: RequestLike,
-  name: string,
-): string | undefined {
+function readHeader(req: RequestLike, name: string): string | undefined {
   const raw = req.headers?.[name];
   if (Array.isArray(raw)) return raw[0];
   return typeof raw === 'string' ? raw : undefined;
@@ -36,7 +33,12 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
           readHeader(request, 'x-dev-user-email') ??
           process.env.DEV_BYPASS_USER_EMAIL ??
           'dev@local';
-        request.user = { userId: devUserId, email } satisfies AuthUser;
+        request.user = {
+          userId: devUserId,
+          email,
+          sessionId: `dev:${devUserId}`,
+          sessionExpiresAt: undefined,
+        } satisfies AuthUser;
         this.logger.warn(
           `DEV_BYPASS active — request authorized as ${devUserId}. Disable by unsetting DEV_BYPASS_USER_ID.`,
         );

@@ -21,12 +21,36 @@ model User {
   instagramAccounts     InstagramAccount[]
   mediaAssets           MediaAsset[]
   googleIntegration     GoogleIntegration?
+  authSessions          UserAuthSession[]
   contentMetadataFields ContentMetadataField[]
   aiBatchReports        AiBatchReport[]
   workspaceBoardState   WorkspaceBoardState?
   workspaceFolders      WorkspaceFolder[]
 
   @@map("users")
+}
+
+model UserAuthSession {
+  id              String    @id @default(uuid())
+  userId          String    @map("user_id")
+  sessionId       String    @map("session_id")
+  browser         String?
+  operatingSystem String?   @map("operating_system")
+  ipAddressHash   String?   @map("ip_address_hash")
+  ipAddressMasked String?   @map("ip_address_masked")
+  userAgent       String?   @map("user_agent") @db.Text
+  firstSeenAt     DateTime  @default(now()) @map("first_seen_at")
+  lastSeenAt      DateTime  @default(now()) @map("last_seen_at")
+  expiresAt       DateTime? @map("expires_at")
+  signedOutAt     DateTime? @map("signed_out_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, sessionId])
+  @@index([userId, lastSeenAt])
+  @@index([userId, signedOutAt])
+  @@map("user_auth_sessions")
 }
 
 model GoogleIntegration {

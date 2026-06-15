@@ -56,7 +56,7 @@
   --calendar-today-bg: #f1f1f1;
   --published-toggle-bg: #ffffff;
   --published-guide-line: #0d0d0d;
-  --status-empty-bar: #ffffff;
+  --status-empty-bar: #0d0d0d;
 }
 
 :root[data-theme="dark"] {

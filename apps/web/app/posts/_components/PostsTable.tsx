@@ -174,42 +174,39 @@ export function PostsTable({
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
 
   return (
-    <section className="overflow-hidden rounded-lg border border-line bg-paper">
-      <div className="scrollbar-none overflow-x-auto">
+    <section className="w-full overflow-hidden border-b border-line bg-paper">
+      <div className="overflow-x-auto">
         <table className="w-full min-w-[1180px] border-collapse text-left">
           <thead className="bg-card">
             <tr className="border-b border-line">
-              <th className="w-9 px-4 py-3">
-                <span className="block size-3 rounded border border-line bg-paper" />
-              </th>
-              <th className="dashboard-ui-meta px-4 py-3 font-semibold text-ink">
+              <th className="dashboard-ui-meta min-w-[380px] px-5 py-3 font-semibold text-ink">
                 Title
               </th>
-              <th className="dashboard-ui-meta px-4 py-3 font-semibold text-ink">
+              <th className="dashboard-ui-meta min-w-[150px] px-4 py-3 font-semibold text-ink">
                 Date published
               </th>
-              <th className="dashboard-ui-meta px-4 py-3 font-semibold text-ink">
+              <th className="dashboard-ui-meta min-w-[130px] px-4 py-3 font-semibold text-ink">
                 Status
               </th>
-              <th className="dashboard-ui-meta px-4 py-3 font-semibold text-ink">
+              <th className="dashboard-ui-meta min-w-[150px] px-4 py-3 font-semibold text-ink">
                 Distribution
               </th>
-              <th className="dashboard-ui-meta px-4 py-3 text-right font-semibold text-ink">
+              <th className="dashboard-ui-meta min-w-[110px] px-4 py-3 text-right font-semibold text-ink">
                 Views
               </th>
-              <th className="dashboard-ui-meta px-4 py-3 text-right font-semibold text-ink">
+              <th className="dashboard-ui-meta min-w-[110px] px-4 py-3 text-right font-semibold text-ink">
                 Likes
               </th>
-              <th className="dashboard-ui-meta px-4 py-3 text-right font-semibold text-ink">
+              <th className="dashboard-ui-meta min-w-[120px] px-4 py-3 text-right font-semibold text-ink">
                 Comments
               </th>
-              <th className="dashboard-ui-meta px-4 py-3 text-right font-semibold text-ink">
+              <th className="dashboard-ui-meta min-w-[110px] px-4 py-3 text-right font-semibold text-ink">
                 Shares
               </th>
               {metadataFields.map((field) => (
                 <th
                   key={field.id}
-                  className="dashboard-ui-meta px-4 py-3 font-semibold text-ink"
+                  className="dashboard-ui-meta min-w-[170px] px-4 py-3 font-semibold text-ink"
                 >
                   {field.label}
                 </th>
@@ -220,7 +217,7 @@ export function PostsTable({
             {rows.length === 0 ? (
               <tr>
                 <td
-                  colSpan={9 + metadataFields.length}
+                  colSpan={8 + metadataFields.length}
                   className="dashboard-body-text px-5 py-12 text-center text-muted"
                 >
                   No posts in this view yet
@@ -243,10 +240,7 @@ export function PostsTable({
                   }}
                   className="group cursor-pointer border-b border-line transition-colors hover:bg-card focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#5e6ad2]"
                 >
-                  <td className="px-4 py-3 align-middle">
-                    <span className="block size-3 rounded border border-line bg-paper transition-colors group-hover:border-muted" />
-                  </td>
-                  <td className="min-w-[360px] px-4 py-3 align-middle">
+                  <td className="min-w-[380px] px-5 py-3 align-middle">
                     <div className="flex min-w-0 items-center gap-3">
                       <Thumbnail row={row} />
                       <div className="min-w-0">
