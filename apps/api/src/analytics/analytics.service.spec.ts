@@ -587,6 +587,12 @@ describe('AnalyticsService', () => {
       instagramAccountId: 'account-1',
       accountIds: ['account-1'],
       body: 'Watch comment spikes after the reel.',
+      boardX: 32,
+      boardY: 32,
+      boardWidth: 250,
+      boardHeight: 220,
+      color: 'yellow',
+      zIndex: 1,
       createdAt,
       updatedAt,
     });
@@ -617,6 +623,12 @@ describe('AnalyticsService', () => {
       accountId: 'account-1',
       accountIds: ['account-1'],
       body: 'Watch comment spikes after the reel.',
+      boardX: 32,
+      boardY: 32,
+      boardWidth: 250,
+      boardHeight: 220,
+      color: 'yellow',
+      zIndex: 1,
       createdAt: '2026-05-23T10:00:00.000Z',
       updatedAt: '2026-05-23T10:00:00.000Z',
     });
@@ -632,6 +644,12 @@ describe('AnalyticsService', () => {
       instagramAccountId: 'account-2',
       accountIds: ['account-2'],
       body: 'Move this note to account two.',
+      boardX: 32,
+      boardY: 32,
+      boardWidth: 250,
+      boardHeight: 220,
+      color: 'yellow',
+      zIndex: 2,
       createdAt,
       updatedAt,
     });
@@ -666,6 +684,64 @@ describe('AnalyticsService', () => {
       accountId: 'account-2',
       accountIds: ['account-2'],
       body: 'Move this note to account two.',
+      boardX: 32,
+      boardY: 32,
+      boardWidth: 250,
+      boardHeight: 220,
+      color: 'yellow',
+      zIndex: 2,
+      createdAt: '2026-05-23T10:00:00.000Z',
+      updatedAt: '2026-05-23T10:05:00.000Z',
+    });
+  });
+
+  it('detaches all accounts from an analytics note', async () => {
+    const createdAt = new Date('2026-05-23T10:00:00Z');
+    const updatedAt = new Date('2026-05-23T10:05:00Z');
+    prisma.analyticsNote.findFirst.mockResolvedValue({ id: 'note-1' });
+    prisma.analyticsNote.update.mockResolvedValue({
+      id: 'note-1',
+      instagramAccountId: null,
+      accountIds: [],
+      body: 'Unattached board note.',
+      boardX: 32,
+      boardY: 32,
+      boardWidth: 250,
+      boardHeight: 220,
+      color: 'yellow',
+      zIndex: 2,
+      createdAt,
+      updatedAt,
+    });
+
+    const note = await service.updateNote('user-1', 'note-1', {
+      accountId: null,
+      accountIds: [],
+    });
+
+    expect(prisma.instagramAccount.findMany).not.toHaveBeenCalled();
+    expect(prisma.analyticsNote.update).toHaveBeenCalledWith({
+      where: { id: 'note-1' },
+      data: {
+        instagramAccountId: null,
+        accountIds: [],
+      },
+      select: expect.objectContaining({
+        id: true,
+        body: true,
+      }),
+    });
+    expect(note).toEqual({
+      id: 'note-1',
+      accountId: null,
+      accountIds: [],
+      body: 'Unattached board note.',
+      boardX: 32,
+      boardY: 32,
+      boardWidth: 250,
+      boardHeight: 220,
+      color: 'yellow',
+      zIndex: 2,
       createdAt: '2026-05-23T10:00:00.000Z',
       updatedAt: '2026-05-23T10:05:00.000Z',
     });

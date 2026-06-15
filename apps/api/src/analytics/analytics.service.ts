@@ -622,7 +622,7 @@ export class AnalyticsService {
     const body =
       data.body === undefined ? undefined : normalizeNoteBody(data.body);
     const legacyAccountId =
-      data.accountId === undefined ? undefined : data.accountId.trim() || null;
+      data.accountId === undefined ? undefined : data.accountId?.trim() || null;
     const accountIds =
       data.accountIds !== undefined
         ? normalizeNoteAccountIds(data.accountIds)
@@ -1509,12 +1509,14 @@ function mapAccount(
 }
 
 function mapNote(note: AnalyticsNoteRecord): AnalyticsNote {
+  const accountIds = Array.isArray(note.accountIds) ? note.accountIds : [];
+
   return {
     id: note.id,
     accountId: note.instagramAccountId,
     accountIds:
-      note.accountIds.length > 0
-        ? note.accountIds
+      accountIds.length > 0
+        ? accountIds
         : note.instagramAccountId
           ? [note.instagramAccountId]
           : [],

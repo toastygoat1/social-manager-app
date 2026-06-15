@@ -27,7 +27,7 @@ export class CreateAnalyticsNoteDto {
   @IsOptional()
   @IsString()
   @MaxLength(64)
-  accountId?: string;
+  accountId?: string | null;
 
   @IsOptional()
   @IsArray()

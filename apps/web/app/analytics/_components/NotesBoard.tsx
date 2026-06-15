@@ -10,13 +10,7 @@ import {
   type PointerEvent,
 } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Grip,
-  LoaderCircle,
-  Plus,
-  StickyNote,
-  X,
-} from "lucide-react";
+import { LoaderCircle, Minus, Plus, StickyNote, X } from "lucide-react";
 import type { Account } from "@/app/dashboard/_components/data";
 import { ApiError, apiFetchBrowser } from "@/lib/api/browser-client";
 import type { AnalyticsNote } from "./data";
@@ -148,9 +142,12 @@ const MIN_NOTE_HEIGHT = 160;
 const MAX_NOTE_WIDTH = 520;
 const MAX_NOTE_HEIGHT = 520;
 const BOARD_WIDTH = 1040;
+const BOARD_CANVAS_HEIGHT = 1200;
+const BOARD_VIEWPORT_HEIGHT = 620;
 const BOARD_PADDING = 32;
-const BOARD_MIN_HEIGHT = 620;
-const BOARD_MAX_Y = 5000;
+const MIN_BOARD_ZOOM = 0.7;
+const MAX_BOARD_ZOOM = 1.4;
+const BOARD_ZOOM_STEP = 0.1;
 const NOTE_GAP = 28;
 const TOOLBAR_WIDTH = 430;
 const BOARD_REFRESH_MS = 6000;
@@ -218,7 +215,9 @@ function getNumber(value: number, fallback: number) {
 }
 
 function getNoteAccountIds(note: AnalyticsNote | BoardNote) {
-  if (note.accountIds.length > 0) return note.accountIds;
+  const accountIds = Array.isArray(note.accountIds) ? note.accountIds : [];
+
+  if (accountIds.length > 0) return accountIds;
   return note.accountId ? [note.accountId] : [];
 }
 
@@ -230,28 +229,33 @@ function clampBoardX(value: number, width: number) {
   return clampInt(value, 0, getMaxBoardX(width));
 }
 
+function getMaxBoardY(height: number) {
+  return Math.max(0, BOARD_CANVAS_HEIGHT - height - BOARD_PADDING);
+}
+
+function clampBoardY(value: number, height: number) {
+  return clampInt(value, 0, getMaxBoardY(height));
+}
+
 function normalizeNoteForBoard(note: AnalyticsNote, index: number): BoardNote {
   const boardWidth = clampInt(
     getNumber(note.boardWidth, DEFAULT_NOTE_WIDTH),
     MIN_NOTE_WIDTH,
     MAX_NOTE_WIDTH,
   );
+  const boardHeight = clampInt(
+    getNumber(note.boardHeight, DEFAULT_NOTE_HEIGHT),
+    MIN_NOTE_HEIGHT,
+    MAX_NOTE_HEIGHT,
+  );
 
   return {
     ...note,
     accountIds: getNoteAccountIds(note),
     boardX: clampBoardX(getNumber(note.boardX, BOARD_PADDING), boardWidth),
-    boardY: clampInt(
-      getNumber(note.boardY, BOARD_PADDING),
-      0,
-      BOARD_MAX_Y,
-    ),
+    boardY: clampBoardY(getNumber(note.boardY, BOARD_PADDING), boardHeight),
     boardWidth,
-    boardHeight: clampInt(
-      getNumber(note.boardHeight, DEFAULT_NOTE_HEIGHT),
-      MIN_NOTE_HEIGHT,
-      MAX_NOTE_HEIGHT,
-    ),
+    boardHeight,
     color: isNoteColor(note.color) ? note.color : DEFAULT_NOTE_COLOR,
     zIndex: clampInt(getNumber(note.zIndex, index + 1), 1, 10000),
   };
@@ -268,34 +272,15 @@ function getNextNoteLayout(notes: AnalyticsNote[]) {
   );
 
   return {
-    boardX:
-      BOARD_PADDING + (index % columns) * (DEFAULT_NOTE_WIDTH + NOTE_GAP),
-    boardY:
+    boardX: BOARD_PADDING + (index % columns) * (DEFAULT_NOTE_WIDTH + NOTE_GAP),
+    boardY: clampBoardY(
       BOARD_PADDING +
-      Math.floor(index / columns) * (DEFAULT_NOTE_HEIGHT + NOTE_GAP),
+        Math.floor(index / columns) * (DEFAULT_NOTE_HEIGHT + NOTE_GAP),
+      DEFAULT_NOTE_HEIGHT,
+    ),
     boardWidth: DEFAULT_NOTE_WIDTH,
     boardHeight: DEFAULT_NOTE_HEIGHT,
   };
-}
-
-function getBoardSize(notes: AnalyticsNote[], composerLayout: NoteLayoutPatch) {
-  const extents = notes.map((note) => ({
-    right: note.boardX + note.boardWidth,
-    bottom: note.boardY + note.boardHeight,
-  }));
-
-  extents.push({
-    right: composerLayout.boardX + composerLayout.boardWidth,
-    bottom: composerLayout.boardY + composerLayout.boardHeight,
-  });
-
-  return extents.reduce(
-    (size, extent) => ({
-      width: BOARD_WIDTH,
-      height: Math.max(size.height, extent.bottom + BOARD_PADDING),
-    }),
-    { width: BOARD_WIDTH, height: BOARD_MIN_HEIGHT },
-  );
 }
 
 function isControlTarget(target: EventTarget | null) {
@@ -354,7 +339,7 @@ export function NotesBoard({
     [accounts],
   );
   const selectedAccount = selectedAccountId
-    ? accountById.get(selectedAccountId) ?? null
+    ? (accountById.get(selectedAccountId) ?? null)
     : null;
   const [boardNotes, setBoardNotes] = useState(normalizedNotes);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
@@ -370,26 +355,24 @@ export function NotesBoard({
   const [draftColor, setDraftColor] = useState<NoteColor>(() =>
     getDefaultNoteColor(selectedAccount, 0),
   );
+  const [zoom, setZoom] = useState(1);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const interactionRef = useRef<BoardInteraction | null>(null);
   const cleanupInteractionRef = useRef<(() => void) | null>(null);
   const broadcastRef = useRef<BroadcastChannel | null>(null);
   const draftAccount = draftAccountId
-    ? accountById.get(draftAccountId) ?? null
+    ? (accountById.get(draftAccountId) ?? null)
     : null;
   const composerAccount = selectedAccount ?? draftAccount;
-  const canCreate = Boolean(draft.trim()) && Boolean(composerAccount);
+  const canCreate = Boolean(draft.trim());
+  const zoomPercent = Math.round(zoom * 100);
   const topZIndex = useMemo(
     () => Math.max(1, ...boardNotes.map((note) => note.zIndex)),
     [boardNotes],
   );
-  const boardSize = useMemo(
-    () => getBoardSize(boardNotes, composerLayout),
-    [boardNotes, composerLayout],
-  );
   const selectedNote = selectedNoteId
-    ? boardNotes.find((note) => note.id === selectedNoteId) ?? null
+    ? (boardNotes.find((note) => note.id === selectedNoteId) ?? null)
     : null;
   const toolbarPosition = selectedNote
     ? {
@@ -457,6 +440,14 @@ export function NotesBoard({
     broadcastRef.current?.postMessage({ at: Date.now(), type: "changed" });
   }
 
+  function changeZoom(delta: number) {
+    setZoom((currentZoom) =>
+      Number(
+        clamp(currentZoom + delta, MIN_BOARD_ZOOM, MAX_BOARD_ZOOM).toFixed(2),
+      ),
+    );
+  }
+
   async function patchNote(
     noteId: string,
     body: NotePatch,
@@ -514,20 +505,23 @@ export function NotesBoard({
     setError(null);
 
     try {
-      const createdNote = await apiFetchBrowser<AnalyticsNote>("/analytics/notes", {
-        method: "POST",
-        body: {
-          body,
-          accountId: composerAccount?.id,
-          accountIds: composerAccount ? [composerAccount.id] : [],
-          boardX: composerLayout.boardX,
-          boardY: composerLayout.boardY,
-          boardWidth: composerLayout.boardWidth,
-          boardHeight: composerLayout.boardHeight,
-          color: draftColor,
-          zIndex: topZIndex + 1,
+      const createdNote = await apiFetchBrowser<AnalyticsNote>(
+        "/analytics/notes",
+        {
+          method: "POST",
+          body: {
+            body,
+            accountId: composerAccount?.id ?? null,
+            accountIds: composerAccount ? [composerAccount.id] : [],
+            boardX: composerLayout.boardX,
+            boardY: composerLayout.boardY,
+            boardWidth: composerLayout.boardWidth,
+            boardHeight: composerLayout.boardHeight,
+            color: draftColor,
+            zIndex: topZIndex + 1,
+          },
         },
-      });
+      );
       const normalizedNote = normalizeNoteForBoard(createdNote, 0);
 
       setBoardNotes((currentNotes) => [normalizedNote, ...currentNotes]);
@@ -604,7 +598,10 @@ export function NotesBoard({
     type: BoardInteraction["type"],
     edge?: ResizeEdge,
   ) {
-    if (event.button !== 0 || (type === "move" && isControlTarget(event.target))) {
+    if (
+      event.button !== 0 ||
+      (type === "move" && isControlTarget(event.target))
+    ) {
       return;
     }
 
@@ -640,8 +637,8 @@ export function NotesBoard({
       const interaction = interactionRef.current;
       if (!interaction) return;
 
-      const deltaX = pointerEvent.clientX - interaction.startPointerX;
-      const deltaY = pointerEvent.clientY - interaction.startPointerY;
+      const deltaX = (pointerEvent.clientX - interaction.startPointerX) / zoom;
+      const deltaY = (pointerEvent.clientY - interaction.startPointerY) / zoom;
       let nextX = interaction.startBoardX;
       let nextY = interaction.startBoardY;
       let nextWidth = interaction.startWidth;
@@ -649,7 +646,7 @@ export function NotesBoard({
 
       if (interaction.type === "move") {
         nextX = clampBoardX(interaction.startBoardX + deltaX, nextWidth);
-        nextY = clampInt(interaction.startBoardY + deltaY, 0, BOARD_MAX_Y);
+        nextY = clampBoardY(interaction.startBoardY + deltaY, nextHeight);
       } else {
         const edgeName = interaction.edge;
 
@@ -671,14 +668,21 @@ export function NotesBoard({
             MIN_NOTE_WIDTH,
             Math.min(MAX_NOTE_WIDTH, fixedRight),
           );
-          nextX = clampInt(fixedRight - nextWidth, 0, fixedRight - MIN_NOTE_WIDTH);
+          nextX = clampInt(
+            fixedRight - nextWidth,
+            0,
+            fixedRight - MIN_NOTE_WIDTH,
+          );
         }
 
         if (edgeName === "s") {
           nextHeight = clampInt(
             interaction.startHeight + deltaY,
             MIN_NOTE_HEIGHT,
-            MAX_NOTE_HEIGHT,
+            Math.min(
+              MAX_NOTE_HEIGHT,
+              BOARD_CANVAS_HEIGHT - interaction.startBoardY - BOARD_PADDING,
+            ),
           );
         }
 
@@ -745,18 +749,45 @@ export function NotesBoard({
           <div>
             <h2 className="text-sm font-semibold text-ink">Notes</h2>
             <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
-              {selectedAccount ? getAccountTitle(selectedAccount) : "All accounts"}
+              {selectedAccount
+                ? getAccountTitle(selectedAccount)
+                : "All accounts"}
             </p>
           </div>
         </div>
         <div className="flex items-center justify-between gap-3 sm:justify-end">
+          <div className="flex h-9 items-center overflow-hidden rounded-md border border-line bg-card text-ink">
+            <button
+              type="button"
+              onClick={() => changeZoom(-BOARD_ZOOM_STEP)}
+              disabled={zoom <= MIN_BOARD_ZOOM}
+              title="Zoom out"
+              aria-label="Zoom out"
+              className="flex size-9 items-center justify-center transition hover:bg-white disabled:pointer-events-none disabled:opacity-40"
+            >
+              <Minus className="size-4" strokeWidth={1.8} />
+            </button>
+            <span className="min-w-12 text-center font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
+              {zoomPercent}%
+            </span>
+            <button
+              type="button"
+              onClick={() => changeZoom(BOARD_ZOOM_STEP)}
+              disabled={zoom >= MAX_BOARD_ZOOM}
+              title="Zoom in"
+              aria-label="Zoom in"
+              className="flex size-9 items-center justify-center transition hover:bg-white disabled:pointer-events-none disabled:opacity-40"
+            >
+              <Plus className="size-4" strokeWidth={1.8} />
+            </button>
+          </div>
           <span className="font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
             {boardNotes.length} saved
           </span>
           <button
             type="button"
             onClick={openComposer}
-            disabled={accounts.length === 0 || isComposerOpen}
+            disabled={isComposerOpen}
             title="Add note"
             aria-label="Add note"
             className="flex size-9 items-center justify-center rounded-md border border-line bg-card text-ink transition hover:border-[#d8d6cf] hover:bg-white disabled:pointer-events-none disabled:opacity-60"
@@ -772,19 +803,19 @@ export function NotesBoard({
         </p>
       ) : null}
 
-      <div className="overflow-x-auto">
+      <div
+        onPointerDown={(event) => {
+          if (event.currentTarget === event.target) setSelectedNoteId(null);
+        }}
+        className="w-full overflow-auto border border-[#d7d2c6] bg-white"
+        style={{ height: BOARD_VIEWPORT_HEIGHT }}
+      >
         <div
-          onPointerDown={(event) => {
-            if (event.currentTarget === event.target) setSelectedNoteId(null);
-          }}
-          className="relative border border-[#d7d2c6] bg-[#fbfaf6]"
+          className="relative"
           style={
             {
-              width: BOARD_WIDTH,
-              height: boardSize.height,
-              backgroundImage:
-                "radial-gradient(circle, rgba(47,42,31,0.13) 1px, transparent 1px)",
-              backgroundSize: "22px 22px",
+              width: BOARD_WIDTH * zoom,
+              height: BOARD_CANVAS_HEIGHT * zoom,
             } satisfies CSSProperties
           }
         >
@@ -792,8 +823,8 @@ export function NotesBoard({
             <div
               className="absolute z-[10050] flex h-10 items-center gap-1 rounded-md border border-[#d9d5ca] bg-white px-2 shadow-[0_10px_24px_rgba(47,42,31,0.16)]"
               style={{
-                left: toolbarPosition.left,
-                top: toolbarPosition.top,
+                left: toolbarPosition.left * zoom,
+                top: toolbarPosition.top * zoom,
                 width: TOOLBAR_WIDTH,
               }}
             >
@@ -805,28 +836,36 @@ export function NotesBoard({
                   </span>
                 </summary>
                 <div className="absolute left-0 top-10 z-[10060] flex max-h-64 w-64 flex-col gap-1 overflow-y-auto rounded-md border border-[#d9d5ca] bg-white p-2 shadow-[0_12px_24px_rgba(47,42,31,0.18)]">
-                  {accounts.map((account) => {
-                    const isChecked = selectedNote.accountIds.includes(account.id);
+                  {accounts.length === 0 ? (
+                    <p className="px-2 py-1.5 text-xs text-[#8a7958]">
+                      No accounts
+                    </p>
+                  ) : (
+                    accounts.map((account) => {
+                      const isChecked = selectedNote.accountIds.includes(
+                        account.id,
+                      );
 
-                    return (
-                      <label
-                        key={account.id}
-                        className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-xs text-[#3b3324] hover:bg-[#f3f1ea]"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() =>
-                            toggleNoteAccount(selectedNote.id, account.id)
-                          }
-                          className="size-3.5 accent-[#2f2a1f]"
-                        />
-                        <span className="min-w-0 truncate">
-                          {getAccountTitle(account)}
-                        </span>
-                      </label>
-                    );
-                  })}
+                      return (
+                        <label
+                          key={account.id}
+                          className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-xs text-[#3b3324] hover:bg-[#f3f1ea]"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() =>
+                              toggleNoteAccount(selectedNote.id, account.id)
+                            }
+                            className="size-3.5 accent-[#2f2a1f]"
+                          />
+                          <span className="min-w-0 truncate">
+                            {getAccountTitle(account)}
+                          </span>
+                        </label>
+                      );
+                    })
+                  )}
                 </div>
               </details>
               <span className="h-6 w-px bg-[#d9d5ca]" />
@@ -840,134 +879,147 @@ export function NotesBoard({
             </div>
           ) : null}
 
-          {boardNotes.map((note) => {
-            const isSelected = selectedNoteId === note.id;
-            const color = isNoteColor(note.color) ? note.color : DEFAULT_NOTE_COLOR;
-            const style = NOTE_COLORS[color];
+          <div
+            onPointerDown={(event) => {
+              if (event.currentTarget === event.target) setSelectedNoteId(null);
+            }}
+            className="relative origin-top-left bg-white"
+            style={
+              {
+                width: BOARD_WIDTH,
+                height: BOARD_CANVAS_HEIGHT,
+                transform: `scale(${zoom})`,
+                transformOrigin: "top left",
+              } satisfies CSSProperties
+            }
+          >
+            {boardNotes.map((note) => {
+              const isSelected = selectedNoteId === note.id;
+              const color = isNoteColor(note.color)
+                ? note.color
+                : DEFAULT_NOTE_COLOR;
+              const style = NOTE_COLORS[color];
 
-            return (
-              <article
-                key={note.id}
-                onPointerDown={(event) => startInteraction(event, note, "move")}
-                className={`absolute flex flex-col overflow-hidden rounded-md border text-[#2f2a1f] shadow-[0_12px_24px_rgba(47,42,31,0.13)] transition-shadow ${style.paper} ${style.border} ${
-                  isSelected ? `ring-2 ring-offset-2 ${style.activeBorder}` : ""
-                }`}
+              return (
+                <article
+                  key={note.id}
+                  onPointerDown={(event) =>
+                    startInteraction(event, note, "move")
+                  }
+                  className={`absolute flex cursor-grab flex-col overflow-hidden rounded-md border text-[#2f2a1f] shadow-[0_12px_24px_rgba(47,42,31,0.13)] transition-shadow hover:shadow-[0_16px_30px_rgba(47,42,31,0.2)] active:cursor-grabbing ${style.paper} ${style.border} ${
+                    isSelected
+                      ? `ring-2 ring-offset-2 ${style.activeBorder}`
+                      : ""
+                  }`}
+                  style={{
+                    left: note.boardX,
+                    top: note.boardY,
+                    width: note.boardWidth,
+                    height: note.boardHeight,
+                    zIndex: note.zIndex,
+                    touchAction: "none",
+                  }}
+                >
+                  <div className="min-h-0 flex-1 p-3">
+                    {isSelected ? (
+                      <textarea
+                        value={note.body}
+                        onChange={(event) =>
+                          updateLocalNote(note.id, { body: event.target.value })
+                        }
+                        onBlur={() => saveNoteBody(note.id)}
+                        onFocus={() => setSelectedNoteId(note.id)}
+                        maxLength={500}
+                        placeholder="Write a note..."
+                        className="h-full w-full cursor-text resize-none border-0 bg-transparent text-sm leading-6 text-[#2f2a1f] outline-none placeholder:text-[#8a7958]"
+                      />
+                    ) : (
+                      <p className="h-full whitespace-pre-wrap break-words text-sm leading-6 text-[#2f2a1f]">
+                        {note.body}
+                      </p>
+                    )}
+                  </div>
+
+                  {isSelected ? (
+                    <>
+                      <button
+                        type="button"
+                        onPointerDown={(event) =>
+                          startInteraction(event, note, "resize", "n")
+                        }
+                        title="Resize note"
+                        aria-label="Resize note"
+                        className="absolute left-2 right-2 top-0 h-2 cursor-ns-resize rounded-full transition hover:bg-black/10"
+                      />
+                      <button
+                        type="button"
+                        onPointerDown={(event) =>
+                          startInteraction(event, note, "resize", "e")
+                        }
+                        title="Resize note"
+                        aria-label="Resize note"
+                        className="absolute bottom-2 right-0 top-2 w-2 cursor-ew-resize rounded-full transition hover:bg-black/10"
+                      />
+                      <button
+                        type="button"
+                        onPointerDown={(event) =>
+                          startInteraction(event, note, "resize", "s")
+                        }
+                        title="Resize note"
+                        aria-label="Resize note"
+                        className="absolute bottom-0 left-2 right-2 h-2 cursor-ns-resize rounded-full transition hover:bg-black/10"
+                      />
+                      <button
+                        type="button"
+                        onPointerDown={(event) =>
+                          startInteraction(event, note, "resize", "w")
+                        }
+                        title="Resize note"
+                        aria-label="Resize note"
+                        className="absolute bottom-2 left-0 top-2 w-2 cursor-ew-resize rounded-full transition hover:bg-black/10"
+                      />
+                    </>
+                  ) : null}
+                </article>
+              );
+            })}
+
+            {isComposerOpen ? (
+              <form
+                onSubmit={createNote}
+                className={`absolute overflow-hidden rounded-md border text-[#2f2a1f] shadow-[0_12px_24px_rgba(47,42,31,0.13)] ${NOTE_COLORS[draftColor].paper} ${NOTE_COLORS[draftColor].border}`}
                 style={{
-                  left: note.boardX,
-                  top: note.boardY,
-                  width: note.boardWidth,
-                  height: note.boardHeight,
-                  zIndex: note.zIndex,
-                  touchAction: "none",
+                  left: composerLayout.boardX,
+                  top: composerLayout.boardY,
+                  width: composerLayout.boardWidth,
+                  height: composerLayout.boardHeight,
+                  zIndex: composerLayout.zIndex,
                 }}
               >
-                <div className="flex h-8 shrink-0 items-center border-b border-black/10 px-3">
-                  <Grip
-                    className="size-4 shrink-0 text-[#6e6046]"
-                    strokeWidth={1.7}
-                  />
-                </div>
-
-                <div className="min-h-0 flex-1 px-3 pb-3 pt-2">
-                  <textarea
-                    value={note.body}
-                    onChange={(event) =>
-                      updateLocalNote(note.id, { body: event.target.value })
-                    }
-                    onBlur={() => saveNoteBody(note.id)}
-                    onFocus={() => setSelectedNoteId(note.id)}
-                    maxLength={500}
-                    placeholder="Write a note..."
-                    className="h-full w-full resize-none border-0 bg-transparent text-sm leading-6 text-[#2f2a1f] outline-none placeholder:text-[#8a7958]"
-                  />
-                </div>
-
-                <button
-                  type="button"
-                  onPointerDown={(event) =>
-                    startInteraction(event, note, "resize", "n")
-                  }
-                  title="Resize note"
-                  aria-label="Resize note"
-                  className="absolute left-2 right-2 top-0 h-2 cursor-ns-resize"
-                />
-                <button
-                  type="button"
-                  onPointerDown={(event) =>
-                    startInteraction(event, note, "resize", "e")
-                  }
-                  title="Resize note"
-                  aria-label="Resize note"
-                  className="absolute bottom-2 right-0 top-2 w-2 cursor-ew-resize"
-                />
-                <button
-                  type="button"
-                  onPointerDown={(event) =>
-                    startInteraction(event, note, "resize", "s")
-                  }
-                  title="Resize note"
-                  aria-label="Resize note"
-                  className="absolute bottom-0 left-2 right-2 h-2 cursor-ns-resize"
-                />
-                <button
-                  type="button"
-                  onPointerDown={(event) =>
-                    startInteraction(event, note, "resize", "w")
-                  }
-                  title="Resize note"
-                  aria-label="Resize note"
-                  className="absolute bottom-2 left-0 top-2 w-2 cursor-ew-resize"
-                />
-              </article>
-            );
-          })}
-
-          {isComposerOpen ? (
-            <form
-              onSubmit={createNote}
-              className={`absolute flex flex-col overflow-hidden rounded-md border text-[#2f2a1f] shadow-[0_12px_24px_rgba(47,42,31,0.13)] ${NOTE_COLORS[draftColor].paper} ${NOTE_COLORS[draftColor].border}`}
-              style={{
-                left: composerLayout.boardX,
-                top: composerLayout.boardY,
-                width: composerLayout.boardWidth,
-                height: composerLayout.boardHeight,
-                zIndex: composerLayout.zIndex,
-              }}
-            >
-              <div className="flex h-8 shrink-0 items-center justify-between border-b border-black/10 px-3">
-                <Grip
-                  className="size-4 shrink-0 text-[#6e6046]"
-                  strokeWidth={1.7}
-                />
                 <button
                   type="button"
                   onClick={() => setIsComposerOpen(false)}
                   title="Cancel"
                   aria-label="Cancel"
-                  className="flex size-8 shrink-0 items-center justify-center rounded-md text-[#6e6046] transition hover:bg-white/45 hover:text-[#2f2a1f]"
+                  className="absolute right-2 top-2 z-10 flex size-8 items-center justify-center rounded-md text-[#6e6046] transition hover:bg-white/45 hover:text-[#2f2a1f]"
                 >
                   <X className="size-4" />
                 </button>
-              </div>
-
-              <div className="flex min-h-0 flex-1 px-3 py-3">
                 <textarea
                   value={draft}
                   onChange={(event) => setDraft(event.target.value)}
                   maxLength={500}
                   rows={5}
+                  autoFocus
                   placeholder="Write a note..."
-                  className="h-full w-full resize-none border-0 bg-transparent text-sm leading-6 text-[#2f2a1f] outline-none placeholder:text-[#8a7958]"
+                  className="h-full w-full resize-none border-0 bg-transparent px-3 py-3 pb-14 pr-12 text-sm leading-6 text-[#2f2a1f] outline-none placeholder:text-[#8a7958]"
                 />
-              </div>
-
-              <div className="mt-auto flex h-10 shrink-0 items-center justify-end border-t border-black/10 px-3">
                 <button
                   type="submit"
                   disabled={!canCreate || pendingAction === "create"}
                   title="Add note"
                   aria-label="Add note"
-                  className="flex size-8 items-center justify-center rounded-md bg-[#2f2a1f] text-white transition hover:bg-[#4a402e] disabled:pointer-events-none disabled:opacity-60"
+                  className="absolute bottom-3 right-3 flex size-8 items-center justify-center rounded-md bg-[#2f2a1f] text-white transition hover:bg-[#4a402e] disabled:pointer-events-none disabled:opacity-60"
                 >
                   {pendingAction === "create" ? (
                     <LoaderCircle className="size-4 animate-spin" />
@@ -975,9 +1027,9 @@ export function NotesBoard({
                     <Plus className="size-4" />
                   )}
                 </button>
-              </div>
-            </form>
-          ) : null}
+              </form>
+            ) : null}
+          </div>
         </div>
       </div>
     </section>
