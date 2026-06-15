@@ -22,14 +22,22 @@ type NotesBoardProps = {
   selectedAccountId: string | null;
 };
 
-type NoteColor = "yellow" | "blue" | "pink" | "green" | "lavender" | "white";
+type NoteColor =
+  | "cream"
+  | "sprout"
+  | "mint"
+  | "sky"
+  | "periwinkle"
+  | "violet"
+  | "rose"
+  | "peach";
 
 type NoteStyle = {
   label: string;
   paper: string;
   border: string;
-  activeBorder: string;
   swatch: string;
+  text: string;
 };
 
 type BoardNote = Omit<AnalyticsNote, "color" | "accountIds"> & {
@@ -75,67 +83,92 @@ type NotePatch = Partial<
 };
 
 const NOTE_COLORS = {
-  yellow: {
-    label: "Yellow",
-    paper: "bg-[#fff2ad]",
-    border: "border-[#e3c75e]",
-    activeBorder: "ring-[#b98712]",
-    swatch: "#fff2ad",
+  cream: {
+    label: "Cream",
+    paper: "#fff6c8",
+    border: "#eadf98",
+    swatch: "#fff6c8",
+    text: "#84793f",
   },
-  blue: {
-    label: "Blue",
-    paper: "bg-[#dff4ff]",
-    border: "border-[#93c8df]",
-    activeBorder: "ring-[#367f9e]",
-    swatch: "#dff4ff",
-  },
-  pink: {
-    label: "Pink",
-    paper: "bg-[#ffe2ec]",
-    border: "border-[#e8a5bc]",
-    activeBorder: "ring-[#b84f75]",
-    swatch: "#ffe2ec",
-  },
-  green: {
+  sprout: {
     label: "Green",
-    paper: "bg-[#e5f6d3]",
-    border: "border-[#aac985]",
-    activeBorder: "ring-[#638a35]",
-    swatch: "#e5f6d3",
+    paper: "#e0ffc8",
+    border: "#bde59d",
+    swatch: "#e0ffc8",
+    text: "#5d843f",
   },
-  lavender: {
-    label: "Lavender",
-    paper: "bg-[#eee6ff]",
-    border: "border-[#b9a7df]",
-    activeBorder: "ring-[#7259aa]",
-    swatch: "#eee6ff",
+  mint: {
+    label: "Mint",
+    paper: "#c8fff2",
+    border: "#9ee7d8",
+    swatch: "#c8fff2",
+    text: "#3e8473",
   },
-  white: {
-    label: "White",
-    paper: "bg-white",
-    border: "border-[#d9d5ca]",
-    activeBorder: "ring-[#716a5e]",
-    swatch: "#ffffff",
+  sky: {
+    label: "Sky",
+    paper: "#c8f2ff",
+    border: "#9ed9ea",
+    swatch: "#c8f2ff",
+    text: "#3f7485",
+  },
+  periwinkle: {
+    label: "Blue",
+    paper: "#c8dbff",
+    border: "#a6bde8",
+    swatch: "#c8dbff",
+    text: "#3f5785",
+  },
+  violet: {
+    label: "Violet",
+    paper: "#e0c8ff",
+    border: "#c2a4e8",
+    swatch: "#e0c8ff",
+    text: "#6f3f85",
+  },
+  rose: {
+    label: "Red",
+    paper: "#ffc8c8",
+    border: "#e7a2a2",
+    swatch: "#ffc8c8",
+    text: "#853d3d",
+  },
+  peach: {
+    label: "Peach",
+    paper: "#ffe6c8",
+    border: "#e7c49c",
+    swatch: "#ffe6c8",
+    text: "#86543f",
   },
 } satisfies Record<NoteColor, NoteStyle>;
 
 const NOTE_COLOR_ORDER: NoteColor[] = [
-  "yellow",
-  "blue",
-  "pink",
-  "green",
-  "lavender",
-  "white",
+  "cream",
+  "sprout",
+  "mint",
+  "sky",
+  "periwinkle",
+  "violet",
+  "rose",
+  "peach",
 ];
 
 const ACCOUNT_TONE_COLORS: Record<string, NoteColor> = {
-  blue: "blue",
-  cyan: "blue",
-  pink: "pink",
-  yellow: "yellow",
+  blue: "periwinkle",
+  cyan: "mint",
+  pink: "rose",
+  yellow: "cream",
 };
 
-const DEFAULT_NOTE_COLOR: NoteColor = "yellow";
+const LEGACY_NOTE_COLORS: Record<string, NoteColor> = {
+  yellow: "cream",
+  green: "sprout",
+  blue: "sky",
+  pink: "rose",
+  lavender: "violet",
+  white: "cream",
+};
+
+const DEFAULT_NOTE_COLOR: NoteColor = "cream";
 const DEFAULT_NOTE_WIDTH = 250;
 const DEFAULT_NOTE_HEIGHT = 220;
 const MIN_NOTE_WIDTH = 180;
@@ -174,6 +207,10 @@ function getAccountTitle(account: Account | null | undefined) {
   );
 }
 
+function getAccountInitial(account: Account) {
+  return getAccountTitle(account).trim().charAt(0).toUpperCase() || "A";
+}
+
 function getDefaultDraftAccountId(
   accounts: Account[],
   selectedAccountId: string | null,
@@ -201,6 +238,11 @@ function getDefaultNoteColor(
 
 function isNoteColor(value: string): value is NoteColor {
   return NOTE_COLOR_ORDER.includes(value as NoteColor);
+}
+
+function getNoteColor(value: string) {
+  if (isNoteColor(value)) return value;
+  return LEGACY_NOTE_COLORS[value] ?? DEFAULT_NOTE_COLOR;
 }
 
 function clamp(value: number, min: number, max: number) {
@@ -265,7 +307,7 @@ function normalizeNoteForBoard(
     boardY: clampBoardY(getNumber(note.boardY, BOARD_PADDING), boardHeight),
     boardWidth: noteWidth,
     boardHeight,
-    color: isNoteColor(note.color) ? note.color : DEFAULT_NOTE_COLOR,
+    color: getNoteColor(note.color),
     zIndex: clampInt(getNumber(note.zIndex, index + 1), 1, 10000),
   };
 }
@@ -389,10 +431,11 @@ export function NotesBoard({
   const selectedNote = selectedNoteId
     ? (boardNotes.find((note) => note.id === selectedNoteId) ?? null)
     : null;
+  const draftNoteStyle = NOTE_COLORS[draftColor];
   const toolbarPosition = selectedNote
     ? {
         left: clampInt(
-          selectedNote.boardX,
+          selectedNote.boardX + selectedNote.boardWidth / 2 - TOOLBAR_WIDTH / 2,
           BOARD_PADDING / 2,
           Math.max(
             BOARD_PADDING / 2,
@@ -948,10 +991,12 @@ export function NotesBoard({
           >
             {boardNotes.map((note) => {
               const isSelected = selectedNoteId === note.id;
-              const color = isNoteColor(note.color)
-                ? note.color
-                : DEFAULT_NOTE_COLOR;
-              const style = NOTE_COLORS[color];
+              const style = NOTE_COLORS[note.color];
+              const noteAccounts = note.accountIds
+                .map((accountId) => accountById.get(accountId))
+                .filter((account): account is Account => Boolean(account));
+              const primaryNoteAccount = noteAccounts[0] ?? null;
+              const extraAccountCount = Math.max(0, noteAccounts.length - 1);
 
               return (
                 <article
@@ -959,10 +1004,8 @@ export function NotesBoard({
                   onPointerDown={(event) =>
                     startInteraction(event, note, "move")
                   }
-                  className={`absolute flex cursor-default flex-col overflow-hidden rounded-md border text-[#2f2a1f] shadow-[0_12px_24px_rgba(47,42,31,0.13)] transition-[outline-color,box-shadow] hover:outline hover:outline-2 hover:outline-offset-2 hover:outline-[#c8aa52] ${style.paper} ${style.border} ${
-                    isSelected
-                      ? `ring-2 ring-offset-2 ${style.activeBorder}`
-                      : ""
+                  className={`absolute flex cursor-default flex-col overflow-hidden rounded-md border shadow-[0_12px_24px_rgba(47,42,31,0.13)] outline-2 outline-offset-2 transition-[outline-color,box-shadow] hover:outline ${
+                    isSelected ? "outline" : ""
                   }`}
                   style={{
                     left: note.boardX,
@@ -971,26 +1014,60 @@ export function NotesBoard({
                     height: note.boardHeight,
                     zIndex: note.zIndex,
                     touchAction: "none",
+                    backgroundColor: style.paper,
+                    borderColor: style.border,
+                    color: style.text,
+                    outlineColor: style.text,
                   }}
                 >
-                  <div className="min-h-0 flex-1 p-3">
-                    {isSelected && !isInteracting ? (
-                      <textarea
-                        value={note.body}
-                        onChange={(event) =>
-                          updateLocalNote(note.id, { body: event.target.value })
-                        }
-                        onBlur={() => saveNoteBody(note.id)}
-                        onFocus={() => setSelectedNoteId(note.id)}
-                        maxLength={500}
-                        placeholder="Write a note..."
-                        className="h-full w-full cursor-text resize-none border-0 bg-transparent text-sm leading-6 text-[#2f2a1f] outline-none placeholder:text-[#8a7958]"
-                      />
-                    ) : (
-                      <p className="h-full cursor-default whitespace-pre-wrap break-words text-sm leading-6 text-[#2f2a1f]">
-                        {note.body}
-                      </p>
-                    )}
+                  <div className="flex min-h-0 flex-1 flex-col p-3">
+                    <div className="min-h-0 flex-1">
+                      {isSelected && !isInteracting ? (
+                        <textarea
+                          value={note.body}
+                          onChange={(event) =>
+                            updateLocalNote(note.id, {
+                              body: event.target.value,
+                            })
+                          }
+                          onBlur={() => saveNoteBody(note.id)}
+                          onFocus={() => setSelectedNoteId(note.id)}
+                          maxLength={500}
+                          placeholder="Write a note..."
+                          className="h-full w-full cursor-text resize-none border-0 bg-transparent text-sm leading-6 text-current outline-none placeholder:text-current placeholder:opacity-60"
+                        />
+                      ) : (
+                        <p className="h-full cursor-default whitespace-pre-wrap break-words text-sm leading-6">
+                          {note.body}
+                        </p>
+                      )}
+                    </div>
+
+                    {primaryNoteAccount ? (
+                      <div className="mt-3 flex h-7 shrink-0 items-center gap-2 text-xs font-medium">
+                        {primaryNoteAccount.avatarUrl ? (
+                          <span
+                            aria-hidden="true"
+                            className="size-6 shrink-0 rounded-md bg-cover bg-center"
+                            style={{
+                              backgroundImage: `url(${primaryNoteAccount.avatarUrl})`,
+                            }}
+                          />
+                        ) : (
+                          <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-white/55 text-[11px] font-semibold">
+                            {getAccountInitial(primaryNoteAccount)}
+                          </span>
+                        )}
+                        <span className="min-w-0 truncate">
+                          {getAccountTitle(primaryNoteAccount)}
+                        </span>
+                        {extraAccountCount > 0 ? (
+                          <span className="ml-auto shrink-0 rounded bg-white/45 px-1.5 py-0.5 text-[10px]">
+                            +{extraAccountCount}
+                          </span>
+                        ) : null}
+                      </div>
+                    ) : null}
                   </div>
 
                   {isSelected ? (
@@ -1040,13 +1117,16 @@ export function NotesBoard({
             {isComposerOpen ? (
               <form
                 onSubmit={createNote}
-                className={`absolute overflow-hidden rounded-md border text-[#2f2a1f] shadow-[0_12px_24px_rgba(47,42,31,0.13)] ${NOTE_COLORS[draftColor].paper} ${NOTE_COLORS[draftColor].border}`}
+                className="absolute overflow-hidden rounded-md border shadow-[0_12px_24px_rgba(47,42,31,0.13)]"
                 style={{
                   left: composerLayout.boardX,
                   top: composerLayout.boardY,
                   width: composerLayout.boardWidth,
                   height: composerLayout.boardHeight,
                   zIndex: composerLayout.zIndex,
+                  backgroundColor: draftNoteStyle.paper,
+                  borderColor: draftNoteStyle.border,
+                  color: draftNoteStyle.text,
                 }}
               >
                 <button
@@ -1054,7 +1134,7 @@ export function NotesBoard({
                   onClick={() => setIsComposerOpen(false)}
                   title="Cancel"
                   aria-label="Cancel"
-                  className="absolute right-2 top-2 z-10 flex size-8 items-center justify-center rounded-md text-[#6e6046] transition hover:bg-white/45 hover:text-[#2f2a1f]"
+                  className="absolute right-2 top-2 z-10 flex size-8 items-center justify-center rounded-md text-current transition hover:bg-white/45"
                 >
                   <X className="size-4" />
                 </button>
@@ -1065,7 +1145,7 @@ export function NotesBoard({
                   rows={5}
                   autoFocus
                   placeholder="Write a note..."
-                  className="h-full w-full resize-none border-0 bg-transparent px-3 py-3 pb-14 pr-12 text-sm leading-6 text-[#2f2a1f] outline-none placeholder:text-[#8a7958]"
+                  className="h-full w-full resize-none border-0 bg-transparent px-3 py-3 pb-14 pr-12 text-sm leading-6 text-current outline-none placeholder:text-current placeholder:opacity-60"
                 />
                 <button
                   type="submit"

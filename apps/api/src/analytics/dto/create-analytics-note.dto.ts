@@ -11,6 +11,14 @@ import {
 } from 'class-validator';
 
 const ANALYTICS_NOTE_COLORS = [
+  'cream',
+  'sprout',
+  'mint',
+  'sky',
+  'periwinkle',
+  'violet',
+  'rose',
+  'peach',
   'yellow',
   'blue',
   'pink',
