@@ -132,12 +132,7 @@ export type AnalyticsNote = {
   accountId: string | null;
   accountIds: string[];
   body: string;
-  boardX: number;
-  boardY: number;
-  boardWidth: number;
-  boardHeight: number;
   color: string;
-  zIndex: number;
   createdAt: string;
   updatedAt: string;
 };

@@ -177,12 +177,7 @@ type AnalyticsNote = {
   accountId: string | null;
   accountIds: string[];
   body: string;
-  boardX: number;
-  boardY: number;
-  boardWidth: number;
-  boardHeight: number;
   color: string;
-  zIndex: number;
   createdAt: string;
   updatedAt: string;
 };
@@ -388,12 +383,7 @@ const ANALYTICS_NOTE_SELECT = {
   instagramAccountId: true,
   accountIds: true,
   body: true,
-  boardX: true,
-  boardY: true,
-  boardWidth: true,
-  boardHeight: true,
   color: true,
-  zIndex: true,
   createdAt: true,
   updatedAt: true,
 } satisfies Prisma.AnalyticsNoteSelect;
@@ -597,16 +587,7 @@ export class AnalyticsService {
         instagramAccountId: accountId,
         accountIds,
         body,
-        ...(data.boardX !== undefined ? { boardX: data.boardX } : {}),
-        ...(data.boardY !== undefined ? { boardY: data.boardY } : {}),
-        ...(data.boardWidth !== undefined
-          ? { boardWidth: data.boardWidth }
-          : {}),
-        ...(data.boardHeight !== undefined
-          ? { boardHeight: data.boardHeight }
-          : {}),
         ...(data.color !== undefined ? { color: data.color } : {}),
-        ...(data.zIndex !== undefined ? { zIndex: data.zIndex } : {}),
       },
       select: ANALYTICS_NOTE_SELECT,
     });
@@ -648,16 +629,7 @@ export class AnalyticsService {
         ...(body !== undefined ? { body } : {}),
         ...(accountId !== undefined ? { instagramAccountId: accountId } : {}),
         ...(accountIds !== undefined ? { accountIds } : {}),
-        ...(data.boardX !== undefined ? { boardX: data.boardX } : {}),
-        ...(data.boardY !== undefined ? { boardY: data.boardY } : {}),
-        ...(data.boardWidth !== undefined
-          ? { boardWidth: data.boardWidth }
-          : {}),
-        ...(data.boardHeight !== undefined
-          ? { boardHeight: data.boardHeight }
-          : {}),
         ...(data.color !== undefined ? { color: data.color } : {}),
-        ...(data.zIndex !== undefined ? { zIndex: data.zIndex } : {}),
       },
       select: ANALYTICS_NOTE_SELECT,
     });
@@ -1521,12 +1493,7 @@ function mapNote(note: AnalyticsNoteRecord): AnalyticsNote {
           ? [note.instagramAccountId]
           : [],
     body: note.body,
-    boardX: note.boardX,
-    boardY: note.boardY,
-    boardWidth: note.boardWidth,
-    boardHeight: note.boardHeight,
     color: note.color,
-    zIndex: note.zIndex,
     createdAt: note.createdAt.toISOString(),
     updatedAt: note.updatedAt.toISOString(),
   };
