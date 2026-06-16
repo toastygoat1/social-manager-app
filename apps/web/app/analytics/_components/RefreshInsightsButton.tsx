@@ -22,6 +22,10 @@ type RefreshInsightsResponse = {
   errors: { postId: string; title: string; message: string }[];
 };
 
+type RefreshStatus = "idle" | "success" | "partial" | "error";
+
+type RefreshError = RefreshInsightsResponse["errors"][number];
+
 function getApiErrorMessage(error: unknown) {
   if (!(error instanceof ApiError)) return null;
 
@@ -51,6 +55,10 @@ function formatLastUpdated(value: string | null) {
   return `Updated ${Math.floor(diffMs / day)} days ago`;
 }
 
+function formatCount(value: number, label: string) {
+  return `${value} ${label}${value === 1 ? "" : "s"}`;
+}
+
 function buildSuccessMessage(result: RefreshInsightsResponse) {
   if (
     result.refreshed === 0 &&
@@ -61,14 +69,17 @@ function buildSuccessMessage(result: RefreshInsightsResponse) {
   }
 
   if (result.failed > 0) {
-    return `Updated ${result.refreshed}, ${result.failed} failed`;
+    return `Updated ${formatCount(result.refreshed, "post")}`;
   }
 
   if (result.refreshed === 0) {
-    return `Updated ${result.accountSnapshots} account snapshot(s)`;
+    return `Updated ${formatCount(result.accountSnapshots, "account snapshot")}`;
   }
 
-  return `Updated ${result.refreshed} posts and ${result.accountSnapshots} account(s)`;
+  return `Updated ${formatCount(result.refreshed, "post")} and ${formatCount(
+    result.accountSnapshots,
+    "account",
+  )}`;
 }
 
 export function RefreshInsightsButton({
@@ -80,7 +91,10 @@ export function RefreshInsightsButton({
   const router = useRouter();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
+  const [status, setStatus] = useState<RefreshStatus>("idle");
+  const [failedCount, setFailedCount] = useState(0);
+  const [refreshErrors, setRefreshErrors] = useState<RefreshError[]>([]);
+  const [isFailureOpen, setIsFailureOpen] = useState(false);
   const lastUpdatedLabel = useMemo(
     () => formatLastUpdated(lastUpdatedAt),
     [lastUpdatedAt],
@@ -90,6 +104,9 @@ export function RefreshInsightsButton({
     setIsRefreshing(true);
     setMessage(null);
     setStatus("idle");
+    setFailedCount(0);
+    setRefreshErrors([]);
+    setIsFailureOpen(false);
 
     try {
       const result = await apiFetchBrowser<RefreshInsightsResponse>(
@@ -107,8 +124,10 @@ export function RefreshInsightsButton({
         },
       );
 
-      setStatus("success");
+      setStatus(result.failed > 0 ? "partial" : "success");
       setMessage(buildSuccessMessage(result));
+      setFailedCount(result.failed);
+      setRefreshErrors(result.errors);
       router.refresh();
     } catch (error) {
       setStatus("error");
@@ -116,6 +135,9 @@ export function RefreshInsightsButton({
         getApiErrorMessage(error) ??
           "Instagram insights could not be refreshed.",
       );
+      setFailedCount(0);
+      setRefreshErrors([]);
+      setIsFailureOpen(false);
     } finally {
       setIsRefreshing(false);
     }
@@ -124,16 +146,61 @@ export function RefreshInsightsButton({
   const StatusIcon =
     status === "success"
       ? CheckCircle2
-      : status === "error"
+      : status === "partial" || status === "error"
         ? TriangleAlert
         : null;
 
   return (
     <div className="flex shrink-0 items-center gap-3">
-      <div className="hidden min-w-0 flex-col items-end md:flex">
-        <span className="font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
-          {message ?? lastUpdatedLabel}
-        </span>
+      <div className="relative hidden min-w-0 flex-col items-end md:flex">
+        <div className="flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
+          <span>{message ?? lastUpdatedLabel}</span>
+          {failedCount > 0 ? (
+            <>
+              <span>,</span>
+              <button
+                type="button"
+                aria-expanded={isFailureOpen}
+                aria-label="Show failed insight refresh details"
+                onClick={() => setIsFailureOpen((value) => !value)}
+                className="text-danger underline decoration-danger/40 underline-offset-2 transition hover:decoration-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger/30"
+              >
+                {failedCount} failed
+              </button>
+            </>
+          ) : null}
+        </div>
+        {failedCount > 0 && isFailureOpen ? (
+          <div className="absolute right-0 top-6 z-30 w-80 rounded-lg border border-line bg-paper p-2 text-left font-sans text-xs normal-case tracking-normal text-ink shadow-[0_18px_45px_rgba(24,22,18,0.14)]">
+            <div className="border-b border-line px-2 pb-2">
+              <p className="font-semibold text-ink">Failed insights</p>
+              <p className="mt-0.5 text-[11px] leading-4 text-muted">
+                {formatCount(failedCount, "post")} could not be updated.
+              </p>
+            </div>
+            <div className="max-h-56 overflow-y-auto pt-2">
+              {refreshErrors.length > 0 ? (
+                refreshErrors.map((error) => (
+                  <div
+                    key={error.postId}
+                    className="rounded-md px-2 py-2 hover:bg-card"
+                  >
+                    <p className="truncate font-medium text-ink">
+                      {error.title}
+                    </p>
+                    <p className="mt-1 break-words text-[11px] leading-4 text-muted">
+                      {error.message}
+                    </p>
+                  </div>
+                ))
+              ) : (
+                <p className="px-2 py-2 text-[11px] leading-4 text-muted">
+                  Instagram did not return post-level error details.
+                </p>
+              )}
+            </div>
+          </div>
+        ) : null}
       </div>
       {StatusIcon ? (
         <StatusIcon
