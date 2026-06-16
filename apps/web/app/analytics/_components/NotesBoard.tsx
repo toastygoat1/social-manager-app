@@ -26,7 +26,6 @@ type NoteColor =
 type NoteStyle = {
   label: string;
   paper: string;
-  border: string;
   swatch: string;
   text: string;
 };
@@ -46,56 +45,48 @@ const NOTE_COLORS = {
   cream: {
     label: "Cream",
     paper: "#fff6c8",
-    border: "#eadf98",
     swatch: "#fff6c8",
     text: "#84793f",
   },
   sprout: {
     label: "Green",
     paper: "#e0ffc8",
-    border: "#bde59d",
     swatch: "#e0ffc8",
     text: "#5d843f",
   },
   mint: {
     label: "Mint",
     paper: "#c8fff2",
-    border: "#9ee7d8",
     swatch: "#c8fff2",
     text: "#3e8473",
   },
   sky: {
     label: "Sky",
     paper: "#c8f2ff",
-    border: "#9ed9ea",
     swatch: "#c8f2ff",
     text: "#3f7485",
   },
   periwinkle: {
     label: "Blue",
     paper: "#c8dbff",
-    border: "#a6bde8",
     swatch: "#c8dbff",
     text: "#3f5785",
   },
   violet: {
     label: "Violet",
     paper: "#e0c8ff",
-    border: "#c2a4e8",
     swatch: "#e0c8ff",
     text: "#6f3f85",
   },
   rose: {
     label: "Red",
     paper: "#ffc8c8",
-    border: "#e7a2a2",
     swatch: "#ffc8c8",
     text: "#853d3d",
   },
   peach: {
     label: "Peach",
     paper: "#ffe6c8",
-    border: "#e7c49c",
     swatch: "#ffe6c8",
     text: "#86543f",
   },
@@ -131,6 +122,7 @@ const LEGACY_NOTE_COLORS: Record<string, NoteColor> = {
 const DEFAULT_NOTE_COLOR: NoteColor = "cream";
 const BOARD_REFRESH_MS = 6000;
 const BOARD_CHANNEL = "analytics-notes-board";
+const NOTE_ROTATIONS = [-0.9, 0.6, -0.35, 0.95, -0.65, 0.35, 0.75, -0.5];
 
 function getApiErrorMessage(error: unknown) {
   if (!(error instanceof ApiError)) return null;
@@ -188,6 +180,15 @@ function isNoteColor(value: string): value is NoteColor {
 function getNoteColor(value: string) {
   if (isNoteColor(value)) return value;
   return LEGACY_NOTE_COLORS[value] ?? DEFAULT_NOTE_COLOR;
+}
+
+function getNoteRotation(noteId: string) {
+  const rotationIndex = Array.from(noteId).reduce(
+    (total, character) => total + character.charCodeAt(0),
+    0,
+  );
+
+  return NOTE_ROTATIONS[rotationIndex % NOTE_ROTATIONS.length];
 }
 
 function getNoteAccountIds(note: AnalyticsNote | BoardNote) {
@@ -463,19 +464,20 @@ export function NotesBoard({
         </p>
       ) : null}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid auto-rows-[9rem] grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {isComposerOpen ? (
           <form
             onSubmit={createNote}
-            className="flex min-h-36 flex-col rounded-sm border p-4 shadow-[0_6px_12px_rgba(47,42,31,0.12)]"
+            className="flex h-36 flex-col rounded-none p-4 font-medium"
             style={{
               backgroundColor: draftNoteStyle.paper,
-              borderColor: draftNoteStyle.border,
               color: draftNoteStyle.text,
+              filter: "drop-shadow(0 10px 8px rgba(47, 42, 31, 0.24))",
+              transform: "rotate(-0.4deg)",
             }}
           >
             <div className="mb-2 flex items-center justify-between gap-2">
-              <span className="font-mono text-[10px] uppercase tracking-[0.04em] opacity-70">
+              <span className="text-[10px] font-medium uppercase tracking-[0.04em] opacity-70">
                 New note
               </span>
               <button
@@ -494,7 +496,7 @@ export function NotesBoard({
               maxLength={500}
               autoFocus
               placeholder="Write a note..."
-              className="min-h-20 flex-1 resize-none border-0 bg-transparent text-sm leading-6 text-current outline-none placeholder:text-current placeholder:opacity-60"
+              className="min-h-0 flex-1 resize-none overflow-hidden border-0 bg-transparent text-sm font-medium leading-6 text-current outline-none placeholder:text-current placeholder:opacity-60"
             />
             <div className="mt-4 flex items-center justify-between gap-3">
               <NoteAccountFooter
@@ -529,11 +531,12 @@ export function NotesBoard({
           return (
             <article
               key={note.id}
-              className="flex min-h-36 cursor-default flex-col rounded-sm border p-4 shadow-[0_6px_12px_rgba(47,42,31,0.12)] transition-shadow hover:shadow-[0_8px_16px_rgba(47,42,31,0.16)]"
+              className="flex h-36 cursor-default flex-col rounded-none p-4 font-medium"
               style={{
                 backgroundColor: style.paper,
-                borderColor: style.border,
                 color: style.text,
+                filter: "drop-shadow(0 10px 8px rgba(47, 42, 31, 0.24))",
+                transform: `rotate(${getNoteRotation(note.id)}deg)`,
               }}
               onClick={() => setEditingNoteId(note.id)}
             >
@@ -547,10 +550,10 @@ export function NotesBoard({
                     onBlur={() => saveNoteBody(note.id)}
                     maxLength={500}
                     autoFocus
-                    className="h-full min-h-20 w-full resize-none border-0 bg-transparent text-sm leading-6 text-current outline-none"
+                    className="h-full min-h-0 w-full resize-none overflow-hidden border-0 bg-transparent text-sm font-medium leading-6 text-current outline-none"
                   />
                 ) : (
-                  <p className="line-clamp-5 whitespace-pre-wrap break-words text-sm leading-6">
+                  <p className="line-clamp-5 whitespace-pre-wrap break-words text-sm font-medium leading-6">
                     {note.body}
                   </p>
                 )}
