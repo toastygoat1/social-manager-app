@@ -153,7 +153,7 @@ export function RefreshInsightsButton({
   return (
     <div className="flex shrink-0 items-center gap-3">
       <div className="relative hidden min-w-0 flex-col items-end md:flex">
-        <div className="flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
+        <div className="flex items-center gap-1 text-[11px] font-medium text-muted">
           <span>{message ?? lastUpdatedLabel}</span>
           {failedCount > 0 ? (
             <>
@@ -214,7 +214,7 @@ export function RefreshInsightsButton({
         type="button"
         onClick={refreshInsights}
         disabled={disabled || isRefreshing}
-        className="flex h-8 items-center gap-2 rounded-lg border border-line bg-paper px-3 text-xs text-ink transition hover:bg-card disabled:pointer-events-none disabled:opacity-60"
+        className="flex h-9 items-center gap-2 rounded-lg border border-line bg-paper px-3 text-sm font-medium text-ink transition hover:bg-card disabled:pointer-events-none disabled:opacity-60"
       >
         {isRefreshing ? (
           <LoaderCircle className="size-3.5 animate-spin" strokeWidth={2} />
