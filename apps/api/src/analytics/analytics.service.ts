@@ -662,7 +662,7 @@ export class AnalyticsService {
             }
           : {}),
       },
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       take: 20,
       select: ANALYTICS_NOTE_SELECT,
     });

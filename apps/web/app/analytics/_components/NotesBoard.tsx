@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 import { useRouter } from "next/navigation";
 import { LoaderCircle, Plus, StickyNote, X } from "lucide-react";
 import type { Account } from "@/app/dashboard/_components/data";
@@ -123,6 +130,7 @@ const DEFAULT_NOTE_COLOR: NoteColor = "cream";
 const BOARD_REFRESH_MS = 6000;
 const BOARD_CHANNEL = "analytics-notes-board";
 const NOTE_ROTATIONS = [-0.9, 0.6, -0.35, 0.95, -0.65, 0.35, 0.75, -0.5];
+const NOTE_SHADOW = "drop-shadow(0 6px 3px rgba(47, 42, 31, 0.13))";
 
 function getApiErrorMessage(error: unknown) {
   if (!(error instanceof ApiError)) return null;
@@ -191,6 +199,25 @@ function getNoteRotation(noteId: string) {
   return NOTE_ROTATIONS[rotationIndex % NOTE_ROTATIONS.length];
 }
 
+function getNoteRows(body: string) {
+  const estimatedRows = body.split("\n").reduce((totalRows, line) => {
+    return totalRows + Math.max(1, Math.ceil(line.length / 42));
+  }, 0);
+
+  return Math.max(estimatedRows, 4);
+}
+
+function getTimestamp(value: string) {
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function isLocalNoteNewer(localNote: BoardNote, incomingNote: BoardNote) {
+  return (
+    getTimestamp(localNote.updatedAt) > getTimestamp(incomingNote.updatedAt)
+  );
+}
+
 function getNoteAccountIds(note: AnalyticsNote | BoardNote) {
   const accountIds = Array.isArray(note.accountIds) ? note.accountIds : [];
 
@@ -230,11 +257,11 @@ function NoteAccountFooter({
       {account.avatarUrl ? (
         <span
           aria-hidden="true"
-          className="size-6 shrink-0 rounded bg-cover bg-center"
+          className="size-6 shrink-0 rounded-full bg-cover bg-center"
           style={{ backgroundImage: `url(${account.avatarUrl})` }}
         />
       ) : (
-        <span className="flex size-6 shrink-0 items-center justify-center rounded bg-white/55 text-[11px] font-semibold">
+        <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-white/55 text-[11px] font-semibold">
           {getAccountInitial(account)}
         </span>
       )}
@@ -275,6 +302,9 @@ export function NotesBoard({
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const broadcastRef = useRef<BroadcastChannel | null>(null);
+  const isDraftingRef = useRef(false);
+  const locallyCreatedNoteIdsRef = useRef<Set<string>>(new Set());
+  const selectedAccountIdRef = useRef(selectedAccountId);
   const draftAccount = draftAccountId
     ? (accountById.get(draftAccountId) ?? null)
     : null;
@@ -283,8 +313,62 @@ export function NotesBoard({
   const canCreate = Boolean(draft.trim());
 
   useEffect(() => {
-    setBoardNotes(normalizedNotes);
-  }, [normalizedNotes]);
+    setBoardNotes((currentNotes) => {
+      const accountFilterChanged =
+        selectedAccountIdRef.current !== selectedAccountId;
+      selectedAccountIdRef.current = selectedAccountId;
+
+      if (accountFilterChanged) {
+        locallyCreatedNoteIdsRef.current.clear();
+        return normalizedNotes;
+      }
+
+      if (pendingAction !== null || isComposerOpen) return currentNotes;
+
+      const currentNoteById = new Map(
+        currentNotes.map((note) => [note.id, note]),
+      );
+      const incomingNoteIds = new Set(normalizedNotes.map((note) => note.id));
+
+      normalizedNotes.forEach((note) => {
+        locallyCreatedNoteIdsRef.current.delete(note.id);
+      });
+
+      const mergedNotes = normalizedNotes.map((note) => {
+        const localNote = currentNoteById.get(note.id);
+
+        if (
+          localNote &&
+          (note.id === editingNoteId || isLocalNoteNewer(localNote, note))
+        ) {
+          return localNote;
+        }
+
+        return note;
+      });
+
+      const localOnlyNotes = currentNotes.filter((note) => {
+        return (
+          !incomingNoteIds.has(note.id) &&
+          (note.id === editingNoteId ||
+            locallyCreatedNoteIdsRef.current.has(note.id))
+        );
+      });
+
+      return [...mergedNotes, ...localOnlyNotes];
+    });
+  }, [
+    editingNoteId,
+    isComposerOpen,
+    normalizedNotes,
+    pendingAction,
+    selectedAccountId,
+  ]);
+
+  useEffect(() => {
+    isDraftingRef.current =
+      Boolean(editingNoteId) || isComposerOpen || pendingAction !== null;
+  }, [editingNoteId, isComposerOpen, pendingAction]);
 
   useEffect(() => {
     setDraftAccountId(getDefaultDraftAccountId(accounts, selectedAccountId));
@@ -304,7 +388,9 @@ export function NotesBoard({
 
     const channel = new BroadcastChannel(BOARD_CHANNEL);
     broadcastRef.current = channel;
-    channel.onmessage = () => router.refresh();
+    channel.onmessage = () => {
+      if (!isDraftingRef.current) router.refresh();
+    };
 
     return () => {
       channel.close();
@@ -314,13 +400,30 @@ export function NotesBoard({
 
   useEffect(() => {
     const refreshId = window.setInterval(() => {
-      if (document.visibilityState === "visible" && pendingAction === null) {
+      if (
+        document.visibilityState === "visible" &&
+        pendingAction === null &&
+        !isDraftingRef.current
+      ) {
         router.refresh();
       }
     }, BOARD_REFRESH_MS);
 
     return () => window.clearInterval(refreshId);
   }, [pendingAction, router]);
+
+  const focusTextAreaAtEnd = useCallback(
+    (element: HTMLTextAreaElement | null) => {
+      if (!element) return;
+
+      window.requestAnimationFrame(() => {
+        element.focus();
+        const end = element.value.length;
+        element.setSelectionRange(end, end);
+      });
+    },
+    [],
+  );
 
   function notifyBoardChange() {
     broadcastRef.current?.postMessage({ at: Date.now(), type: "changed" });
@@ -395,9 +498,10 @@ export function NotesBoard({
       );
 
       setBoardNotes((currentNotes) => [
-        normalizeNote(createdNote),
         ...currentNotes,
+        normalizeNote(createdNote),
       ]);
+      locallyCreatedNoteIdsRef.current.add(createdNote.id);
       setEditingNoteId(createdNote.id);
       setDraft("");
       setIsComposerOpen(false);
@@ -412,19 +516,30 @@ export function NotesBoard({
     }
   }
 
-  function saveNoteBody(noteId: string) {
+  async function saveNoteBody(noteId: string) {
     const note = boardNotes.find((boardNote) => boardNote.id === noteId);
     const body = note?.body.trim();
 
     if (!note || !body) {
       setError("Note cannot be empty.");
-      router.refresh();
       return;
     }
 
     setError(null);
-    setEditingNoteId(null);
-    void patchNote(noteId, { body }, "Note could not be updated.");
+    setPendingAction(`update:${noteId}`);
+
+    const saved = await patchNote(
+      noteId,
+      { body },
+      "Note could not be updated.",
+    );
+
+    if (saved) {
+      setEditingNoteId((currentNoteId) =>
+        currentNoteId === noteId ? null : currentNoteId,
+      );
+    }
+    setPendingAction(null);
   }
 
   return (
@@ -445,16 +560,6 @@ export function NotesBoard({
           <span className="font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
             {boardNotes.length} saved
           </span>
-          <button
-            type="button"
-            onClick={openComposer}
-            disabled={isComposerOpen}
-            title="Add note"
-            aria-label="Add note"
-            className="flex size-9 items-center justify-center rounded-md border border-line bg-card text-ink transition hover:border-[#d8d6cf] hover:bg-white disabled:pointer-events-none disabled:opacity-60"
-          >
-            <Plus className="size-4" strokeWidth={1.8} />
-          </button>
         </div>
       </header>
 
@@ -464,15 +569,61 @@ export function NotesBoard({
         </p>
       ) : null}
 
-      <div className="grid auto-rows-[9rem] grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {boardNotes.map((note) => {
+          const style = NOTE_COLORS[note.color];
+          const noteAccounts = getNoteAccounts(note, accountById);
+          const primaryNoteAccount = noteAccounts[0] ?? null;
+          const extraAccountCount = Math.max(0, noteAccounts.length - 1);
+          const isEditing = editingNoteId === note.id;
+
+          return (
+            <article
+              key={note.id}
+              className="flex min-h-36 w-full cursor-default flex-col rounded-none p-4 font-medium"
+              style={{
+                backgroundColor: style.paper,
+                color: style.text,
+                filter: NOTE_SHADOW,
+                transform: `rotate(${getNoteRotation(note.id)}deg)`,
+              }}
+              onClick={() => setEditingNoteId(note.id)}
+            >
+              <div className="min-h-0 flex-1">
+                {isEditing ? (
+                  <textarea
+                    ref={focusTextAreaAtEnd}
+                    value={note.body}
+                    onChange={(event) =>
+                      updateLocalNote(note.id, { body: event.target.value })
+                    }
+                    onBlur={() => void saveNoteBody(note.id)}
+                    maxLength={500}
+                    rows={getNoteRows(note.body)}
+                    className="block min-h-20 w-full resize-none overflow-hidden border-0 bg-transparent p-0 text-sm font-medium leading-6 text-current outline-none"
+                  />
+                ) : (
+                  <p className="whitespace-pre-wrap break-words text-sm font-medium leading-6">
+                    {note.body}
+                  </p>
+                )}
+              </div>
+              <NoteAccountFooter
+                account={primaryNoteAccount}
+                extraCount={extraAccountCount}
+              />
+            </article>
+          );
+        })}
+
         {isComposerOpen ? (
           <form
             onSubmit={createNote}
-            className="flex h-36 flex-col rounded-none p-4 font-medium"
+            className="flex min-h-36 w-full flex-col rounded-none p-4 font-medium"
             style={{
               backgroundColor: draftNoteStyle.paper,
               color: draftNoteStyle.text,
-              filter: "drop-shadow(0 10px 8px rgba(47, 42, 31, 0.24))",
+              filter: NOTE_SHADOW,
               transform: "rotate(-0.4deg)",
             }}
           >
@@ -495,8 +646,9 @@ export function NotesBoard({
               onChange={(event) => setDraft(event.target.value)}
               maxLength={500}
               autoFocus
+              rows={getNoteRows(draft)}
               placeholder="Write a note..."
-              className="min-h-0 flex-1 resize-none overflow-hidden border-0 bg-transparent text-sm font-medium leading-6 text-current outline-none placeholder:text-current placeholder:opacity-60"
+              className="block min-h-20 flex-1 resize-none overflow-hidden border-0 bg-transparent p-0 text-sm font-medium leading-6 text-current outline-none placeholder:text-current placeholder:opacity-60"
             />
             <div className="mt-4 flex items-center justify-between gap-3">
               <NoteAccountFooter
@@ -519,52 +671,18 @@ export function NotesBoard({
               </button>
             </div>
           </form>
-        ) : null}
-
-        {boardNotes.map((note) => {
-          const style = NOTE_COLORS[note.color];
-          const noteAccounts = getNoteAccounts(note, accountById);
-          const primaryNoteAccount = noteAccounts[0] ?? null;
-          const extraAccountCount = Math.max(0, noteAccounts.length - 1);
-          const isEditing = editingNoteId === note.id;
-
-          return (
-            <article
-              key={note.id}
-              className="flex h-36 cursor-default flex-col rounded-none p-4 font-medium"
-              style={{
-                backgroundColor: style.paper,
-                color: style.text,
-                filter: "drop-shadow(0 10px 8px rgba(47, 42, 31, 0.24))",
-                transform: `rotate(${getNoteRotation(note.id)}deg)`,
-              }}
-              onClick={() => setEditingNoteId(note.id)}
-            >
-              <div className="min-h-0 flex-1">
-                {isEditing ? (
-                  <textarea
-                    value={note.body}
-                    onChange={(event) =>
-                      updateLocalNote(note.id, { body: event.target.value })
-                    }
-                    onBlur={() => saveNoteBody(note.id)}
-                    maxLength={500}
-                    autoFocus
-                    className="h-full min-h-0 w-full resize-none overflow-hidden border-0 bg-transparent text-sm font-medium leading-6 text-current outline-none"
-                  />
-                ) : (
-                  <p className="line-clamp-5 whitespace-pre-wrap break-words text-sm font-medium leading-6">
-                    {note.body}
-                  </p>
-                )}
-              </div>
-              <NoteAccountFooter
-                account={primaryNoteAccount}
-                extraCount={extraAccountCount}
-              />
-            </article>
-          );
-        })}
+        ) : (
+          <button
+            type="button"
+            onClick={openComposer}
+            title="Add note"
+            aria-label="Add note"
+            className="flex min-h-36 w-full flex-col items-center justify-center gap-2 rounded-none border border-dashed border-[#d8d0a8] bg-transparent p-4 text-sm font-medium text-muted transition hover:border-[#bfb48a] hover:text-ink"
+          >
+            <Plus className="size-5" strokeWidth={1.7} />
+            <span>Add note</span>
+          </button>
+        )}
       </div>
     </section>
   );
