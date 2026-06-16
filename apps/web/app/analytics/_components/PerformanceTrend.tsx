@@ -1,14 +1,27 @@
 "use client";
 
+import { Eye, Heart, MessageCircle, Radio } from "lucide-react";
 import { useState } from "react";
 import { formatNumber } from "@/lib/format";
 import type { PerformanceMetric, PerformancePoint } from "./data";
 
-const METRICS: { id: PerformanceMetric; label: string }[] = [
-  { id: "views", label: "Views" },
-  { id: "reach", label: "Reach" },
-  { id: "interactions", label: "Interactions" },
-  { id: "likes", label: "Likes" },
+type MetricOption = {
+  id: PerformanceMetric;
+  label: string;
+  Icon: typeof Eye;
+  tone: string;
+};
+
+const METRICS: MetricOption[] = [
+  { id: "views", label: "Views", Icon: Eye, tone: "text-[var(--chart-2)]" },
+  { id: "reach", label: "Reach", Icon: Radio, tone: "text-muted" },
+  {
+    id: "interactions",
+    label: "Interactions",
+    Icon: MessageCircle,
+    tone: "text-[var(--chart-3)]",
+  },
+  { id: "likes", label: "Likes", Icon: Heart, tone: "text-[var(--danger)]" },
 ];
 
 function getInitialMetric(points: PerformancePoint[]) {
@@ -72,21 +85,28 @@ export function PerformanceTrend({
           </p>
         ) : null}
       </header>
-      <div className="flex flex-wrap gap-1 rounded-lg bg-card p-1">
-        {METRICS.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => setMetric(item.id)}
-            className={`rounded-md px-3 py-1.5 text-xs transition ${
-              metric === item.id
-                ? "border border-line bg-paper text-ink"
-                : "border border-transparent text-muted hover:text-ink"
-            }`}
-          >
-            {item.label}
-          </button>
-        ))}
+      <div
+        className="-ml-1 flex flex-wrap items-center gap-x-4 gap-y-2"
+        aria-label="Performance metric"
+      >
+        {METRICS.map(({ id, label, Icon, tone }) => {
+          const isActive = metric === id;
+
+          return (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setMetric(id)}
+              aria-pressed={isActive}
+              className={`inline-flex min-w-0 items-center gap-1.5 rounded-sm px-1 py-0.5 text-xs font-medium transition-opacity hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5e6ad2] ${
+                isActive ? "text-ink" : "text-muted"
+              }`}
+            >
+              <Icon className={`size-3.5 shrink-0 ${tone}`} strokeWidth={2} />
+              <span className="truncate">{label}</span>
+            </button>
+          );
+        })}
       </div>
       {points.length === 0 ? (
         <div className="flex h-44 items-center justify-center rounded-lg bg-card text-sm text-muted">

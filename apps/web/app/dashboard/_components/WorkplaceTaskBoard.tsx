@@ -16,13 +16,14 @@ import {
   ChevronRight,
   Pencil,
   Plus,
+  Search,
   Trash2,
+  UserPlus,
 } from "lucide-react";
 import {
   DateTimePickerPopover,
   formatLocalDateTimeDisplay,
   getFloatingAnchorRect,
-  getFloatingPopoverPosition,
   type FloatingAnchorRect,
 } from "@/app/_components/DateTimePickerPopover";
 import { apiFetchBrowser } from "@/lib/api/browser-client";
@@ -62,6 +63,13 @@ type WorkplaceTaskBoardProps = {
   accounts: Account[];
 };
 
+type AssigneeOption = {
+  id: string;
+  name: string;
+  initials: string;
+  color: string;
+};
+
 type WorkspaceFoldersResponse = {
   folders: Workspace[];
 };
@@ -84,10 +92,11 @@ const EMPTY_SELECTED_WORKSPACE_ID = "";
 const EMPTY_TASKS: WorkplaceTask[] = [];
 const CALENDAR_WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const FOLDER_BACK_FILL = "#424242";
+const FOLDER_FACE_FILL = "#ffffff";
 const FOLDER_FACE_PATH =
   "M0 95.5C0 86.6634 7.16344 79.5 16 79.5H130.4C136.309 79.5 141.737 82.7568 144.518 87.9706L152.612 103.147C154.697 107.057 158.768 109.5 163.2 109.5H321C329.837 109.5 337 116.663 337 125.5V167C337 175.837 329.837 183 321 183H16C7.16344 183 0 175.837 0 167V95.5Z";
 const FOLDER_COLOR_OPTIONS = [
-  FOLDER_BACK_FILL,
+  FOLDER_FACE_FILL,
   "#fb858b",
   "#89a7ff",
   "#7fc8b8",
@@ -95,6 +104,14 @@ const FOLDER_COLOR_OPTIONS = [
   "#d4a547",
 ];
 const ROW_NUMBER_COLUMN_WIDTH = 44;
+const ASSIGNEE_COLORS = [
+  "#5e6ad2",
+  "#3c9d74",
+  "#6d5dfc",
+  "#6b7280",
+  "#a855f7",
+  "#0ea5e9",
+];
 
 const TASK_COLUMNS = [
   { label: "Task Name", width: 240 },
@@ -247,7 +264,27 @@ function getValidBannerColor(value: string | null | undefined, fallback: string)
 }
 
 function getFolderColor(workspace: Workspace) {
-  return getValidBannerColor(workspace.bannerColor, FOLDER_BACK_FILL);
+  return getValidBannerColor(workspace.bannerColor, FOLDER_FACE_FILL);
+}
+
+function getStableIndex(value: string, modulo: number) {
+  let hash = 0;
+
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
+  }
+
+  return hash % modulo;
+}
+
+function getReadableTextColor(color: string) {
+  const normalizedColor = getValidBannerColor(color, FOLDER_FACE_FILL);
+  const red = Number.parseInt(normalizedColor.slice(1, 3), 16);
+  const green = Number.parseInt(normalizedColor.slice(3, 5), 16);
+  const blue = Number.parseInt(normalizedColor.slice(5, 7), 16);
+  const luminance = (0.299 * red + 0.587 * green + 0.114 * blue) / 255;
+
+  return luminance > 0.68 ? "#171717" : "#ffffff";
 }
 
 function getFirstDeadlineDate(tasks: WorkplaceTask[]) {
@@ -277,6 +314,52 @@ function getAccountInitials(account: Account | null) {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase())
     .join("");
+}
+
+function getPersonInitials(name: string) {
+  return name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("");
+}
+
+function makeAssigneeOption(name: string): AssigneeOption {
+  const normalizedName = name.trim();
+
+  return {
+    id: normalizedName.toLowerCase(),
+    name: normalizedName,
+    initials: getPersonInitials(normalizedName) || "?",
+    color: ASSIGNEE_COLORS[
+      getStableIndex(normalizedName.toLowerCase(), ASSIGNEE_COLORS.length)
+    ],
+  };
+}
+
+function buildAssigneeOptions(
+  workspaces: Workspace[],
+  manualAssignees: string[],
+) {
+  const assigneeNames = new Map<string, string>();
+
+  for (const assignee of manualAssignees) {
+    const trimmed = assignee.trim();
+    if (trimmed) assigneeNames.set(trimmed.toLowerCase(), trimmed);
+  }
+
+  for (const workspace of workspaces) {
+    for (const task of workspace.tasks) {
+      const trimmed = task.assignee.trim();
+      if (trimmed) assigneeNames.set(trimmed.toLowerCase(), trimmed);
+    }
+  }
+
+  return Array.from(assigneeNames.values())
+    .sort((a, b) => a.localeCompare(b))
+    .map(makeAssigneeOption);
 }
 
 function getTaskAccountIds(task: WorkplaceTask) {
@@ -333,7 +416,7 @@ function RowSelectCell({
           className={`transition ${
             selected
               ? "opacity-0"
-              : "opacity-100 group-hover/row:opacity-0 group-focus-within/row:opacity-0"
+              : "opacity-100 group-hover/row:opacity-0"
           }`}
         >
           {rowNumber}
@@ -342,7 +425,7 @@ function RowSelectCell({
           className={`absolute flex size-4 items-center justify-center rounded-[4px] border border-line bg-paper transition ${
             selected
               ? "opacity-100"
-              : "opacity-0 group-hover/row:opacity-100 group-focus-within/row:opacity-100"
+              : "opacity-0 group-hover/row:opacity-100"
           }`}
         >
           {selected ? <Check className="size-3" strokeWidth={2.2} /> : null}
@@ -542,20 +625,15 @@ function AccountSelect({
   const selectedAccounts = accountIds
     .map((accountId) => accountById.get(accountId))
     .filter((account): account is Account => Boolean(account));
-  const menuPosition = menuAnchorRect
-    ? getFloatingPopoverPosition(menuAnchorRect, 240, 260)
-    : null;
   const label = selectedAccounts.length
     ? selectedAccounts.length === 1
       ? getAccountLabel(selectedAccounts[0])
       : `${getAccountLabel(selectedAccounts[0])} +${selectedAccounts.length - 1}`
-    : accounts.length === 0
-      ? "No connected accounts"
-      : "Select account";
+    : "";
   const title =
     selectedAccounts.length > 0
       ? selectedAccounts.map((account) => getAccountLabel(account)).join(", ")
-      : label;
+      : "No account";
 
   function clearAccounts() {
     onChange([]);
@@ -588,11 +666,15 @@ function AccountSelect({
         className="flex w-full items-center gap-2 bg-transparent px-2 py-1.5 text-left text-xs text-ink outline-none transition hover:text-ink focus:text-ink disabled:text-muted"
         title={title}
       >
-        <AccountAvatarStack accounts={selectedAccounts} />
-        <span className="min-w-0 flex-1 truncate">{label}</span>
+        {selectedAccounts.length > 0 ? (
+          <>
+            <AccountAvatarStack accounts={selectedAccounts} />
+            <span className="min-w-0 flex-1 truncate">{label}</span>
+          </>
+        ) : null}
       </button>
 
-      {menuAnchorRect && menuPosition && typeof document !== "undefined"
+      {menuAnchorRect && typeof document !== "undefined"
         ? createPortal(
             <div
               className="fixed inset-0 z-[9999]"
@@ -603,10 +685,10 @@ function AccountSelect({
             >
               <div
                 role="listbox"
-                className="absolute max-h-44 overflow-y-auto rounded-lg border border-line bg-paper p-1 shadow-xl"
+                className="absolute max-h-44 overflow-y-auto border border-line bg-paper p-1 shadow-xl"
                 style={{
-                  left: menuPosition.left,
-                  top: menuPosition.top,
+                  left: menuAnchorRect.left,
+                  top: menuAnchorRect.top,
                   width: Math.max(240, menuAnchorRect.width),
                 }}
                 onMouseDown={(event) => event.stopPropagation()}
@@ -648,6 +730,167 @@ function AccountSelect({
                     </button>
                   );
                 })}
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
+    </>
+  );
+}
+
+function AssigneeAvatar({ assignee }: { assignee: AssigneeOption }) {
+  return (
+    <span
+      className="flex size-7 shrink-0 items-center justify-center rounded-full border border-paper text-[10px] font-semibold text-white"
+      style={{ backgroundColor: assignee.color }}
+    >
+      {assignee.initials}
+    </span>
+  );
+}
+
+function AssigneeSelect({
+  value,
+  assignees,
+  onChange,
+  onCreate,
+}: {
+  value: string;
+  assignees: AssigneeOption[];
+  onChange: (value: string) => void;
+  onCreate: (value: string) => void;
+}) {
+  const [menuAnchorRect, setMenuAnchorRect] =
+    useState<FloatingAnchorRect | null>(null);
+  const [query, setQuery] = useState("");
+  const selectedAssignee =
+    assignees.find(
+      (assignee) => assignee.name.toLowerCase() === value.trim().toLowerCase(),
+    ) ?? (value.trim() ? makeAssigneeOption(value) : null);
+  const normalizedQuery = query.trim().toLowerCase();
+  const filteredAssignees = assignees.filter((assignee) =>
+    assignee.name.toLowerCase().includes(normalizedQuery),
+  );
+  const canCreate =
+    query.trim().length > 0 &&
+    !assignees.some(
+      (assignee) => assignee.name.toLowerCase() === normalizedQuery,
+    );
+
+  function closeMenu() {
+    setMenuAnchorRect(null);
+    setQuery("");
+  }
+
+  function selectAssignee(name: string) {
+    onChange(name);
+    closeMenu();
+  }
+
+  function createAndSelectAssignee() {
+    const name = query.trim();
+    if (!name) return;
+
+    onCreate(name);
+    selectAssignee(name);
+  }
+
+  function toggleAssigneeMenu(trigger: HTMLElement) {
+    setMenuAnchorRect((current) =>
+      current ? null : getFloatingAnchorRect(trigger),
+    );
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        aria-label="Assignee"
+        aria-expanded={Boolean(menuAnchorRect)}
+        aria-haspopup="listbox"
+        onClick={(event) => toggleAssigneeMenu(event.currentTarget)}
+        className="flex w-full items-center gap-2 bg-transparent px-2 py-1.5 text-left text-xs text-ink outline-none transition hover:text-ink focus:text-ink"
+        title={selectedAssignee?.name}
+      >
+        {selectedAssignee ? <AssigneeAvatar assignee={selectedAssignee} /> : null}
+        <span className="min-w-0 flex-1 truncate">
+          {selectedAssignee?.name ?? ""}
+        </span>
+      </button>
+
+      {menuAnchorRect && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[9999]"
+              onKeyDown={(event) => {
+                if (event.key === "Escape") closeMenu();
+              }}
+              onMouseDown={closeMenu}
+            >
+              <div
+                role="listbox"
+                className="absolute max-h-[344px] overflow-hidden border border-line bg-paper shadow-xl"
+                style={{
+                  left: menuAnchorRect.left,
+                  top: menuAnchorRect.top,
+                  width: Math.max(280, menuAnchorRect.width),
+                }}
+                onMouseDown={(event) => event.stopPropagation()}
+              >
+                <div className="flex h-12 items-center gap-2 border-b border-line px-3">
+                  <Search className="size-4 text-muted" strokeWidth={1.8} />
+                  <input
+                    aria-label="Search assignees"
+                    autoFocus
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" && canCreate) {
+                        createAndSelectAssignee();
+                      }
+                    }}
+                    placeholder="Search or enter email..."
+                    className="min-w-0 flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-muted"
+                  />
+                </div>
+                <div className="max-h-[292px] overflow-y-auto py-2">
+                  <p className="px-4 pb-2 text-xs font-medium text-muted">
+                    Assignees
+                  </p>
+                  {filteredAssignees.map((assignee) => (
+                    <button
+                      key={assignee.id}
+                      type="button"
+                      role="option"
+                      aria-selected={
+                        selectedAssignee?.name.toLowerCase() ===
+                        assignee.name.toLowerCase()
+                      }
+                      onClick={() => selectAssignee(assignee.name)}
+                      className="flex w-full items-center gap-3 px-3 py-1.5 text-left text-sm text-ink transition hover:bg-card"
+                    >
+                      <AssigneeAvatar assignee={assignee} />
+                      <span className="min-w-0 flex-1 truncate">
+                        {assignee.name}
+                      </span>
+                    </button>
+                  ))}
+                  {canCreate ? (
+                    <button
+                      type="button"
+                      onClick={createAndSelectAssignee}
+                      className="mt-1 flex w-full items-center gap-3 px-3 py-1.5 text-left text-sm text-ink transition hover:bg-card"
+                    >
+                      <span className="flex size-7 items-center justify-center rounded-full border border-line text-muted">
+                        <UserPlus className="size-3.5" strokeWidth={1.8} />
+                      </span>
+                      <span className="min-w-0 flex-1 truncate">
+                        {query.trim()}
+                      </span>
+                    </button>
+                  ) : null}
+                </div>
               </div>
             </div>,
             document.body,
@@ -709,7 +952,7 @@ function FolderCover({
 }) {
   const isBanner = variant === "banner";
   const title = workspace.name.trim() || "Folder";
-  const topColor = getFolderColor(workspace);
+  const folderColor = getFolderColor(workspace);
 
   return (
     <span
@@ -743,14 +986,14 @@ function FolderCover({
           width="333"
           height="142"
           rx="14"
-          fill={workspace.bannerImageUrl ? "transparent" : topColor}
+          fill={workspace.bannerImageUrl ? "transparent" : FOLDER_BACK_FILL}
           stroke="white"
           strokeWidth="4"
           vectorEffect="non-scaling-stroke"
         />
         <path
           d={FOLDER_FACE_PATH}
-          fill="white"
+          fill={folderColor}
         />
       </svg>
 
@@ -1005,11 +1248,12 @@ function WorkspaceBanner({
 }) {
   const title = workspace.name.trim() || "Folder";
   const bannerColor = getFolderColor(workspace);
+  const bannerTextColor = getReadableTextColor(bannerColor);
 
   return (
-    <section className="group/banner relative border-b border-line bg-paper px-4 py-4 sm:px-5">
+    <section className="group/banner relative border-b border-line bg-paper">
       <div
-        className="relative flex h-[236px] items-center justify-center overflow-hidden rounded-[18px] sm:h-[256px]"
+        className="relative flex h-[236px] items-center justify-center overflow-hidden sm:h-[256px]"
         style={{ backgroundColor: bannerColor }}
       >
         {workspace.bannerImageUrl ? (
@@ -1022,7 +1266,10 @@ function WorkspaceBanner({
             className="absolute inset-0 h-full w-full object-cover"
           />
         ) : (
-          <h2 className="relative z-10 max-w-[82%] truncate text-center font-inter text-[38px] font-medium leading-none text-white sm:text-[48px] md:text-[58px]">
+          <h2
+            className="relative z-10 max-w-[82%] truncate text-center font-inter text-[38px] font-medium leading-none sm:text-[48px] md:text-[58px]"
+            style={{ color: bannerTextColor }}
+          >
             {title}
           </h2>
         )}
@@ -1030,7 +1277,7 @@ function WorkspaceBanner({
       <label
         title={uploading ? "Uploading banner" : "Edit banner"}
         aria-label={uploading ? "Uploading banner" : "Edit banner"}
-        className={`absolute right-8 top-8 z-20 flex size-9 cursor-pointer items-center justify-center rounded-full border border-line bg-paper/95 text-ink opacity-0 shadow-sm transition hover:bg-card group-hover/banner:opacity-100 group-focus-within/banner:opacity-100 ${
+        className={`absolute right-3 top-3 z-20 flex size-9 cursor-pointer items-center justify-center rounded-full border border-line bg-paper/95 text-ink opacity-0 shadow-sm transition hover:bg-card group-hover/banner:opacity-100 group-focus-within/banner:opacity-100 ${
           uploading ? "pointer-events-none opacity-60" : ""
         }`}
       >
@@ -1244,16 +1491,20 @@ function TaskRow({
   rowNumber,
   selected,
   accounts,
+  assignees,
   workspaceId,
   onToggleSelected,
+  onCreateAssignee,
   onUpdate,
 }: {
   task: WorkplaceTask;
   rowNumber: number;
   selected: boolean;
   accounts: Account[];
+  assignees: AssigneeOption[];
   workspaceId: string;
   onToggleSelected: () => void;
+  onCreateAssignee: (value: string) => void;
   onUpdate: <K extends EditableTaskField>(
     workspaceId: string,
     taskId: string,
@@ -1284,11 +1535,11 @@ function TaskRow({
         />
       </TaskCell>
       <TaskCell width={135} className="items-center">
-        <EditableTextCell
-          ariaLabel="Assignee"
+        <AssigneeSelect
           value={task.assignee}
+          assignees={assignees}
           onChange={(value) => onUpdate(workspaceId, task.id, "assignee", value)}
-          muted
+          onCreate={onCreateAssignee}
         />
       </TaskCell>
       <TaskCell width={115} className="items-center">
@@ -1372,11 +1623,17 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(
     () => new Set(),
   );
+  const [manualAssignees, setManualAssignees] = useState<string[]>([]);
+  const [newAssigneeName, setNewAssigneeName] = useState("");
   const selectedWorkspace =
     workspaces.find((workspace) => workspace.id === selectedWorkspaceId) ??
     workspaces[0] ??
     null;
   const selectedTasks = selectedWorkspace?.tasks ?? EMPTY_TASKS;
+  const assigneeOptions = useMemo(
+    () => buildAssigneeOptions(workspaces, manualAssignees),
+    [manualAssignees, workspaces],
+  );
   const selectedVisibleTaskIds = selectedTasks
     .filter((task) => selectedTaskIds.has(task.id))
     .map((task) => task.id);
@@ -1599,6 +1856,28 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
 
       return new Set(selectedTasks.map((task) => task.id));
     });
+  }
+
+  function addAssigneeName(name: string) {
+    const trimmedName = name.trim();
+    if (!trimmedName) return;
+
+    setManualAssignees((currentAssignees) => {
+      if (
+        currentAssignees.some(
+          (assignee) => assignee.toLowerCase() === trimmedName.toLowerCase(),
+        )
+      ) {
+        return currentAssignees;
+      }
+
+      return [...currentAssignees, trimmedName];
+    });
+  }
+
+  function submitNewAssignee() {
+    addAssigneeName(newAssigneeName);
+    setNewAssigneeName("");
   }
 
   async function updateFolderColor(workspaceId: string, color: string) {
@@ -1835,6 +2114,38 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
           <p className="mt-1 text-xs text-muted">
             {workspaces.length} folders
           </p>
+          <div className="mt-3 flex items-center gap-1.5">
+            <input
+              aria-label="Add assignee"
+              value={newAssigneeName}
+              onChange={(event) => setNewAssigneeName(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") submitNewAssignee();
+              }}
+              placeholder="Add assignee"
+              className="h-8 min-w-0 flex-1 rounded-md border border-line bg-paper px-2 text-xs text-ink outline-none transition placeholder:text-muted focus:border-ink"
+            />
+            <button
+              type="button"
+              aria-label="Add assignee"
+              onClick={submitNewAssignee}
+              className="flex size-8 shrink-0 items-center justify-center rounded-md border border-line text-muted transition hover:border-ink hover:text-ink"
+            >
+              <UserPlus className="size-4" strokeWidth={1.8} />
+            </button>
+          </div>
+          {assigneeOptions.length > 0 ? (
+            <div className="mt-2 flex min-w-0 items-center -space-x-1.5">
+              {assigneeOptions.slice(0, 5).map((assignee) => (
+                <AssigneeAvatar key={assignee.id} assignee={assignee} />
+              ))}
+              {assigneeOptions.length > 5 ? (
+                <span className="flex size-7 items-center justify-center rounded-full border border-paper bg-card text-[10px] font-semibold text-muted">
+                  +{assigneeOptions.length - 5}
+                </span>
+              ) : null}
+            </div>
+          ) : null}
         </div>
 
         <div
@@ -1959,8 +2270,10 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
                         rowNumber={index + 1}
                         selected={selectedTaskIds.has(task.id)}
                         accounts={accounts}
+                        assignees={assigneeOptions}
                         workspaceId={selectedWorkspace.id}
                         onToggleSelected={() => toggleTaskSelection(task.id)}
+                        onCreateAssignee={addAssigneeName}
                         onUpdate={updateTask}
                       />
                     ))
