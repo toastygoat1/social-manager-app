@@ -5,7 +5,6 @@ import {
   useEffect,
   useMemo,
   useState,
-  type CSSProperties,
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
@@ -17,6 +16,7 @@ import {
   ChevronRight,
   Pencil,
   Plus,
+  Trash2,
 } from "lucide-react";
 import {
   DateTimePickerPopover,
@@ -86,6 +86,15 @@ const CALENDAR_WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const FOLDER_BACK_FILL = "#424242";
 const FOLDER_FACE_PATH =
   "M0 95.5C0 86.6634 7.16344 79.5 16 79.5H130.4C136.309 79.5 141.737 82.7568 144.518 87.9706L152.612 103.147C154.697 107.057 158.768 109.5 163.2 109.5H321C329.837 109.5 337 116.663 337 125.5V167C337 175.837 329.837 183 321 183H16C7.16344 183 0 175.837 0 167V95.5Z";
+const FOLDER_COLOR_OPTIONS = [
+  FOLDER_BACK_FILL,
+  "#fb858b",
+  "#89a7ff",
+  "#7fc8b8",
+  "#c393e8",
+  "#d4a547",
+];
+const ROW_NUMBER_COLUMN_WIDTH = 44;
 
 const TASK_COLUMNS = [
   { label: "Task Name", width: 240 },
@@ -101,7 +110,7 @@ const TASK_COLUMNS = [
 
 const TASK_TABLE_WIDTH = TASK_COLUMNS.reduce(
   (sum, column) => sum + column.width,
-  0,
+  ROW_NUMBER_COLUMN_WIDTH,
 );
 
 const URGENCY_STYLES: Record<TaskUrgency, string> = {
@@ -142,31 +151,6 @@ const WORKSPACE_VIEW_MODES: { label: string; value: WorkspaceViewMode }[] = [
   { label: "Calendar", value: "calendar" },
   { label: "Gantt", value: "gantt" },
   { label: "Kanban", value: "kanban" },
-];
-
-const FOLDER_TITLE_FONT_STYLES: CSSProperties[] = [
-  {
-    fontFamily: "var(--font-inter), Arial, Helvetica, sans-serif",
-    fontWeight: 500,
-    letterSpacing: 0,
-  },
-  {
-    fontFamily: 'var(--font-copse), Georgia, "Times New Roman", serif',
-    fontWeight: 400,
-    letterSpacing: 0,
-  },
-  {
-    fontFamily: 'Georgia, "Times New Roman", serif',
-    fontStyle: "italic",
-    fontWeight: 400,
-    letterSpacing: 0,
-  },
-  {
-    fontFamily:
-      'var(--font-geist-mono), "SFMono-Regular", Consolas, monospace',
-    fontWeight: 500,
-    letterSpacing: 0,
-  },
 ];
 
 type DeadlineCalendarCell = {
@@ -262,22 +246,8 @@ function getValidBannerColor(value: string | null | undefined, fallback: string)
   return fallback;
 }
 
-function getStableIndex(value: string, modulo: number) {
-  let hash = 0;
-
-  for (let index = 0; index < value.length; index += 1) {
-    hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
-  }
-
-  return hash % modulo;
-}
-
-function getFolderTitleStyle(workspace: Workspace) {
-  const seed = workspace.id || workspace.name || "workspace";
-
-  return FOLDER_TITLE_FONT_STYLES[
-    getStableIndex(seed, FOLDER_TITLE_FONT_STYLES.length)
-  ];
+function getFolderColor(workspace: Workspace) {
+  return getValidBannerColor(workspace.bannerColor, FOLDER_BACK_FILL);
 }
 
 function getFirstDeadlineDate(tasks: WorkplaceTask[]) {
@@ -334,6 +304,50 @@ function TaskCell({
       style={{ width }}
     >
       {children}
+    </div>
+  );
+}
+
+function RowSelectCell({
+  rowNumber,
+  selected,
+  onToggle,
+}: {
+  rowNumber: number;
+  selected: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <div
+      className="flex min-h-[78px] shrink-0 items-center justify-center border-r border-line/80"
+      style={{ width: ROW_NUMBER_COLUMN_WIDTH }}
+    >
+      <button
+        type="button"
+        aria-pressed={selected}
+        aria-label={`${selected ? "Deselect" : "Select"} row ${rowNumber}`}
+        onClick={onToggle}
+        className="group/select relative flex size-full items-center justify-center text-[11px] font-medium text-muted outline-none transition hover:text-ink focus-visible:text-ink"
+      >
+        <span
+          className={`transition ${
+            selected
+              ? "opacity-0"
+              : "opacity-100 group-hover/row:opacity-0 group-focus-within/row:opacity-0"
+          }`}
+        >
+          {rowNumber}
+        </span>
+        <span
+          className={`absolute flex size-4 items-center justify-center rounded-[4px] border border-line bg-paper transition ${
+            selected
+              ? "opacity-100"
+              : "opacity-0 group-hover/row:opacity-100 group-focus-within/row:opacity-100"
+          }`}
+        >
+          {selected ? <Check className="size-3" strokeWidth={2.2} /> : null}
+        </span>
+      </button>
     </div>
   );
 }
@@ -695,11 +709,7 @@ function FolderCover({
 }) {
   const isBanner = variant === "banner";
   const title = workspace.name.trim() || "Folder";
-  const topColor = getValidBannerColor(
-    workspace.bannerColor,
-    FOLDER_BACK_FILL,
-  );
-  const titleStyle = getFolderTitleStyle(workspace);
+  const topColor = getFolderColor(workspace);
 
   return (
     <span
@@ -745,12 +755,11 @@ function FolderCover({
       </svg>
 
       <span
-        className={`absolute z-10 block max-w-[58%] truncate text-neutral-950 ${
+        className={`absolute z-10 block max-w-[58%] truncate font-inter font-medium text-neutral-950 ${
           isBanner
             ? "left-[3.9%] top-[52%] text-[26px] leading-none sm:text-[30px] md:text-[34px]"
             : "left-[3.9%] top-[52%] text-[15px] leading-none"
         }`}
-        style={titleStyle}
         title={title}
       >
         {title}
@@ -763,26 +772,64 @@ function FolderTile({
   workspace,
   selected,
   onSelect,
+  onColorChange,
 }: {
   workspace: Workspace;
   selected: boolean;
   onSelect: () => void;
+  onColorChange: (color: string) => void;
 }) {
+  const folderColor = getFolderColor(workspace);
+
   return (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={selected}
-      aria-label={`${workspace.name} folder, ${workspace.tasks.length} rows`}
-      onClick={onSelect}
-      className="w-full rounded-[20px] p-1 text-left outline-none transition hover:bg-card/70 focus-visible:ring-2 focus-visible:ring-ink/70"
+    <div
+      className={`group/folder relative rounded-[22px] p-1 transition ${
+        selected
+          ? "bg-card ring-2 ring-ink/65"
+          : "hover:bg-card/80 hover:ring-1 hover:ring-line"
+      }`}
     >
-      <FolderCover
-        workspace={workspace}
-        selected={selected}
-        variant="tile"
-      />
-    </button>
+      <button
+        type="button"
+        role="tab"
+        aria-selected={selected}
+        aria-label={`${workspace.name} folder, ${workspace.tasks.length} rows`}
+        onClick={onSelect}
+        className="block w-full rounded-[18px] text-left outline-none transition focus-visible:ring-2 focus-visible:ring-ink/70"
+      >
+        <FolderCover
+          workspace={workspace}
+          selected={selected}
+          variant="tile"
+        />
+      </button>
+
+      <div
+        className={`absolute right-3 top-3 z-20 flex items-center gap-1 rounded-full bg-paper/95 p-1 shadow-sm transition ${
+          selected
+            ? "opacity-100"
+            : "opacity-0 group-hover/folder:opacity-100 group-focus-within/folder:opacity-100"
+        }`}
+        role="group"
+        aria-label="Folder colors"
+      >
+        {FOLDER_COLOR_OPTIONS.map((color) => (
+          <button
+            key={color}
+            type="button"
+            aria-label={`Set folder color ${color}`}
+            aria-pressed={folderColor.toLowerCase() === color.toLowerCase()}
+            onClick={() => onColorChange(color)}
+            className={`size-4 rounded-full border transition hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 ${
+              folderColor.toLowerCase() === color.toLowerCase()
+                ? "border-ink"
+                : "border-white"
+            }`}
+            style={{ backgroundColor: color }}
+          />
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -956,9 +1003,30 @@ function WorkspaceBanner({
   uploading: boolean;
   onUpload: (file: File) => void;
 }) {
+  const title = workspace.name.trim() || "Folder";
+  const bannerColor = getFolderColor(workspace);
+
   return (
     <section className="group/banner relative border-b border-line bg-paper px-4 py-4 sm:px-5">
-      <FolderCover workspace={workspace} variant="banner" />
+      <div
+        className="relative flex h-[236px] items-center justify-center overflow-hidden rounded-[18px] sm:h-[256px]"
+        style={{ backgroundColor: bannerColor }}
+      >
+        {workspace.bannerImageUrl ? (
+          <Image
+            src={workspace.bannerImageUrl}
+            alt=""
+            fill
+            sizes="100vw"
+            unoptimized
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+        ) : (
+          <h2 className="relative z-10 max-w-[82%] truncate text-center font-inter text-[38px] font-medium leading-none text-white sm:text-[48px] md:text-[58px]">
+            {title}
+          </h2>
+        )}
+      </div>
       <label
         title={uploading ? "Uploading banner" : "Edit banner"}
         aria-label={uploading ? "Uploading banner" : "Edit banner"}
@@ -1173,13 +1241,19 @@ function KanbanView({ tasks }: { tasks: WorkplaceTask[] }) {
 
 function TaskRow({
   task,
+  rowNumber,
+  selected,
   accounts,
   workspaceId,
+  onToggleSelected,
   onUpdate,
 }: {
   task: WorkplaceTask;
+  rowNumber: number;
+  selected: boolean;
   accounts: Account[];
   workspaceId: string;
+  onToggleSelected: () => void;
   onUpdate: <K extends EditableTaskField>(
     workspaceId: string,
     taskId: string,
@@ -1191,9 +1265,16 @@ function TaskRow({
 
   return (
     <div
-      className="group/row flex border-b border-line/80 bg-paper transition last:border-b-0 odd:bg-card/25 hover:bg-cta/5"
+      className={`group/row flex border-b border-line/80 bg-paper transition last:border-b-0 odd:bg-card/25 hover:bg-cta/5 ${
+        selected ? "bg-cta/10 odd:bg-cta/10" : ""
+      }`}
       style={{ width: TASK_TABLE_WIDTH }}
     >
+      <RowSelectCell
+        rowNumber={rowNumber}
+        selected={selected}
+        onToggle={onToggleSelected}
+      />
       <TaskCell width={240} className="items-center">
         <EditableTextCell
           ariaLabel="Task name"
@@ -1288,11 +1369,22 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
     string | null
   >(null);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(
+    () => new Set(),
+  );
   const selectedWorkspace =
     workspaces.find((workspace) => workspace.id === selectedWorkspaceId) ??
     workspaces[0] ??
     null;
   const selectedTasks = selectedWorkspace?.tasks ?? EMPTY_TASKS;
+  const selectedVisibleTaskIds = selectedTasks
+    .filter((task) => selectedTaskIds.has(task.id))
+    .map((task) => task.id);
+  const selectedTaskCount = selectedVisibleTaskIds.length;
+  const allSelectedTasks =
+    selectedTasks.length > 0 && selectedTaskCount === selectedTasks.length;
+  const hasPartialTaskSelection =
+    selectedTaskCount > 0 && selectedTaskCount < selectedTasks.length;
 
   const applyLoadedWorkspaces = useCallback(
     (folders: Workspace[], preferredWorkspaceId?: string) => {
@@ -1360,6 +1452,25 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
       new Date(reference.getFullYear(), reference.getMonth(), 1),
     );
   }, [selectedWorkspace]);
+
+  useEffect(() => {
+    const visibleTaskIds = new Set(selectedTasks.map((task) => task.id));
+
+    setSelectedTaskIds((currentSelectedTaskIds) => {
+      let changed = false;
+      const nextSelectedTaskIds = new Set<string>();
+
+      for (const taskId of currentSelectedTaskIds) {
+        if (visibleTaskIds.has(taskId)) {
+          nextSelectedTaskIds.add(taskId);
+        } else {
+          changed = true;
+        }
+      }
+
+      return changed ? nextSelectedTaskIds : currentSelectedTaskIds;
+    });
+  }, [selectedTasks]);
 
   useEffect(() => {
     if (isLoadingFolders) return;
@@ -1458,6 +1569,101 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
     } catch (error) {
       setSyncError(getErrorMessage(error));
       void loadFolders(workspaceId).catch((reloadError) =>
+        setSyncError(getErrorMessage(reloadError)),
+      );
+    } finally {
+      setIsSyncing(false);
+    }
+  }
+
+  function toggleTaskSelection(taskId: string) {
+    setSelectedTaskIds((currentSelectedTaskIds) => {
+      const nextSelectedTaskIds = new Set(currentSelectedTaskIds);
+
+      if (nextSelectedTaskIds.has(taskId)) {
+        nextSelectedTaskIds.delete(taskId);
+      } else {
+        nextSelectedTaskIds.add(taskId);
+      }
+
+      return nextSelectedTaskIds;
+    });
+  }
+
+  function toggleAllSelectedTasks() {
+    setSelectedTaskIds((currentSelectedTaskIds) => {
+      if (selectedTasks.length === 0) return currentSelectedTaskIds;
+      if (selectedTasks.every((task) => currentSelectedTaskIds.has(task.id))) {
+        return new Set();
+      }
+
+      return new Set(selectedTasks.map((task) => task.id));
+    });
+  }
+
+  async function updateFolderColor(workspaceId: string, color: string) {
+    setSyncError(null);
+    setWorkspaces((currentWorkspaces) =>
+      currentWorkspaces.map((workspace) =>
+        workspace.id === workspaceId
+          ? { ...workspace, bannerColor: color }
+          : workspace,
+      ),
+    );
+
+    try {
+      setIsSyncing(true);
+      const savedWorkspace = await apiFetchBrowser<Workspace>(
+        `/workspace/folders/${workspaceId}`,
+        {
+          method: "PATCH",
+          body: { bannerColor: color },
+        },
+      );
+      setWorkspaces((currentWorkspaces) =>
+        currentWorkspaces.map((workspace) =>
+          workspace.id === savedWorkspace.id ? savedWorkspace : workspace,
+        ),
+      );
+    } catch (error) {
+      setSyncError(getErrorMessage(error));
+      void loadFolders(workspaceId).catch((reloadError) =>
+        setSyncError(getErrorMessage(reloadError)),
+      );
+    } finally {
+      setIsSyncing(false);
+    }
+  }
+
+  async function deleteSelectedTasks() {
+    if (!selectedWorkspace || selectedVisibleTaskIds.length === 0) return;
+
+    const taskIds = selectedVisibleTaskIds;
+    const taskIdSet = new Set(taskIds);
+
+    setSyncError(null);
+    setSelectedTaskIds(new Set());
+    setWorkspaces((currentWorkspaces) =>
+      currentWorkspaces.map((workspace) =>
+        workspace.id === selectedWorkspace.id
+          ? {
+              ...workspace,
+              tasks: workspace.tasks.filter((task) => !taskIdSet.has(task.id)),
+            }
+          : workspace,
+      ),
+    );
+
+    try {
+      setIsSyncing(true);
+      await Promise.all(
+        taskIds.map((taskId) =>
+          apiFetchBrowser(`/workspace/tasks/${taskId}`, { method: "DELETE" }),
+        ),
+      );
+    } catch (error) {
+      setSyncError(getErrorMessage(error));
+      void loadFolders(selectedWorkspace.id).catch((reloadError) =>
         setSyncError(getErrorMessage(reloadError)),
       );
     } finally {
@@ -1642,6 +1848,9 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
               workspace={workspace}
               selected={workspace.id === selectedWorkspace?.id}
               onSelect={() => setSelectedWorkspaceId(workspace.id)}
+              onColorChange={(color) => {
+                void updateFolderColor(workspace.id, color);
+              }}
             />
           ))}
           <button
@@ -1687,6 +1896,18 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
                   </button>
                 ))}
               </div>
+
+              {selectedTaskCount > 0 ? (
+                <button
+                  type="button"
+                  onClick={deleteSelectedTasks}
+                  disabled={isSyncing}
+                  className="inline-flex h-8 items-center gap-2 rounded-md border border-danger/25 bg-danger/10 px-3 text-xs font-semibold text-danger transition hover:bg-danger/15 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <Trash2 className="size-4" strokeWidth={1.8} />
+                  {selectedTaskCount === 1 ? "Delete row" : "Delete rows"}
+                </button>
+              ) : null}
             </div>
 
             <div className="min-h-0 flex-1 overflow-hidden">
@@ -1696,6 +1917,27 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
                     className="sticky top-0 z-10 flex h-9 items-center border-b border-line bg-paper/95 backdrop-blur"
                     style={{ width: TASK_TABLE_WIDTH }}
                   >
+                    <div
+                      className="flex h-full shrink-0 items-center justify-center border-r border-line/80"
+                      style={{ width: ROW_NUMBER_COLUMN_WIDTH }}
+                    >
+                      <button
+                        type="button"
+                        aria-label={
+                          allSelectedTasks ? "Deselect all rows" : "Select all rows"
+                        }
+                        aria-pressed={allSelectedTasks}
+                        onClick={toggleAllSelectedTasks}
+                        disabled={selectedTasks.length === 0}
+                        className="flex size-4 items-center justify-center rounded-[4px] border border-line bg-paper text-ink transition hover:border-ink disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        {allSelectedTasks ? (
+                          <Check className="size-3" strokeWidth={2.2} />
+                        ) : hasPartialTaskSelection ? (
+                          <span className="h-px w-2 rounded-full bg-ink" />
+                        ) : null}
+                      </button>
+                    </div>
                     {TASK_COLUMNS.map((column) => (
                       <div
                         key={column.label}
@@ -1710,12 +1952,15 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
                   </div>
 
                   {selectedTasks.length > 0 ? (
-                    selectedTasks.map((task) => (
+                    selectedTasks.map((task, index) => (
                       <TaskRow
                         key={task.id}
                         task={task}
+                        rowNumber={index + 1}
+                        selected={selectedTaskIds.has(task.id)}
                         accounts={accounts}
                         workspaceId={selectedWorkspace.id}
+                        onToggleSelected={() => toggleTaskSelection(task.id)}
                         onUpdate={updateTask}
                       />
                     ))
@@ -1732,10 +1977,15 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
                     type="button"
                     aria-label="Add row"
                     onClick={addTaskToSelectedFolder}
-                    className="flex h-9 items-center border-b border-line bg-paper px-3 text-muted transition hover:bg-card hover:text-ink"
+                    className="flex h-9 items-center border-b border-line bg-paper text-muted transition hover:bg-card hover:text-ink"
                     style={{ width: TASK_TABLE_WIDTH }}
                   >
-                    <Plus className="size-4" strokeWidth={1.8} />
+                    <span
+                      className="flex h-full shrink-0 items-center justify-center border-r border-line/80"
+                      style={{ width: ROW_NUMBER_COLUMN_WIDTH }}
+                    >
+                      <Plus className="size-4" strokeWidth={1.8} />
+                    </span>
                   </button>
                 </div>
               ) : viewMode === "calendar" ? (

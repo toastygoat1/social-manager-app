@@ -86,4 +86,13 @@ export class WorkspaceController {
   ) {
     return this.workspaceService.updateTask(req.user.userId, taskId, body);
   }
+
+  @Delete('tasks/:taskId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  deleteTask(
+    @Request() req: AuthedRequest,
+    @Param('taskId', new ParseUUIDPipe()) taskId: string,
+  ) {
+    return this.workspaceService.deleteTask(req.user.userId, taskId);
+  }
 }

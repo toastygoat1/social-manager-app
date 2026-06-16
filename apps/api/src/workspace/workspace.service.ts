@@ -412,6 +412,16 @@ export class WorkspaceService {
     return this.mapTask(task);
   }
 
+  async deleteTask(userId: string, taskId: string) {
+    const result = await this.prisma.workspaceTask.deleteMany({
+      where: { id: taskId, folder: { userId } },
+    });
+
+    if (result.count === 0) {
+      throw new NotFoundException('Workspace task not found');
+    }
+  }
+
   private async ensureUser(userId: string, email: string) {
     await this.prisma.user.upsert({
       where: { id: userId },
