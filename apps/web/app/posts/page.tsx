@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Sidebar } from "@/app/dashboard/_components/Sidebar";
 import type { ContentRow } from "@/app/dashboard/_components/data";
@@ -101,38 +100,16 @@ export default async function PostsPage({ searchParams }: PostsPageProps) {
         profile={getUserProfile(user)}
       />
       <main className="analytics-theme app-shell-panel min-w-0 flex-1 overflow-y-auto bg-paper font-inter text-ink">
-        <nav
-          aria-label="Post status"
-          className="scrollbar-none flex min-w-0 overflow-x-auto border-b border-line bg-paper"
-        >
-          {POST_STATUS_TABS.map((tab) => {
-            const isActive = tab.id === selectedStatus;
-
-            return (
-              <Link
-                key={tab.id}
-                href={getTabHref(tab.id)}
-                aria-current={isActive ? "page" : undefined}
-                className={`dashboard-ui-label relative flex h-12 shrink-0 items-center px-5 transition-colors ${
-                  isActive ? "font-semibold text-ink" : "text-muted hover:text-ink"
-                }`}
-              >
-                <span>{tab.label}</span>
-                {isActive ? (
-                  <span
-                    aria-hidden="true"
-                    className="absolute inset-x-0 bottom-0 h-0.5 bg-ink"
-                  />
-                ) : null}
-              </Link>
-            );
-          })}
-        </nav>
-
         <div className="flex w-full flex-col">
           <PostsTable
             rows={filteredRows}
             metadataFields={data.metadataFields}
+            statusTabs={POST_STATUS_TABS.map((tab) => ({
+              id: tab.id,
+              label: tab.label,
+              href: getTabHref(tab.id),
+              isActive: tab.id === selectedStatus,
+            }))}
           />
         </div>
       </main>

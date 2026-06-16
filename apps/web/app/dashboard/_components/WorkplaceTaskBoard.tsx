@@ -11,14 +11,11 @@ import { createPortal } from "react-dom";
 import {
   CalendarDays,
   Check,
-  CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  Clock3,
   Pencil,
   Plus,
   Trash2,
-  TriangleAlert,
   X,
 } from "lucide-react";
 import {
@@ -62,6 +59,8 @@ type WorkplaceTaskBoardProps = {
 type WorkspaceFoldersResponse = {
   folders: Workspace[];
 };
+
+type WorkspaceViewMode = "table" | "calendar";
 
 type EditableTaskField = Exclude<keyof WorkplaceTask, "id" | "accountId">;
 
@@ -610,40 +609,6 @@ function DateTimeInput({
   );
 }
 
-function FolderArtwork({
-  selected,
-  tone,
-}: {
-  selected: boolean;
-  tone: (typeof FOLDER_TONES)[number];
-}) {
-  return (
-    <span
-      aria-hidden="true"
-      className={`relative block h-[66px] w-[82px] shrink-0 transition ${
-        selected ? "-translate-y-1" : "group-hover:-translate-y-0.5"
-      }`}
-    >
-      <span
-        className="absolute left-[7px] top-[14px] h-[24px] w-[38px] rounded-t-[8px]"
-        style={{ backgroundColor: tone.tab }}
-      />
-      <span
-        className="absolute inset-x-[5px] top-[7px] h-[31px] rounded-t-[7px]"
-        style={{ backgroundColor: tone.spine }}
-      />
-      <span
-        className="absolute inset-x-[5px] bottom-[6px] h-[42px] rounded-b-[7px] rounded-tl-[9px] rounded-tr-[4px] border border-black/5"
-        style={{ backgroundColor: tone.body }}
-      />
-      <span
-        className="absolute left-[5px] top-[29px] h-[14px] w-[40px] rounded-tl-[10px] rounded-tr-[6px]"
-        style={{ backgroundColor: tone.body }}
-      />
-    </span>
-  );
-}
-
 function FolderTile({
   workspace,
   selected,
@@ -658,24 +623,28 @@ function FolderTile({
   onDelete: () => void;
 }) {
   return (
-    <div className="group relative shrink-0">
+    <div className="group flex min-w-0 items-center gap-1">
       <button
         type="button"
         role="tab"
         aria-selected={selected}
         onClick={onSelect}
-        className={`flex h-[104px] w-[112px] flex-col items-center justify-center gap-1 rounded-lg border px-2 pb-2 pt-3 text-center transition ${
+        className={`flex min-w-0 flex-1 items-center gap-2 rounded-md px-2.5 py-2 text-left transition ${
           selected
-            ? "border-cta bg-cta/10 text-ink"
-            : "border-transparent bg-transparent text-muted hover:bg-card hover:text-ink"
+            ? "bg-card text-ink"
+            : "text-muted hover:bg-card/70 hover:text-ink"
         }`}
       >
-        <FolderArtwork selected={selected} tone={tone} />
-        <span className="block max-w-full truncate text-[11px] font-semibold leading-none">
+        <span
+          aria-hidden="true"
+          className="size-2.5 shrink-0 rounded-full"
+          style={{ backgroundColor: tone.body }}
+        />
+        <span className="min-w-0 flex-1 truncate text-xs font-semibold">
           {workspace.name}
         </span>
-        <span className="block text-[10px] leading-none text-muted">
-          {workspace.tasks.length} rows
+        <span className="shrink-0 text-[10px] text-muted">
+          {workspace.tasks.length}
         </span>
       </button>
       <button
@@ -683,7 +652,7 @@ function FolderTile({
         aria-label={`Delete ${workspace.name} folder`}
         title={`Delete ${workspace.name} folder`}
         onClick={onDelete}
-        className="absolute right-1.5 top-1.5 flex size-7 items-center justify-center rounded-full border border-line bg-paper text-muted opacity-0 transition hover:border-danger/40 hover:bg-danger/10 hover:text-danger group-hover:opacity-100 focus:opacity-100"
+        className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted opacity-0 transition hover:bg-danger/10 hover:text-danger group-hover:opacity-100 focus:opacity-100"
       >
         <X className="size-3.5" strokeWidth={2} />
       </button>
@@ -731,10 +700,10 @@ function DeadlineCalendar({
   }
 
   return (
-    <section className="min-w-0 rounded-[10px] border border-line bg-paper p-3">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-3">
+    <section className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-3">
         <div className="flex min-w-0 items-center gap-2">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-cta/10 text-cta">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-card text-cta">
             <CalendarDays className="size-4" strokeWidth={1.8} />
           </span>
           <div className="min-w-0">
@@ -746,7 +715,7 @@ function DeadlineCalendar({
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-1.5 rounded-lg border border-line bg-card p-1">
+        <div className="flex items-center gap-1.5 rounded-md border border-line bg-paper p-1">
           <button
             type="button"
             aria-label="Previous month"
@@ -769,8 +738,8 @@ function DeadlineCalendar({
         </div>
       </header>
 
-      <div className="mt-3 overflow-x-auto">
-        <div className="min-w-[760px] overflow-hidden rounded-lg border border-line bg-card/40">
+      <div className="min-h-0 flex-1 overflow-auto p-4">
+        <div className="min-w-[760px] overflow-hidden border border-line bg-card/40">
           <div className="grid grid-cols-7 border-b border-line bg-card">
             {CALENDAR_WEEKDAYS.map((day) => (
               <div
@@ -962,6 +931,7 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
     const reference = new Date();
     return new Date(reference.getFullYear(), reference.getMonth(), 1);
   });
+  const [viewMode, setViewMode] = useState<WorkspaceViewMode>("table");
   const [isLoadingFolders, setIsLoadingFolders] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
@@ -1081,15 +1051,6 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
     };
   }, [isLoadingFolders, isSyncing, loadFolders, selectedWorkspaceId]);
 
-  const boardStats = useMemo(() => {
-    const tasks = workspaces.flatMap((workspace) => workspace.tasks);
-
-    return {
-      totalTasks: tasks.length,
-      urgentTasks: tasks.filter((task) => task.urgency === "High").length,
-      completedTasks: tasks.filter((task) => task.status === "Done").length,
-    };
-  }, [workspaces]);
   const selectedStats = useMemo(
     () => ({
       urgentTasks: selectedTasks.filter((task) => task.urgency === "High")
@@ -1268,23 +1229,42 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
 
   if (isLoadingFolders) {
     return (
-      <section className="flex min-h-[520px] items-center justify-center rounded-lg border border-line bg-paper text-sm font-semibold text-muted">
-        Loading workspace folders...
+      <section className="flex min-h-0 flex-1 bg-paper">
+        <aside className="flex w-[252px] shrink-0 flex-col border-r border-line bg-paper">
+          <div className="border-b border-line px-4 py-4">
+            <h1 className="text-xl font-semibold leading-tight text-ink">
+              Workspace
+            </h1>
+            <p className="mt-1 text-xs text-muted">Loading folders...</p>
+          </div>
+        </aside>
+        <div className="flex min-w-0 flex-1 items-center justify-center text-sm font-semibold text-muted">
+          Loading workspace...
+        </div>
       </section>
     );
   }
 
   const syncStatus = syncError ? (
-    <p className="rounded-lg border border-danger/20 bg-danger/10 px-3 py-2 text-sm text-danger">
+    <p className="border-b border-danger/20 bg-danger/10 px-5 py-2 text-sm text-danger">
       {syncError}
     </p>
   ) : null;
 
   return (
-    <section className="flex min-w-0 flex-col gap-3">
-      <div className="rounded-lg border border-line bg-paper p-2">
+    <section className="flex min-h-0 flex-1 bg-paper">
+      <aside className="flex w-[252px] shrink-0 flex-col border-r border-line bg-paper">
+        <div className="border-b border-line px-4 py-4">
+          <h1 className="text-xl font-semibold leading-tight text-ink">
+            Workspace
+          </h1>
+          <p className="mt-1 text-xs text-muted">
+            {workspaces.length} folders
+          </p>
+        </div>
+
         <div
-          className="scrollbar-none flex gap-2 overflow-x-auto"
+          className="min-h-0 flex-1 space-y-1 overflow-y-auto px-2 py-2"
           role="tablist"
           aria-label="Folders"
         >
@@ -1301,59 +1281,56 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
           <button
             type="button"
             onClick={createFolder}
-            className="flex h-[104px] w-[112px] shrink-0 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-line bg-card/55 px-3 text-center text-muted transition hover:border-cta hover:bg-cta/10 hover:text-ink"
+            className="mt-2 flex h-9 w-full items-center gap-2 rounded-md border border-dashed border-line px-2.5 text-left text-xs font-semibold text-muted transition hover:border-cta hover:bg-card hover:text-ink"
           >
-            <span className="flex size-10 items-center justify-center rounded-full border border-line bg-paper">
-              <Plus className="size-4" strokeWidth={1.8} />
-            </span>
-            <span className="text-xs font-semibold">New folder</span>
+            <Plus className="size-4" strokeWidth={1.8} />
+            New folder
           </button>
         </div>
-      </div>
+      </aside>
 
-      {syncStatus}
-
-      <div className="min-h-[640px] rounded-[10px] border border-line bg-paper p-4">
+      <div className="flex min-w-0 flex-1 flex-col bg-paper">
         {selectedWorkspace ? (
           <>
-            <header className="flex flex-wrap items-start justify-between gap-4 border-b border-line pb-4">
+            <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-4">
               <div className="min-w-0">
-                <p className="text-[10px] uppercase tracking-[0.08em] text-muted">
-                  Selected folder table
-                </p>
-                <h2 className="mt-1 truncate text-[22px] font-semibold leading-tight text-ink">
+                <h2 className="truncate text-[22px] font-semibold leading-tight text-ink">
                   {selectedWorkspace.name}
                 </h2>
-                <p className="mt-1 text-sm text-muted">
-                  {selectedTasks.length} rows in this folder. Across all
-                  folders: {boardStats.completedTasks}/{boardStats.totalTasks}{" "}
-                  done, {boardStats.urgentTasks} urgent.
+                <p className="mt-1 text-xs text-muted">
+                  {selectedTasks.length} rows, {selectedStats.urgentTasks}{" "}
+                  urgent, {selectedStats.completedTasks}/{selectedTasks.length}{" "}
+                  done, {selectedStats.deadlines} deadlines
                 </p>
               </div>
 
               <div className="flex flex-wrap items-center justify-end gap-2">
-                <span className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-line bg-card px-2.5 text-[10px] uppercase tracking-[0.04em] text-muted">
-                  <TriangleAlert
-                    className="size-3.5 text-danger"
-                    strokeWidth={1.8}
-                  />
-                  {selectedStats.urgentTasks} urgent
-                </span>
-                <span className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-line bg-card px-2.5 text-[10px] uppercase tracking-[0.04em] text-muted">
-                  <CheckCircle2
-                    className="size-3.5 text-success"
-                    strokeWidth={1.8}
-                  />
-                  {selectedStats.completedTasks}/{selectedTasks.length} done
-                </span>
-                <span className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-line bg-card px-2.5 text-[10px] uppercase tracking-[0.04em] text-muted">
-                  <Clock3 className="size-3.5 text-cta" strokeWidth={1.8} />
-                  {selectedStats.deadlines} deadlines
-                </span>
+                <div
+                  className="inline-flex h-8 rounded-md border border-line bg-card p-0.5"
+                  aria-label="Workspace view"
+                >
+                  {(["table", "calendar"] as WorkspaceViewMode[]).map(
+                    (mode) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        aria-pressed={viewMode === mode}
+                        onClick={() => setViewMode(mode)}
+                        className={`rounded px-3 text-xs font-semibold capitalize transition ${
+                          viewMode === mode
+                            ? "bg-ink text-paper"
+                            : "text-muted hover:text-ink"
+                        }`}
+                      >
+                        {mode}
+                      </button>
+                    ),
+                  )}
+                </div>
                 <button
                   type="button"
                   onClick={addTaskToSelectedFolder}
-                  className="inline-flex h-8 items-center gap-2 rounded-lg border border-ink bg-ink px-3 text-xs font-semibold text-paper transition hover:opacity-90"
+                  className="inline-flex h-8 items-center gap-2 rounded-md border border-ink bg-ink px-3 text-xs font-semibold text-paper transition hover:opacity-90"
                 >
                   <Plus className="size-4" strokeWidth={1.8} />
                   Add row
@@ -1361,7 +1338,7 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
                 <button
                   type="button"
                   onClick={() => deleteFolder(selectedWorkspace.id)}
-                  className="inline-flex h-8 items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 text-xs font-semibold text-danger transition hover:bg-danger/15"
+                  className="inline-flex h-8 items-center gap-2 rounded-md border border-danger/25 bg-danger/10 px-3 text-xs font-semibold text-danger transition hover:bg-danger/15"
                 >
                   <Trash2 className="size-4" strokeWidth={1.8} />
                   Delete folder
@@ -1369,11 +1346,13 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
               </div>
             </header>
 
-            <div className="mt-4 flex min-w-0 flex-col gap-4">
-              <div className="min-w-0 overflow-hidden rounded-[10px] border border-line bg-card/30">
-                <div className="overflow-x-auto">
+            {syncStatus}
+
+            <div className="min-h-0 flex-1 overflow-hidden">
+              {viewMode === "table" ? (
+                <div className="h-full overflow-auto">
                   <div
-                    className="sticky top-0 z-10 flex h-9 items-center border-b border-line bg-card/95 backdrop-blur"
+                    className="sticky top-0 z-10 flex h-9 items-center border-b border-line bg-paper/95 backdrop-blur"
                     style={{ width: TASK_TABLE_WIDTH }}
                   >
                     {TASK_COLUMNS.map((column) => (
@@ -1388,6 +1367,7 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
                       </div>
                     ))}
                   </div>
+
                   {selectedTasks.length > 0 ? (
                     selectedTasks.map((task) => (
                       <TaskRow
@@ -1408,18 +1388,18 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
                     </div>
                   )}
                 </div>
-              </div>
-
-              <DeadlineCalendar
-                tasks={selectedTasks}
-                reference={calendarReference}
-                onReferenceChange={setCalendarReference}
-              />
+              ) : (
+                <DeadlineCalendar
+                  tasks={selectedTasks}
+                  reference={calendarReference}
+                  onReferenceChange={setCalendarReference}
+                />
+              )}
             </div>
           </>
         ) : (
-          <div className="flex min-h-[520px] flex-col items-center justify-center gap-3 text-center">
-            <span className="flex size-14 items-center justify-center rounded-full border border-dashed border-line bg-card text-muted">
+          <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 text-center">
+            <span className="flex size-14 items-center justify-center rounded-full border border-dashed border-line text-muted">
               <Plus className="size-5" strokeWidth={1.8} />
             </span>
             <div>
@@ -1434,7 +1414,7 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
             <button
               type="button"
               onClick={createFolder}
-              className="inline-flex h-10 items-center gap-2 rounded-lg bg-ink px-4 text-sm font-semibold text-paper transition hover:opacity-90"
+              className="inline-flex h-10 items-center gap-2 rounded-md bg-ink px-4 text-sm font-semibold text-paper transition hover:opacity-90"
             >
               <Plus className="size-4" strokeWidth={1.8} />
               Create folder

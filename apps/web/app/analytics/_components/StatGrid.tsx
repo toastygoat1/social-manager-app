@@ -13,33 +13,6 @@ function formatStatValue(stat: AnalyticsStat, value = stat.value) {
   return `${formatted}%`;
 }
 
-function Trend({ stat }: { stat: AnalyticsStat }) {
-  if (stat.delta === null) {
-    return (
-      <span className="font-mono text-[10px] text-muted">
-        NO PREVIOUS DATA
-      </span>
-    );
-  }
-
-  const isUp = stat.trend !== "down";
-  const sign = stat.trend === null ? "" : stat.trend === "down" ? "-" : "+";
-
-  return (
-    <span
-      className={`font-mono text-[11px] ${
-        stat.trend === null
-          ? "text-muted"
-          : isUp
-            ? "text-success"
-            : "text-danger"
-      }`}
-    >
-      {sign}{formatStatValue(stat, stat.delta)} vs previous period
-    </span>
-  );
-}
-
 export function StatGrid({
   stats,
   compact = false,
@@ -49,28 +22,28 @@ export function StatGrid({
 }) {
   return (
     <div
-      className={`grid w-full grid-cols-1 gap-4 sm:grid-cols-2 ${
+      className={`analytics-stat-grid grid w-full grid-cols-1 gap-4 sm:grid-cols-2 ${
         compact ? "" : "xl:grid-cols-4"
       }`}
     >
-      {stats.map((stat) => (
+      {stats.map((stat, index) => (
         <section
           key={stat.title}
-          className={`flex min-w-0 flex-col rounded-[10px] border border-line bg-paper ${
-            compact ? "gap-4 p-4" : "gap-5 p-[18px]"
+          className={`analytics-stat-card flex min-w-0 flex-col rounded-[10px] border border-line bg-paper ${
+            compact ? "gap-3 p-4" : "gap-4 p-[18px]"
           }`}
+          style={{ animationDelay: `${Math.min(index, 7) * 45}ms` }}
         >
-          <p className="font-mono text-[11px] uppercase tracking-[0.05em] text-muted">
+          <p className="text-[11px] font-medium uppercase tracking-normal text-muted">
             {stat.title}
           </p>
           <p
-            className={`font-mono font-medium leading-none tracking-[-0.03em] text-ink ${
+            className={`analytics-stat-value font-medium leading-none tracking-normal text-ink ${
               compact ? "text-[26px]" : "text-[30px]"
             }`}
           >
             {formatStatValue(stat)}
           </p>
-          <Trend stat={stat} />
         </section>
       ))}
     </div>

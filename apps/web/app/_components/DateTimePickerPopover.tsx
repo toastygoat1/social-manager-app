@@ -192,6 +192,7 @@ export function DateTimePickerPopover({
       <div
         role="dialog"
         aria-label="Choose date"
+        data-date-time-picker-popover
         className="absolute rounded-lg border border-line bg-paper p-3 shadow-xl"
         style={{ left: position.left, top: position.top, width: POPOVER_WIDTH }}
         onMouseDown={(event) => event.stopPropagation()}

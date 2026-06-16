@@ -1,6 +1,16 @@
 "use client";
 
-import { ArrowDown, ArrowUp, ChevronsUpDown, Search } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  ChevronsUpDown,
+  CirclePlay,
+  Clapperboard,
+  ImageIcon,
+  Images,
+  Search,
+} from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { AvatarImage } from "@/app/_components/AvatarImage";
@@ -18,6 +28,14 @@ import { formatNumber } from "@/lib/format";
 type PostsTableProps = {
   rows: ContentRow[];
   metadataFields: MetadataFieldDefinition[];
+  statusTabs: StatusFilterTab[];
+};
+
+type StatusFilterTab = {
+  id: string;
+  label: string;
+  href: string;
+  isActive: boolean;
 };
 
 type SortDirection = "asc" | "desc";
@@ -40,20 +58,27 @@ type ColumnAlign = "left" | "right";
 type ColumnDefinition = {
   key: SortKey;
   label: string;
-  minWidth: number;
+  width: number;
   align?: ColumnAlign;
 };
 
+const METRIC_COLUMN_WIDTH = 120;
+
 const STATIC_COLUMNS: ColumnDefinition[] = [
-  { key: "caption", label: "Caption", minWidth: 360 },
-  { key: "account", label: "Account", minWidth: 190 },
-  { key: "datePost", label: "Date published", minWidth: 150 },
-  { key: "status", label: "Status", minWidth: 130 },
-  { key: "type", label: "Type", minWidth: 150 },
-  { key: "views", label: "Views", minWidth: 110, align: "right" },
-  { key: "likes", label: "Likes", minWidth: 110, align: "right" },
-  { key: "comments", label: "Comments", minWidth: 120, align: "right" },
-  { key: "shares", label: "Shares", minWidth: 110, align: "right" },
+  { key: "caption", label: "Caption", width: 360 },
+  { key: "account", label: "Account", width: 190 },
+  { key: "datePost", label: "Date published", width: 150 },
+  { key: "status", label: "Status", width: 130 },
+  { key: "type", label: "Type", width: 150 },
+  { key: "views", label: "Views", width: METRIC_COLUMN_WIDTH, align: "right" },
+  { key: "likes", label: "Likes", width: METRIC_COLUMN_WIDTH, align: "right" },
+  {
+    key: "comments",
+    label: "Comments",
+    width: METRIC_COLUMN_WIDTH,
+    align: "right",
+  },
+  { key: "shares", label: "Shares", width: METRIC_COLUMN_WIDTH, align: "right" },
 ];
 
 const METADATA_COLUMN_MIN_WIDTH = 170;
@@ -65,6 +90,13 @@ const TYPE_COLORS: Record<PostFormat, string> = {
   Story: "#31D8BB",
 };
 
+const TYPE_ICONS: Record<PostFormat, typeof ImageIcon> = {
+  Post: ImageIcon,
+  Carousel: Images,
+  Reel: Clapperboard,
+  Story: CirclePlay,
+};
+
 function displayText(value: string | null | undefined) {
   if (value === null || value === undefined) return null;
 
@@ -74,6 +106,13 @@ function displayText(value: string | null | undefined) {
   }
 
   return trimmed;
+}
+
+function isNumericText(value: string | null | undefined) {
+  const text = displayText(value)?.replace(/,/g, "") ?? "";
+  return Boolean(
+    text && Number.isFinite(Number(text)) && /^-?\d+(\.\d+)?$/.test(text),
+  );
 }
 
 function getInitials(label: string) {
@@ -124,13 +163,20 @@ function StatusPill({ status }: { status: string }) {
 
 function TypePill({ type }: { type: string }) {
   const format = normalizePostFormat(type);
+  const Icon = TYPE_ICONS[format];
 
   return (
     <span
-      className="dashboard-ui-meta inline-flex rounded-md px-2 py-1 leading-none text-white"
-      style={{ backgroundColor: TYPE_COLORS[format] }}
+      className="dashboard-ui-label inline-flex min-w-0 items-center gap-2 text-ink"
+      title={format}
     >
-      {format}
+      <Icon
+        aria-hidden="true"
+        className="size-4 shrink-0"
+        style={{ color: TYPE_COLORS[format] }}
+        strokeWidth={2}
+      />
+      <span className="truncate">{format}</span>
     </span>
   );
 }
@@ -254,6 +300,16 @@ function toComparableValue(value: string | number | null | undefined) {
   return text;
 }
 
+function getCellAlignClass(align: ColumnAlign | undefined) {
+  if (align === "right") return "text-right";
+  return "text-left";
+}
+
+function getHeaderJustifyClass(align: ColumnAlign | undefined) {
+  if (align === "right") return "justify-end";
+  return "justify-start";
+}
+
 function compareSortValues(
   left: string | number | null | undefined,
   right: string | number | null | undefined,
@@ -310,21 +366,27 @@ function SortableHeader({
     : sortState.direction === "asc"
       ? ArrowUp
       : ArrowDown;
+  const sortLabel = !isActive
+    ? "not sorted"
+    : sortState.direction === "asc"
+      ? "sorted ascending"
+      : "sorted descending";
 
   return (
     <th
       aria-sort={getAriaSort(column, sortState)}
-      className={`dashboard-ui-meta px-4 py-3 font-semibold text-ink ${
-        column.align === "right" ? "text-right" : "text-left"
-      }`}
-      style={{ minWidth: column.minWidth }}
+      className={`dashboard-ui-meta px-4 py-3 font-semibold text-ink ${getCellAlignClass(
+        column.align,
+      )}`}
+      style={{ width: column.width }}
     >
       <button
         type="button"
         onClick={() => onSort(column.key)}
-        className={`inline-flex max-w-full items-center gap-1.5 rounded-md text-inherit transition hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5e6ad2] ${
-          column.align === "right" ? "justify-end" : "justify-start"
-        }`}
+        aria-label={`${column.label}, ${sortLabel}`}
+        className={`inline-flex w-full max-w-full items-center gap-1.5 rounded-md text-inherit transition hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5e6ad2] ${getHeaderJustifyClass(
+          column.align,
+        )}`}
       >
         <span className="truncate">{column.label}</span>
         <Icon
@@ -346,18 +408,33 @@ function MetadataCells({
   row: ContentRow;
   fields: MetadataFieldDefinition[];
 }) {
-  return fields.map((field) => (
-    <td key={field.id} className="px-4 py-3 align-middle">
-      <span className="dashboard-ui-label block max-w-[160px] truncate text-muted">
-        {displayText(row.metadata?.[field.id]) ?? "-"}
-      </span>
-    </td>
-  ));
+  return fields.map((field) => {
+    const value = displayText(row.metadata?.[field.id]);
+    const isNumber = isNumericText(value);
+
+    return (
+      <td
+        key={field.id}
+        className={`px-4 py-3 align-middle ${
+          isNumber ? "text-right" : "text-left"
+        }`}
+      >
+        <span
+          className={`dashboard-ui-label block max-w-[160px] truncate text-muted ${
+            isNumber ? "ml-auto" : ""
+          }`}
+        >
+          {value ?? "-"}
+        </span>
+      </td>
+    );
+  });
 }
 
 export function PostsTable({
   rows,
   metadataFields,
+  statusTabs,
 }: PostsTableProps) {
   const router = useRouter();
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
@@ -369,13 +446,13 @@ export function PostsTable({
       ...metadataFields.map((field) => ({
         key: `metadata:${field.id}` as SortKey,
         label: field.label,
-        minWidth: METADATA_COLUMN_MIN_WIDTH,
+        width: METADATA_COLUMN_MIN_WIDTH,
       })),
     ],
     [metadataFields],
   );
   const tableMinWidth = useMemo(
-    () => columns.reduce((sum, column) => sum + column.minWidth, 0),
+    () => columns.reduce((sum, column) => sum + column.width, 0),
     [columns],
   );
   const normalizedQuery = query.trim().toLowerCase();
@@ -400,9 +477,12 @@ export function PostsTable({
   function handleSort(key: SortKey) {
     setSortState((current) => {
       if (current?.key === key) {
+        const defaultDirection = getDefaultSortDirection(key);
+        if (current.direction !== defaultDirection) return null;
+
         return {
           key,
-          direction: current.direction === "asc" ? "desc" : "asc",
+          direction: defaultDirection === "asc" ? "desc" : "asc",
         };
       }
 
@@ -414,9 +494,9 @@ export function PostsTable({
   }
 
   return (
-    <section className="mx-5 my-4 flex min-w-0 flex-col overflow-hidden rounded-lg border border-line bg-paper sm:mx-7 sm:my-6">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-3 sm:px-5">
-        <label className="relative flex min-w-[240px] flex-1 items-center sm:max-w-[420px]">
+    <section className="flex min-w-0 flex-col overflow-hidden bg-paper">
+      <div className="flex flex-wrap items-center gap-3 border-b border-line px-5 py-3 sm:px-7">
+        <label className="relative flex min-w-[240px] flex-1 items-center sm:max-w-[360px]">
           <Search
             aria-hidden="true"
             className="pointer-events-none absolute left-3 size-3.5 text-muted"
@@ -430,16 +510,40 @@ export function PostsTable({
             type="search"
           />
         </label>
-        <span className="dashboard-ui-meta text-muted">
+        <div
+          aria-label="Post status"
+          className="scrollbar-none flex max-w-full shrink-0 gap-1 overflow-x-auto"
+        >
+          {statusTabs.map((tab) => (
+            <Link
+              key={tab.id}
+              href={tab.href}
+              aria-current={tab.isActive ? "page" : undefined}
+              className={`dashboard-ui-label inline-flex h-9 shrink-0 items-center rounded-lg border px-3 transition ${
+                tab.isActive
+                  ? "border-ink bg-ink text-paper"
+                  : "border-line bg-paper text-muted hover:bg-card hover:text-ink"
+              }`}
+            >
+              {tab.label}
+            </Link>
+          ))}
+        </div>
+        <span className="dashboard-ui-meta ml-auto text-muted">
           {visibleRows.length} of {rows.length} posts
         </span>
       </div>
 
       <div className="overflow-x-auto">
         <table
-          className="w-full border-collapse text-left"
+          className="w-full table-fixed border-collapse text-left"
           style={{ minWidth: tableMinWidth }}
         >
+          <colgroup>
+            {columns.map((column) => (
+              <col key={column.key} style={{ width: column.width }} />
+            ))}
+          </colgroup>
           <thead className="bg-card">
             <tr className="border-b border-line">
               {columns.map((column) => (
@@ -493,7 +597,7 @@ export function PostsTable({
                     <AccountCell row={row} />
                   </td>
                   <td className="px-4 py-3 align-middle">
-                    <span className="dashboard-ui-label whitespace-nowrap text-muted">
+                    <span className="dashboard-ui-label text-muted">
                       {displayText(row.datePost) ?? "-"}
                     </span>
                   </td>

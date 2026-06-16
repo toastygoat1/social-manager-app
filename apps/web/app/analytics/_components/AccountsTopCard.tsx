@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent,
+} from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -200,6 +207,8 @@ export function AccountsTopCard({
     mounted: false,
   });
   const [accountSearch, setAccountSearch] = useState("");
+  const addPopupRootRef = useRef<HTMLDivElement | null>(null);
+  const customPanelRootRef = useRef<HTMLDivElement | null>(null);
   const addPopupCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const customPanelCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(
     null,
@@ -288,6 +297,63 @@ export function AccountsTopCard({
       }
     };
   }, []);
+
+  const closeCustomPanel = useCallback(() => {
+    if (customPanelCloseTimer.current) {
+      clearTimeout(customPanelCloseTimer.current);
+    }
+    setCustomPanelState({
+      open: false,
+      mounted: true,
+      range: timeFilter.range,
+    });
+    customPanelCloseTimer.current = setTimeout(() => {
+      setCustomPanelState({
+        open: false,
+        mounted: false,
+        range: timeFilter.range,
+      });
+    }, POPUP_TRANSITION_MS);
+  }, [timeFilter.range]);
+
+  const closeAddPopup = useCallback(() => {
+    if (addPopupCloseTimer.current) {
+      clearTimeout(addPopupCloseTimer.current);
+    }
+    setAddPopupState({ open: false, mounted: true });
+    addPopupCloseTimer.current = setTimeout(() => {
+      setAddPopupState({ open: false, mounted: false });
+    }, POPUP_TRANSITION_MS);
+  }, []);
+
+  useEffect(() => {
+    if (!isAddOpen && !isCustomOpen) return;
+
+    function handleDocumentPointerDown(event: PointerEvent) {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+
+      const isInsideAddPopup =
+        addPopupRootRef.current?.contains(target) ?? false;
+      const isInsideCustomPanel =
+        customPanelRootRef.current?.contains(target) ?? false;
+      const isInsideDatePicker =
+        target instanceof Element &&
+        target.closest("[data-date-time-picker-popover]");
+
+      if (isAddOpen && !isInsideAddPopup) {
+        closeAddPopup();
+      }
+
+      if (isCustomOpen && !isInsideCustomPanel && !isInsideDatePicker) {
+        closeCustomPanel();
+      }
+    }
+
+    document.addEventListener("pointerdown", handleDocumentPointerDown);
+    return () =>
+      document.removeEventListener("pointerdown", handleDocumentPointerDown);
+  }, [closeAddPopup, closeCustomPanel, isAddOpen, isCustomOpen]);
 
   function selectedHref(nextAccountIds: string[]) {
     return analyticsHref({ accountIds: nextAccountIds, timeFilter });
@@ -407,24 +473,6 @@ export function AccountsTopCard({
     });
   }
 
-  function closeCustomPanel() {
-    if (customPanelCloseTimer.current) {
-      clearTimeout(customPanelCloseTimer.current);
-    }
-    setCustomPanelState({
-      open: false,
-      mounted: true,
-      range: timeFilter.range,
-    });
-    customPanelCloseTimer.current = setTimeout(() => {
-      setCustomPanelState({
-        open: false,
-        mounted: false,
-        range: timeFilter.range,
-      });
-    }, POPUP_TRANSITION_MS);
-  }
-
   function toggleCustomPanel() {
     if (isCustomOpen) {
       closeCustomPanel();
@@ -439,16 +487,6 @@ export function AccountsTopCard({
       clearTimeout(addPopupCloseTimer.current);
     }
     setAddPopupState({ open: true, mounted: true });
-  }
-
-  function closeAddPopup() {
-    if (addPopupCloseTimer.current) {
-      clearTimeout(addPopupCloseTimer.current);
-    }
-    setAddPopupState({ open: false, mounted: true });
-    addPopupCloseTimer.current = setTimeout(() => {
-      setAddPopupState({ open: false, mounted: false });
-    }, POPUP_TRANSITION_MS);
   }
 
   function toggleAddPopup() {
@@ -570,7 +608,10 @@ export function AccountsTopCard({
                   </div>
                 ))}
               </div>
-              <div className="relative -ml-1.5 flex size-9 items-center justify-center">
+              <div
+                ref={addPopupRootRef}
+                className="relative -ml-1.5 flex size-9 items-center justify-center"
+              >
                 <button
                   type="button"
                   aria-expanded={isAddOpen}
@@ -637,7 +678,7 @@ export function AccountsTopCard({
             lastUpdatedAt={lastUpdatedAt}
             disabled={accounts.length === 0}
           />
-          <div className="relative">
+          <div ref={customPanelRootRef} className="relative">
             <div className="flex overflow-hidden rounded-lg border border-line bg-paper">
               {ANALYTICS_RANGE_PRESETS.map((item, index) => (
                 <Link

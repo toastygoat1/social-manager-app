@@ -34,15 +34,8 @@ export default async function WorkspacePage() {
         accounts={data.accounts}
         profile={getUserProfile(user)}
       />
-      <main className="analytics-theme workspace-theme app-shell-panel min-w-0 flex-1 overflow-y-auto bg-paper font-inter text-ink">
-        <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-3 px-4 py-3 sm:px-6 sm:py-5">
-          <header className="flex flex-wrap items-center justify-between gap-3">
-            <h1 className="text-2xl font-semibold leading-tight text-ink">
-              Workspace
-            </h1>
-          </header>
-          <WorkplaceTaskBoard accounts={data.accounts} />
-        </div>
+      <main className="analytics-theme workspace-theme app-shell-panel flex min-h-0 flex-1 overflow-hidden bg-paper font-inter text-ink">
+        <WorkplaceTaskBoard accounts={data.accounts} />
       </main>
     </div>
   );

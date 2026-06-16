@@ -402,6 +402,30 @@ html.theme-circle-transition::view-transition-new(root) {
   }
 }
 
+@keyframes analytics-stat-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes analytics-stat-value-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .dashboard-item-enter {
   animation: dashboard-item-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
@@ -429,6 +453,26 @@ html.theme-circle-transition::view-transition-new(root) {
 .scheduler-create-menu {
   animation: scheduler-create-menu-in 160ms cubic-bezier(0.22, 1, 0.36, 1) both;
   transform-origin: right top;
+}
+
+.analytics-stat-card {
+  animation: analytics-stat-card-in 460ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  transition:
+    border-color 180ms ease,
+    box-shadow 220ms ease,
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+.analytics-stat-card:hover {
+  box-shadow: 0 16px 36px rgb(20 20 20 / 6%);
+  transform: translateY(-2px);
+}
+
+.analytics-stat-value {
+  animation: analytics-stat-value-in 380ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: inherit;
+  font-variant-numeric: tabular-nums;
 }
 
 .content-table-scrollbar-track {
@@ -479,6 +523,8 @@ html.theme-circle-transition::view-transition-new(root) {
 
   .dashboard-item-enter,
   .dashboard-motion-card,
+  .analytics-stat-card,
+  .analytics-stat-value,
   .account-popup-panel,
   .scheduler-create-menu {
     animation: none !important;
@@ -487,9 +533,9 @@ html.theme-circle-transition::view-transition-new(root) {
 }
 
 .analytics-theme {
-  --bg: #f6f5f1;
+  --bg: rgb(250, 250, 250);
   --bg-light: #ffffff;
-  --bg-dark: #fafaf8;
+  --bg-dark: rgb(250, 250, 250);
   --border: rgb(233, 233, 233);
   --text: #1a1a18;
   --text-muted: #84827a;
@@ -505,6 +551,14 @@ html.theme-circle-transition::view-transition-new(root) {
   --chart-6: #4b7fb8;
   --chart-7: #3c9d74;
   --chart-8: #e27d60;
+  font-family: var(--font-inter), Arial, Helvetica, sans-serif;
+  letter-spacing: 0;
+}
+
+.analytics-theme *,
+.analytics-theme :where(.font-mono, .analytics-serif) {
+  font-family: var(--font-inter), Arial, Helvetica, sans-serif;
+  letter-spacing: 0;
 }
 
 :root[data-theme="dark"] .analytics-theme {
