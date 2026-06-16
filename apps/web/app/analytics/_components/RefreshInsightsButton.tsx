@@ -35,6 +35,12 @@ type RefreshStatus = "idle" | "success" | "partial" | "error";
 
 type RefreshError = RefreshInsightsResponse["errors"][number];
 type RefreshWarning = RefreshInsightsResponse["warnings"][number];
+type RefreshWarningGroup = {
+  accountId: string;
+  accountName: string;
+  labels: string[];
+  messages: string[];
+};
 
 function getApiErrorMessage(error: unknown) {
   if (!(error instanceof ApiError)) return null;
@@ -74,6 +80,33 @@ function joinPhrases(parts: string[]) {
   if (parts.length === 2) return `${parts[0]} and ${parts[1]}`;
 
   return `${parts.slice(0, -1).join(", ")}, and ${parts.at(-1)}`;
+}
+
+function groupWarnings(warnings: RefreshWarning[]): RefreshWarningGroup[] {
+  const groups = new Map<string, RefreshWarningGroup>();
+
+  for (const warning of warnings) {
+    const group =
+      groups.get(warning.accountId) ??
+      {
+        accountId: warning.accountId,
+        accountName: warning.accountName,
+        labels: [],
+        messages: [],
+      };
+
+    if (!group.labels.includes(warning.label)) {
+      group.labels.push(warning.label);
+    }
+
+    if (!group.messages.includes(warning.message)) {
+      group.messages.push(warning.message);
+    }
+
+    groups.set(warning.accountId, group);
+  }
+
+  return [...groups.values()];
 }
 
 function buildSuccessMessage(result: RefreshInsightsResponse) {
@@ -136,6 +169,10 @@ export function RefreshInsightsButton({
   const lastUpdatedLabel = useMemo(
     () => formatLastUpdated(lastUpdatedAt),
     [lastUpdatedAt],
+  );
+  const warningGroups = useMemo(
+    () => groupWarnings(refreshWarnings),
+    [refreshWarnings],
   );
 
   async function refreshInsights() {
@@ -229,10 +266,10 @@ export function RefreshInsightsButton({
           ) : null}
         </div>
         {hasRefreshDetails && isFailureOpen ? (
-          <div className="absolute right-0 top-6 z-30 w-80 rounded-lg border border-line bg-paper p-2 text-left font-sans text-xs normal-case tracking-normal text-ink shadow-[0_18px_45px_rgba(24,22,18,0.14)]">
-            <div className="border-b border-line px-2 pb-2">
+          <div className="absolute right-0 top-7 z-30 w-[22rem] overflow-hidden rounded-[10px] border border-line bg-paper text-left font-sans text-xs normal-case tracking-normal text-ink shadow-[0_18px_45px_rgba(24,22,18,0.14)]">
+            <div className="border-b border-line px-3 py-2.5">
               <p className="font-semibold text-ink">Refresh details</p>
-              <p className="mt-0.5 text-[11px] leading-4 text-muted">
+              <p className="mt-1 text-[11px] leading-4 text-muted">
                 {joinPhrases(
                   [
                     failedCount > 0
@@ -246,16 +283,16 @@ export function RefreshInsightsButton({
                 .
               </p>
             </div>
-            <div className="max-h-64 overflow-y-auto pt-2">
+            <div className="max-h-[min(19rem,calc(100vh-10rem))] overflow-y-auto p-2">
               {refreshErrors.length > 0 ? (
                 <div>
-                  <p className="px-2 pb-1 text-[10px] font-medium uppercase tracking-normal text-muted">
+                  <p className="px-1 pb-1.5 text-[10px] font-medium uppercase tracking-normal text-muted">
                     Post failures
                   </p>
                   {refreshErrors.map((error) => (
                     <div
                       key={error.postId}
-                      className="rounded-md px-2 py-2 hover:bg-card"
+                      className="rounded-md border border-transparent px-2 py-2 hover:border-line hover:bg-card"
                     >
                       <p className="truncate font-medium text-ink">
                         {error.title}
@@ -267,22 +304,43 @@ export function RefreshInsightsButton({
                   ))}
                 </div>
               ) : null}
-              {refreshWarnings.length > 0 ? (
-                <div className={refreshErrors.length > 0 ? "mt-2" : ""}>
-                  <p className="px-2 pb-1 text-[10px] font-medium uppercase tracking-normal text-muted">
+              {warningGroups.length > 0 ? (
+                <div
+                  className={`flex flex-col gap-1.5 ${
+                    refreshErrors.length > 0 ? "mt-2" : ""
+                  }`}
+                >
+                  <p className="px-1 pb-1.5 text-[10px] font-medium uppercase tracking-normal text-muted">
                     Account metrics
                   </p>
-                  {refreshWarnings.map((warning) => (
+                  {warningGroups.map((warning) => (
                     <div
-                      key={`${warning.accountId}:${warning.metric}:${warning.message}`}
-                      className="rounded-md px-2 py-2 hover:bg-card"
+                      key={warning.accountId}
+                      className="rounded-md border border-line bg-card/45 px-2.5 py-2"
                     >
-                      <p className="truncate font-medium text-ink">
-                        {warning.accountName} · {warning.label}
-                      </p>
-                      <p className="mt-1 break-words text-[11px] leading-4 text-muted">
-                        {warning.message}
-                      </p>
+                      <div className="flex min-w-0 items-center justify-between gap-2">
+                        <p className="truncate font-medium text-ink">
+                          {warning.accountName}
+                        </p>
+                        <span className="shrink-0 text-[10px] text-muted">
+                          {formatCount(warning.labels.length, "metric")}
+                        </span>
+                      </div>
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {warning.labels.map((label) => (
+                          <span
+                            key={label}
+                            className="rounded-full border border-line bg-paper px-2 py-0.5 text-[10px] font-medium text-ink"
+                          >
+                            {label}
+                          </span>
+                        ))}
+                      </div>
+                      {warning.messages.length > 0 ? (
+                        <p className="mt-2 break-words text-[11px] leading-4 text-muted">
+                          {warning.messages.join(" ")}
+                        </p>
+                      ) : null}
                     </div>
                   ))}
                 </div>

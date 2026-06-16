@@ -1201,7 +1201,7 @@ export class AnalyticsService {
               warning: {
                 metric,
                 label,
-                message: `Instagram returned no value for ${label}.`,
+                message: 'Not returned by Instagram.',
               },
             };
           }

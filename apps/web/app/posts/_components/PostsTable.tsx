@@ -543,110 +543,115 @@ export function PostsTable({
         </span>
       </div>
 
-      <section className="mx-5 mb-5 mt-3 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border border-line bg-white sm:mx-7 sm:mb-7">
-        <div className="min-h-0 max-w-full flex-1 overflow-auto">
-          <table
-            className="w-full table-fixed border-collapse text-left"
-            style={{ minWidth: tableMinWidth }}
+      <div className="mx-5 mb-5 mt-3 flex min-h-0 min-w-0 flex-1 sm:mx-7 sm:mb-7">
+        <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border border-line bg-white">
+          <div
+            className="min-h-0 max-w-full flex-1 overflow-auto"
+            style={{ scrollbarGutter: "stable" }}
           >
-            <colgroup>
-              {columns.map((column) => (
-                <col key={column.key} style={{ width: column.width }} />
-              ))}
-            </colgroup>
-            <thead className="bg-card">
-              <tr className="border-b border-line">
+            <table
+              className="w-full table-fixed border-collapse text-left"
+              style={{ minWidth: tableMinWidth }}
+            >
+              <colgroup>
                 {columns.map((column) => (
-                  <SortableHeader
-                    key={column.key}
-                    column={column}
-                    sortState={sortState}
-                    onSort={handleSort}
-                  />
+                  <col key={column.key} style={{ width: column.width }} />
                 ))}
-              </tr>
-            </thead>
-            <tbody>
-              {visibleRows.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={columns.length}
-                    className="dashboard-body-text px-5 py-12 text-center text-muted"
-                  >
-                    {query
-                      ? "No posts match your search"
-                      : "No posts in this view yet"}
-                  </td>
+              </colgroup>
+              <thead className="bg-card">
+                <tr className="border-b border-line">
+                  {columns.map((column) => (
+                    <SortableHeader
+                      key={column.key}
+                      column={column}
+                      sortState={sortState}
+                      onSort={handleSort}
+                    />
+                  ))}
                 </tr>
-              ) : (
-                visibleRows.map((row) => (
-                  <tr
-                    key={row.id}
-                    tabIndex={0}
-                    role="button"
-                    aria-label={`Open details for ${displayText(row.caption) ?? "post"}`}
-                    onClick={() => setSelectedPostId(row.id)}
-                    onKeyDown={(event) => {
-                      if (event.currentTarget !== event.target) return;
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault();
-                        setSelectedPostId(row.id);
-                      }
-                    }}
-                    className="group cursor-pointer border-b border-line transition-colors hover:bg-card focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#5e6ad2]"
-                  >
-                    <td className="px-5 py-3 align-middle">
-                      <div className="flex min-w-0 items-center gap-3">
-                        <Thumbnail row={row} />
-                        <div className="min-w-0">
-                          <p className="dashboard-ui-label truncate text-ink">
-                            {displayText(row.caption) ?? "No caption"}
-                          </p>
-                        </div>
-                      </div>
+              </thead>
+              <tbody>
+                {visibleRows.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={columns.length}
+                      className="dashboard-body-text px-5 py-12 text-center text-muted"
+                    >
+                      {query
+                        ? "No posts match your search"
+                        : "No posts in this view yet"}
                     </td>
-                    <td className="px-4 py-3 align-middle">
-                      <AccountCell row={row} />
-                    </td>
-                    <td className="px-4 py-3 align-middle">
-                      <span className="dashboard-ui-label text-muted">
-                        {displayText(row.datePost) ?? "-"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 align-middle">
-                      <StatusPill status={row.status} />
-                    </td>
-                    <td className="px-4 py-3 align-middle">
-                      <div className="flex min-w-[132px] items-center">
-                        <TypePill type={row.type} />
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-right align-middle">
-                      <MetricValue value={row.views} />
-                    </td>
-                    <td className="px-4 py-3 text-right align-middle">
-                      <MetricValue value={row.likes} />
-                    </td>
-                    <td className="px-4 py-3 text-right align-middle">
-                      <MetricValue value={row.comments} />
-                    </td>
-                    <td className="px-4 py-3 text-right align-middle">
-                      <MetricValue value={row.shares} />
-                    </td>
-                    <MetadataCells row={row} fields={metadataFields} />
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ) : (
+                  visibleRows.map((row) => (
+                    <tr
+                      key={row.id}
+                      tabIndex={0}
+                      role="button"
+                      aria-label={`Open details for ${displayText(row.caption) ?? "post"}`}
+                      onClick={() => setSelectedPostId(row.id)}
+                      onKeyDown={(event) => {
+                        if (event.currentTarget !== event.target) return;
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          setSelectedPostId(row.id);
+                        }
+                      }}
+                      className="group cursor-pointer border-b border-line transition-colors hover:bg-card focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#5e6ad2]"
+                    >
+                      <td className="px-5 py-3 align-middle">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <Thumbnail row={row} />
+                          <div className="min-w-0">
+                            <p className="dashboard-ui-label truncate text-ink">
+                              {displayText(row.caption) ?? "No caption"}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 align-middle">
+                        <AccountCell row={row} />
+                      </td>
+                      <td className="px-4 py-3 align-middle">
+                        <span className="dashboard-ui-label text-muted">
+                          {displayText(row.datePost) ?? "-"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 align-middle">
+                        <StatusPill status={row.status} />
+                      </td>
+                      <td className="px-4 py-3 align-middle">
+                        <div className="flex min-w-[132px] items-center">
+                          <TypePill type={row.type} />
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-right align-middle">
+                        <MetricValue value={row.views} />
+                      </td>
+                      <td className="px-4 py-3 text-right align-middle">
+                        <MetricValue value={row.likes} />
+                      </td>
+                      <td className="px-4 py-3 text-right align-middle">
+                        <MetricValue value={row.comments} />
+                      </td>
+                      <td className="px-4 py-3 text-right align-middle">
+                        <MetricValue value={row.shares} />
+                      </td>
+                      <MetadataCells row={row} fields={metadataFields} />
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
 
-        <PostDetailsModal
-          postId={selectedPostId}
-          onClose={() => setSelectedPostId(null)}
-          onChanged={() => router.refresh()}
-        />
-      </section>
+          <PostDetailsModal
+            postId={selectedPostId}
+            onClose={() => setSelectedPostId(null)}
+            onChanged={() => router.refresh()}
+          />
+        </section>
+      </div>
     </div>
   );
 }

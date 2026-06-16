@@ -5,6 +5,7 @@ import {
   useEffect,
   useMemo,
   useState,
+  type CSSProperties,
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
@@ -16,8 +17,6 @@ import {
   ChevronRight,
   Pencil,
   Plus,
-  Trash2,
-  X,
 } from "lucide-react";
 import {
   DateTimePickerPopover,
@@ -150,6 +149,31 @@ const WORKSPACE_VIEW_MODES: { label: string; value: WorkspaceViewMode }[] = [
   { label: "Kanban", value: "kanban" },
 ];
 
+const FOLDER_TITLE_FONT_STYLES: CSSProperties[] = [
+  {
+    fontFamily: "var(--font-inter), Arial, Helvetica, sans-serif",
+    fontWeight: 500,
+    letterSpacing: 0,
+  },
+  {
+    fontFamily: 'var(--font-copse), Georgia, "Times New Roman", serif',
+    fontWeight: 400,
+    letterSpacing: 0,
+  },
+  {
+    fontFamily: 'Georgia, "Times New Roman", serif',
+    fontStyle: "italic",
+    fontWeight: 400,
+    letterSpacing: 0,
+  },
+  {
+    fontFamily:
+      'var(--font-geist-mono), "SFMono-Regular", Consolas, monospace',
+    fontWeight: 500,
+    letterSpacing: 0,
+  },
+];
+
 type DeadlineCalendarCell = {
   date: Date;
   dateKey: string;
@@ -241,6 +265,24 @@ function daysBetween(start: Date, end: Date) {
 function getValidBannerColor(value: string | null | undefined, fallback: string) {
   if (value && /^#[0-9a-fA-F]{6}$/.test(value)) return value;
   return fallback;
+}
+
+function getStableIndex(value: string, modulo: number) {
+  let hash = 0;
+
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
+  }
+
+  return hash % modulo;
+}
+
+function getFolderTitleStyle(workspace: Workspace) {
+  const seed = workspace.id || workspace.name || "workspace";
+
+  return FOLDER_TITLE_FONT_STYLES[
+    getStableIndex(seed, FOLDER_TITLE_FONT_STYLES.length)
+  ];
 }
 
 function getFirstDeadlineDate(tasks: WorkplaceTask[]) {
@@ -647,68 +689,102 @@ function DateTimeInput({
   );
 }
 
+function FolderCover({
+  workspace,
+  tone,
+  variant,
+  selected = false,
+}: {
+  workspace: Workspace;
+  tone: (typeof FOLDER_TONES)[number];
+  variant: "tile" | "banner";
+  selected?: boolean;
+}) {
+  const isBanner = variant === "banner";
+  const title = workspace.name.trim() || "Folder";
+  const topColor = getValidBannerColor(workspace.bannerColor, tone.spine);
+  const titleStyle = getFolderTitleStyle(workspace);
+
+  return (
+    <span
+      className={`relative block w-full overflow-hidden border-[5px] border-paper bg-neutral-800 shadow-sm transition ${
+        isBanner
+          ? "h-[236px] rounded-[22px] sm:h-[256px]"
+          : "aspect-[1.82] rounded-[18px]"
+      } ${selected ? "ring-2 ring-ink/80" : "ring-1 ring-line/70"}`}
+    >
+      <span
+        aria-hidden="true"
+        className="absolute inset-0"
+        style={{ backgroundColor: topColor }}
+      />
+
+      {workspace.bannerImageUrl ? (
+        <Image
+          src={workspace.bannerImageUrl}
+          alt=""
+          fill
+          sizes={isBanner ? "100vw" : "230px"}
+          unoptimized
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+      ) : null}
+
+      <svg
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 bottom-[-1px] h-[66%] w-full"
+        viewBox="0 0 100 66"
+        preserveAspectRatio="none"
+        focusable="false"
+      >
+        <path
+          d="M0 16C0 9.5 5 6 11.5 6H39.5C44.5 6 48 8.5 50 13L57.5 29.5C59.5 34 63 36 68 36H93C97 36 100 39 100 43V66H0V16Z"
+          fill="var(--bg-light)"
+        />
+      </svg>
+
+      <span
+        className={`absolute z-10 block max-w-[70%] truncate text-ink ${
+          isBanner
+            ? "left-[6%] top-[57%] text-[44px] leading-none sm:text-[58px] md:text-[70px]"
+            : "left-[7%] top-[58%] text-[15px] leading-none"
+        }`}
+        style={titleStyle}
+        title={title}
+      >
+        {title}
+      </span>
+    </span>
+  );
+}
+
 function FolderTile({
   workspace,
   selected,
   tone,
   onSelect,
-  onDelete,
 }: {
   workspace: Workspace;
   selected: boolean;
   tone: (typeof FOLDER_TONES)[number];
   onSelect: () => void;
-  onDelete: () => void;
 }) {
   return (
-    <div className="group relative">
-      <button
-        type="button"
-        role="tab"
-        aria-selected={selected}
-        onClick={onSelect}
-        className={`flex w-full flex-col items-center rounded-md border px-2.5 py-3 text-center transition ${
-          selected
-            ? "border-line bg-card text-ink"
-            : "border-transparent text-muted hover:border-line hover:bg-card/70 hover:text-ink"
-        }`}
-      >
-        <span
-          aria-hidden="true"
-          className="relative block h-[74px] w-[154px] shrink-0"
-        >
-          <span
-            className="absolute left-3 top-0 h-6 w-16 rounded-t-md"
-            style={{ backgroundColor: tone.tab }}
-          />
-          <span
-            className="absolute inset-x-0 top-5 h-[52px] rounded-md shadow-sm"
-            style={{ backgroundColor: tone.body }}
-          />
-          <span
-            className="absolute inset-x-0 top-5 h-5 rounded-t-md"
-            style={{ backgroundColor: tone.spine }}
-          />
-        </span>
-        <span className="mt-2 flex w-full min-w-0 items-center justify-between gap-2">
-          <span className="min-w-0 flex-1 truncate text-xs font-semibold">
-            {workspace.name}
-          </span>
-          <span className="shrink-0 rounded-full bg-paper px-1.5 py-0.5 text-[10px] text-muted">
-            {workspace.tasks.length}
-          </span>
-        </span>
-      </button>
-      <button
-        type="button"
-        aria-label={`Delete ${workspace.name} folder`}
-        title={`Delete ${workspace.name} folder`}
-        onClick={onDelete}
-        className="absolute right-2 top-2 flex size-7 shrink-0 items-center justify-center rounded-md bg-paper/90 text-muted opacity-0 shadow-sm transition hover:bg-danger/10 hover:text-danger group-hover:opacity-100 focus:opacity-100"
-      >
-        <X className="size-3.5" strokeWidth={2} />
-      </button>
-    </div>
+    <button
+      type="button"
+      role="tab"
+      aria-selected={selected}
+      aria-label={`${workspace.name} folder, ${workspace.tasks.length} rows`}
+      onClick={onSelect}
+      className="w-full rounded-[20px] p-1 text-left outline-none transition hover:bg-card/70 focus-visible:ring-2 focus-visible:ring-ink/70"
+    >
+      <FolderCover
+        workspace={workspace}
+        selected={selected}
+        tone={tone}
+        variant="tile"
+      />
+    </button>
   );
 }
 
@@ -884,39 +960,17 @@ function WorkspaceBanner({
   uploading: boolean;
   onUpload: (file: File) => void;
 }) {
-  const bannerColor = getValidBannerColor(workspace.bannerColor, tone.body);
-  const fallbackTitle = workspace.bannerTitle?.trim() || "BANNER";
-
   return (
-    <section
-      className="relative flex h-[154px] items-center justify-center overflow-hidden border-b border-line bg-neutral-200"
-      style={{
-        backgroundColor: workspace.bannerImageUrl
-          ? undefined
-          : `${bannerColor}33`,
-      }}
-    >
-      {workspace.bannerImageUrl ? (
-        <Image
-          src={workspace.bannerImageUrl}
-          alt=""
-          fill
-          sizes="100vw"
-          unoptimized
-          className="absolute inset-0 h-full w-full object-cover"
-        />
-      ) : (
-        <h3 className="relative z-10 text-5xl font-medium tracking-[0.12em] text-ink md:text-7xl">
-          {fallbackTitle}
-        </h3>
-      )}
-
+    <section className="group/banner relative border-b border-line bg-paper px-4 py-4 sm:px-5">
+      <FolderCover workspace={workspace} tone={tone} variant="banner" />
       <label
-        className={`absolute right-3 top-3 z-20 inline-flex h-8 cursor-pointer items-center rounded-md border border-line bg-paper/95 px-3 text-xs font-semibold text-ink shadow-sm transition hover:bg-paper ${
+        title={uploading ? "Uploading banner" : "Edit banner"}
+        aria-label={uploading ? "Uploading banner" : "Edit banner"}
+        className={`absolute right-8 top-8 z-20 flex size-9 cursor-pointer items-center justify-center rounded-full border border-line bg-paper/95 text-ink opacity-0 shadow-sm transition hover:bg-card group-hover/banner:opacity-100 group-focus-within/banner:opacity-100 ${
           uploading ? "pointer-events-none opacity-60" : ""
         }`}
       >
-        {uploading ? "Uploading..." : "Upload PNG"}
+        <Pencil className="size-4" strokeWidth={1.8} />
         <input
           type="file"
           accept="image/png"
@@ -1362,19 +1416,6 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
     };
   }, [isLoadingFolders, isSyncing, loadFolders, selectedWorkspaceId]);
 
-  const selectedStats = useMemo(
-    () => ({
-      urgentTasks: selectedTasks.filter((task) => task.urgency === "High")
-        .length,
-      completedTasks: selectedTasks.filter((task) => task.status === "Done")
-        .length,
-      deadlines: selectedTasks.filter((task) =>
-        Boolean(parseLocalDateTime(task.deadline)),
-      ).length,
-    }),
-    [selectedTasks],
-  );
-
   async function updateTask<K extends EditableTaskField>(
     workspaceId: string,
     taskId: string,
@@ -1529,40 +1570,6 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
     }
   }
 
-  async function deleteFolder(workspaceId: string) {
-    const workspace = workspaces.find((item) => item.id === workspaceId);
-    if (!workspace) return;
-
-    const confirmed = window.confirm(
-      `Delete "${workspace.name}" folder? This removes its synced table rows.`,
-    );
-    if (!confirmed) return;
-
-    try {
-      setIsSyncing(true);
-      setSyncError(null);
-      await apiFetchBrowser(`/workspace/folders/${workspaceId}`, {
-        method: "DELETE",
-      });
-      const nextWorkspaces = workspaces.filter(
-        (item) => item.id !== workspaceId,
-      );
-      setWorkspaces(nextWorkspaces);
-      if (selectedWorkspaceId === workspaceId) {
-        setSelectedWorkspaceId(
-          nextWorkspaces[0]?.id ?? EMPTY_SELECTED_WORKSPACE_ID,
-        );
-      }
-    } catch (error) {
-      setSyncError(getErrorMessage(error));
-      void loadFolders(selectedWorkspaceId).catch((reloadError) =>
-        setSyncError(getErrorMessage(reloadError)),
-      );
-    } finally {
-      setIsSyncing(false);
-    }
-  }
-
   async function addTaskToSelectedFolder() {
     if (!selectedWorkspace) return;
 
@@ -1648,7 +1655,6 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
               selected={workspace.id === selectedWorkspace?.id}
               tone={FOLDER_TONES[index % FOLDER_TONES.length]}
               onSelect={() => setSelectedWorkspaceId(workspace.id)}
-              onDelete={() => deleteFolder(workspace.id)}
             />
           ))}
           <button
@@ -1665,46 +1671,14 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-paper">
         {selectedWorkspace ? (
           <>
-            <header className="grid gap-3 border-b border-line px-5 py-4 xl:grid-cols-[minmax(0,1fr)_auto]">
-              <div className="min-w-0">
-                <h2 className="truncate text-[22px] font-semibold leading-tight text-ink">
-                  {selectedWorkspace.name}
-                </h2>
-                <p className="mt-1 text-xs text-muted">
-                  {selectedTasks.length} rows, {selectedStats.urgentTasks}{" "}
-                  urgent, {selectedStats.completedTasks}/{selectedTasks.length}{" "}
-                  done, {selectedStats.deadlines} deadlines
-                </p>
-              </div>
-
-              <div className="flex min-w-0 flex-wrap items-center gap-2 xl:justify-end">
-                <button
-                  type="button"
-                  onClick={addTaskToSelectedFolder}
-                  className="inline-flex h-8 items-center gap-2 rounded-md border border-ink bg-ink px-3 text-xs font-semibold text-paper transition hover:opacity-90"
-                >
-                  <Plus className="size-4" strokeWidth={1.8} />
-                  Add row
-                </button>
-                <button
-                  type="button"
-                  onClick={() => deleteFolder(selectedWorkspace.id)}
-                  className="inline-flex h-8 items-center gap-2 rounded-md border border-danger/25 bg-danger/10 px-3 text-xs font-semibold text-danger transition hover:bg-danger/15"
-                >
-                  <Trash2 className="size-4" strokeWidth={1.8} />
-                  Delete folder
-                </button>
-              </div>
-            </header>
-
-            {syncStatus}
-
             <WorkspaceBanner
               workspace={selectedWorkspace}
               tone={selectedWorkspaceTone}
               uploading={bannerUploadWorkspaceId === selectedWorkspace.id}
               onUpload={uploadSelectedFolderBanner}
             />
+
+            {syncStatus}
 
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-2">
               <div
