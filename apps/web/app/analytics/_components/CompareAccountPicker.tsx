@@ -3,6 +3,7 @@
 import { ArrowLeftRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { Account } from "@/app/dashboard/_components/data";
+import { useAnalyticsNavigation } from "./AnalyticsNavigationProvider";
 import type { AnalyticsTimeFilter } from "./data";
 import { createAnalyticsSearchParams } from "./time-filter";
 
@@ -38,12 +39,22 @@ export function CompareAccountPicker({
   timeFilter,
 }: CompareAccountPickerProps) {
   const router = useRouter();
+  const { beginNavigation } = useAnalyticsNavigation();
 
   function navigate(
     nextLeftAccountId: string | null,
     nextRightAccountId: string | null,
   ) {
-    router.push(compareHref(timeFilter, nextLeftAccountId, nextRightAccountId));
+    const href = compareHref(timeFilter, nextLeftAccountId, nextRightAccountId);
+
+    beginNavigation({
+      key: href,
+      label: "compare",
+      view: "compare",
+      selectedAccountIds: [],
+      compareAccountIds: [nextLeftAccountId, nextRightAccountId],
+    });
+    router.push(href);
   }
 
   function updateLeftAccount(value: string) {

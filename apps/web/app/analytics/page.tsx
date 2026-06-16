@@ -18,7 +18,12 @@ import { AnalyticsCompareView } from "./_components/AnalyticsCompareView";
 import { NotesBoard } from "./_components/NotesBoard";
 import { Recommendations } from "./_components/Recommendations";
 import {
+  AnalyticsContentShell,
+  AnalyticsNavigationProvider,
+} from "./_components/AnalyticsNavigationProvider";
+import {
   analyticsTimeFilterLabel,
+  createAnalyticsSearchParams,
   resolveAnalyticsTimeFilter,
 } from "./_components/time-filter";
 
@@ -70,6 +75,34 @@ function getCompareAccountIds(
     null;
 
   return [leftAccountId, rightAccountId] as const;
+}
+
+function getNavigationKey({
+  compareLeftAccountId,
+  compareRightAccountId,
+  isCompareMode,
+  selectedAccountIds,
+  timeFilter,
+}: {
+  compareLeftAccountId: string | null;
+  compareRightAccountId: string | null;
+  isCompareMode: boolean;
+  selectedAccountIds: string[];
+  timeFilter: ReturnType<typeof resolveAnalyticsTimeFilter>;
+}) {
+  const params = createAnalyticsSearchParams(timeFilter);
+
+  if (isCompareMode) {
+    params.set("view", "compare");
+    if (compareLeftAccountId) params.set("compareLeft", compareLeftAccountId);
+    if (compareRightAccountId) params.set("compareRight", compareRightAccountId);
+  } else {
+    selectedAccountIds.forEach((accountId) =>
+      params.append("accountId", accountId),
+    );
+  }
+
+  return `/analytics?${params.toString()}`;
 }
 
 export default async function AnalyticsPage({
@@ -137,6 +170,13 @@ export default async function AnalyticsPage({
           : Promise.resolve(null),
       ])
     : [null, null];
+  const navigationKey = getNavigationKey({
+    compareLeftAccountId,
+    compareRightAccountId,
+    isCompareMode,
+    selectedAccountIds: data.selectedAccountIds,
+    timeFilter: selectedTimeFilter,
+  });
 
   return (
     <div className="app-shell-frame flex min-h-screen items-start gap-[2px] p-1 font-sans text-ink transition-colors duration-500">
@@ -154,65 +194,69 @@ export default async function AnalyticsPage({
             rangeLabel={selectedRangeLabel}
             compareMode={isCompareMode}
           />
-          <div className="sticky top-3 z-20">
-            <AccountsTopCard
-              accounts={data.accounts}
-              selectedAccountId={data.selectedAccountId}
-              selectedAccountIds={data.selectedAccountIds}
-              timeFilter={selectedTimeFilter}
-              lastUpdatedAt={data.lastUpdatedAt}
-              isCompareMode={isCompareMode}
-              compareAccountIds={[compareLeftAccountId, compareRightAccountId]}
-            />
-          </div>
-          {isCompareMode ? (
-            <AnalyticsCompareView
-              accounts={data.accounts}
-              leftAccountId={compareLeftAccountId}
-              leftData={compareLeftData}
-              timeFilter={selectedTimeFilter}
-              rangeLabel={selectedRangeLabel}
-              rightAccountId={compareRightAccountId}
-              rightData={compareRightData}
-            />
-          ) : (
-            <>
-              <StatGrid stats={data.statGrid} />
-              <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(360px,1fr)]">
-                <PerformanceTrend
-                  points={data.performanceSeries}
-                  rangeDays={data.rangeDays}
-                  rangeLabel={selectedRangeLabel}
-                />
-                <BestTimeCard insight={data.bestTime} />
-              </div>
-              <AudienceCard insight={data.audience} />
-              {data.leaderboard.length > 1 ? (
-                <AccountLeaderboard
-                  rows={data.leaderboard}
-                  timeFilter={selectedTimeFilter}
-                />
-              ) : null}
-              <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(340px,1fr)]">
-                <RecentPosts
-                  posts={data.recentPosts}
-                  latestPosts={data.latestPosts}
-                />
-                <ChannelDistribution items={data.distribution} />
-              </div>
-              <ContentCalendar calendar={data.contentCalendar} />
-              <AnalyticsContentTable
-                rows={data.contentRows}
-                metadataFields={data.metadataFields}
-              />
-              <Recommendations recommendations={data.recommendations} />
-              <NotesBoard
-                notes={data.notes}
+          <AnalyticsNavigationProvider key={navigationKey}>
+            <div className="sticky top-3 z-20">
+              <AccountsTopCard
                 accounts={data.accounts}
                 selectedAccountId={data.selectedAccountId}
+                selectedAccountIds={data.selectedAccountIds}
+                timeFilter={selectedTimeFilter}
+                lastUpdatedAt={data.lastUpdatedAt}
+                isCompareMode={isCompareMode}
+                compareAccountIds={[compareLeftAccountId, compareRightAccountId]}
               />
-            </>
-          )}
+            </div>
+            <AnalyticsContentShell>
+              {isCompareMode ? (
+                <AnalyticsCompareView
+                  accounts={data.accounts}
+                  leftAccountId={compareLeftAccountId}
+                  leftData={compareLeftData}
+                  timeFilter={selectedTimeFilter}
+                  rangeLabel={selectedRangeLabel}
+                  rightAccountId={compareRightAccountId}
+                  rightData={compareRightData}
+                />
+              ) : (
+                <>
+                  <StatGrid stats={data.statGrid} />
+                  <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(360px,1fr)]">
+                    <PerformanceTrend
+                      points={data.performanceSeries}
+                      rangeDays={data.rangeDays}
+                      rangeLabel={selectedRangeLabel}
+                    />
+                    <BestTimeCard insight={data.bestTime} />
+                  </div>
+                  <AudienceCard insight={data.audience} />
+                  {data.leaderboard.length > 1 ? (
+                    <AccountLeaderboard
+                      rows={data.leaderboard}
+                      timeFilter={selectedTimeFilter}
+                    />
+                  ) : null}
+                  <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(340px,1fr)]">
+                    <RecentPosts
+                      posts={data.recentPosts}
+                      latestPosts={data.latestPosts}
+                    />
+                    <ChannelDistribution items={data.distribution} />
+                  </div>
+                  <ContentCalendar calendar={data.contentCalendar} />
+                  <AnalyticsContentTable
+                    rows={data.contentRows}
+                    metadataFields={data.metadataFields}
+                  />
+                  <Recommendations recommendations={data.recommendations} />
+                  <NotesBoard
+                    notes={data.notes}
+                    accounts={data.accounts}
+                    selectedAccountId={data.selectedAccountId}
+                  />
+                </>
+              )}
+            </AnalyticsContentShell>
+          </AnalyticsNavigationProvider>
           <footer className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-5 font-mono text-[11px] text-muted">
             <span>Snowflake / Social media manager</span>
             <span>Live insights from connected Instagram accounts</span>

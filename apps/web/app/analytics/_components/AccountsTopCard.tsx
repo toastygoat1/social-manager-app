@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -21,6 +21,10 @@ import {
 import { AvatarImage } from "@/app/_components/AvatarImage";
 import type { Account } from "@/app/dashboard/_components/data";
 import { RefreshInsightsButton } from "./RefreshInsightsButton";
+import {
+  type AnalyticsNavigationTarget,
+  useAnalyticsNavigation,
+} from "./AnalyticsNavigationProvider";
 import type { AnalyticsTimeFilter } from "./data";
 import {
   ANALYTICS_RANGE_PRESETS,
@@ -116,10 +120,12 @@ function Avatar({ account, size = 36 }: { account: Account; size?: number }) {
   );
 }
 
-function modeClass(active: boolean, hasDivider = true) {
+function modeClass(active: boolean, hasDivider = true, interactive = true) {
   return `flex h-9 items-center gap-1.5 px-3 text-sm font-medium transition ${
     hasDivider ? "border-r border-line" : ""
-  } ${active ? "bg-card text-ink" : "text-muted hover:text-ink"}`;
+  } ${interactive ? "cursor-pointer" : "cursor-default"} ${
+    active ? "bg-card text-ink" : "text-muted hover:text-ink"
+  }`;
 }
 
 function formatDateLabel(value: string) {
@@ -155,9 +161,22 @@ export function AccountsTopCard({
   compareAccountIds = [null, null],
 }: AccountsTopCardProps) {
   const router = useRouter();
+  const { beginNavigation, pendingTarget } = useAnalyticsNavigation();
+  const effectiveSelectedAccountIds =
+    pendingTarget && pendingTarget.view !== "compare"
+      ? pendingTarget.selectedAccountIds
+      : selectedAccountIds;
+  const effectiveIsCompareMode = pendingTarget
+    ? pendingTarget.view === "compare"
+    : isCompareMode;
+  const effectiveCompareAccountIds =
+    pendingTarget?.view === "compare"
+      ? pendingTarget.compareAccountIds
+      : compareAccountIds;
+  const effectiveSelectedAccountId = effectiveSelectedAccountIds[0] ?? null;
   const selectedAccountSet = useMemo(
-    () => new Set(selectedAccountIds),
-    [selectedAccountIds],
+    () => new Set(effectiveSelectedAccountIds),
+    [effectiveSelectedAccountIds],
   );
   const selectedAccounts = accounts.filter((account) =>
     selectedAccountSet.has(account.id),
@@ -177,17 +196,30 @@ export function AccountsTopCard({
   const [accountSearch, setAccountSearch] = useState("");
   const [compareLeft, compareRight] = resolveCompareAccountIds(
     accounts,
-    selectedAccountId,
-    compareAccountIds,
+    effectiveSelectedAccountId,
+    effectiveCompareAccountIds,
   );
-  const isOverviewMode = !isCompareMode && selectedAccountIds.length === 0;
-  const isSelectMode = !isCompareMode && selectedAccountIds.length > 0;
+  const isOverviewMode =
+    !effectiveIsCompareMode && effectiveSelectedAccountIds.length === 0;
+  const isSelectMode =
+    !effectiveIsCompareMode && effectiveSelectedAccountIds.length > 0;
   const compareModeHref = analyticsHref({
     compareLeft,
     compareRight,
     timeFilter,
     view: "compare",
   });
+  const overviewHref = analyticsHref({ accountIds: [], timeFilter });
+  const selectPreviewAccountIds =
+    effectiveSelectedAccountIds.length > 0
+      ? effectiveSelectedAccountIds
+      : accounts[0]
+        ? [accounts[0].id]
+        : [];
+  const selectPreviewHref =
+    selectPreviewAccountIds.length > 0
+      ? analyticsHref({ accountIds: selectPreviewAccountIds, timeFilter })
+      : null;
   const customIsActive = timeFilter.range === "custom";
   const isCustomOpen =
     customPanelState.range === timeFilter.range
@@ -225,11 +257,52 @@ export function AccountsTopCard({
     );
   }, [isCompareMode, selectedAccountIds]);
 
+  useEffect(() => {
+    router.prefetch(overviewHref);
+    if (selectPreviewHref) router.prefetch(selectPreviewHref);
+    if (accounts.length >= 2) router.prefetch(compareModeHref);
+  }, [accounts.length, compareModeHref, overviewHref, router, selectPreviewHref]);
+
   function selectedHref(nextAccountIds: string[]) {
     return analyticsHref({ accountIds: nextAccountIds, timeFilter });
   }
 
+  function sameAccountIds(left: string[], right: string[]) {
+    return left.length === right.length && left.every((id, index) => id === right[index]);
+  }
+
+  function beginRouteNavigation(target: AnalyticsNavigationTarget) {
+    beginNavigation(target);
+  }
+
+  function handleLinkNavigation(
+    event: MouseEvent<HTMLAnchorElement>,
+    target: AnalyticsNavigationTarget,
+    alreadyActive = false,
+  ) {
+    if (
+      alreadyActive ||
+      event.defaultPrevented ||
+      event.button !== 0 ||
+      event.metaKey ||
+      event.altKey ||
+      event.ctrlKey ||
+      event.shiftKey
+    ) {
+      return;
+    }
+
+    beginRouteNavigation(target);
+  }
+
   function navigateToAccountSelection(nextAccountIds: string[]) {
+    if (
+      !isCompareMode &&
+      sameAccountIds(nextAccountIds, selectedAccountIds)
+    ) {
+      return;
+    }
+
     if (nextAccountIds.length === 0) {
       window.localStorage.removeItem(SELECTED_ACCOUNTS_STORAGE_KEY);
     } else {
@@ -239,7 +312,15 @@ export function AccountsTopCard({
       );
     }
 
-    router.push(selectedHref(nextAccountIds));
+    const href = selectedHref(nextAccountIds);
+    beginRouteNavigation({
+      key: href,
+      label: nextAccountIds.length > 0 ? "selected accounts" : "overview",
+      view: nextAccountIds.length > 0 ? "select" : "overview",
+      selectedAccountIds: nextAccountIds,
+      compareAccountIds: [null, null],
+    });
+    router.push(href);
   }
 
   function readRememberedAccountIds() {
@@ -268,8 +349,8 @@ export function AccountsTopCard({
 
   function selectRememberedAccounts() {
     const nextAccountIds =
-      selectedAccountIds.length > 0
-        ? selectedAccountIds
+      effectiveSelectedAccountIds.length > 0
+        ? effectiveSelectedAccountIds
         : readRememberedAccountIds();
 
     if (nextAccountIds.length > 0) {
@@ -278,14 +359,14 @@ export function AccountsTopCard({
   }
 
   function addAccount(accountId: string) {
-    navigateToAccountSelection([...selectedAccountIds, accountId]);
+    navigateToAccountSelection([...effectiveSelectedAccountIds, accountId]);
     setAccountSearch("");
     setIsAddOpen(false);
   }
 
   function removeAccount(accountId: string) {
     navigateToAccountSelection(
-      selectedAccountIds.filter((selectedId) => selectedId !== accountId),
+      effectiveSelectedAccountIds.filter((selectedId) => selectedId !== accountId),
     );
   }
 
@@ -317,8 +398,21 @@ export function AccountsTopCard({
         <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
           <div className="flex shrink-0 overflow-hidden rounded-lg border border-line bg-paper">
             <Link
-              href={analyticsHref({ accountIds: [], timeFilter })}
+              href={overviewHref}
               className={modeClass(isOverviewMode)}
+              onClick={(event) =>
+                handleLinkNavigation(
+                  event,
+                  {
+                    key: overviewHref,
+                    label: "overview",
+                    view: "overview",
+                    selectedAccountIds: [],
+                    compareAccountIds: [null, null],
+                  },
+                  isOverviewMode,
+                )
+              }
             >
               <LayoutDashboard className="size-3.5" strokeWidth={1.7} />
               Overview
@@ -333,20 +427,33 @@ export function AccountsTopCard({
                 Select
               </button>
             ) : (
-              <span className={`${modeClass(false)} opacity-50`}>
+              <span className={`${modeClass(false, true, false)} opacity-50`}>
                 <BadgeCheck className="size-3.5" strokeWidth={1.7} />
                 Select
               </span>
             )}
             {accounts.length < 2 ? (
-              <span className={`${modeClass(false, false)} opacity-50`}>
+              <span className={`${modeClass(false, false, false)} opacity-50`}>
                 <Columns2 className="size-3.5" strokeWidth={1.7} />
                 Compare
               </span>
             ) : (
               <Link
                 href={compareModeHref}
-                className={modeClass(isCompareMode, false)}
+                className={modeClass(effectiveIsCompareMode, false)}
+                onClick={(event) =>
+                  handleLinkNavigation(
+                    event,
+                    {
+                      key: compareModeHref,
+                      label: "compare",
+                      view: "compare",
+                      selectedAccountIds: [],
+                      compareAccountIds: [compareLeft, compareRight],
+                    },
+                    isCompareMode,
+                  )
+                }
               >
                 <Columns2 className="size-3.5" strokeWidth={1.7} />
                 Compare
@@ -354,44 +461,44 @@ export function AccountsTopCard({
             )}
           </div>
           <div
-            className={`min-w-0 overflow-hidden transition-all duration-300 ease-out sm:ml-5 ${
+            className={`min-w-0 transition-all duration-200 ease-out sm:ml-5 ${
               isSelectMode
-                ? "max-w-[32rem] translate-x-0 opacity-100"
-                : "max-w-0 -translate-x-3 opacity-0"
+                ? "max-w-[32rem] translate-x-0 overflow-visible opacity-100"
+                : "max-w-0 -translate-x-3 overflow-hidden opacity-0"
             }`}
           >
-            <div className="flex min-w-max items-center py-1">
-              <div className="flex items-center -space-x-2">
+            <div className="flex min-w-max items-center py-1.5">
+              <div className="flex items-center -space-x-3">
                 {selectedAccounts.map((account) => (
                   <div
                     key={account.id}
-                    className="group relative flex size-9 shrink-0 items-center justify-center rounded-full"
+                    className="group relative flex size-10 shrink-0 items-center justify-center rounded-full"
                     title={account.name}
                   >
-                    <Avatar account={account} size={36} />
+                    <Avatar account={account} size={40} />
                     <button
                       type="button"
                       aria-label={`Remove ${account.name}`}
                       onClick={() => removeAccount(account.id)}
-                      className="absolute left-0 top-0 flex size-4 items-center justify-center rounded-full bg-ink text-page opacity-0 shadow-sm transition group-hover:opacity-100"
+                      className="absolute left-0 top-0 flex size-4 cursor-pointer items-center justify-center rounded-full bg-ink text-page opacity-0 shadow-sm transition group-hover:opacity-100"
                     >
                       <Minus className="size-3" strokeWidth={2.2} />
                     </button>
                   </div>
                 ))}
               </div>
-              <div className="relative ml-4">
+              <div className="relative -ml-1 -translate-y-1">
                 <button
                   type="button"
                   aria-expanded={isAddOpen}
                   aria-label="Add account to selection"
                   onClick={() => setIsAddOpen((value) => !value)}
-                  className="flex size-10 items-center justify-center rounded-full bg-card text-muted shadow-[0_2px_10px_rgba(24,22,18,0.08)] transition hover:bg-ink hover:text-page"
+                  className="flex size-12 cursor-pointer items-center justify-center rounded-full bg-page text-muted shadow-[0_4px_16px_rgba(24,22,18,0.12)] transition hover:bg-ink hover:text-page"
                 >
-                  <Plus className="size-5" strokeWidth={1.8} />
+                  <Plus className="size-6" strokeWidth={1.8} />
                 </button>
                 {isAddOpen ? (
-                  <div className="absolute left-1/2 top-12 z-50 w-72 -translate-x-1/2 rounded-lg border border-line bg-paper p-2 shadow-[0_18px_45px_rgba(24,22,18,0.14)]">
+                  <div className="absolute left-1/2 top-14 z-50 w-72 -translate-x-1/2 translate-y-1 rounded-lg border border-line bg-paper p-2 shadow-[0_18px_45px_rgba(24,22,18,0.14)]">
                     <label className="flex h-9 items-center gap-2 rounded-md border border-line bg-page px-3">
                       <Search className="size-3.5 text-muted" strokeWidth={1.8} />
                       <input
@@ -408,7 +515,7 @@ export function AccountsTopCard({
                             key={account.id}
                             type="button"
                             onClick={() => addAccount(account.id)}
-                            className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left transition hover:bg-card"
+                            className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-left transition hover:bg-card"
                           >
                             <Avatar account={account} size={28} />
                             <span className="min-w-0">
@@ -447,7 +554,7 @@ export function AccountsTopCard({
                 <Link
                   key={item.value}
                   href={
-                    isCompareMode
+                    effectiveIsCompareMode
                       ? analyticsHref({
                           compareLeft,
                           compareRight,
@@ -455,7 +562,7 @@ export function AccountsTopCard({
                           view: "compare",
                         })
                       : analyticsHref({
-                          accountIds: selectedAccountIds,
+                          accountIds: effectiveSelectedAccountIds,
                           timeFilter: { range: item.value },
                         })
                   }
@@ -468,6 +575,36 @@ export function AccountsTopCard({
                       ? "bg-card text-ink"
                       : "text-muted hover:text-ink"
                   }`}
+                  onClick={(event) =>
+                    handleLinkNavigation(
+                      event,
+                      {
+                        key:
+                          effectiveIsCompareMode
+                            ? analyticsHref({
+                                compareLeft,
+                                compareRight,
+                                timeFilter: { range: item.value },
+                                view: "compare",
+                              })
+                            : analyticsHref({
+                                accountIds: effectiveSelectedAccountIds,
+                                timeFilter: { range: item.value },
+                              }),
+                        label: item.label,
+                        view: effectiveIsCompareMode
+                          ? "compare"
+                          : effectiveSelectedAccountIds.length > 0
+                            ? "select"
+                            : "overview",
+                        selectedAccountIds: effectiveSelectedAccountIds,
+                        compareAccountIds: effectiveIsCompareMode
+                          ? [compareLeft, compareRight]
+                          : [null, null],
+                      },
+                      timeFilter.range === item.value,
+                    )
+                  }
                 >
                   {item.label}
                 </Link>
@@ -498,7 +635,7 @@ export function AccountsTopCard({
                 className="absolute right-0 top-11 z-40 grid w-[24rem] max-w-[calc(100vw-2rem)] gap-1.5 rounded-lg border border-line bg-paper p-1.5 shadow-[0_18px_45px_rgba(24,22,18,0.14)] sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"
               >
                 <input type="hidden" name="range" value="custom" />
-                {isCompareMode ? (
+                {effectiveIsCompareMode ? (
                   <>
                     <input type="hidden" name="view" value="compare" />
                     {compareLeft ? (
@@ -517,7 +654,7 @@ export function AccountsTopCard({
                     ) : null}
                   </>
                 ) : (
-                  selectedAccountIds.map((accountId) => (
+                  effectiveSelectedAccountIds.map((accountId) => (
                     <input
                       key={accountId}
                       type="hidden"
