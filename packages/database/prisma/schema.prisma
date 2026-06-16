@@ -264,6 +264,7 @@ model WorkspaceTask {
   assignee           String
   urgency            String            @default("Medium")
   status             String            @default("Not started")
+  startDate          DateTime?         @map("start_date")
   deadline           DateTime
   briefExecution     String            @map("brief_execution") @db.Text
   notes              String            @db.Text
@@ -277,6 +278,7 @@ model WorkspaceTask {
 
   @@index([folderId, sortOrder])
   @@index([instagramAccountId])
+  @@index([startDate])
   @@index([deadline])
   @@map("workspace_tasks")
 }

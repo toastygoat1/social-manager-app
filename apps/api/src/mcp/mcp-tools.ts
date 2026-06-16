@@ -59,6 +59,7 @@ export function buildMcpServer(
           status: task.status,
           urgency: task.urgency,
           assignee: task.assignee,
+          startDate: task.startDate,
           deadline: task.deadline,
         })),
       }));
@@ -70,17 +71,16 @@ export function buildMcpServer(
     'create_folder',
     {
       title: 'Create a workspace folder',
-      description: 'Create a new workspace folder (a column / table) for tasks.',
+      description:
+        'Create a new workspace folder (a column / table) for tasks.',
       inputSchema: {
         name: z.string().min(1).max(120).describe('Folder name'),
       },
     },
     async ({ name }) => {
-      const folder = await workspace.createFolder(
-        user.userId,
-        user.email,
-        { name },
-      );
+      const folder = await workspace.createFolder(user.userId, user.email, {
+        name,
+      });
       return jsonResult({ folder });
     },
   );
@@ -113,12 +113,19 @@ export function buildMcpServer(
         deadline: deadlineSchema
           .optional()
           .describe('Local datetime, e.g. 2026-06-20T14:30'),
+        startDate: deadlineSchema
+          .optional()
+          .describe('Optional start datetime, e.g. 2026-06-20T09:00'),
         briefExecution: z
           .string()
           .max(1200)
           .optional()
           .describe('What to do / execution brief'),
-        notes: z.string().max(1200).optional().describe('Extra notes / context'),
+        notes: z
+          .string()
+          .max(1200)
+          .optional()
+          .describe('Extra notes / context'),
         inputFrom: z
           .string()
           .max(80)
@@ -152,6 +159,7 @@ export function buildMcpServer(
         assignee: z.string().max(80).optional(),
         urgency: z.enum(WORKSPACE_TASK_URGENCIES).optional(),
         status: z.enum(WORKSPACE_TASK_STATUSES).optional(),
+        startDate: deadlineSchema.optional(),
         deadline: deadlineSchema.optional(),
         briefExecution: z.string().max(1200).optional(),
         notes: z.string().max(1200).optional(),

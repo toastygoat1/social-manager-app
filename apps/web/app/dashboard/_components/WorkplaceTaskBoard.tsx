@@ -22,14 +22,13 @@ import {
   UserPlus,
 } from "lucide-react";
 import {
-  DateTimePickerPopover,
-  formatLocalDateTimeDisplay,
   getFloatingAnchorRect,
   type FloatingAnchorRect,
 } from "@/app/_components/DateTimePickerPopover";
 import { apiFetchBrowser } from "@/lib/api/browser-client";
 import { createClient } from "@/lib/supabase/client";
 import type { Account } from "./data";
+import { WorkspaceDateRangePicker } from "./WorkspaceDateRangePicker";
 
 type TaskUrgency = "High" | "Medium" | "Low";
 type TaskStatus = "Not started" | "In progress" | "Review" | "Done";
@@ -42,6 +41,7 @@ type WorkplaceTask = {
   accountId: string | null;
   accountIds: string[];
   status: TaskStatus;
+  startDate: string;
   deadline: string;
   briefExecution: string;
   notes: string;
@@ -120,7 +120,7 @@ const TASK_COLUMNS = [
   { label: "Urgency", width: 115 },
   { label: "Account", width: 190 },
   { label: "Status", width: 135 },
-  { label: "Deadline", width: 185 },
+  { label: "Date", width: 220 },
   { label: "Brief Execution", width: 300 },
   { label: "Notes", width: 260 },
   { label: "Input From", width: 125 },
@@ -212,11 +212,7 @@ function addDays(date: Date, days: number) {
 }
 
 function buildDeadlineCalendarCells(reference: Date): DeadlineCalendarCell[] {
-  const monthStart = new Date(
-    reference.getFullYear(),
-    reference.getMonth(),
-    1,
-  );
+  const monthStart = new Date(reference.getFullYear(), reference.getMonth(), 1);
   const gridStart = addDays(monthStart, -monthStart.getDay());
 
   return Array.from({ length: 42 }, (_, index) => {
@@ -259,7 +255,10 @@ function daysBetween(start: Date, end: Date) {
   );
 }
 
-function getValidBannerColor(value: string | null | undefined, fallback: string) {
+function getValidBannerColor(
+  value: string | null | undefined,
+  fallback: string,
+) {
   if (value && /^#[0-9a-fA-F]{6}$/.test(value)) return value;
   return fallback;
 }
@@ -334,9 +333,10 @@ function makeAssigneeOption(name: string): AssigneeOption {
     id: normalizedName.toLowerCase(),
     name: normalizedName,
     initials: getPersonInitials(normalizedName) || "?",
-    color: ASSIGNEE_COLORS[
-      getStableIndex(normalizedName.toLowerCase(), ASSIGNEE_COLORS.length)
-    ],
+    color:
+      ASSIGNEE_COLORS[
+        getStableIndex(normalizedName.toLowerCase(), ASSIGNEE_COLORS.length)
+      ],
   };
 }
 
@@ -415,18 +415,14 @@ function RowSelectCell({
       >
         <span
           className={`transition ${
-            selected
-              ? "opacity-0"
-              : "opacity-100 group-hover/row:opacity-0"
+            selected ? "opacity-0" : "opacity-100 group-hover/row:opacity-0"
           }`}
         >
           {rowNumber}
         </span>
         <span
           className={`absolute flex size-4 items-center justify-center rounded-[4px] border border-line bg-paper transition ${
-            selected
-              ? "opacity-100"
-              : "opacity-0 group-hover/row:opacity-100"
+            selected ? "opacity-100" : "opacity-0 group-hover/row:opacity-100"
           }`}
         >
           {selected ? <Check className="size-3" strokeWidth={2.2} /> : null}
@@ -814,7 +810,9 @@ function AssigneeSelect({
         className="flex w-full items-center gap-2 bg-transparent px-2 py-1.5 text-left text-xs text-ink outline-none transition hover:text-ink focus:text-ink"
         title={selectedAssignee?.name}
       >
-        {selectedAssignee ? <AssigneeAvatar assignee={selectedAssignee} /> : null}
+        {selectedAssignee ? (
+          <AssigneeAvatar assignee={selectedAssignee} />
+        ) : null}
         <span className="min-w-0 flex-1 truncate">
           {selectedAssignee?.name ?? ""}
         </span>
@@ -901,47 +899,6 @@ function AssigneeSelect({
   );
 }
 
-function DateTimeInput({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  const [pickerAnchorRect, setPickerAnchorRect] =
-    useState<FloatingAnchorRect | null>(null);
-
-  function togglePicker(trigger: HTMLElement) {
-    setPickerAnchorRect((current) =>
-      current ? null : getFloatingAnchorRect(trigger),
-    );
-  }
-
-  return (
-    <>
-      <button
-        type="button"
-        aria-label="Deadline"
-        aria-expanded={Boolean(pickerAnchorRect)}
-        aria-haspopup="dialog"
-        onClick={(event) => togglePicker(event.currentTarget)}
-        className="flex w-full items-center px-2 py-1.5 text-left text-xs text-ink outline-none transition hover:text-cta focus:text-cta"
-      >
-        <span className="truncate">{formatLocalDateTimeDisplay(value)}</span>
-      </button>
-
-      {pickerAnchorRect ? (
-        <DateTimePickerPopover
-          anchorRect={pickerAnchorRect}
-          value={value}
-          onChange={onChange}
-          onClose={() => setPickerAnchorRect(null)}
-        />
-      ) : null}
-    </>
-  );
-}
-
 function FolderCover({
   workspace,
   variant,
@@ -958,9 +915,7 @@ function FolderCover({
   return (
     <span
       className={`relative block w-full overflow-hidden rounded-[18px] bg-transparent transition ${
-        isBanner
-          ? "h-[236px] sm:h-[256px]"
-          : "aspect-[337/183]"
+        isBanner ? "h-[236px] sm:h-[256px]" : "aspect-[337/183]"
       } ${selected ? "shadow-md" : "shadow-sm"}`}
     >
       {workspace.bannerImageUrl ? (
@@ -992,10 +947,7 @@ function FolderCover({
           strokeWidth="4"
           vectorEffect="non-scaling-stroke"
         />
-        <path
-          d={FOLDER_FACE_PATH}
-          fill={folderColor}
-        />
+        <path d={FOLDER_FACE_PATH} fill={folderColor} />
       </svg>
 
       <span
@@ -1041,11 +993,7 @@ function FolderTile({
         onClick={onSelect}
         className="block w-full rounded-[18px] text-left outline-none transition focus-visible:ring-2 focus-visible:ring-ink/70"
       >
-        <FolderCover
-          workspace={workspace}
-          selected={selected}
-          variant="tile"
-        />
+        <FolderCover workspace={workspace} selected={selected} variant="tile" />
       </button>
 
       <div
@@ -1179,12 +1127,8 @@ function DeadlineCalendar({
                   key={cell.dateKey}
                   className={`min-h-[104px] border-r border-line p-2.5 ${
                     index >= 7 ? "border-t" : ""
-                  } ${
-                    (index + 1) % 7 === 0 ? "border-r-0" : ""
-                  } ${
-                    cell.outside
-                      ? "bg-card/50 text-muted"
-                      : "bg-paper"
+                  } ${(index + 1) % 7 === 0 ? "border-r-0" : ""} ${
+                    cell.outside ? "bg-card/50 text-muted" : "bg-paper"
                   } ${isToday ? "ring-2 ring-inset ring-cta/35" : ""}`}
                 >
                   <div className="mb-2 flex items-center justify-between gap-2">
@@ -1307,9 +1251,8 @@ function GanttView({ tasks }: { tasks: WorkplaceTask[] }) {
           task,
           deadline: parseLocalDateTime(task.deadline),
         }))
-        .filter(
-          (item): item is { task: WorkplaceTask; deadline: Date } =>
-            Boolean(item.deadline),
+        .filter((item): item is { task: WorkplaceTask; deadline: Date } =>
+          Boolean(item.deadline),
         )
         .sort((a, b) => a.deadline.getTime() - b.deadline.getTime()),
     [tasks],
@@ -1447,7 +1390,9 @@ function KanbanView({ tasks }: { tasks: WorkplaceTask[] }) {
               className="min-h-[460px] border border-line bg-card/25"
             >
               <header className="flex items-center justify-between border-b border-line px-3 py-2">
-                <h3 className={`text-xs font-semibold ${STATUS_STYLES[status]}`}>
+                <h3
+                  className={`text-xs font-semibold ${STATUS_STYLES[status]}`}
+                >
                   {status}
                 </h3>
                 <span className="text-xs text-muted">{columnTasks.length}</span>
@@ -1531,7 +1476,9 @@ function TaskRow({
         <EditableTextCell
           ariaLabel="Task name"
           value={task.taskName}
-          onChange={(value) => onUpdate(workspaceId, task.id, "taskName", value)}
+          onChange={(value) =>
+            onUpdate(workspaceId, task.id, "taskName", value)
+          }
           strong
         />
       </TaskCell>
@@ -1539,7 +1486,9 @@ function TaskRow({
         <AssigneeSelect
           value={task.assignee}
           assignees={assignees}
-          onChange={(value) => onUpdate(workspaceId, task.id, "assignee", value)}
+          onChange={(value) =>
+            onUpdate(workspaceId, task.id, "assignee", value)
+          }
           onCreate={onCreateAssignee}
         />
       </TaskCell>
@@ -1556,7 +1505,9 @@ function TaskRow({
         <AccountSelect
           accountIds={taskAccountIds}
           accounts={accounts}
-          onChange={(value) => onUpdate(workspaceId, task.id, "accountIds", value)}
+          onChange={(value) =>
+            onUpdate(workspaceId, task.id, "accountIds", value)
+          }
         />
       </TaskCell>
       <TaskCell width={135} className="items-center">
@@ -1568,10 +1519,16 @@ function TaskRow({
           className={STATUS_STYLES[task.status]}
         />
       </TaskCell>
-      <TaskCell width={185} className="items-center">
-        <DateTimeInput
-          value={task.deadline}
-          onChange={(value) => onUpdate(workspaceId, task.id, "deadline", value)}
+      <TaskCell width={220} className="items-center">
+        <WorkspaceDateRangePicker
+          deadline={task.deadline}
+          startDate={task.startDate}
+          onDeadlineChange={(value) =>
+            onUpdate(workspaceId, task.id, "deadline", value)
+          }
+          onStartDateChange={(value) =>
+            onUpdate(workspaceId, task.id, "startDate", value)
+          }
         />
       </TaskCell>
       <TaskCell width={300}>
@@ -1597,7 +1554,9 @@ function TaskRow({
         <EditableTextCell
           ariaLabel="Input from"
           value={task.inputFrom}
-          onChange={(value) => onUpdate(workspaceId, task.id, "inputFrom", value)}
+          onChange={(value) =>
+            onUpdate(workspaceId, task.id, "inputFrom", value)
+          }
           muted
         />
       </TaskCell>
@@ -1655,9 +1614,7 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
           return preferredWorkspaceId;
         }
 
-        if (
-          folders.some((workspace) => workspace.id === currentSelectedId)
-        ) {
+        if (folders.some((workspace) => workspace.id === currentSelectedId)) {
           return currentSelectedId;
         }
 
@@ -1736,7 +1693,11 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
     let refreshInFlight = false;
 
     async function refreshSyncedFolders() {
-      if (document.visibilityState === "hidden" || refreshInFlight || isSyncing) {
+      if (
+        document.visibilityState === "hidden" ||
+        refreshInFlight ||
+        isSyncing
+      ) {
         return;
       }
 
@@ -2161,9 +2122,7 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
           <h1 className="text-xl font-semibold leading-tight text-ink">
             Workspace
           </h1>
-          <p className="mt-1 text-xs text-muted">
-            {workspaces.length} folders
-          </p>
+          <p className="mt-1 text-xs text-muted">{workspaces.length} folders</p>
           <div className="mt-3 flex items-center gap-1.5">
             <input
               aria-label="Add assignee"
@@ -2298,7 +2257,9 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
                       <button
                         type="button"
                         aria-label={
-                          allSelectedTasks ? "Deselect all rows" : "Select all rows"
+                          allSelectedTasks
+                            ? "Deselect all rows"
+                            : "Select all rows"
                         }
                         aria-pressed={allSelectedTasks}
                         onClick={toggleAllSelectedTasks}
@@ -2345,8 +2306,8 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
                       className="flex min-h-[160px] items-center justify-center border-b border-line px-6 text-center text-sm text-muted"
                       style={{ width: TASK_TABLE_WIDTH }}
                     >
-                      This folder is empty. Add a row to start building its
-                      task table.
+                      This folder is empty. Add a row to start building its task
+                      table.
                     </div>
                   )}
                   <button
@@ -2383,9 +2344,7 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
               <Plus className="size-5" strokeWidth={1.8} />
             </span>
             <div>
-              <h2 className="text-xl font-semibold text-ink">
-                No folders yet
-              </h2>
+              <h2 className="text-xl font-semibold text-ink">No folders yet</h2>
               <p className="mt-1 text-sm text-muted">
                 Create a folder to show its task table and deadline calendar
                 here.

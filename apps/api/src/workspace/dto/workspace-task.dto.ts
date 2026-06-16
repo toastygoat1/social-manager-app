@@ -55,6 +55,10 @@ export class CreateWorkspaceTaskDto {
   deadline?: string;
 
   @IsOptional()
+  @Matches(DEADLINE_LOCAL_PATTERN)
+  startDate?: string | null;
+
+  @IsOptional()
   @IsString()
   @MaxLength(1200)
   briefExecution?: string;
@@ -103,6 +107,10 @@ export class UpdateWorkspaceTaskDto {
   @IsOptional()
   @Matches(DEADLINE_LOCAL_PATTERN)
   deadline?: string;
+
+  @IsOptional()
+  @Matches(DEADLINE_LOCAL_PATTERN)
+  startDate?: string | null;
 
   @IsOptional()
   @IsString()

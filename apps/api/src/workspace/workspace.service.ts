@@ -22,6 +22,7 @@ type DefaultTask = {
   assignee: string;
   urgency: (typeof WORKSPACE_TASK_URGENCIES)[number];
   status: (typeof WORKSPACE_TASK_STATUSES)[number];
+  startDate?: string | null;
   deadline: string;
   briefExecution: string;
   notes: string;
@@ -174,14 +175,21 @@ function toDateTimeLocalValue(value: Date) {
   )}:${padDatePart(value.getMinutes())}`;
 }
 
-function parseDeadline(value: string | undefined) {
-  if (!value) return undefined;
+function parseWorkspaceDateTime(
+  value: string | null | undefined,
+  label: string,
+) {
+  if (!value) return null;
 
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) {
-    throw new BadRequestException('Deadline must be a valid date and time');
+    throw new BadRequestException(`${label} must be a valid date and time`);
   }
   return parsed;
+}
+
+function parseDeadline(value: string | undefined) {
+  return parseWorkspaceDateTime(value, 'Deadline') ?? undefined;
 }
 
 function defaultDeadline() {
@@ -328,6 +336,7 @@ export class WorkspaceService {
       userId,
       getRequestedAccountIds(body),
     );
+    const startDate = parseWorkspaceDateTime(body.startDate, 'Start date');
     const deadline = parseDeadline(body.deadline) ?? defaultDeadline();
 
     const task = await this.prisma.workspaceTask.create({
@@ -348,6 +357,7 @@ export class WorkspaceService {
         assignee: trimOrFallback(body.assignee, 'Unassigned'),
         urgency: body.urgency ?? 'Medium',
         status: body.status ?? 'Not started',
+        startDate,
         deadline,
         briefExecution: body.briefExecution ?? '',
         notes: body.notes ?? '',
@@ -380,6 +390,9 @@ export class WorkspaceService {
     if (body.status !== undefined) data.status = body.status;
     if (body.deadline !== undefined) {
       data.deadline = parseDeadline(body.deadline);
+    }
+    if (body.startDate !== undefined) {
+      data.startDate = parseWorkspaceDateTime(body.startDate, 'Start date');
     }
     if (body.briefExecution !== undefined) {
       data.briefExecution = body.briefExecution;
@@ -461,6 +474,10 @@ export class WorkspaceService {
                   assignee: task.assignee,
                   urgency: task.urgency,
                   status: task.status,
+                  startDate: parseWorkspaceDateTime(
+                    task.startDate,
+                    'Start date',
+                  ),
                   deadline: parseDeadline(task.deadline) ?? defaultDeadline(),
                   briefExecution: task.briefExecution,
                   notes: task.notes,
@@ -560,6 +577,7 @@ export class WorkspaceService {
       accountId: accountIds[0] ?? null,
       accountIds,
       status: task.status,
+      startDate: task.startDate ? toDateTimeLocalValue(task.startDate) : '',
       deadline: toDateTimeLocalValue(task.deadline),
       briefExecution: task.briefExecution,
       notes: task.notes,
