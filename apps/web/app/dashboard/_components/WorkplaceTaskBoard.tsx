@@ -83,14 +83,9 @@ const WORKSPACE_FOLDERS_ENDPOINT = "/workspace/folders";
 const EMPTY_SELECTED_WORKSPACE_ID = "";
 const EMPTY_TASKS: WorkplaceTask[] = [];
 const CALENDAR_WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const FOLDER_TONES = [
-  { body: "#fb858b", tab: "#ff9a9f", spine: "#2b2b2b" },
-  { body: "#f07aa4", tab: "#ffabc8", spine: "#333333" },
-  { body: "#89a7ff", tab: "#aebfff", spine: "#2b3145" },
-  { body: "#7fc8b8", tab: "#9de1d4", spine: "#2e3433" },
-  { body: "#c393e8", tab: "#dab4fb", spine: "#31273d" },
-  { body: "#6daee8", tab: "#9bcaf5", spine: "#273447" },
-];
+const FOLDER_BACK_FILL = "#424242";
+const FOLDER_FACE_PATH =
+  "M0 95.5C0 86.6634 7.16344 79.5 16 79.5H130.4C136.309 79.5 141.737 82.7568 144.518 87.9706L152.612 103.147C154.697 107.057 158.768 109.5 163.2 109.5H321C329.837 109.5 337 116.663 337 125.5V167C337 175.837 329.837 183 321 183H16C7.16344 183 0 175.837 0 167V95.5Z";
 
 const TASK_COLUMNS = [
   { label: "Task Name", width: 240 },
@@ -691,34 +686,29 @@ function DateTimeInput({
 
 function FolderCover({
   workspace,
-  tone,
   variant,
   selected = false,
 }: {
   workspace: Workspace;
-  tone: (typeof FOLDER_TONES)[number];
   variant: "tile" | "banner";
   selected?: boolean;
 }) {
   const isBanner = variant === "banner";
   const title = workspace.name.trim() || "Folder";
-  const topColor = getValidBannerColor(workspace.bannerColor, tone.spine);
+  const topColor = getValidBannerColor(
+    workspace.bannerColor,
+    FOLDER_BACK_FILL,
+  );
   const titleStyle = getFolderTitleStyle(workspace);
 
   return (
     <span
-      className={`relative block w-full overflow-hidden border-[5px] border-paper bg-neutral-800 shadow-sm transition ${
+      className={`relative block w-full overflow-hidden rounded-[18px] bg-transparent transition ${
         isBanner
-          ? "h-[236px] rounded-[22px] sm:h-[256px]"
-          : "aspect-[1.82] rounded-[18px]"
-      } ${selected ? "ring-2 ring-ink/80" : "ring-1 ring-line/70"}`}
+          ? "h-[236px] sm:h-[256px]"
+          : "aspect-[337/183]"
+      } ${selected ? "shadow-md" : "shadow-sm"}`}
     >
-      <span
-        aria-hidden="true"
-        className="absolute inset-0"
-        style={{ backgroundColor: topColor }}
-      />
-
       {workspace.bannerImageUrl ? (
         <Image
           src={workspace.bannerImageUrl}
@@ -732,22 +722,33 @@ function FolderCover({
 
       <svg
         aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 bottom-[-1px] h-[66%] w-full"
-        viewBox="0 0 100 66"
+        className="pointer-events-none absolute inset-0 h-full w-full"
+        viewBox="0 0 337 183"
         preserveAspectRatio="none"
         focusable="false"
       >
+        <rect
+          x="2"
+          y="2"
+          width="333"
+          height="142"
+          rx="14"
+          fill={workspace.bannerImageUrl ? "transparent" : topColor}
+          stroke="white"
+          strokeWidth="4"
+          vectorEffect="non-scaling-stroke"
+        />
         <path
-          d="M0 16C0 9.5 5 6 11.5 6H39.5C44.5 6 48 8.5 50 13L57.5 29.5C59.5 34 63 36 68 36H93C97 36 100 39 100 43V66H0V16Z"
-          fill="var(--bg-light)"
+          d={FOLDER_FACE_PATH}
+          fill="white"
         />
       </svg>
 
       <span
-        className={`absolute z-10 block max-w-[70%] truncate text-ink ${
+        className={`absolute z-10 block max-w-[58%] truncate text-neutral-950 ${
           isBanner
-            ? "left-[6%] top-[57%] text-[44px] leading-none sm:text-[58px] md:text-[70px]"
-            : "left-[7%] top-[58%] text-[15px] leading-none"
+            ? "left-[3.9%] top-[52%] text-[26px] leading-none sm:text-[30px] md:text-[34px]"
+            : "left-[3.9%] top-[52%] text-[15px] leading-none"
         }`}
         style={titleStyle}
         title={title}
@@ -761,12 +762,10 @@ function FolderCover({
 function FolderTile({
   workspace,
   selected,
-  tone,
   onSelect,
 }: {
   workspace: Workspace;
   selected: boolean;
-  tone: (typeof FOLDER_TONES)[number];
   onSelect: () => void;
 }) {
   return (
@@ -781,7 +780,6 @@ function FolderTile({
       <FolderCover
         workspace={workspace}
         selected={selected}
-        tone={tone}
         variant="tile"
       />
     </button>
@@ -951,18 +949,16 @@ function DeadlineCalendar({
 
 function WorkspaceBanner({
   workspace,
-  tone,
   uploading,
   onUpload,
 }: {
   workspace: Workspace;
-  tone: (typeof FOLDER_TONES)[number];
   uploading: boolean;
   onUpload: (file: File) => void;
 }) {
   return (
     <section className="group/banner relative border-b border-line bg-paper px-4 py-4 sm:px-5">
-      <FolderCover workspace={workspace} tone={tone} variant="banner" />
+      <FolderCover workspace={workspace} variant="banner" />
       <label
         title={uploading ? "Uploading banner" : "Edit banner"}
         aria-label={uploading ? "Uploading banner" : "Edit banner"}
@@ -1296,14 +1292,6 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
     workspaces.find((workspace) => workspace.id === selectedWorkspaceId) ??
     workspaces[0] ??
     null;
-  const selectedWorkspaceIndex = selectedWorkspace
-    ? workspaces.findIndex((workspace) => workspace.id === selectedWorkspace.id)
-    : -1;
-  const selectedWorkspaceTone =
-    FOLDER_TONES[
-      (selectedWorkspaceIndex >= 0 ? selectedWorkspaceIndex : 0) %
-        FOLDER_TONES.length
-    ];
   const selectedTasks = selectedWorkspace?.tasks ?? EMPTY_TASKS;
 
   const applyLoadedWorkspaces = useCallback(
@@ -1648,12 +1636,11 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
           role="tablist"
           aria-label="Folders"
         >
-          {workspaces.map((workspace, index) => (
+          {workspaces.map((workspace) => (
             <FolderTile
               key={workspace.id}
               workspace={workspace}
               selected={workspace.id === selectedWorkspace?.id}
-              tone={FOLDER_TONES[index % FOLDER_TONES.length]}
               onSelect={() => setSelectedWorkspaceId(workspace.id)}
             />
           ))}
@@ -1673,7 +1660,6 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
           <>
             <WorkspaceBanner
               workspace={selectedWorkspace}
-              tone={selectedWorkspaceTone}
               uploading={bannerUploadWorkspaceId === selectedWorkspace.id}
               onUpload={uploadSelectedFolderBanner}
             />
