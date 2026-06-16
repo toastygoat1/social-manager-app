@@ -4,6 +4,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -16,6 +17,7 @@ import {
   ChevronRight,
   FileText,
   Flag,
+  PanelLeft,
   Pencil,
   Plus,
   Search,
@@ -87,6 +89,7 @@ type MediaUploadUrlResponse = {
 };
 
 type WorkspaceViewMode = "table" | "calendar" | "gantt" | "kanban";
+type GanttScale = "week" | "month" | "quarter";
 
 type EditableTaskField = Exclude<keyof WorkplaceTask, "id" | "accountId">;
 
@@ -192,8 +195,14 @@ const GANTT_BAR_STYLES: Record<TaskStatus, string> = {
 };
 
 const GANTT_ROW_HEIGHT = 36;
-const GANTT_LEFT_WIDTH = 424;
-const GANTT_MONTH_WIDTH = 216;
+const GANTT_DEFAULT_LEFT_WIDTH = 424;
+const GANTT_MIN_LEFT_WIDTH = 320;
+const GANTT_MAX_LEFT_WIDTH = 620;
+const GANTT_COLUMN_WIDTHS: Record<GanttScale, number> = {
+  week: 56,
+  month: 130,
+  quarter: 156,
+};
 
 const CALENDAR_EVENT_STYLES: Record<TaskStatus, string> = {
   "Not started": "border-line bg-paper text-muted",
@@ -221,6 +230,30 @@ type DeadlineCalendarCell = {
   dateKey: string;
   day: number;
   outside: boolean;
+};
+
+type GanttDatedTask = {
+  task: WorkplaceTask;
+  start: Date;
+  deadline: Date;
+};
+
+type GanttColumn = {
+  key: string;
+  label: string;
+  muted?: boolean;
+  shaded?: boolean;
+  start: Date;
+  end: Date;
+  left: number;
+  width: number;
+};
+
+type GanttHeaderGroup = {
+  key: string;
+  label: string;
+  left: number;
+  width: number;
 };
 
 const inputClassName =
@@ -301,20 +334,225 @@ function addMonths(date: Date, months: number) {
   return new Date(date.getFullYear(), date.getMonth() + months, 1);
 }
 
+function startOfWeek(date: Date) {
+  return addDays(startOfDay(date), -date.getDay());
+}
+
 function getMonthKey(date: Date) {
   return `${date.getFullYear()}-${padDatePart(date.getMonth() + 1)}`;
 }
 
-function daysInMonth(date: Date) {
-  return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+function getWeekNumber(date: Date) {
+  const firstDay = new Date(date.getFullYear(), 0, 1);
+  return Math.ceil(
+    ((startOfDay(date).getTime() - firstDay.getTime()) / 86_400_000 +
+      firstDay.getDay() +
+      1) /
+      7,
+  );
 }
 
-function monthsBetween(start: Date, end: Date) {
-  return (
-    (end.getFullYear() - start.getFullYear()) * 12 +
-    end.getMonth() -
-    start.getMonth()
+function formatDayShort(date: Date) {
+  return new Intl.DateTimeFormat("en-US", { weekday: "short" }).format(date);
+}
+
+function formatMonthShort(date: Date) {
+  return new Intl.DateTimeFormat("en-US", { month: "short" }).format(date);
+}
+
+function formatDayRange(start: Date, end: Date) {
+  return `${formatMonthShort(start)} ${start.getDate()} - ${end.getDate()}`;
+}
+
+function getQuarterLabel(date: Date) {
+  return `Q${Math.floor(date.getMonth() / 3) + 1}`;
+}
+
+function getGanttRange(datedTasks: GanttDatedTask[], scale: GanttScale) {
+  const today = startOfDay(new Date());
+  const minDate = datedTasks.reduce<Date>((earliest, item) => {
+    const candidate =
+      item.start.getTime() < item.deadline.getTime()
+        ? item.start
+        : item.deadline;
+    return candidate.getTime() < earliest.getTime() ? candidate : earliest;
+  }, today);
+  const maxDate = datedTasks.reduce<Date>((latest, item) => {
+    const candidate =
+      item.deadline.getTime() > item.start.getTime()
+        ? item.deadline
+        : item.start;
+    return candidate.getTime() > latest.getTime() ? candidate : latest;
+  }, today);
+
+  if (scale === "week") {
+    return {
+      start: startOfWeek(addDays(minDate, -7)),
+      end: addDays(startOfWeek(addDays(maxDate, 21)), 7),
+    };
+  }
+
+  if (scale === "month") {
+    return {
+      start: startOfWeek(addDays(minDate, -14)),
+      end: addDays(startOfWeek(addDays(maxDate, 42)), 7),
+    };
+  }
+
+  return {
+    start: startOfMonth(addMonths(minDate, -1)),
+    end: addMonths(startOfMonth(maxDate), 4),
+  };
+}
+
+function buildGanttTimeline(datedTasks: GanttDatedTask[], scale: GanttScale) {
+  const columnWidth = GANTT_COLUMN_WIDTHS[scale];
+  const range = getGanttRange(datedTasks, scale);
+  const columns: GanttColumn[] = [];
+  const groups: GanttHeaderGroup[] = [];
+
+  if (scale === "week") {
+    let cursor = startOfDay(range.start);
+    let index = 0;
+    while (cursor.getTime() < range.end.getTime()) {
+      const columnStart = cursor;
+      const columnEnd = addDays(cursor, 1);
+      columns.push({
+        key: toDateKey(columnStart),
+        label: `${formatDayShort(columnStart)} ${columnStart.getDate()}`,
+        muted: columnStart.getDay() === 0 || columnStart.getDay() === 6,
+        shaded: columnStart.getDay() === 0 || columnStart.getDay() === 6,
+        start: columnStart,
+        end: columnEnd,
+        left: index * columnWidth,
+        width: columnWidth,
+      });
+      cursor = columnEnd;
+      index += 1;
+    }
+
+    for (let groupStart = 0; groupStart < columns.length; groupStart += 7) {
+      const first = columns[groupStart];
+      const last = columns[Math.min(groupStart + 6, columns.length - 1)];
+      if (!first || !last) continue;
+      groups.push({
+        key: `week-${first.key}`,
+        label: `W${getWeekNumber(first.start)}  ${formatDayRange(
+          first.start,
+          addDays(last.end, -1),
+        )}`,
+        left: first.left,
+        width: last.left + last.width - first.left,
+      });
+    }
+  } else if (scale === "month") {
+    let cursor = startOfWeek(range.start);
+    let index = 0;
+    while (cursor.getTime() < range.end.getTime()) {
+      const columnStart = cursor;
+      const columnEnd = addDays(cursor, 7);
+      columns.push({
+        key: `week-${toDateKey(columnStart)}`,
+        label: `W${getWeekNumber(columnStart)}  ${columnStart.getDate()}-${addDays(
+          columnEnd,
+          -1,
+        ).getDate()}`,
+        start: columnStart,
+        end: columnEnd,
+        left: index * columnWidth,
+        width: columnWidth,
+      });
+      cursor = columnEnd;
+      index += 1;
+    }
+
+    for (const column of columns) {
+      const monthKey = getMonthKey(column.start);
+      const currentGroup = groups[groups.length - 1];
+      if (currentGroup?.key === monthKey) {
+        currentGroup.width = column.left + column.width - currentGroup.left;
+      } else {
+        groups.push({
+          key: monthKey,
+          label: `${column.start.getFullYear()}  ${formatMonthShort(
+            column.start,
+          )}`,
+          left: column.left,
+          width: column.width,
+        });
+      }
+    }
+  } else {
+    let cursor = startOfMonth(range.start);
+    let index = 0;
+    while (cursor.getTime() < range.end.getTime()) {
+      const columnStart = cursor;
+      const columnEnd = addMonths(cursor, 1);
+      columns.push({
+        key: getMonthKey(columnStart),
+        label: formatMonthShort(columnStart),
+        start: columnStart,
+        end: columnEnd,
+        left: index * columnWidth,
+        width: columnWidth,
+      });
+      cursor = columnEnd;
+      index += 1;
+    }
+
+    for (const column of columns) {
+      const groupKey = `${column.start.getFullYear()}-${getQuarterLabel(
+        column.start,
+      )}`;
+      const currentGroup = groups[groups.length - 1];
+      if (currentGroup?.key === groupKey) {
+        currentGroup.width = column.left + column.width - currentGroup.left;
+      } else {
+        groups.push({
+          key: groupKey,
+          label: `${column.start.getFullYear()}  ${getQuarterLabel(
+            column.start,
+          )}`,
+          left: column.left,
+          width: column.width,
+        });
+      }
+    }
+  }
+
+  return {
+    columns,
+    groups,
+    range,
+    width: Math.max(
+      columns.reduce((sum, column) => sum + column.width, 0),
+      720,
+    ),
+  };
+}
+
+function getTimelineXFromColumns(date: Date, columns: GanttColumn[]) {
+  if (columns.length === 0) return 0;
+
+  const timestamp = date.getTime();
+  const containingColumn =
+    columns.find(
+      (column) =>
+        timestamp >= column.start.getTime() && timestamp < column.end.getTime(),
+    ) ??
+    (timestamp < columns[0].start.getTime()
+      ? columns[0]
+      : columns[columns.length - 1]);
+  const duration = Math.max(
+    containingColumn.end.getTime() - containingColumn.start.getTime(),
+    1,
   );
+  const progress = Math.min(
+    Math.max((timestamp - containingColumn.start.getTime()) / duration, 0),
+    1,
+  );
+
+  return containingColumn.left + progress * containingColumn.width;
 }
 
 function formatDateOnly(value: Date) {
@@ -1428,6 +1666,62 @@ function WorkspaceBanner({
   );
 }
 
+function GanttToolbar({
+  scale,
+  showTaskList,
+  onFocusToday,
+  onScaleChange,
+  onToggleTaskList,
+}: {
+  scale: GanttScale;
+  showTaskList: boolean;
+  onFocusToday: () => void;
+  onScaleChange: (scale: GanttScale) => void;
+  onToggleTaskList: () => void;
+}) {
+  return (
+    <div className="flex h-10 shrink-0 items-center gap-1.5 border-b border-line bg-paper px-2">
+      <button
+        type="button"
+        aria-pressed={showTaskList}
+        aria-label={showTaskList ? "Hide task list" : "Show task list"}
+        onClick={onToggleTaskList}
+        className={`flex size-7 items-center justify-center rounded-md border border-line transition ${
+          showTaskList
+            ? "bg-card text-ink"
+            : "bg-paper text-muted hover:bg-card hover:text-ink"
+        }`}
+      >
+        <PanelLeft className="size-3.5" strokeWidth={1.8} />
+      </button>
+      <button
+        type="button"
+        onClick={onFocusToday}
+        className="flex h-7 items-center rounded-md border border-line bg-paper px-2 text-xs font-medium text-ink transition hover:bg-card"
+      >
+        Today
+      </button>
+      <label className="relative">
+        <span className="sr-only">Gantt view</span>
+        <select
+          value={scale}
+          onChange={(event) => onScaleChange(event.target.value as GanttScale)}
+          className="h-7 appearance-none rounded-md border border-line bg-paper px-2 pr-6 text-xs font-medium text-ink outline-none transition hover:bg-card"
+        >
+          <option value="week">Week</option>
+          <option value="month">Month</option>
+          <option value="quarter">Quarter</option>
+        </select>
+        <ChevronRight
+          aria-hidden="true"
+          className="pointer-events-none absolute right-1.5 top-1/2 size-3 -translate-y-1/2 rotate-90 text-muted"
+          strokeWidth={1.8}
+        />
+      </label>
+    </div>
+  );
+}
+
 function GanttView({
   tasks,
   accounts,
@@ -1435,6 +1729,10 @@ function GanttView({
   tasks: WorkplaceTask[];
   accounts: Account[];
 }) {
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
+  const [showTaskList, setShowTaskList] = useState(true);
+  const [leftWidth, setLeftWidth] = useState(GANTT_DEFAULT_LEFT_WIDTH);
+  const [scale, setScale] = useState<GanttScale>("quarter");
   const accountById = useMemo(
     () => new Map(accounts.map((account) => [account.id, account])),
     [accounts],
@@ -1472,209 +1770,200 @@ function GanttView({
         .sort((a, b) => a.deadline.getTime() - b.deadline.getTime()),
     [tasks],
   );
-  const timelineStart = useMemo(() => {
-    const firstDate = datedTasks.reduce<Date | null>((earliest, item) => {
-      const candidate =
-        item.start.getTime() < item.deadline.getTime()
-          ? item.start
-          : item.deadline;
-      return !earliest || candidate.getTime() < earliest.getTime()
-        ? candidate
-        : earliest;
-    }, null);
-
-    return startOfMonth(firstDate ?? new Date());
-  }, [datedTasks]);
-  const timelineEnd = useMemo(() => {
-    const lastDate = datedTasks.reduce<Date | null>((latest, item) => {
-      const candidate =
-        item.deadline.getTime() > item.start.getTime()
-          ? item.deadline
-          : item.start;
-      return !latest || candidate.getTime() > latest.getTime()
-        ? candidate
-        : latest;
-    }, null);
-
-    return addMonths(startOfMonth(lastDate ?? addMonths(new Date(), 2)), 2);
-  }, [datedTasks]);
-  const months = useMemo(() => {
-    const monthCount = Math.max(3, monthsBetween(timelineStart, timelineEnd));
-    return Array.from({ length: monthCount }, (_, index) =>
-      addMonths(timelineStart, index),
-    );
-  }, [timelineEnd, timelineStart]);
-  const quarterGroups = useMemo(() => {
-    const groups: { key: string; label: string; span: number; year: number }[] =
-      [];
-
-    for (const month of months) {
-      const quarter = Math.floor(month.getMonth() / 3) + 1;
-      const key = `${month.getFullYear()}-Q${quarter}`;
-      const currentGroup = groups[groups.length - 1];
-
-      if (currentGroup?.key === key) {
-        currentGroup.span += 1;
-      } else {
-        groups.push({
-          key,
-          label: `Q${quarter}`,
-          span: 1,
-          year: month.getFullYear(),
-        });
-      }
-    }
-
-    return groups;
-  }, [months]);
-  const timelineWidth = months.length * GANTT_MONTH_WIDTH;
+  const timeline = useMemo(
+    () => buildGanttTimeline(datedTasks, scale),
+    [datedTasks, scale],
+  );
+  const timelineWidth = timeline.width;
   const rowCount = datedTasks.length + 1;
-  const contentHeight = Math.max(480, rowCount * GANTT_ROW_HEIGHT);
+  const contentHeight = Math.max(620, rowCount * GANTT_ROW_HEIGHT + 80);
+  const visibleLeftWidth = showTaskList ? leftWidth : 0;
 
-  function getTimelineX(date: Date) {
-    const clampedMonthIndex = Math.min(
-      Math.max(monthsBetween(timelineStart, startOfMonth(date)), 0),
-      months.length - 1,
-    );
-    const month = months[clampedMonthIndex] ?? timelineStart;
-    const dayOffset = Math.min(
-      Math.max(date.getDate() - 1, 0),
-      daysInMonth(month) - 1,
-    );
+  const summaryStart = datedTasks[0]?.start ?? timeline.range.start;
+  const summaryEnd =
+    datedTasks[datedTasks.length - 1]?.deadline ?? timeline.range.end;
+  const summaryLeft = getTimelineXFromColumns(summaryStart, timeline.columns);
+  const summaryWidth = Math.max(
+    120,
+    getTimelineXFromColumns(summaryEnd, timeline.columns) - summaryLeft,
+  );
+  const today = startOfDay(new Date());
+  const todayLeft = getTimelineXFromColumns(today, timeline.columns);
 
-    return (
-      clampedMonthIndex * GANTT_MONTH_WIDTH +
-      (dayOffset / daysInMonth(month)) * GANTT_MONTH_WIDTH
-    );
+  function focusToday() {
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+
+    scroller.scrollTo({
+      left: Math.max(
+        0,
+        visibleLeftWidth + todayLeft - scroller.clientWidth / 2,
+      ),
+      behavior: "smooth",
+    });
   }
 
-  const summaryStart = datedTasks[0]?.start ?? timelineStart;
-  const summaryEnd = datedTasks[datedTasks.length - 1]?.deadline ?? timelineEnd;
-  const summaryLeft = getTimelineX(summaryStart);
-  const summaryWidth = Math.max(120, getTimelineX(summaryEnd) - summaryLeft);
-  const today = startOfDay(new Date());
-  const todayInRange =
-    today.getTime() >= timelineStart.getTime() &&
-    today.getTime() <= timelineEnd.getTime();
-  const todayLeft = todayInRange ? getTimelineX(today) : null;
+  function startResizingLeftPane(event: React.PointerEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    const startX = event.clientX;
+    const startWidth = leftWidth;
+
+    function handlePointerMove(moveEvent: PointerEvent) {
+      const nextWidth = Math.min(
+        Math.max(startWidth + moveEvent.clientX - startX, GANTT_MIN_LEFT_WIDTH),
+        GANTT_MAX_LEFT_WIDTH,
+      );
+      setLeftWidth(nextWidth);
+    }
+
+    function handlePointerUp() {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+    }
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp, { once: true });
+  }
 
   if (tasks.length === 0) {
     return (
-      <div className="flex h-full items-center justify-center px-6 text-center text-sm text-muted">
-        This folder is empty. Add rows to build a Gantt timeline.
-      </div>
+      <section className="flex h-full min-h-0 flex-col bg-paper">
+        <GanttToolbar
+          scale={scale}
+          showTaskList={showTaskList}
+          onFocusToday={focusToday}
+          onScaleChange={setScale}
+          onToggleTaskList={() => setShowTaskList((current) => !current)}
+        />
+        <div className="flex flex-1 items-center justify-center px-6 text-center text-sm text-muted">
+          This folder is empty. Add rows to build a Gantt timeline.
+        </div>
+      </section>
     );
   }
 
   return (
-    <section className="h-full overflow-auto bg-paper">
-      <div
-        className="min-h-full"
-        style={{ width: GANTT_LEFT_WIDTH + timelineWidth }}
-      >
+    <section className="flex h-full min-h-0 flex-col bg-paper">
+      <GanttToolbar
+        scale={scale}
+        showTaskList={showTaskList}
+        onFocusToday={focusToday}
+        onScaleChange={setScale}
+        onToggleTaskList={() => setShowTaskList((current) => !current)}
+      />
+      <div ref={scrollerRef} className="min-h-0 flex-1 overflow-auto">
         <div
-          className="grid"
+          className="grid min-h-full min-w-full"
           style={{
-            gridTemplateColumns: `${GANTT_LEFT_WIDTH}px ${timelineWidth}px`,
+            gridTemplateColumns: `${visibleLeftWidth}px minmax(${timelineWidth}px, 1fr)`,
           }}
         >
-          <div className="sticky left-0 z-20 border-r border-line bg-paper">
-            <div className="grid h-16 grid-cols-[1fr_104px] border-b border-line text-xs text-muted">
-              <div className="flex items-center px-7">Name</div>
-              <div className="flex items-center justify-between border-l border-line px-3">
-                <span>Due Date</span>
-                <span className="flex size-4 items-center justify-center rounded-full border border-muted text-[10px]">
-                  +
-                </span>
+          {showTaskList ? (
+            <div className="sticky left-0 z-20 border-r border-line bg-paper">
+              <div className="grid h-16 grid-cols-[1fr_104px] border-b border-line text-xs text-muted">
+                <div className="flex items-center px-7">Name</div>
+                <div className="flex items-center justify-between border-l border-line px-3">
+                  <span>Due Date</span>
+                  <span className="flex size-4 items-center justify-center rounded-full border border-muted text-[10px]">
+                    +
+                  </span>
+                </div>
               </div>
-            </div>
-            <div
-              className="grid grid-cols-[1fr_104px] border-b border-line bg-card/25"
-              style={{ height: GANTT_ROW_HEIGHT }}
-            >
-              <div className="flex min-w-0 items-center gap-2 px-7 text-sm font-semibold text-ink">
-                <span className="text-muted">⌄</span>
-                <FileText className="size-4 text-muted" strokeWidth={1.8} />
-                <span className="truncate">Tasks</span>
-              </div>
-              <div className="border-l border-line" />
-            </div>
-            {datedTasks.map(({ task }) => (
               <div
-                key={task.id}
-                className="grid grid-cols-[1fr_104px] border-b border-line text-sm"
+                className="grid grid-cols-[1fr_104px] border-b border-line bg-card/25"
                 style={{ height: GANTT_ROW_HEIGHT }}
               >
-                <div className="flex min-w-0 items-center gap-2 px-7">
-                  <span
-                    className={`size-3 rounded-full border ${
-                      task.status === "Done"
-                        ? "border-success bg-success"
-                        : task.status === "In progress"
-                          ? "border-cta bg-cta"
-                          : "border-muted/60 border-dashed"
-                    }`}
-                  />
-                  <span className="truncate text-ink">{task.taskName}</span>
+                <div className="flex min-w-0 items-center gap-2 px-7 text-sm font-semibold text-ink">
+                  <span className="text-muted">⌄</span>
+                  <FileText className="size-4 text-muted" strokeWidth={1.8} />
+                  <span className="truncate">Tasks</span>
                 </div>
-                <div
-                  className={`flex items-center border-l border-line px-3 text-xs ${
-                    task.urgency === "High" ? "text-danger" : "text-success"
-                  }`}
-                >
-                  {formatDeadlineLabel(task.deadline)}
-                </div>
+                <div className="border-l border-line" />
               </div>
-            ))}
-          </div>
-
-          <div>
-            <div className="h-16 border-b border-line bg-paper">
-              <div className="flex h-8 border-b border-line text-xs text-muted">
-                {quarterGroups.map((group) => (
-                  <div
-                    key={group.key}
-                    className="flex items-center justify-between border-r border-line px-2 last:border-r-0"
-                    style={{ width: group.span * GANTT_MONTH_WIDTH }}
-                  >
-                    <span>{group.year}</span>
-                    <span>{group.label}</span>
+              {datedTasks.map(({ task }) => (
+                <div
+                  key={task.id}
+                  className="grid grid-cols-[1fr_104px] border-b border-line text-sm"
+                  style={{ height: GANTT_ROW_HEIGHT }}
+                >
+                  <div className="flex min-w-0 items-center gap-2 px-7">
+                    <span
+                      className={`size-3 rounded-full border ${
+                        task.status === "Done"
+                          ? "border-success bg-success"
+                          : task.status === "In progress"
+                            ? "border-cta bg-cta"
+                            : "border-muted/60 border-dashed"
+                      }`}
+                    />
+                    <span className="truncate text-ink">{task.taskName}</span>
                   </div>
+                  <div
+                    className={`flex items-center border-l border-line px-3 text-xs ${
+                      task.urgency === "High" ? "text-danger" : "text-success"
+                    }`}
+                  >
+                    {formatDeadlineLabel(task.deadline)}
+                  </div>
+                </div>
+              ))}
+              <button
+                type="button"
+                aria-label="Resize task list"
+                onPointerDown={startResizingLeftPane}
+                className="absolute right-[-3px] top-0 z-30 h-full w-1.5 cursor-col-resize bg-transparent transition hover:bg-cta/30"
+              />
+            </div>
+          ) : null}
+
+          <div className="min-w-0">
+            <div className="h-16 border-b border-line bg-paper">
+              <div className="relative h-8 border-b border-line text-xs text-muted">
+                {timeline.groups.map((group) => (
+                  <span
+                    key={group.key}
+                    className="absolute inset-y-0 flex items-center justify-between border-r border-line px-2 last:border-r-0"
+                    style={{ left: group.left, width: group.width }}
+                  >
+                    <span>{group.label}</span>
+                  </span>
                 ))}
               </div>
-              <div className="flex h-8 text-xs text-muted">
-                {months.map((month) => (
-                  <div
-                    key={getMonthKey(month)}
-                    className="flex items-center justify-center border-r border-line last:border-r-0"
-                    style={{ width: GANTT_MONTH_WIDTH }}
+              <div className="relative h-8 text-xs text-muted">
+                {timeline.columns.map((column) => (
+                  <span
+                    key={column.key}
+                    className={`absolute inset-y-0 flex items-center justify-center border-r border-line px-1 last:border-r-0 ${
+                      column.muted ? "text-muted/60" : ""
+                    }`}
+                    style={{ left: column.left, width: column.width }}
                   >
-                    {new Intl.DateTimeFormat("en-US", {
-                      month: "short",
-                    }).format(month)}
-                  </div>
+                    {column.label}
+                  </span>
                 ))}
               </div>
             </div>
 
             <div
               className="relative"
-              style={{ height: contentHeight, width: timelineWidth }}
+              style={{
+                height: contentHeight,
+                minHeight: "100%",
+                minWidth: timelineWidth,
+              }}
             >
-              <div
-                aria-hidden="true"
-                className="absolute inset-0 grid"
-                style={{
-                  gridTemplateColumns: `repeat(${months.length}, ${GANTT_MONTH_WIDTH}px)`,
-                }}
-              >
-                {months.map((month) => (
-                  <span
-                    key={getMonthKey(month)}
-                    className="border-r border-dashed border-line last:border-r-0"
-                  />
-                ))}
-              </div>
+              {timeline.columns.map((column) => (
+                <span
+                  key={column.key}
+                  aria-hidden="true"
+                  className={`absolute top-0 h-full border-r border-dashed border-line last:border-r-0 ${
+                    column.shaded
+                      ? "bg-[repeating-linear-gradient(135deg,rgba(0,0,0,0.035)_0,rgba(0,0,0,0.035)_1px,transparent_1px,transparent_5px)]"
+                      : ""
+                  }`}
+                  style={{ left: column.left, width: column.width }}
+                />
+              ))}
               {Array.from({ length: rowCount }).map((_, index) => (
                 <span
                   key={index}
@@ -1699,8 +1988,11 @@ function GanttView({
                 </span>
               ) : null}
               {datedTasks.map(({ task, start, deadline }, index) => {
-                const startX = getTimelineX(start);
-                const endX = getTimelineX(addDays(deadline, 1));
+                const startX = getTimelineXFromColumns(start, timeline.columns);
+                const endX = getTimelineXFromColumns(
+                  addDays(deadline, 1),
+                  timeline.columns,
+                );
                 const left = Math.min(startX, endX);
                 const width = Math.max(6, Math.abs(endX - startX));
                 const top = (index + 1) * GANTT_ROW_HEIGHT + 10;
@@ -1733,10 +2025,16 @@ function GanttView({
 function KanbanView({
   tasks,
   accounts,
+  onStatusChange,
 }: {
   tasks: WorkplaceTask[];
   accounts: Account[];
+  onStatusChange: (taskId: string, status: TaskStatus) => void;
 }) {
+  const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
+  const [dropTargetStatus, setDropTargetStatus] = useState<TaskStatus | null>(
+    null,
+  );
   const accountById = useMemo(
     () => new Map(accounts.map((account) => [account.id, account])),
     [accounts],
@@ -1752,6 +2050,24 @@ function KanbanView({
 
     return map;
   }, [tasks]);
+  const draggingTask = draggingTaskId
+    ? tasks.find((task) => task.id === draggingTaskId)
+    : null;
+
+  function handleColumnDrop(
+    event: React.DragEvent<HTMLElement>,
+    status: TaskStatus,
+  ) {
+    event.preventDefault();
+    const taskId = event.dataTransfer.getData("text/plain") || draggingTaskId;
+    const task = taskId ? tasks.find((item) => item.id === taskId) : null;
+
+    setDraggingTaskId(null);
+    setDropTargetStatus(null);
+
+    if (!task || task.status === status) return;
+    onStatusChange(task.id, status);
+  }
 
   return (
     <section className="h-full overflow-auto bg-paper p-4">
@@ -1763,7 +2079,28 @@ function KanbanView({
           return (
             <section
               key={status}
-              className={`w-[264px] shrink-0 rounded-lg p-2 ${meta.columnClassName}`}
+              onDragEnter={(event) => {
+                event.preventDefault();
+                if (draggingTask && draggingTask.status !== status) {
+                  setDropTargetStatus(status);
+                }
+              }}
+              onDragOver={(event) => {
+                if (draggingTask) event.preventDefault();
+              }}
+              onDragLeave={(event) => {
+                if (
+                  !event.currentTarget.contains(event.relatedTarget as Node)
+                ) {
+                  setDropTargetStatus(null);
+                }
+              }}
+              onDrop={(event) => handleColumnDrop(event, status)}
+              className={`w-[264px] shrink-0 rounded-lg p-2 transition ${
+                meta.columnClassName
+              } ${
+                dropTargetStatus === status ? "ring-2 ring-cta/40" : "ring-0"
+              }`}
             >
               <header className="flex items-center justify-between gap-2 pb-2">
                 <div className="flex min-w-0 items-center gap-2">
@@ -1792,7 +2129,21 @@ function KanbanView({
                   columnTasks.map((task) => (
                     <article
                       key={task.id}
-                      className="rounded-lg border border-line bg-paper p-3 shadow-sm"
+                      draggable
+                      onDragStart={(event) => {
+                        event.dataTransfer.effectAllowed = "move";
+                        event.dataTransfer.setData("text/plain", task.id);
+                        setDraggingTaskId(task.id);
+                      }}
+                      onDragEnd={() => {
+                        setDraggingTaskId(null);
+                        setDropTargetStatus(null);
+                      }}
+                      className={`cursor-grab rounded-lg border border-line bg-paper p-3 shadow-sm transition active:cursor-grabbing ${
+                        draggingTaskId === task.id
+                          ? "scale-[0.98] opacity-60"
+                          : "hover:border-ink/25"
+                      }`}
                     >
                       <h4 className="truncate text-sm font-medium leading-5 text-ink">
                         {task.taskName}
@@ -2748,7 +3099,13 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
               ) : viewMode === "gantt" ? (
                 <GanttView tasks={selectedTasks} accounts={accounts} />
               ) : (
-                <KanbanView tasks={selectedTasks} accounts={accounts} />
+                <KanbanView
+                  tasks={selectedTasks}
+                  accounts={accounts}
+                  onStatusChange={(taskId, status) =>
+                    updateTask(selectedWorkspace.id, taskId, "status", status)
+                  }
+                />
               )}
             </div>
           </>

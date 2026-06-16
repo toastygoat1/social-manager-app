@@ -12,7 +12,14 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+  type RefObject,
+} from "react";
 import { AvatarImage } from "@/app/_components/AvatarImage";
 import type {
   ContentRow,
@@ -62,10 +69,19 @@ type ColumnDefinition = {
   align?: ColumnAlign;
   isFirstMetadata?: boolean;
 };
+type ScrollMetrics = {
+  scrollLeft: number;
+  scrollTop: number;
+  scrollWidth: number;
+  scrollHeight: number;
+  clientWidth: number;
+  clientHeight: number;
+};
 
 const METRIC_COLUMN_WIDTH = 120;
 const METADATA_COLUMN_WIDTH = 170;
 const FIRST_METADATA_EXTRA_SPACE = 28;
+const MIN_SCROLLBAR_THUMB_SIZE = 36;
 
 const STATIC_COLUMNS: ColumnDefinition[] = [
   { key: "caption", label: "Caption", width: 360 },
@@ -315,6 +331,40 @@ function getHeaderPaddingClass(column: ColumnDefinition) {
   return column.isFirstMetadata ? "py-3 pl-8 pr-4" : "px-4 py-3";
 }
 
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function getScrollbarThumbMetrics({
+  clientSize,
+  scrollSize,
+  scrollPosition,
+}: {
+  clientSize: number;
+  scrollSize: number;
+  scrollPosition: number;
+}) {
+  const maxScroll = Math.max(0, scrollSize - clientSize);
+  if (maxScroll <= 0 || clientSize <= 0 || scrollSize <= 0) {
+    return { isScrollable: false, size: 0, position: 0, maxScroll };
+  }
+
+  const size = Math.max(
+    MIN_SCROLLBAR_THUMB_SIZE,
+    (clientSize / scrollSize) * clientSize,
+  );
+  const maxThumbPosition = Math.max(0, clientSize - size);
+  const position =
+    maxScroll === 0 ? 0 : (scrollPosition / maxScroll) * maxThumbPosition;
+
+  return {
+    isScrollable: true,
+    size,
+    position: clamp(position, 0, maxThumbPosition),
+    maxScroll,
+  };
+}
+
 function compareSortValues(
   left: string | number | null | undefined,
   right: string | number | null | undefined,
@@ -380,7 +430,7 @@ function SortableHeader({
   return (
     <th
       aria-sort={getAriaSort(column, sortState)}
-      className={`sticky top-0 z-10 bg-card dashboard-ui-meta font-semibold text-ink ${getHeaderPaddingClass(
+      className={`dashboard-ui-meta bg-card font-semibold text-ink ${getHeaderPaddingClass(
         column,
       )} ${getCellAlignClass(column.align)}`}
       style={{ width: column.width }}
@@ -438,6 +488,117 @@ function MetadataCells({
   });
 }
 
+function CustomScrollbar({
+  axis,
+  metrics,
+  scrollAreaRef,
+}: {
+  axis: "horizontal" | "vertical";
+  metrics: ScrollMetrics;
+  scrollAreaRef: RefObject<HTMLDivElement | null>;
+}) {
+  const isHorizontal = axis === "horizontal";
+  const thumb = getScrollbarThumbMetrics({
+    clientSize: isHorizontal ? metrics.clientWidth : metrics.clientHeight,
+    scrollSize: isHorizontal ? metrics.scrollWidth : metrics.scrollHeight,
+    scrollPosition: isHorizontal ? metrics.scrollLeft : metrics.scrollTop,
+  });
+
+  if (!thumb.isScrollable) return null;
+
+  function scrollToThumbPosition(position: number) {
+    const node = scrollAreaRef.current;
+    if (!node) return;
+
+    const clientSize = isHorizontal ? metrics.clientWidth : metrics.clientHeight;
+    const maxThumbPosition = Math.max(0, clientSize - thumb.size);
+    const scrollPosition =
+      maxThumbPosition === 0
+        ? 0
+        : (position / maxThumbPosition) * thumb.maxScroll;
+
+    if (isHorizontal) {
+      node.scrollLeft = scrollPosition;
+    } else {
+      node.scrollTop = scrollPosition;
+    }
+  }
+
+  function handleTrackPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    if (event.target !== event.currentTarget) return;
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    const pointerPosition = isHorizontal
+      ? event.clientX - rect.left
+      : event.clientY - rect.top;
+
+    scrollToThumbPosition(pointerPosition - thumb.size / 2);
+  }
+
+  function handleThumbPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const node = scrollAreaRef.current;
+    if (!node) return;
+    const scrollNode = node;
+
+    const startPointerPosition = isHorizontal ? event.clientX : event.clientY;
+    const startScrollPosition = isHorizontal
+      ? scrollNode.scrollLeft
+      : scrollNode.scrollTop;
+    const clientSize = isHorizontal ? metrics.clientWidth : metrics.clientHeight;
+    const maxThumbPosition = Math.max(0, clientSize - thumb.size);
+
+    function handlePointerMove(moveEvent: PointerEvent) {
+      const pointerPosition = isHorizontal
+        ? moveEvent.clientX
+        : moveEvent.clientY;
+      const delta = pointerPosition - startPointerPosition;
+      const scrollDelta =
+        maxThumbPosition === 0 ? 0 : (delta / maxThumbPosition) * thumb.maxScroll;
+
+      if (isHorizontal) {
+        scrollNode.scrollLeft = startScrollPosition + scrollDelta;
+      } else {
+        scrollNode.scrollTop = startScrollPosition + scrollDelta;
+      }
+    }
+
+    function handlePointerUp() {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+    }
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+  }
+
+  return (
+    <div
+      aria-hidden="true"
+      className={`posts-table-custom-scrollbar posts-table-custom-scrollbar--${axis}`}
+      onPointerDown={handleTrackPointerDown}
+    >
+      <div
+        className={`posts-table-custom-scrollbar__thumb posts-table-custom-scrollbar__thumb--${axis}`}
+        onPointerDown={handleThumbPointerDown}
+        style={
+          isHorizontal
+            ? {
+                width: thumb.size,
+                transform: `translateX(${thumb.position}px)`,
+              }
+            : {
+                height: thumb.size,
+                transform: `translateY(${thumb.position}px)`,
+              }
+        }
+      />
+    </div>
+  );
+}
+
 export function PostsTable({
   rows,
   metadataFields,
@@ -447,6 +608,15 @@ export function PostsTable({
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [sortState, setSortState] = useState<SortState | null>(null);
+  const scrollAreaRef = useRef<HTMLDivElement | null>(null);
+  const [scrollMetrics, setScrollMetrics] = useState<ScrollMetrics>({
+    scrollLeft: 0,
+    scrollTop: 0,
+    scrollWidth: 0,
+    scrollHeight: 0,
+    clientWidth: 0,
+    clientHeight: 0,
+  });
   const columns = useMemo<ColumnDefinition[]>(
     () => [
       ...STATIC_COLUMNS,
@@ -482,6 +652,46 @@ export function PostsTable({
       ),
     );
   }, [filteredRows, sortState]);
+  const horizontalThumb = getScrollbarThumbMetrics({
+    clientSize: scrollMetrics.clientWidth,
+    scrollSize: scrollMetrics.scrollWidth,
+    scrollPosition: scrollMetrics.scrollLeft,
+  });
+  const verticalThumb = getScrollbarThumbMetrics({
+    clientSize: scrollMetrics.clientHeight,
+    scrollSize: scrollMetrics.scrollHeight,
+    scrollPosition: scrollMetrics.scrollTop,
+  });
+
+  function updateScrollMetrics() {
+    const node = scrollAreaRef.current;
+    if (!node) return;
+
+    setScrollMetrics({
+      scrollLeft: node.scrollLeft,
+      scrollTop: node.scrollTop,
+      scrollWidth: node.scrollWidth,
+      scrollHeight: node.scrollHeight,
+      clientWidth: node.clientWidth,
+      clientHeight: node.clientHeight,
+    });
+  }
+
+  useEffect(() => {
+    const node = scrollAreaRef.current;
+    if (!node) return;
+
+    updateScrollMetrics();
+
+    const resizeObserver = new ResizeObserver(updateScrollMetrics);
+    resizeObserver.observe(node);
+    window.addEventListener("resize", updateScrollMetrics);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", updateScrollMetrics);
+    };
+  }, [columns.length, tableMinWidth, visibleRows.length]);
 
   function handleSort(key: SortKey) {
     setSortState((current) => {
@@ -545,105 +755,150 @@ export function PostsTable({
 
       <div className="mx-5 mb-5 mt-3 flex min-h-0 min-w-0 flex-1 sm:mx-7 sm:mb-7">
         <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border border-line bg-white">
-          <div
-            className="posts-table-scrollarea min-h-0 max-w-full flex-1 overflow-auto"
-            style={{ scrollbarGutter: "stable" }}
-          >
-            <table
-              className="w-full table-fixed border-collapse text-left"
-              style={{ minWidth: tableMinWidth }}
-            >
-              <colgroup>
-                {columns.map((column) => (
-                  <col key={column.key} style={{ width: column.width }} />
-                ))}
-              </colgroup>
-              <thead className="bg-card">
-                <tr className="border-b border-line">
+          <div className="flex shrink-0 border-b border-line bg-card">
+            <div className="min-w-0 flex-1 overflow-hidden">
+              <table
+                className="w-full table-fixed border-collapse text-left"
+                style={{
+                  minWidth: tableMinWidth,
+                  transform: `translateX(-${scrollMetrics.scrollLeft}px)`,
+                }}
+              >
+                <colgroup>
                   {columns.map((column) => (
-                    <SortableHeader
-                      key={column.key}
-                      column={column}
-                      sortState={sortState}
-                      onSort={handleSort}
-                    />
+                    <col key={column.key} style={{ width: column.width }} />
                   ))}
-                </tr>
-              </thead>
-              <tbody>
-                {visibleRows.length === 0 ? (
+                </colgroup>
+                <thead>
                   <tr>
-                    <td
-                      colSpan={columns.length}
-                      className="dashboard-body-text px-5 py-12 text-center text-muted"
-                    >
-                      {query
-                        ? "No posts match your search"
-                        : "No posts in this view yet"}
-                    </td>
+                    {columns.map((column) => (
+                      <SortableHeader
+                        key={column.key}
+                        column={column}
+                        sortState={sortState}
+                        onSort={handleSort}
+                      />
+                    ))}
                   </tr>
-                ) : (
-                  visibleRows.map((row) => (
-                    <tr
-                      key={row.id}
-                      tabIndex={0}
-                      role="button"
-                      aria-label={`Open details for ${displayText(row.caption) ?? "post"}`}
-                      onClick={() => setSelectedPostId(row.id)}
-                      onKeyDown={(event) => {
-                        if (event.currentTarget !== event.target) return;
-                        if (event.key === "Enter" || event.key === " ") {
-                          event.preventDefault();
-                          setSelectedPostId(row.id);
-                        }
-                      }}
-                      className="group cursor-pointer border-b border-line transition-colors hover:bg-card focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#5e6ad2]"
-                    >
-                      <td className="px-5 py-3 align-middle">
-                        <div className="flex min-w-0 items-center gap-3">
-                          <Thumbnail row={row} />
-                          <div className="min-w-0">
-                            <p className="dashboard-ui-label truncate text-ink">
-                              {displayText(row.caption) ?? "No caption"}
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 align-middle">
-                        <AccountCell row={row} />
-                      </td>
-                      <td className="px-4 py-3 align-middle">
-                        <span className="dashboard-ui-label text-muted">
-                          {displayText(row.datePost) ?? "-"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 align-middle">
-                        <StatusPill status={row.status} />
-                      </td>
-                      <td className="px-4 py-3 align-middle">
-                        <div className="flex min-w-[132px] items-center">
-                          <TypePill type={row.type} />
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-right align-middle">
-                        <MetricValue value={row.views} />
-                      </td>
-                      <td className="px-4 py-3 text-right align-middle">
-                        <MetricValue value={row.likes} />
-                      </td>
-                      <td className="px-4 py-3 text-right align-middle">
-                        <MetricValue value={row.comments} />
-                      </td>
-                      <td className="px-4 py-3 text-right align-middle">
-                        <MetricValue value={row.shares} />
-                      </td>
-                      <MetadataCells row={row} fields={metadataFields} />
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                </thead>
+              </table>
+            </div>
+            {verticalThumb.isScrollable ? (
+              <div aria-hidden="true" className="posts-table-scrollbar-spacer" />
+            ) : null}
           </div>
+
+          <div className="flex min-h-0 min-w-0 flex-1">
+            <div
+              ref={scrollAreaRef}
+              className="posts-table-scrollarea min-h-0 max-w-full flex-1 overflow-auto"
+              onScroll={updateScrollMetrics}
+            >
+              <table
+                className="w-full table-fixed border-collapse text-left"
+                style={{ minWidth: tableMinWidth }}
+              >
+                <colgroup>
+                  {columns.map((column) => (
+                    <col key={column.key} style={{ width: column.width }} />
+                  ))}
+                </colgroup>
+                <tbody>
+                  {visibleRows.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={columns.length}
+                        className="dashboard-body-text px-5 py-12 text-center text-muted"
+                      >
+                        {query
+                          ? "No posts match your search"
+                          : "No posts in this view yet"}
+                      </td>
+                    </tr>
+                  ) : (
+                    visibleRows.map((row) => (
+                      <tr
+                        key={row.id}
+                        tabIndex={0}
+                        role="button"
+                        aria-label={`Open details for ${displayText(row.caption) ?? "post"}`}
+                        onClick={() => setSelectedPostId(row.id)}
+                        onKeyDown={(event) => {
+                          if (event.currentTarget !== event.target) return;
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            setSelectedPostId(row.id);
+                          }
+                        }}
+                        className="group cursor-pointer border-b border-line transition-colors hover:bg-card focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#5e6ad2]"
+                      >
+                        <td className="px-5 py-3 align-middle">
+                          <div className="flex min-w-0 items-center gap-3">
+                            <Thumbnail row={row} />
+                            <div className="min-w-0">
+                              <p className="dashboard-ui-label truncate text-ink">
+                                {displayText(row.caption) ?? "No caption"}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 align-middle">
+                          <AccountCell row={row} />
+                        </td>
+                        <td className="px-4 py-3 align-middle">
+                          <span className="dashboard-ui-label text-muted">
+                            {displayText(row.datePost) ?? "-"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 align-middle">
+                          <StatusPill status={row.status} />
+                        </td>
+                        <td className="px-4 py-3 align-middle">
+                          <div className="flex min-w-[132px] items-center">
+                            <TypePill type={row.type} />
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-right align-middle">
+                          <MetricValue value={row.views} />
+                        </td>
+                        <td className="px-4 py-3 text-right align-middle">
+                          <MetricValue value={row.likes} />
+                        </td>
+                        <td className="px-4 py-3 text-right align-middle">
+                          <MetricValue value={row.comments} />
+                        </td>
+                        <td className="px-4 py-3 text-right align-middle">
+                          <MetricValue value={row.shares} />
+                        </td>
+                        <MetadataCells row={row} fields={metadataFields} />
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <CustomScrollbar
+              axis="vertical"
+              metrics={scrollMetrics}
+              scrollAreaRef={scrollAreaRef}
+            />
+          </div>
+
+          {horizontalThumb.isScrollable ? (
+            <div className="flex shrink-0">
+              <CustomScrollbar
+                axis="horizontal"
+                metrics={scrollMetrics}
+                scrollAreaRef={scrollAreaRef}
+              />
+              {verticalThumb.isScrollable ? (
+                <div
+                  aria-hidden="true"
+                  className="posts-table-scrollbar-corner"
+                />
+              ) : null}
+            </div>
+          ) : null}
 
           <PostDetailsModal
             postId={selectedPostId}
