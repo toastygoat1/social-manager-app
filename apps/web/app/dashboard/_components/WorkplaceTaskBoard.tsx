@@ -49,6 +49,9 @@ type Workspace = {
   id: string;
   name: string;
   owner: string;
+  bannerTitle: string | null;
+  bannerDescription: string | null;
+  bannerColor: string | null;
   tasks: WorkplaceTask[];
 };
 
@@ -60,7 +63,7 @@ type WorkspaceFoldersResponse = {
   folders: Workspace[];
 };
 
-type WorkspaceViewMode = "table" | "calendar";
+type WorkspaceViewMode = "table" | "calendar" | "gantt" | "kanban";
 
 type EditableTaskField = Exclude<keyof WorkplaceTask, "id" | "accountId">;
 
@@ -126,6 +129,12 @@ const STATUS_OPTIONS: TaskStatus[] = [
   "In progress",
   "Review",
   "Done",
+];
+const WORKSPACE_VIEW_MODES: { label: string; value: WorkspaceViewMode }[] = [
+  { label: "Table", value: "table" },
+  { label: "Calendar", value: "calendar" },
+  { label: "Gantt", value: "gantt" },
+  { label: "Kanban", value: "kanban" },
 ];
 
 type DeadlineCalendarCell = {
@@ -203,6 +212,22 @@ function formatDeadlineLabel(value: string) {
     month: "short",
     day: "numeric",
   }).format(parsed);
+}
+
+function startOfDay(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function daysBetween(start: Date, end: Date) {
+  const dayMs = 24 * 60 * 60 * 1000;
+  return Math.round(
+    (startOfDay(end).getTime() - startOfDay(start).getTime()) / dayMs,
+  );
+}
+
+function getValidBannerColor(value: string | null | undefined, fallback: string) {
+  if (value && /^#[0-9a-fA-F]{6}$/.test(value)) return value;
+  return fallback;
 }
 
 function getFirstDeadlineDate(tasks: WorkplaceTask[]) {
@@ -821,6 +846,240 @@ function DeadlineCalendar({
   );
 }
 
+function WorkspaceBanner({
+  workspace,
+  tone,
+  onEdit,
+}: {
+  workspace: Workspace;
+  tone: (typeof FOLDER_TONES)[number];
+  onEdit: () => void;
+}) {
+  const bannerColor = getValidBannerColor(workspace.bannerColor, tone.body);
+  const title = workspace.bannerTitle?.trim() || workspace.name;
+  const description =
+    workspace.bannerDescription?.trim() ||
+    "Customize this banner for the brief, client, campaign, or workflow inside this folder.";
+
+  return (
+    <section
+      className="border-b border-line px-4 py-4"
+      style={{
+        background: `linear-gradient(135deg, ${bannerColor}26, transparent 68%)`,
+      }}
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted">
+            Folder banner
+          </p>
+          <h3 className="mt-1 truncate text-xl font-semibold leading-tight text-ink">
+            {title}
+          </h3>
+          <p className="mt-1 max-w-3xl text-sm leading-5 text-muted">
+            {description}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onEdit}
+          className="inline-flex h-8 shrink-0 items-center rounded-md border border-line bg-paper px-3 text-xs font-semibold text-ink transition hover:bg-card"
+        >
+          Edit banner
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function GanttView({ tasks }: { tasks: WorkplaceTask[] }) {
+  const datedTasks = useMemo(
+    () =>
+      tasks
+        .map((task) => ({
+          task,
+          deadline: parseLocalDateTime(task.deadline),
+        }))
+        .filter(
+          (item): item is { task: WorkplaceTask; deadline: Date } =>
+            Boolean(item.deadline),
+        )
+        .sort((a, b) => a.deadline.getTime() - b.deadline.getTime()),
+    [tasks],
+  );
+  const timelineStart = useMemo(() => {
+    const firstDeadline = datedTasks[0]?.deadline ?? new Date();
+    return startOfDay(addDays(firstDeadline, -1));
+  }, [datedTasks]);
+  const timelineEnd = useMemo(() => {
+    const lastDeadline =
+      datedTasks[datedTasks.length - 1]?.deadline ?? addDays(new Date(), 6);
+    return startOfDay(addDays(lastDeadline, 2));
+  }, [datedTasks]);
+  const days = useMemo(() => {
+    const dayCount = Math.max(7, daysBetween(timelineStart, timelineEnd) + 1);
+    return Array.from({ length: dayCount }, (_, index) =>
+      addDays(timelineStart, index),
+    );
+  }, [timelineEnd, timelineStart]);
+  const chartWidth = 220 + days.length * 44;
+
+  if (tasks.length === 0) {
+    return (
+      <div className="flex h-full items-center justify-center px-6 text-center text-sm text-muted">
+        This folder is empty. Add rows to build a Gantt timeline.
+      </div>
+    );
+  }
+
+  return (
+    <section className="h-full overflow-auto p-4">
+      <div className="min-w-[860px]" style={{ width: chartWidth }}>
+        <div
+          className="grid border-b border-line text-[10px] font-semibold uppercase tracking-[0.06em] text-muted"
+          style={{
+            gridTemplateColumns: `220px repeat(${days.length}, 44px)`,
+          }}
+        >
+          <div className="border-r border-line px-3 py-2">Task</div>
+          {days.map((day) => (
+            <div
+              key={toDateKey(day)}
+              className="border-r border-line px-1 py-2 text-center last:border-r-0"
+            >
+              {padDatePart(day.getDate())}
+            </div>
+          ))}
+        </div>
+
+        <div className="divide-y divide-line">
+          {datedTasks.map(({ task, deadline }) => {
+            const dueIndex = Math.min(
+              Math.max(daysBetween(timelineStart, deadline), 0),
+              days.length - 1,
+            );
+            const progressWidth = `${((dueIndex + 1) / days.length) * 100}%`;
+
+            return (
+              <div
+                key={task.id}
+                className="grid min-h-14"
+                style={{
+                  gridTemplateColumns: `220px repeat(${days.length}, 44px)`,
+                }}
+              >
+                <div className="flex min-w-0 flex-col justify-center border-r border-line px-3 py-2">
+                  <span className="truncate text-xs font-semibold text-ink">
+                    {task.taskName}
+                  </span>
+                  <span className="mt-0.5 text-[11px] text-muted">
+                    {formatDeadlineLabel(task.deadline)}
+                  </span>
+                </div>
+                <div
+                  className="relative"
+                  style={{ gridColumn: `2 / span ${days.length}` }}
+                >
+                  <div
+                    aria-hidden="true"
+                    className="absolute inset-0 grid"
+                    style={{
+                      gridTemplateColumns: `repeat(${days.length}, 44px)`,
+                    }}
+                  >
+                    {days.map((day) => (
+                      <span
+                        key={toDateKey(day)}
+                        className="border-r border-line/70 last:border-r-0"
+                      />
+                    ))}
+                  </div>
+                  <span
+                    className={`absolute left-0 top-1/2 h-2 -translate-y-1/2 rounded-full ${URGENCY_DOT_STYLES[task.urgency]}`}
+                    style={{ width: progressWidth }}
+                  />
+                  <span
+                    className="absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-paper bg-ink"
+                    style={{ left: progressWidth }}
+                    title={`${task.taskName} due ${formatDeadlineLabel(
+                      task.deadline,
+                    )}`}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function KanbanView({ tasks }: { tasks: WorkplaceTask[] }) {
+  const tasksByStatus = useMemo(() => {
+    const map = new Map<TaskStatus, WorkplaceTask[]>(
+      STATUS_OPTIONS.map((status) => [status, []]),
+    );
+
+    for (const task of tasks) {
+      map.get(task.status)?.push(task);
+    }
+
+    return map;
+  }, [tasks]);
+
+  return (
+    <section className="h-full overflow-auto p-4">
+      <div className="grid min-w-[980px] grid-cols-4 gap-3">
+        {STATUS_OPTIONS.map((status) => {
+          const columnTasks = tasksByStatus.get(status) ?? [];
+
+          return (
+            <section
+              key={status}
+              className="min-h-[460px] border border-line bg-card/25"
+            >
+              <header className="flex items-center justify-between border-b border-line px-3 py-2">
+                <h3 className={`text-xs font-semibold ${STATUS_STYLES[status]}`}>
+                  {status}
+                </h3>
+                <span className="text-xs text-muted">{columnTasks.length}</span>
+              </header>
+              <div className="space-y-2 p-2">
+                {columnTasks.length > 0 ? (
+                  columnTasks.map((task) => (
+                    <article
+                      key={task.id}
+                      className="rounded-md border border-line bg-paper p-3"
+                    >
+                      <h4 className="line-clamp-2 text-xs font-semibold leading-5 text-ink">
+                        {task.taskName}
+                      </h4>
+                      <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-muted">
+                        <span className={URGENCY_STYLES[task.urgency]}>
+                          {task.urgency}
+                        </span>
+                        <span>{formatDeadlineLabel(task.deadline)}</span>
+                      </div>
+                      <p className="mt-2 line-clamp-3 text-xs leading-5 text-muted">
+                        {task.briefExecution || task.notes || "No brief yet."}
+                      </p>
+                    </article>
+                  ))
+                ) : (
+                  <p className="px-2 py-6 text-center text-xs text-muted">
+                    No rows
+                  </p>
+                )}
+              </div>
+            </section>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 function TaskRow({
   task,
   accounts,
@@ -939,6 +1198,14 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
     workspaces.find((workspace) => workspace.id === selectedWorkspaceId) ??
     workspaces[0] ??
     null;
+  const selectedWorkspaceIndex = selectedWorkspace
+    ? workspaces.findIndex((workspace) => workspace.id === selectedWorkspace.id)
+    : -1;
+  const selectedWorkspaceTone =
+    FOLDER_TONES[
+      (selectedWorkspaceIndex >= 0 ? selectedWorkspaceIndex : 0) %
+        FOLDER_TONES.length
+    ];
   const selectedTasks = selectedWorkspace?.tasks ?? EMPTY_TASKS;
 
   const applyLoadedWorkspaces = useCallback(
@@ -1125,6 +1392,72 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
     }
   }
 
+  async function updateSelectedFolderBanner() {
+    if (!selectedWorkspace) return;
+
+    const bannerTitle = window.prompt(
+      "Banner title",
+      selectedWorkspace.bannerTitle ?? selectedWorkspace.name,
+    );
+    if (bannerTitle === null) return;
+
+    const bannerDescription = window.prompt(
+      "Banner description",
+      selectedWorkspace.bannerDescription ?? "",
+    );
+    if (bannerDescription === null) return;
+
+    const bannerColor = window.prompt(
+      "Banner color",
+      selectedWorkspace.bannerColor ?? selectedWorkspaceTone.body,
+    );
+    if (bannerColor === null) return;
+
+    const trimmedColor = bannerColor.trim();
+    if (trimmedColor && !/^#[0-9a-fA-F]{6}$/.test(trimmedColor)) {
+      window.alert("Use a hex color like #fb858b.");
+      return;
+    }
+
+    const bannerFields = {
+      bannerTitle: bannerTitle.trim() || null,
+      bannerDescription: bannerDescription.trim() || null,
+      bannerColor: trimmedColor || null,
+    };
+
+    setSyncError(null);
+    setWorkspaces((currentWorkspaces) =>
+      currentWorkspaces.map((workspace) =>
+        workspace.id === selectedWorkspace.id
+          ? { ...workspace, ...bannerFields }
+          : workspace,
+      ),
+    );
+
+    try {
+      setIsSyncing(true);
+      const savedWorkspace = await apiFetchBrowser<Workspace>(
+        `/workspace/folders/${selectedWorkspace.id}`,
+        {
+          method: "PATCH",
+          body: bannerFields,
+        },
+      );
+      setWorkspaces((currentWorkspaces) =>
+        currentWorkspaces.map((workspace) =>
+          workspace.id === savedWorkspace.id ? savedWorkspace : workspace,
+        ),
+      );
+    } catch (error) {
+      setSyncError(getErrorMessage(error));
+      void loadFolders(selectedWorkspace.id).catch((reloadError) =>
+        setSyncError(getErrorMessage(reloadError)),
+      );
+    } finally {
+      setIsSyncing(false);
+    }
+  }
+
   async function createFolder() {
     const fallbackName = `Folder ${workspaces.length + 1}`;
     const folderName = window.prompt("Folder name", fallbackName)?.trim();
@@ -1229,7 +1562,7 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
 
   if (isLoadingFolders) {
     return (
-      <section className="flex min-h-0 flex-1 bg-paper">
+      <section className="flex min-h-0 min-w-0 flex-1 overflow-hidden bg-paper">
         <aside className="flex w-[252px] shrink-0 flex-col border-r border-line bg-paper">
           <div className="border-b border-line px-4 py-4">
             <h1 className="text-xl font-semibold leading-tight text-ink">
@@ -1252,7 +1585,7 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
   ) : null;
 
   return (
-    <section className="flex min-h-0 flex-1 bg-paper">
+    <section className="flex min-h-0 min-w-0 flex-1 overflow-hidden bg-paper">
       <aside className="flex w-[252px] shrink-0 flex-col border-r border-line bg-paper">
         <div className="border-b border-line px-4 py-4">
           <h1 className="text-xl font-semibold leading-tight text-ink">
@@ -1289,10 +1622,10 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
         </div>
       </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col bg-paper">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-paper">
         {selectedWorkspace ? (
           <>
-            <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-4">
+            <header className="grid gap-3 border-b border-line px-5 py-4 xl:grid-cols-[minmax(0,1fr)_auto]">
               <div className="min-w-0">
                 <h2 className="truncate text-[22px] font-semibold leading-tight text-ink">
                   {selectedWorkspace.name}
@@ -1304,29 +1637,7 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
                 </p>
               </div>
 
-              <div className="flex flex-wrap items-center justify-end gap-2">
-                <div
-                  className="inline-flex h-8 rounded-md border border-line bg-card p-0.5"
-                  aria-label="Workspace view"
-                >
-                  {(["table", "calendar"] as WorkspaceViewMode[]).map(
-                    (mode) => (
-                      <button
-                        key={mode}
-                        type="button"
-                        aria-pressed={viewMode === mode}
-                        onClick={() => setViewMode(mode)}
-                        className={`rounded px-3 text-xs font-semibold capitalize transition ${
-                          viewMode === mode
-                            ? "bg-ink text-paper"
-                            : "text-muted hover:text-ink"
-                        }`}
-                      >
-                        {mode}
-                      </button>
-                    ),
-                  )}
-                </div>
+              <div className="flex min-w-0 flex-wrap items-center gap-2 xl:justify-end">
                 <button
                   type="button"
                   onClick={addTaskToSelectedFolder}
@@ -1348,9 +1659,38 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
 
             {syncStatus}
 
+            <WorkspaceBanner
+              workspace={selectedWorkspace}
+              tone={selectedWorkspaceTone}
+              onEdit={updateSelectedFolderBanner}
+            />
+
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-2">
+              <div
+                className="inline-flex max-w-full flex-wrap rounded-md border border-line bg-card p-0.5"
+                aria-label="Workspace view"
+              >
+                {WORKSPACE_VIEW_MODES.map((mode) => (
+                  <button
+                    key={mode.value}
+                    type="button"
+                    aria-pressed={viewMode === mode.value}
+                    onClick={() => setViewMode(mode.value)}
+                    className={`h-7 rounded px-3 text-xs font-semibold transition ${
+                      viewMode === mode.value
+                        ? "bg-ink text-paper"
+                        : "text-muted hover:text-ink"
+                    }`}
+                  >
+                    {mode.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="min-h-0 flex-1 overflow-hidden">
               {viewMode === "table" ? (
-                <div className="h-full overflow-auto">
+                <div className="h-full max-w-full overflow-auto">
                   <div
                     className="sticky top-0 z-10 flex h-9 items-center border-b border-line bg-paper/95 backdrop-blur"
                     style={{ width: TASK_TABLE_WIDTH }}
@@ -1388,12 +1728,16 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
                     </div>
                   )}
                 </div>
-              ) : (
+              ) : viewMode === "calendar" ? (
                 <DeadlineCalendar
                   tasks={selectedTasks}
                   reference={calendarReference}
                   onReferenceChange={setCalendarReference}
                 />
+              ) : viewMode === "gantt" ? (
+                <GanttView tasks={selectedTasks} />
+              ) : (
+                <KanbanView tasks={selectedTasks} />
               )}
             </div>
           </>

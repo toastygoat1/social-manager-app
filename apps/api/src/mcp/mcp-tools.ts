@@ -79,7 +79,7 @@ export function buildMcpServer(
       const folder = await workspace.createFolder(
         user.userId,
         user.email,
-        name,
+        { name },
       );
       return jsonResult({ folder });
     },

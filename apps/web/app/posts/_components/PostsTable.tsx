@@ -60,9 +60,12 @@ type ColumnDefinition = {
   label: string;
   width: number;
   align?: ColumnAlign;
+  isFirstMetadata?: boolean;
 };
 
 const METRIC_COLUMN_WIDTH = 120;
+const METADATA_COLUMN_WIDTH = 170;
+const FIRST_METADATA_EXTRA_SPACE = 28;
 
 const STATIC_COLUMNS: ColumnDefinition[] = [
   { key: "caption", label: "Caption", width: 360 },
@@ -80,8 +83,6 @@ const STATIC_COLUMNS: ColumnDefinition[] = [
   },
   { key: "shares", label: "Shares", width: METRIC_COLUMN_WIDTH, align: "right" },
 ];
-
-const METADATA_COLUMN_MIN_WIDTH = 170;
 
 const TYPE_COLORS: Record<PostFormat, string> = {
   Post: "#5D9BFE",
@@ -310,6 +311,10 @@ function getHeaderJustifyClass(align: ColumnAlign | undefined) {
   return "justify-start";
 }
 
+function getHeaderPaddingClass(column: ColumnDefinition) {
+  return column.isFirstMetadata ? "py-3 pl-8 pr-4" : "px-4 py-3";
+}
+
 function compareSortValues(
   left: string | number | null | undefined,
   right: string | number | null | undefined,
@@ -375,9 +380,9 @@ function SortableHeader({
   return (
     <th
       aria-sort={getAriaSort(column, sortState)}
-      className={`dashboard-ui-meta px-4 py-3 font-semibold text-ink ${getCellAlignClass(
-        column.align,
-      )}`}
+      className={`dashboard-ui-meta font-semibold text-ink ${getHeaderPaddingClass(
+        column,
+      )} ${getCellAlignClass(column.align)}`}
       style={{ width: column.width }}
     >
       <button
@@ -408,14 +413,16 @@ function MetadataCells({
   row: ContentRow;
   fields: MetadataFieldDefinition[];
 }) {
-  return fields.map((field) => {
+  return fields.map((field, index) => {
     const value = displayText(row.metadata?.[field.id]);
     const isNumber = isNumericText(value);
 
     return (
       <td
         key={field.id}
-        className={`px-4 py-3 align-middle ${
+        className={`align-middle ${
+          index === 0 ? "py-3 pl-8 pr-4" : "px-4 py-3"
+        } ${
           isNumber ? "text-right" : "text-left"
         }`}
       >
@@ -443,10 +450,12 @@ export function PostsTable({
   const columns = useMemo<ColumnDefinition[]>(
     () => [
       ...STATIC_COLUMNS,
-      ...metadataFields.map((field) => ({
+      ...metadataFields.map((field, index) => ({
         key: `metadata:${field.id}` as SortKey,
         label: field.label,
-        width: METADATA_COLUMN_MIN_WIDTH,
+        width:
+          METADATA_COLUMN_WIDTH + (index === 0 ? FIRST_METADATA_EXTRA_SPACE : 0),
+        isFirstMetadata: index === 0,
       })),
     ],
     [metadataFields],
@@ -494,7 +503,7 @@ export function PostsTable({
   }
 
   return (
-    <section className="flex min-w-0 flex-col overflow-hidden bg-paper">
+    <section className="mx-5 my-4 flex min-w-0 flex-col overflow-hidden border border-line bg-paper sm:mx-7 sm:my-6">
       <div className="flex flex-wrap items-center gap-3 border-b border-line px-5 py-3 sm:px-7">
         <label className="relative flex min-w-[240px] flex-1 items-center sm:max-w-[360px]">
           <Search
@@ -534,7 +543,7 @@ export function PostsTable({
         </span>
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="max-w-full overflow-x-auto">
         <table
           className="w-full table-fixed border-collapse text-left"
           style={{ minWidth: tableMinWidth }}

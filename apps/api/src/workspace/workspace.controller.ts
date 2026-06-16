@@ -42,7 +42,7 @@ export class WorkspaceController {
     return this.workspaceService.createFolder(
       req.user.userId,
       req.user.email,
-      body.name,
+      body,
     );
   }
 
@@ -56,7 +56,7 @@ export class WorkspaceController {
       req.user.userId,
       req.user.email,
       folderId,
-      body.name,
+      body,
     );
   }
 

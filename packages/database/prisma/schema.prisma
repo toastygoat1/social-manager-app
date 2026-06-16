@@ -239,14 +239,17 @@ model WorkspaceBoardState {
 }
 
 model WorkspaceFolder {
-  id        String          @id @default(uuid())
-  userId    String          @map("user_id")
-  name      String
-  sortOrder Int             @default(0) @map("sort_order")
-  createdAt DateTime        @default(now()) @map("created_at")
-  updatedAt DateTime        @updatedAt @map("updated_at")
-  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tasks     WorkspaceTask[]
+  id                String          @id @default(uuid())
+  userId            String          @map("user_id")
+  name              String
+  bannerTitle       String?         @map("banner_title")
+  bannerDescription String?         @map("banner_description") @db.Text
+  bannerColor       String?         @map("banner_color")
+  sortOrder         Int             @default(0) @map("sort_order")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
+  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tasks             WorkspaceTask[]
 
   @@index([userId, sortOrder])
   @@map("workspace_folders")

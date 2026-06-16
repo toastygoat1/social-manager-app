@@ -5,6 +5,10 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@social-manager/database';
 import { PrismaService } from '../prisma/prisma.service.js';
+import type {
+  CreateWorkspaceFolderDto,
+  UpdateWorkspaceFolderDto,
+} from './dto/workspace-folder.dto.js';
 import {
   WORKSPACE_TASK_STATUSES,
   WORKSPACE_TASK_URGENCIES,
@@ -190,6 +194,11 @@ function trimOrFallback(value: string | undefined, fallback: string) {
   return trimmed ? trimmed : fallback;
 }
 
+function trimOrNull(value: string | null | undefined) {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
 function hasOwnField(value: object, field: string): boolean {
   return Object.hasOwn(value, field);
 }
@@ -215,7 +224,11 @@ export class WorkspaceService {
     return { folders: await this.findFolders(userId, email) };
   }
 
-  async createFolder(userId: string, email: string, name: string) {
+  async createFolder(
+    userId: string,
+    email: string,
+    body: CreateWorkspaceFolderDto,
+  ) {
     await this.ensureUser(userId, email);
     await this.ensureBoardState(userId);
 
@@ -225,7 +238,10 @@ export class WorkspaceService {
     const folder = await this.prisma.workspaceFolder.create({
       data: {
         userId,
-        name: trimOrFallback(name, `Folder ${folderCount + 1}`),
+        name: trimOrFallback(body.name, `Folder ${folderCount + 1}`),
+        bannerTitle: trimOrNull(body.bannerTitle),
+        bannerDescription: trimOrNull(body.bannerDescription),
+        bannerColor: trimOrNull(body.bannerColor),
         sortOrder: folderCount,
       },
       include: WORKSPACE_FOLDER_INCLUDE,
@@ -238,13 +254,27 @@ export class WorkspaceService {
     userId: string,
     email: string,
     folderId: string,
-    name: string | undefined,
+    body: UpdateWorkspaceFolderDto,
   ) {
     await this.assertFolder(userId, folderId);
 
+    const data: Prisma.WorkspaceFolderUpdateInput = {};
+    if (body.name !== undefined) {
+      data.name = trimOrFallback(body.name, 'Folder');
+    }
+    if (hasOwnField(body, 'bannerTitle')) {
+      data.bannerTitle = trimOrNull(body.bannerTitle);
+    }
+    if (hasOwnField(body, 'bannerDescription')) {
+      data.bannerDescription = trimOrNull(body.bannerDescription);
+    }
+    if (hasOwnField(body, 'bannerColor')) {
+      data.bannerColor = trimOrNull(body.bannerColor);
+    }
+
     const folder = await this.prisma.workspaceFolder.update({
       where: { id: folderId },
-      data: name === undefined ? {} : { name: trimOrFallback(name, 'Folder') },
+      data,
       include: WORKSPACE_FOLDER_INCLUDE,
     });
 
@@ -468,6 +498,9 @@ export class WorkspaceService {
       id: folder.id,
       name: folder.name,
       owner: email,
+      bannerTitle: folder.bannerTitle,
+      bannerDescription: folder.bannerDescription,
+      bannerColor: folder.bannerColor,
       tasks: folder.tasks.map((task) => this.mapTask(task)),
     };
   }
