@@ -474,7 +474,9 @@ export class InstagramService {
     const { uploads } = await this.media.createUploadUrls(user, [file]);
     const upload = uploads[0];
     if (!upload) {
-      throw new InternalServerErrorException('Failed to create banner upload URL');
+      throw new InternalServerErrorException(
+        'Failed to create banner upload URL',
+      );
     }
     return upload;
   }
@@ -1692,6 +1694,8 @@ export class InstagramService {
       igPermalink: this.normalizeOptionalString(media.permalink),
       igMediaUrl: this.getInstagramMediaUrl(media),
       igThumbnailUrl: this.getInstagramThumbnailUrl(media),
+      igRemovedAt: null,
+      igRemovedReason: null,
     };
 
     if (existing) {

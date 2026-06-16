@@ -550,8 +550,8 @@ export function AccountsTopCard({
                 : "max-w-0 -translate-x-3 overflow-hidden opacity-0"
             }`}
           >
-            <div className="flex min-w-max items-center py-1.5">
-              <div className="flex items-center -space-x-2.5">
+            <div className="flex h-9 min-w-max items-center">
+              <div className="flex h-9 items-center -space-x-2">
                 {selectedAccounts.map((account) => (
                   <div
                     key={account.id}
@@ -570,19 +570,19 @@ export function AccountsTopCard({
                   </div>
                 ))}
               </div>
-              <div className="relative -ml-1 -translate-y-1">
+              <div className="relative -ml-1.5 flex size-9 items-center justify-center">
                 <button
                   type="button"
                   aria-expanded={isAddOpen}
                   aria-label="Add account to selection"
                   onClick={toggleAddPopup}
-                  className="flex size-11 cursor-pointer items-center justify-center rounded-full border border-line bg-paper text-muted shadow-[0_4px_16px_rgba(24,22,18,0.12)] ring-2 ring-page transition hover:border-ink hover:bg-ink hover:text-page"
+                  className="flex size-9 cursor-pointer items-center justify-center rounded-full border border-line bg-paper text-muted shadow-[0_3px_10px_rgba(24,22,18,0.1)] ring-2 ring-page transition hover:border-ink hover:bg-ink hover:text-page"
                 >
-                  <Plus className="size-[22px]" strokeWidth={1.8} />
+                  <Plus className="size-[19px]" strokeWidth={1.8} />
                 </button>
                 {addPopupState.mounted ? (
                   <div
-                    className={`absolute left-1/2 top-[3.25rem] z-50 w-72 -translate-x-1/2 rounded-lg border border-line bg-paper p-2 shadow-[0_18px_45px_rgba(24,22,18,0.14)] transition-[opacity,transform] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                    className={`absolute left-1/2 top-11 z-50 w-72 -translate-x-1/2 rounded-lg border border-line bg-paper p-2 shadow-[0_18px_45px_rgba(24,22,18,0.14)] transition-[opacity,transform] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
                       isAddOpen
                         ? "translate-y-1 scale-100 opacity-100"
                         : "pointer-events-none -translate-y-1 scale-[0.98] opacity-0"

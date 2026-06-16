@@ -47,7 +47,7 @@ export type SchedulerEvent = {
   start: string;
   end: string | null;
   allDay: boolean;
-  status: 'published' | 'scheduled' | 'pending' | 'draft' | null;
+  status: 'published' | 'scheduled' | 'pending' | 'draft' | 'removed' | null;
   postType: PostType | null;
   accountId: string | null;
   accountUsername: string | null;
@@ -107,7 +107,7 @@ export type SchedulerPostDetail = {
   metadataFields: SchedulerMetadataField[];
   metadata: PostMetadata;
   postType: PostType;
-  status: 'published' | 'scheduled' | 'pending' | 'draft';
+  status: 'published' | 'scheduled' | 'pending' | 'draft' | 'removed';
   accountId: string;
   accountUsername: string;
   scheduledFor: string | null;
@@ -218,12 +218,13 @@ export type SchedulerFailedPost = {
 
 const POST_STATUS_TO_UI: Record<
   PostStatus,
-  'published' | 'scheduled' | 'pending' | 'draft'
+  'published' | 'scheduled' | 'pending' | 'draft' | 'removed'
 > = {
   DRAFT: 'draft',
   PENDING: 'pending',
   READY: 'scheduled',
   PUBLISHED: 'published',
+  REMOVED: 'removed',
 };
 
 @Injectable()

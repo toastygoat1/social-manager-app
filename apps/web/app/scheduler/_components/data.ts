@@ -1,4 +1,9 @@
-export type EventStatus = "published" | "scheduled" | "pending" | "draft";
+export type EventStatus =
+  | "published"
+  | "scheduled"
+  | "pending"
+  | "draft"
+  | "removed";
 
 export type SchedulerEventSource = "scheduled_post";
 

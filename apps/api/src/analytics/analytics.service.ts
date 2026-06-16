@@ -206,6 +206,7 @@ type AnalyticsOverview = {
 
 type RefreshInsightsResult = {
   refreshed: number;
+  removed: number;
   accountSnapshots: number;
   skipped: number;
   failed: number;
@@ -218,8 +219,22 @@ type GraphApiError = {
     message?: string;
     type?: string;
     code?: number;
+    error_subcode?: number;
   };
 };
+
+class InstagramGraphRequestError extends Error {
+  constructor(
+    message: string,
+    readonly responseStatus: number,
+    readonly code?: number,
+    readonly type?: string,
+    readonly subcode?: number,
+  ) {
+    super(message);
+    this.name = 'InstagramGraphRequestError';
+  }
+}
 
 type InstagramInsightMetric = (typeof REFRESH_INSIGHT_METRICS)[number];
 
@@ -765,6 +780,7 @@ export class AnalyticsService {
     if (accountRecords.length === 0) {
       return {
         refreshed: 0,
+        removed: 0,
         accountSnapshots: 0,
         skipped: 0,
         failed: 0,
@@ -796,12 +812,14 @@ export class AnalyticsService {
     const fetchedAt = new Date();
     const result: RefreshInsightsResult = {
       refreshed: 0,
+      removed: 0,
       accountSnapshots: 0,
       skipped: 0,
       failed: 0,
       fetchedAt: null,
       errors: [],
     };
+    const snapshotSucceededAccountIds = new Set<string>();
 
     for (const account of accountRecords) {
       try {
@@ -811,6 +829,7 @@ export class AnalyticsService {
           fetchedAt,
         );
         result.accountSnapshots += 1;
+        snapshotSucceededAccountIds.add(account.id);
       } catch (error) {
         this.logger.warn(
           `Instagram account insight refresh skipped for ${account.id}: ${this.getErrorMessage(error)}`,
@@ -854,7 +873,24 @@ export class AnalyticsService {
 
         result.refreshed += 1;
       } catch (error) {
-        const message = this.getErrorMessage(error);
+        let message = this.getErrorMessage(error);
+        if (
+          snapshotSucceededAccountIds.has(post.instagramAccountId) &&
+          isInstagramMediaRemovedError(error)
+        ) {
+          try {
+            await this.markPostRemovedFromInstagram(
+              post.id,
+              message,
+              fetchedAt,
+            );
+            result.removed += 1;
+            continue;
+          } catch (markError) {
+            message = `Could not mark removed post: ${this.getErrorMessage(markError)}`;
+          }
+        }
+
         this.logger.warn(
           `Instagram insight refresh failed for post ${post.id}: ${message}`,
         );
@@ -1176,6 +1212,13 @@ export class AnalyticsService {
 
     if (
       fieldsResult.status === 'rejected' &&
+      isInstagramMediaRemovedError(fieldsResult.reason)
+    ) {
+      throw fieldsResult.reason;
+    }
+
+    if (
+      fieldsResult.status === 'rejected' &&
       insightsResult.status === 'rejected'
     ) {
       throw insightsResult.reason;
@@ -1201,6 +1244,24 @@ export class AnalyticsService {
       mediaUrl: getInstagramMediaUrl(fields),
       thumbnailUrl: getInstagramThumbnailUrl(fields),
     };
+  }
+
+  private async markPostRemovedFromInstagram(
+    postId: string,
+    reason: string,
+    removedAt: Date,
+  ) {
+    await this.prisma.contentPost.updateMany({
+      where: {
+        id: postId,
+        status: PostStatus.PUBLISHED,
+      },
+      data: {
+        status: PostStatus.REMOVED,
+        igRemovedAt: removedAt,
+        igRemovedReason: truncate(reason, 500),
+      },
+    });
   }
 
   private async fetchMediaFields(igMediaId: string, accessToken: string) {
@@ -1317,9 +1378,15 @@ export class AnalyticsService {
     const body = (await response.json().catch(() => ({}))) as T;
 
     if (!response.ok || body.error) {
-      throw new Error(
+      const message =
         body.error?.message ??
-          `Instagram API request failed with status ${response.status}`,
+        `Instagram API request failed with status ${response.status}`;
+      throw new InstagramGraphRequestError(
+        message,
+        response.status,
+        body.error?.code,
+        body.error?.type,
+        body.error?.error_subcode,
       );
     }
 
@@ -2238,6 +2305,30 @@ function truncate(value: string | null | undefined, maxLength: number) {
   return trimmed.length > maxLength
     ? `${trimmed.slice(0, Math.max(0, maxLength - 1))}...`
     : trimmed;
+}
+
+function isInstagramMediaRemovedError(error: unknown) {
+  const message = error instanceof Error ? error.message.toLowerCase() : '';
+
+  if (error instanceof InstagramGraphRequestError) {
+    if (error.responseStatus === 404) return true;
+    if (
+      error.code === 100 &&
+      (message.includes('unsupported get request') ||
+        message.includes('does not exist') ||
+        message.includes('cannot be loaded'))
+    ) {
+      return true;
+    }
+  }
+
+  return (
+    message.includes('unsupported get request') &&
+    (message.includes('object') || message.includes('media')) &&
+    (message.includes('does not exist') ||
+      message.includes('cannot be loaded') ||
+      message.includes('has been deleted'))
+  );
 }
 
 function formatDate(date: Date) {

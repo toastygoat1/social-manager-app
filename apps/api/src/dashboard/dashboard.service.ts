@@ -50,6 +50,7 @@ type ActivityKind =
   | 'account_disconnected'
   | 'post_scheduled'
   | 'post_published'
+  | 'post_removed'
   | 'post_pending'
   | 'post_draft';
 type ActivityTone = 'success' | 'danger' | 'info' | 'warning' | 'muted';
@@ -83,6 +84,7 @@ const POST_STATUS_LABELS: Record<PostStatus, string> = {
   PENDING: 'Pending',
   READY: 'Ready',
   PUBLISHED: 'Published',
+  REMOVED: 'Removed',
 };
 
 const DASHBOARD_CONTENT_POST_INCLUDE = {
@@ -428,6 +430,17 @@ export class DashboardService {
           detail: `${label} / ${accountName}`,
           occurredAt: (post.publishedAt ?? post.updatedAt).toISOString(),
           tone: 'success',
+        };
+      }
+
+      if (post.status === PostStatus.REMOVED) {
+        return {
+          id: `post-removed:${post.id}`,
+          kind: 'post_removed',
+          title: 'Post removed from Instagram',
+          detail: `${label} / ${accountName}`,
+          occurredAt: post.updatedAt.toISOString(),
+          tone: 'muted',
         };
       }
 

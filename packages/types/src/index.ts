@@ -1,4 +1,10 @@
-export type PostStatus = 'draft' | 'scheduled' | 'publishing' | 'published' | 'failed';
+export type PostStatus =
+  | 'draft'
+  | 'scheduled'
+  | 'publishing'
+  | 'published'
+  | 'failed'
+  | 'removed';
 
 export interface PostSummary {
   id: string;

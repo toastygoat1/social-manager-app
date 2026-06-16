@@ -655,7 +655,9 @@ function StatusPill({ status }: { status: string }) {
 
   const normalized = label.toLowerCase();
   const tone =
-    normalized === "published"
+    normalized === "removed"
+      ? "bg-card text-muted"
+      : normalized === "published"
       ? "bg-emerald-50 text-success"
       : normalized === "scheduled"
         ? "bg-indigo-50 text-[#5e6ad2]"

@@ -174,6 +174,8 @@ model ContentPost {
   igPermalink               String?                    @map("ig_permalink")
   igMediaUrl                String?                    @map("ig_media_url")
   igThumbnailUrl            String?                    @map("ig_thumbnail_url")
+  igRemovedAt               DateTime?                  @map("ig_removed_at")
+  igRemovedReason           String?                    @map("ig_removed_reason") @db.Text
   commentsSyncedAt          DateTime?                  @map("comments_synced_at")
   aiAnalysisQueuedAt        DateTime?                  @map("ai_analysis_queued_at")
   aiAnalyzedAt              DateTime?                  @map("ai_analyzed_at")
@@ -191,6 +193,7 @@ model ContentPost {
   @@index([instagramAccountId])
   @@index([status])
   @@index([scheduledFor])
+  @@index([igRemovedAt])
   @@index([aiAnalysisQueuedAt])
   @@index([aiAnalysisSourceFetchedAt])
   @@index([instagramAccountId, status, scheduledFor])
@@ -517,6 +520,7 @@ enum PostStatus {
   PENDING
   READY
   PUBLISHED
+  REMOVED
 }
 
 enum PublishTrigger {

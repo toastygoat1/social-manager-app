@@ -452,6 +452,8 @@ describe('InstagramService', () => {
         igPermalink: 'https://instagram.com/reel/1',
         igMediaUrl: 'https://cdn.example/reel.mp4',
         igThumbnailUrl: 'https://cdn.example/reel.jpg',
+        igRemovedAt: null,
+        igRemovedReason: null,
       },
       select: { id: true },
     });
@@ -466,6 +468,8 @@ describe('InstagramService', () => {
         igPermalink: 'https://instagram.com/p/2',
         igMediaUrl: 'https://cdn.example/carousel-1.jpg',
         igThumbnailUrl: 'https://cdn.example/carousel-1.jpg',
+        igRemovedAt: null,
+        igRemovedReason: null,
       },
       select: { id: true },
     });

@@ -37,6 +37,13 @@ const STATUS_STYLE: Record<
     badge: "bg-[#e2dfd9] text-[#635e57]",
     label: "Draft",
   },
+  removed: {
+    card: "bg-card text-muted",
+    time: "text-muted",
+    dot: "bg-muted",
+    badge: "bg-paper text-muted",
+    label: "Removed",
+  },
 };
 
 export function formatEventTime(event: SchedulerEvent) {

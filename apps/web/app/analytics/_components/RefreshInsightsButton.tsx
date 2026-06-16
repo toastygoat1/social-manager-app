@@ -16,6 +16,7 @@ type RefreshInsightsButtonProps = {
 
 type RefreshInsightsResponse = {
   refreshed: number;
+  removed: number;
   accountSnapshots: number;
   skipped: number;
   failed: number;
@@ -60,27 +61,53 @@ function formatCount(value: number, label: string) {
   return `${value} ${label}${value === 1 ? "" : "s"}`;
 }
 
+function joinPhrases(parts: string[]) {
+  if (parts.length <= 1) return parts[0] ?? "";
+  if (parts.length === 2) return `${parts[0]} and ${parts[1]}`;
+
+  return `${parts.slice(0, -1).join(", ")}, and ${parts.at(-1)}`;
+}
+
 function buildSuccessMessage(result: RefreshInsightsResponse) {
   if (
     result.refreshed === 0 &&
+    result.removed === 0 &&
     result.accountSnapshots === 0 &&
     result.failed === 0
   ) {
     return "No published posts to refresh";
   }
 
+  const updatedParts = [
+    result.refreshed > 0 ? formatCount(result.refreshed, "post") : null,
+    result.accountSnapshots > 0
+      ? formatCount(result.accountSnapshots, "account")
+      : null,
+  ].filter((part): part is string => Boolean(part));
+  const updatedMessage =
+    updatedParts.length > 0 ? `Updated ${joinPhrases(updatedParts)}` : null;
+  const removedMessage =
+    result.removed > 0
+      ? `marked ${formatCount(result.removed, "post")} removed`
+      : null;
+
   if (result.failed > 0) {
-    return `Updated ${formatCount(result.refreshed, "post")}`;
+    return (
+      joinPhrases(
+        [updatedMessage, removedMessage].filter(
+          (part): part is string => Boolean(part),
+        ),
+      ) || "No posts updated"
+    );
   }
 
-  if (result.refreshed === 0) {
-    return `Updated ${formatCount(result.accountSnapshots, "account snapshot")}`;
-  }
-
-  return `Updated ${formatCount(result.refreshed, "post")} and ${formatCount(
-    result.accountSnapshots,
-    "account",
-  )}`;
+  return (
+    joinPhrases(
+      [updatedMessage, removedMessage].filter(
+        (part): part is string => Boolean(part),
+      ),
+    ) || "No published posts to refresh"
+  );
 }
 
 export function RefreshInsightsButton({

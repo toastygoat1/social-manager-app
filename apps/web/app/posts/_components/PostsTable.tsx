@@ -103,7 +103,9 @@ function StatusPill({ status }: { status: string }) {
   const label = displayText(status) ?? "Draft";
   const normalized = label.toLowerCase();
   const tone =
-    normalized.includes("publish")
+    normalized.includes("removed")
+      ? "bg-card text-muted"
+      : normalized.includes("publish")
       ? "bg-emerald-50 text-success"
       : normalized.includes("ready") || normalized.includes("scheduled")
         ? "bg-indigo-50 text-[#5e6ad2]"

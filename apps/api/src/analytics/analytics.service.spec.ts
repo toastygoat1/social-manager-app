@@ -15,6 +15,7 @@ import { AnalyticsService } from './analytics.service.js';
 import { encryptSecret } from '../common/crypto.util.js';
 
 type AsyncFn = (...args: unknown[]) => Promise<unknown>;
+type FetchInput = Parameters<typeof fetch>[0];
 
 describe('AnalyticsService', () => {
   let service: AnalyticsService;
@@ -27,6 +28,7 @@ describe('AnalyticsService', () => {
     contentPost: {
       findMany: jest.Mock<AsyncFn>;
       update: jest.Mock<AsyncFn>;
+      updateMany: jest.Mock<AsyncFn>;
     };
     postAnalytics: { create: jest.Mock<AsyncFn> };
     analyticsSnapshot: {
@@ -60,6 +62,7 @@ describe('AnalyticsService', () => {
       contentPost: {
         findMany: jest.fn<AsyncFn>(),
         update: jest.fn<AsyncFn>(),
+        updateMany: jest.fn<AsyncFn>(),
       },
       postAnalytics: { create: jest.fn<AsyncFn>() },
       analyticsSnapshot: {
@@ -737,111 +740,106 @@ describe('AnalyticsService', () => {
     prisma.postAnalytics.create.mockResolvedValue({});
     prisma.analyticsSnapshot.upsert.mockResolvedValue({});
 
-    const fetchMock = jest
-      .spyOn(globalThis, 'fetch')
-      .mockImplementation((input) => {
-        const url =
-          input instanceof URL
-            ? input
-            : new URL(typeof input === 'string' ? input : input.url);
+    const fetchMock = mockGlobalFetch((input: FetchInput) => {
+      const url = toMockUrl(input);
 
-        if (url.pathname === '/v21.0/ig-account-1') {
-          return Promise.resolve(
-            new Response(
-              JSON.stringify({
-                followers_count: 1000,
-                follows_count: 90,
-                media_count: 24,
-              }),
-              { status: 200, headers: { 'Content-Type': 'application/json' } },
-            ),
-          );
-        }
+      if (url.pathname === '/v21.0/ig-account-1') {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              followers_count: 1000,
+              follows_count: 90,
+              media_count: 24,
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          ),
+        );
+      }
 
-        if (url.pathname === '/v21.0/ig-account-1/insights') {
-          const metric = url.searchParams.get('metric');
+      if (url.pathname === '/v21.0/ig-account-1/insights') {
+        const metric = url.searchParams.get('metric');
 
-          if (metric === 'follower_demographics') {
-            const breakdown = url.searchParams.get('breakdown');
-            const result =
-              breakdown === 'gender'
-                ? [
-                    { dimension_values: ['Women'], value: 60 },
-                    { dimension_values: ['Men'], value: 40 },
-                  ]
-                : breakdown === 'age'
-                  ? [{ dimension_values: ['25-34'], value: 70 }]
-                  : [{ dimension_values: ['Bangkok'], value: 55 }];
-
-            return Promise.resolve(
-              new Response(
-                JSON.stringify({
-                  data: [
-                    {
-                      name: 'follower_demographics',
-                      total_value: { breakdowns: [{ results: result }] },
-                    },
-                  ],
-                }),
-                {
-                  status: 200,
-                  headers: { 'Content-Type': 'application/json' },
-                },
-              ),
-            );
-          }
-
-          const values: Record<string, number> = {
-            reach: 400,
-            views: 620,
-            profile_views: 30,
-          };
+        if (metric === 'follower_demographics') {
+          const breakdown = url.searchParams.get('breakdown');
+          const result =
+            breakdown === 'gender'
+              ? [
+                  { dimension_values: ['Women'], value: 60 },
+                  { dimension_values: ['Men'], value: 40 },
+                ]
+              : breakdown === 'age'
+                ? [{ dimension_values: ['25-34'], value: 70 }]
+                : [{ dimension_values: ['Bangkok'], value: 55 }];
 
           return Promise.resolve(
             new Response(
               JSON.stringify({
                 data: [
                   {
-                    name: metric,
-                    total_value: { value: values[metric ?? ''] },
+                    name: 'follower_demographics',
+                    total_value: { breakdowns: [{ results: result }] },
                   },
                 ],
               }),
-              { status: 200, headers: { 'Content-Type': 'application/json' } },
+              {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' },
+              },
             ),
           );
         }
 
-        if (url.pathname === '/v21.0/ig-media-1') {
-          return Promise.resolve(
-            new Response(
-              JSON.stringify({
-                id: 'ig-media-1',
-                like_count: 21,
-                comments_count: 9,
-                media_url: 'https://cdn.example/ig-media-1.jpg',
-                thumbnail_url: 'https://cdn.example/ig-media-1-thumb.jpg',
-              }),
-              { status: 200, headers: { 'Content-Type': 'application/json' } },
-            ),
-          );
-        }
+        const values: Record<string, number> = {
+          reach: 400,
+          views: 620,
+          profile_views: 30,
+        };
 
         return Promise.resolve(
           new Response(
             JSON.stringify({
               data: [
-                { name: 'views', total_value: { value: 130 } },
-                { name: 'reach', total_value: { value: 90 } },
-                { name: 'shares', total_value: { value: 4 } },
-                { name: 'saved', total_value: { value: 7 } },
-                { name: 'total_interactions', total_value: { value: 41 } },
+                {
+                  name: metric,
+                  total_value: { value: values[metric ?? ''] },
+                },
               ],
             }),
             { status: 200, headers: { 'Content-Type': 'application/json' } },
           ),
         );
-      });
+      }
+
+      if (url.pathname === '/v21.0/ig-media-1') {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              id: 'ig-media-1',
+              like_count: 21,
+              comments_count: 9,
+              media_url: 'https://cdn.example/ig-media-1.jpg',
+              thumbnail_url: 'https://cdn.example/ig-media-1-thumb.jpg',
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          ),
+        );
+      }
+
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            data: [
+              { name: 'views', total_value: { value: 130 } },
+              { name: 'reach', total_value: { value: 90 } },
+              { name: 'shares', total_value: { value: 4 } },
+              { name: 'saved', total_value: { value: 7 } },
+              { name: 'total_interactions', total_value: { value: 41 } },
+            ],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        ),
+      );
+    });
 
     const result = await service.refreshInsights('user-1', {
       accountId: 'account-1',
@@ -858,7 +856,7 @@ describe('AnalyticsService', () => {
       where: {
         userId: 'user-1',
         isActive: true,
-        id: 'account-1',
+        id: { in: ['account-1'] },
       },
       select: {
         id: true,
@@ -921,6 +919,95 @@ describe('AnalyticsService', () => {
     });
     expect(result).toEqual({
       refreshed: 1,
+      removed: 0,
+      accountSnapshots: 1,
+      skipped: 0,
+      failed: 0,
+      fetchedAt: '2026-05-23T10:00:00.000Z',
+      errors: [],
+    });
+  });
+
+  it('marks published posts as removed when Instagram no longer returns the media', async () => {
+    prisma.instagramAccount.findMany.mockResolvedValue([
+      {
+        id: 'account-1',
+        igUserId: 'ig-account-1',
+        username: 'ambacafe',
+        accessTokenEncrypted: encryptSecret('ig-token'),
+      },
+    ]);
+    prisma.contentPost.findMany.mockResolvedValue([
+      {
+        id: 'post-1',
+        caption: 'Deleted on Instagram',
+        igMediaId: 'ig-media-1',
+        instagramAccountId: 'account-1',
+      },
+    ]);
+    prisma.analyticsSnapshot.upsert.mockResolvedValue({});
+    prisma.contentPost.updateMany.mockResolvedValue({ count: 1 });
+
+    mockGlobalFetch((input: FetchInput) => {
+      const url = toMockUrl(input);
+
+      if (url.pathname === '/v21.0/ig-account-1') {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              followers_count: 1000,
+              follows_count: 90,
+              media_count: 23,
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          ),
+        );
+      }
+
+      if (url.pathname === '/v21.0/ig-media-1') {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              error: {
+                message:
+                  "Unsupported get request. Object with ID 'ig-media-1' does not exist, cannot be loaded due to missing permissions, or does not support this operation.",
+                type: 'GraphMethodException',
+                code: 100,
+              },
+            }),
+            { status: 400, headers: { 'Content-Type': 'application/json' } },
+          ),
+        );
+      }
+
+      return Promise.resolve(
+        new Response(JSON.stringify({ data: [] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+    });
+
+    const result = await service.refreshInsights('user-1', {
+      accountId: 'account-1',
+      range: '30d',
+    });
+
+    expect(prisma.postAnalytics.create).not.toHaveBeenCalled();
+    expect(prisma.contentPost.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: 'post-1',
+        status: PostStatus.PUBLISHED,
+      },
+      data: {
+        status: PostStatus.REMOVED,
+        igRemovedAt: new Date('2026-05-23T10:00:00Z'),
+        igRemovedReason: expect.stringContaining('Unsupported get request'),
+      },
+    });
+    expect(result).toEqual({
+      refreshed: 0,
+      removed: 1,
       accountSnapshots: 1,
       skipped: 0,
       failed: 0,
@@ -1032,6 +1119,26 @@ function makePost(input: {
           ],
     _count: { postMedia: input.withMedia === false ? 0 : 1 },
   };
+}
+
+function mockGlobalFetch(
+  implementation: (input: FetchInput) => Promise<Response>,
+) {
+  if (!('fetch' in globalThis)) {
+    Object.defineProperty(globalThis, 'fetch', {
+      configurable: true,
+      writable: true,
+      value: jest.fn(),
+    });
+  }
+
+  return jest.spyOn(globalThis, 'fetch').mockImplementation(implementation);
+}
+
+function toMockUrl(input: FetchInput) {
+  return input instanceof URL
+    ? input
+    : new URL(typeof input === 'string' ? input : input.url);
 }
 
 function makeSnapshot(input: { snapshotDate: string; followersCount: number }) {

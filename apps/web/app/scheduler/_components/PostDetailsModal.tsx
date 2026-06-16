@@ -98,6 +98,12 @@ const STATUS_STYLE: Record<
     text: "text-[#1f2a3a]",
     Icon: Pencil,
   },
+  removed: {
+    label: "Removed",
+    bg: "bg-card",
+    text: "text-muted",
+    Icon: X,
+  },
 };
 
 function toLocalDatetimeInputValue(iso: string): string {

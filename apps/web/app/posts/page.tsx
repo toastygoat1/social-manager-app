@@ -16,6 +16,7 @@ type PostsPageProps = {
 const POST_STATUS_TABS = [
   { id: "all", label: "All Posts" },
   { id: "published", label: "Published" },
+  { id: "removed", label: "Removed" },
   { id: "ready", label: "Ready" },
   { id: "pending", label: "Pendings" },
   { id: "draft", label: "Draft" },
@@ -38,6 +39,7 @@ function resolveStatusFilter(value: string | undefined): PostStatusFilter {
 function classifyStatus(status: string): Exclude<PostStatusFilter, "all"> {
   const normalized = status.toLowerCase();
 
+  if (normalized.includes("removed")) return "removed";
   if (normalized.includes("publish")) return "published";
   if (
     normalized.includes("ready") ||

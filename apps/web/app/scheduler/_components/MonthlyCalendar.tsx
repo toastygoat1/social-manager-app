@@ -37,6 +37,11 @@ const STATUS_STYLE: Record<
     time: "text-[#a67832]",
     dot: "bg-[#c79545]",
   },
+  removed: {
+    chip: "bg-card text-muted",
+    time: "text-muted",
+    dot: "bg-muted",
+  },
 };
 
 function formatTime(event: SchedulerEvent): string {
