@@ -10,6 +10,7 @@ const ANALYTICS_OVERVIEW_ENDPOINT = "/analytics/overview";
 
 type AnalyticsDataOptions = {
   accountId?: string;
+  accountIds?: string[];
   timeFilter?: AnalyticsTimeFilter;
 };
 
@@ -20,7 +21,13 @@ export async function getAnalyticsData(
     const params = options.timeFilter
       ? createAnalyticsSearchParams(options.timeFilter)
       : new URLSearchParams();
-    if (options.accountId) params.set("accountId", options.accountId);
+    if (options.accountIds && options.accountIds.length > 0) {
+      options.accountIds.forEach((accountId) =>
+        params.append("accountId", accountId),
+      );
+    } else if (options.accountId) {
+      params.set("accountId", options.accountId);
+    }
 
     const query = params.toString();
 

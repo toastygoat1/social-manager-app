@@ -38,6 +38,12 @@ function firstParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
 
+function paramList(value: string | string[] | undefined) {
+  const values = Array.isArray(value) ? value : value ? [value] : [];
+
+  return [...new Set(values.map((item) => item.trim()).filter(Boolean))];
+}
+
 function getOwnedAccountId(
   accounts: { id: string }[],
   accountId: string | undefined,
@@ -70,7 +76,8 @@ export default async function AnalyticsPage({
   searchParams,
 }: AnalyticsPageProps) {
   const params = await searchParams;
-  const selectedAccountId = firstParam(params.accountId);
+  const selectedAccountIds = paramList(params.accountId);
+  const selectedAccountId = selectedAccountIds[0];
   const requestedCompareLeftId = firstParam(params.compareLeft);
   const requestedCompareRightId = firstParam(params.compareRight);
   const isCompareMode =
@@ -103,7 +110,7 @@ export default async function AnalyticsPage({
   }
 
   const data = await getAnalyticsData({
-    accountId: isCompareMode ? undefined : selectedAccountId,
+    accountIds: isCompareMode ? undefined : selectedAccountIds,
     timeFilter: selectedTimeFilter,
   });
   const [compareLeftAccountId, compareRightAccountId] = isCompareMode
@@ -151,6 +158,7 @@ export default async function AnalyticsPage({
             <AccountsTopCard
               accounts={data.accounts}
               selectedAccountId={data.selectedAccountId}
+              selectedAccountIds={data.selectedAccountIds}
               timeFilter={selectedTimeFilter}
               lastUpdatedAt={data.lastUpdatedAt}
               isCompareMode={isCompareMode}

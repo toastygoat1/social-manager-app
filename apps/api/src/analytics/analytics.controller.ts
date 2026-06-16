@@ -25,13 +25,13 @@ export class AnalyticsController {
   @Get('overview')
   getOverview(
     @Request() req: AuthedRequest,
-    @Query('accountId') accountId?: string,
+    @Query('accountId') accountId?: string | string[],
     @Query('range') range?: string,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ) {
     return this.analyticsService.getOverview(req.user.userId, {
-      accountId,
+      accountIds: normalizeAccountIds(accountId),
       range,
       startDate,
       endDate,
@@ -45,6 +45,7 @@ export class AnalyticsController {
   ) {
     return this.analyticsService.refreshInsights(req.user.userId, {
       accountId: body?.accountId,
+      accountIds: body?.accountIds,
       range: body?.range,
       startDate: body?.startDate,
       endDate: body?.endDate,
@@ -72,4 +73,10 @@ export class AnalyticsController {
   deleteNote(@Request() req: AuthedRequest, @Param('noteId') noteId: string) {
     return this.analyticsService.deleteNote(req.user.userId, noteId);
   }
+}
+
+function normalizeAccountIds(value: string | string[] | undefined) {
+  const values = Array.isArray(value) ? value : value ? [value] : [];
+
+  return [...new Set(values.map((item) => item.trim()).filter(Boolean))];
 }

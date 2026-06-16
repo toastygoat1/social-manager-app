@@ -153,6 +153,7 @@ export type AnalyticsContentRow = Omit<ContentRow, "media"> & {
 export type AnalyticsData = {
   accounts: Account[];
   selectedAccountId: string | null;
+  selectedAccountIds: string[];
   rangeDays: number;
   lastUpdatedAt: string | null;
   statGrid: AnalyticsStat[];
@@ -233,6 +234,7 @@ const EMPTY_STAT_GRID: AnalyticsStat[] = [
 export const EMPTY_ANALYTICS: AnalyticsData = {
   accounts: [],
   selectedAccountId: null,
+  selectedAccountIds: [],
   rangeDays: 30,
   lastUpdatedAt: null,
   statGrid: EMPTY_STAT_GRID,

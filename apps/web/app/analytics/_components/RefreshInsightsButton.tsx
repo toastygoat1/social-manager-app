@@ -8,6 +8,7 @@ import type { AnalyticsTimeFilter } from "./data";
 
 type RefreshInsightsButtonProps = {
   selectedAccountId: string | null;
+  selectedAccountIds?: string[];
   timeFilter: AnalyticsTimeFilter;
   lastUpdatedAt: string | null;
   disabled?: boolean;
@@ -84,6 +85,7 @@ function buildSuccessMessage(result: RefreshInsightsResponse) {
 
 export function RefreshInsightsButton({
   selectedAccountId,
+  selectedAccountIds = [],
   timeFilter,
   lastUpdatedAt,
   disabled,
@@ -114,7 +116,12 @@ export function RefreshInsightsButton({
         {
           method: "POST",
           body: {
-            accountId: selectedAccountId ?? undefined,
+            accountId:
+              selectedAccountIds.length === 0
+                ? (selectedAccountId ?? undefined)
+                : undefined,
+            accountIds:
+              selectedAccountIds.length > 0 ? selectedAccountIds : undefined,
             range: timeFilter.range,
             startDate:
               timeFilter.range === "custom" ? timeFilter.startDate : undefined,

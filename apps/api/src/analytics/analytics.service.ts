@@ -185,6 +185,7 @@ type AnalyticsNote = {
 type AnalyticsOverview = {
   accounts: AnalyticsAccount[];
   selectedAccountId: string | null;
+  selectedAccountIds: string[];
   rangeDays: number;
   lastUpdatedAt: string | null;
   statGrid: AnalyticsMetric[];
@@ -429,6 +430,7 @@ export class AnalyticsService {
     userId: string,
     options: {
       accountId?: string;
+      accountIds?: string[];
       range?: string;
       startDate?: string;
       endDate?: string;
@@ -453,25 +455,38 @@ export class AnalyticsService {
     const accounts = accountRecords.map((account, index) =>
       mapAccount(account, index),
     );
-    const selectedAccountRecords = options.accountId
-      ? accountRecords.filter((account) => account.id === options.accountId)
-      : accountRecords;
+    const requestedAccountIds = normalizeSelectedAccountIds(
+      options.accountIds,
+      options.accountId ? [options.accountId] : [],
+    );
+    const selectedAccountRecords =
+      requestedAccountIds.length > 0
+        ? accountRecords.filter((account) =>
+            requestedAccountIds.includes(account.id),
+          )
+        : accountRecords;
     const metadataFields = await this.prisma.contentMetadataField.findMany({
       where: { userId },
       orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
       select: { id: true, label: true, sortOrder: true },
     });
 
-    if (options.accountId && selectedAccountRecords.length === 0) {
+    if (
+      requestedAccountIds.length > 0 &&
+      selectedAccountRecords.length !== requestedAccountIds.length
+    ) {
       throw new NotFoundException('Instagram account was not found.');
     }
 
     const accountIds = selectedAccountRecords.map((account) => account.id);
+    const selectedAccountId =
+      requestedAccountIds.length === 1 ? requestedAccountIds[0] : null;
 
     if (accountIds.length === 0) {
       return {
         accounts,
-        selectedAccountId: options.accountId ?? null,
+        selectedAccountId,
+        selectedAccountIds: requestedAccountIds,
         rangeDays,
         lastUpdatedAt: null,
         statGrid: buildStatGrid([], []),
@@ -486,7 +501,7 @@ export class AnalyticsService {
         metadataFields,
         contentRows: [],
         recommendations: [],
-        notes: await this.findNotes(userId, options.accountId),
+        notes: await this.findNotes(userId, requestedAccountIds),
         videoIdeas: [],
       };
     }
@@ -538,7 +553,8 @@ export class AnalyticsService {
 
     return {
       accounts,
-      selectedAccountId: options.accountId ?? null,
+      selectedAccountId,
+      selectedAccountIds: requestedAccountIds,
       rangeDays,
       lastUpdatedAt: latestAnalyticsFetchedAt(currentPosts),
       statGrid: buildStatGrid(currentPosts, previousPosts),
@@ -566,7 +582,7 @@ export class AnalyticsService {
         distribution,
         bestTime,
       ),
-      notes: await this.findNotes(userId, options.accountId),
+      notes: await this.findNotes(userId, requestedAccountIds),
       videoIdeas: [],
     };
   }
@@ -649,15 +665,15 @@ export class AnalyticsService {
     return { deleted: true };
   }
 
-  private async findNotes(userId: string, accountId?: string) {
+  private async findNotes(userId: string, accountIds: string[] = []) {
     const notes = await this.prisma.analyticsNote.findMany({
       where: {
         userId,
-        ...(accountId
+        ...(accountIds.length > 0
           ? {
               OR: [
-                { instagramAccountId: accountId },
-                { accountIds: { has: accountId } },
+                { instagramAccountId: { in: accountIds } },
+                { accountIds: { hasSome: accountIds } },
               ],
             }
           : {}),
@@ -710,6 +726,7 @@ export class AnalyticsService {
     userId: string,
     options: {
       accountId?: string;
+      accountIds?: string[];
       range?: string;
       startDate?: string;
       endDate?: string;
@@ -717,12 +734,18 @@ export class AnalyticsService {
   ): Promise<RefreshInsightsResult> {
     const now = new Date();
     const { currentEnd, currentStart } = resolveAnalyticsPeriod(options, now);
+    const requestedAccountIds = normalizeSelectedAccountIds(
+      options.accountIds,
+      options.accountId ? [options.accountId] : [],
+    );
 
     const accountRecords = await this.prisma.instagramAccount.findMany({
       where: {
         userId,
         isActive: true,
-        ...(options.accountId ? { id: options.accountId } : {}),
+        ...(requestedAccountIds.length > 0
+          ? { id: { in: requestedAccountIds } }
+          : {}),
       },
       select: {
         id: true,
@@ -732,7 +755,10 @@ export class AnalyticsService {
       },
     });
 
-    if (options.accountId && accountRecords.length === 0) {
+    if (
+      requestedAccountIds.length > 0 &&
+      accountRecords.length !== requestedAccountIds.length
+    ) {
       throw new NotFoundException('Instagram account was not found.');
     }
 
@@ -1508,6 +1534,13 @@ function normalizeNoteAccountIds(
     .filter(Boolean);
 
   return [...new Set(cleanIds)];
+}
+
+function normalizeSelectedAccountIds(
+  accountIds: string[] | undefined,
+  fallback: string[] = [],
+) {
+  return normalizeNoteAccountIds(accountIds, fallback);
 }
 
 function normalizeNoteBody(value: string) {
