@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type MouseEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -56,6 +56,8 @@ type DatePickerState = {
   kind: "start" | "end";
   anchorRect: FloatingAnchorRect;
 } | null;
+
+const POPUP_TRANSITION_MS = 200;
 
 function analyticsHref({
   accountId,
@@ -183,6 +185,7 @@ export function AccountsTopCard({
   );
   const [customPanelState, setCustomPanelState] = useState({
     open: timeFilter.range === "custom",
+    mounted: timeFilter.range === "custom",
     range: timeFilter.range,
   });
   const rangeKey = customDateKey(timeFilter);
@@ -192,8 +195,15 @@ export function AccountsTopCard({
     endDate: timeFilter.range === "custom" ? (timeFilter.endDate ?? "") : "",
   });
   const [datePicker, setDatePicker] = useState<DatePickerState>(null);
-  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [addPopupState, setAddPopupState] = useState({
+    open: false,
+    mounted: false,
+  });
   const [accountSearch, setAccountSearch] = useState("");
+  const addPopupCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const customPanelCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const [compareLeft, compareRight] = resolveCompareAccountIds(
     accounts,
     effectiveSelectedAccountId,
@@ -225,6 +235,11 @@ export function AccountsTopCard({
     customPanelState.range === timeFilter.range
       ? customPanelState.open
       : customIsActive;
+  const isCustomMounted =
+    customPanelState.range === timeFilter.range
+      ? customPanelState.mounted
+      : customIsActive;
+  const isAddOpen = addPopupState.open;
   const customStartDate =
     customDateState.rangeKey === rangeKey
       ? customDateState.startDate
@@ -262,6 +277,17 @@ export function AccountsTopCard({
     if (selectPreviewHref) router.prefetch(selectPreviewHref);
     if (accounts.length >= 2) router.prefetch(compareModeHref);
   }, [accounts.length, compareModeHref, overviewHref, router, selectPreviewHref]);
+
+  useEffect(() => {
+    return () => {
+      if (addPopupCloseTimer.current) {
+        clearTimeout(addPopupCloseTimer.current);
+      }
+      if (customPanelCloseTimer.current) {
+        clearTimeout(customPanelCloseTimer.current);
+      }
+    };
+  }, []);
 
   function selectedHref(nextAccountIds: string[]) {
     return analyticsHref({ accountIds: nextAccountIds, timeFilter });
@@ -361,7 +387,7 @@ export function AccountsTopCard({
   function addAccount(accountId: string) {
     navigateToAccountSelection([...effectiveSelectedAccountIds, accountId]);
     setAccountSearch("");
-    setIsAddOpen(false);
+    closeAddPopup();
   }
 
   function removeAccount(accountId: string) {
@@ -370,11 +396,68 @@ export function AccountsTopCard({
     );
   }
 
-  function toggleCustomPanel() {
+  function openCustomPanel() {
+    if (customPanelCloseTimer.current) {
+      clearTimeout(customPanelCloseTimer.current);
+    }
     setCustomPanelState({
-      open: !isCustomOpen,
+      open: true,
+      mounted: true,
       range: timeFilter.range,
     });
+  }
+
+  function closeCustomPanel() {
+    if (customPanelCloseTimer.current) {
+      clearTimeout(customPanelCloseTimer.current);
+    }
+    setCustomPanelState({
+      open: false,
+      mounted: true,
+      range: timeFilter.range,
+    });
+    customPanelCloseTimer.current = setTimeout(() => {
+      setCustomPanelState({
+        open: false,
+        mounted: false,
+        range: timeFilter.range,
+      });
+    }, POPUP_TRANSITION_MS);
+  }
+
+  function toggleCustomPanel() {
+    if (isCustomOpen) {
+      closeCustomPanel();
+      return;
+    }
+
+    openCustomPanel();
+  }
+
+  function openAddPopup() {
+    if (addPopupCloseTimer.current) {
+      clearTimeout(addPopupCloseTimer.current);
+    }
+    setAddPopupState({ open: true, mounted: true });
+  }
+
+  function closeAddPopup() {
+    if (addPopupCloseTimer.current) {
+      clearTimeout(addPopupCloseTimer.current);
+    }
+    setAddPopupState({ open: false, mounted: true });
+    addPopupCloseTimer.current = setTimeout(() => {
+      setAddPopupState({ open: false, mounted: false });
+    }, POPUP_TRANSITION_MS);
+  }
+
+  function toggleAddPopup() {
+    if (isAddOpen) {
+      closeAddPopup();
+      return;
+    }
+
+    openAddPopup();
   }
 
   function updateCustomDate(kind: "start" | "end", value: string) {
@@ -468,19 +551,19 @@ export function AccountsTopCard({
             }`}
           >
             <div className="flex min-w-max items-center py-1.5">
-              <div className="flex items-center -space-x-3">
+              <div className="flex items-center -space-x-2.5">
                 {selectedAccounts.map((account) => (
                   <div
                     key={account.id}
-                    className="group relative flex size-10 shrink-0 items-center justify-center rounded-full"
+                    className="group relative flex size-8 shrink-0 items-center justify-center rounded-full transition-[opacity,transform] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]"
                     title={account.name}
                   >
-                    <Avatar account={account} size={40} />
+                    <Avatar account={account} size={32} />
                     <button
                       type="button"
                       aria-label={`Remove ${account.name}`}
                       onClick={() => removeAccount(account.id)}
-                      className="absolute left-0 top-0 flex size-4 cursor-pointer items-center justify-center rounded-full bg-ink text-page opacity-0 shadow-sm transition group-hover:opacity-100"
+                      className="absolute -left-0.5 -top-0.5 flex size-4 cursor-pointer items-center justify-center rounded-full bg-ink text-page opacity-0 shadow-sm transition group-hover:opacity-100"
                     >
                       <Minus className="size-3" strokeWidth={2.2} />
                     </button>
@@ -492,13 +575,19 @@ export function AccountsTopCard({
                   type="button"
                   aria-expanded={isAddOpen}
                   aria-label="Add account to selection"
-                  onClick={() => setIsAddOpen((value) => !value)}
-                  className="flex size-12 cursor-pointer items-center justify-center rounded-full bg-page text-muted shadow-[0_4px_16px_rgba(24,22,18,0.12)] transition hover:bg-ink hover:text-page"
+                  onClick={toggleAddPopup}
+                  className="flex size-11 cursor-pointer items-center justify-center rounded-full border border-line bg-paper text-muted shadow-[0_4px_16px_rgba(24,22,18,0.12)] ring-2 ring-page transition hover:border-ink hover:bg-ink hover:text-page"
                 >
-                  <Plus className="size-6" strokeWidth={1.8} />
+                  <Plus className="size-[22px]" strokeWidth={1.8} />
                 </button>
-                {isAddOpen ? (
-                  <div className="absolute left-1/2 top-14 z-50 w-72 -translate-x-1/2 translate-y-1 rounded-lg border border-line bg-paper p-2 shadow-[0_18px_45px_rgba(24,22,18,0.14)]">
+                {addPopupState.mounted ? (
+                  <div
+                    className={`absolute left-1/2 top-[3.25rem] z-50 w-72 -translate-x-1/2 rounded-lg border border-line bg-paper p-2 shadow-[0_18px_45px_rgba(24,22,18,0.14)] transition-[opacity,transform] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                      isAddOpen
+                        ? "translate-y-1 scale-100 opacity-100"
+                        : "pointer-events-none -translate-y-1 scale-[0.98] opacity-0"
+                    }`}
+                  >
                     <label className="flex h-9 items-center gap-2 rounded-md border border-line bg-page px-3">
                       <Search className="size-3.5 text-muted" strokeWidth={1.8} />
                       <input
@@ -629,10 +718,14 @@ export function AccountsTopCard({
                 />
               </button>
             </div>
-            {isCustomOpen ? (
+            {isCustomMounted ? (
               <form
                 action="/analytics"
-                className="absolute right-0 top-11 z-40 grid w-[24rem] max-w-[calc(100vw-2rem)] gap-1.5 rounded-lg border border-line bg-paper p-1.5 shadow-[0_18px_45px_rgba(24,22,18,0.14)] sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"
+                className={`absolute right-0 top-11 z-40 grid w-[26rem] max-w-[calc(100vw-2rem)] gap-1.5 rounded-lg border border-line bg-paper p-1.5 shadow-[0_18px_45px_rgba(24,22,18,0.14)] transition-[opacity,transform] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] sm:grid-cols-[minmax(9.75rem,1fr)_minmax(9.75rem,1fr)_4.75rem] ${
+                  isCustomOpen
+                    ? "translate-y-0 scale-100 opacity-100"
+                    : "pointer-events-none -translate-y-1 scale-[0.98] opacity-0"
+                }`}
               >
                 <input type="hidden" name="range" value="custom" />
                 {effectiveIsCompareMode ? (
@@ -678,31 +771,31 @@ export function AccountsTopCard({
                 <button
                   type="button"
                   onClick={(event) => openDatePicker("start", event.currentTarget)}
-                  className="flex h-8 items-center gap-2 rounded-md border border-line bg-page px-3 text-left transition hover:bg-card"
+                  className="flex h-8 min-w-0 items-center gap-2 rounded-md border border-line bg-page px-3 text-left transition hover:bg-card"
                 >
-                  <span className="text-[11px] font-medium uppercase text-muted">
+                  <span className="shrink-0 text-[11px] font-medium uppercase text-muted">
                     From
                   </span>
-                  <span className="min-w-0 flex-1 text-sm font-medium text-ink">
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">
                     {formatDateLabel(customStartDate)}
                   </span>
                 </button>
                 <button
                   type="button"
                   onClick={(event) => openDatePicker("end", event.currentTarget)}
-                  className="flex h-8 items-center gap-2 rounded-md border border-line bg-page px-3 text-left transition hover:bg-card"
+                  className="flex h-8 min-w-0 items-center gap-2 rounded-md border border-line bg-page px-3 text-left transition hover:bg-card"
                 >
-                  <span className="text-[11px] font-medium uppercase text-muted">
+                  <span className="shrink-0 text-[11px] font-medium uppercase text-muted">
                     To
                   </span>
-                  <span className="min-w-0 flex-1 text-sm font-medium text-ink">
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">
                     {formatDateLabel(customEndDate)}
                   </span>
                 </button>
                 <button
                   type="submit"
                   disabled={!customStartDate || !customEndDate}
-                  className="flex h-8 items-center justify-center rounded-md bg-ink px-4 text-sm font-semibold text-page transition hover:opacity-90 disabled:pointer-events-none disabled:opacity-40"
+                  className="flex h-8 min-w-[4.75rem] items-center justify-center rounded-md bg-ink px-4 text-sm font-semibold text-page transition hover:opacity-90 disabled:pointer-events-none disabled:opacity-40"
                 >
                   Apply
                 </button>
