@@ -152,7 +152,6 @@ export default async function AnalyticsPage({
               accounts={data.accounts}
               selectedAccountId={data.selectedAccountId}
               timeFilter={selectedTimeFilter}
-              rangeLabel={selectedRangeLabel}
               lastUpdatedAt={data.lastUpdatedAt}
               isCompareMode={isCompareMode}
               compareAccountIds={[compareLeftAccountId, compareRightAccountId]}

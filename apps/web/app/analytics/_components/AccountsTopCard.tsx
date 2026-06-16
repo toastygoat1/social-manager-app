@@ -13,7 +13,6 @@ type AccountsTopCardProps = {
   accounts: Account[];
   selectedAccountId: string | null;
   timeFilter: AnalyticsTimeFilter;
-  rangeLabel: string;
   lastUpdatedAt: string | null;
   isCompareMode?: boolean;
   compareAccountIds?: [string | null, string | null];
@@ -80,7 +79,46 @@ function Avatar({ account }: { account: Account }) {
   );
 }
 
-function AccountChip({
+function AllAccountsAvatar({ accounts }: { accounts: Account[] }) {
+  const previewAccounts = accounts.slice(0, 2);
+
+  if (previewAccounts.length === 0) {
+    return (
+      <span className="flex size-8 items-center justify-center rounded-full bg-card font-mono text-[10px] text-muted">
+        0
+      </span>
+    );
+  }
+
+  return (
+    <span className="relative flex size-8 items-center justify-center rounded-full bg-card">
+      {previewAccounts.map((account, index) => (
+        <span
+          key={account.id}
+          className={`absolute flex size-5 items-center justify-center overflow-hidden rounded-full border border-paper bg-[#5e6ad2] text-[9px] font-medium text-white ${
+            index === 0 ? "left-1 top-1" : "bottom-1 right-1"
+          }`}
+        >
+          <AvatarImage
+            src={account.avatarUrl}
+            alt=""
+            width={20}
+            height={20}
+            className="size-full object-cover"
+            fallback={account.name.replace(/^@/, "").charAt(0).toUpperCase()}
+          />
+        </span>
+      ))}
+      {accounts.length > 2 ? (
+        <span className="absolute -bottom-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full border border-paper bg-ink font-mono text-[8px] font-medium text-page">
+          +{accounts.length - 2}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+function AccountAvatarLink({
   account,
   active,
   timeFilter,
@@ -92,14 +130,15 @@ function AccountChip({
   return (
     <Link
       href={analyticsHref({ accountId: account.id, timeFilter })}
-      className={`flex shrink-0 items-center gap-2 rounded-full border px-2.5 py-1.5 text-xs transition ${
+      aria-label={`View insights for ${account.name}`}
+      title={account.name}
+      className={`flex size-9 shrink-0 items-center justify-center rounded-full border transition ${
         active
-          ? "border-[#d8d6cf] bg-card text-ink"
-          : "border-line bg-paper text-muted hover:border-[#d8d6cf] hover:text-ink"
+          ? "border-ink bg-card shadow-[0_0_0_2px_var(--bg-light),0_0_0_4px_var(--ink)]"
+          : "border-line bg-paper hover:border-[#d8d6cf] hover:bg-card"
       }`}
     >
       <Avatar account={account} />
-      <span className="max-w-36 truncate">{account.name}</span>
     </Link>
   );
 }
@@ -108,13 +147,10 @@ export function AccountsTopCard({
   accounts,
   selectedAccountId,
   timeFilter,
-  rangeLabel,
   lastUpdatedAt,
   isCompareMode = false,
   compareAccountIds = [null, null],
 }: AccountsTopCardProps) {
-  const selectedAccount =
-    accounts.find((account) => account.id === selectedAccountId) ?? null;
   const [compareLeft, compareRight] = resolveCompareAccountIds(
     accounts,
     selectedAccountId,
@@ -128,27 +164,37 @@ export function AccountsTopCard({
   });
 
   return (
-    <section className="flex w-full flex-col gap-3 rounded-[10px] border border-line bg-paper p-3.5">
-      <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
-        <div className="flex min-w-0 items-center gap-3">
-          {selectedAccount ? (
-            <Avatar account={selectedAccount} />
-          ) : (
-            <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-ink font-mono text-[11px] font-medium text-page">
-              {accounts.length}
-            </span>
-          )}
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-ink">
-              {selectedAccount?.name ?? "All accounts"}
-            </p>
-            <p className="truncate font-mono text-[10px] uppercase tracking-[0.06em] text-muted">
-              {selectedAccount?.platform ??
-                `${accounts.length} Instagram accounts / aggregated view`}
-            </p>
+    <section className="flex w-full flex-col rounded-[10px] border border-line bg-paper p-3.5">
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-start">
+        {accounts.length > 0 ? (
+          <div className="flex min-w-0 items-center gap-1.5 overflow-x-auto pr-1">
+            <Link
+              href={analyticsHref({ accountId: null, timeFilter })}
+              aria-label="View insights for all accounts"
+              title="All accounts"
+              className={`flex size-9 shrink-0 items-center justify-center rounded-full border transition ${
+                !selectedAccountId && !isCompareMode
+                  ? "border-ink bg-card shadow-[0_0_0_2px_var(--bg-light),0_0_0_4px_var(--ink)]"
+                  : "border-line bg-paper hover:border-[#d8d6cf] hover:bg-card"
+              }`}
+            >
+              <AllAccountsAvatar accounts={accounts} />
+            </Link>
+            {accounts.map((account) => (
+              <AccountAvatarLink
+                key={account.id}
+                account={account}
+                active={
+                  isCompareMode
+                    ? compareLeft === account.id || compareRight === account.id
+                    : selectedAccountId === account.id
+                }
+                timeFilter={timeFilter}
+              />
+            ))}
           </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2.5">
+        ) : null}
+        <div className="ml-auto flex w-full min-w-0 flex-1 flex-wrap items-center justify-end gap-2.5 xl:w-auto">
           <RefreshInsightsButton
             selectedAccountId={selectedAccountId}
             timeFilter={timeFilter}
@@ -217,7 +263,7 @@ export function AccountsTopCard({
           </div>
           <form
             action="/analytics"
-            className={`flex flex-wrap items-center gap-2 rounded-lg border p-1.5 ${
+            className={`flex flex-wrap items-center justify-end gap-2 rounded-lg border p-1.5 ${
               timeFilter.range === "custom"
                 ? "border-[#d8d6cf] bg-card"
                 : "border-line bg-paper"
@@ -288,35 +334,6 @@ export function AccountsTopCard({
           </form>
         </div>
       </div>
-      <div className="border-t border-line pt-3 font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
-        {rangeLabel}
-      </div>
-      {accounts.length > 0 ? (
-        <div className="flex items-center gap-2 overflow-x-auto border-t border-line pt-3">
-          <Link
-            href={analyticsHref({ accountId: null, timeFilter })}
-            className={`flex shrink-0 items-center rounded-full border px-3 py-2 text-xs transition ${
-              !selectedAccountId && !isCompareMode
-                ? "border-[#d8d6cf] bg-card text-ink"
-                : "border-line text-muted hover:border-[#d8d6cf] hover:text-ink"
-            }`}
-          >
-            All accounts
-          </Link>
-          {accounts.map((account) => (
-            <AccountChip
-              key={account.id}
-              account={account}
-              active={
-                isCompareMode
-                  ? compareLeft === account.id || compareRight === account.id
-                  : selectedAccountId === account.id
-              }
-              timeFilter={timeFilter}
-            />
-          ))}
-        </div>
-      ) : null}
     </section>
   );
 }
