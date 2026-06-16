@@ -22,11 +22,19 @@ type RefreshInsightsResponse = {
   failed: number;
   fetchedAt: string | null;
   errors: { postId: string; title: string; message: string }[];
+  warnings: {
+    accountId: string;
+    accountName: string;
+    metric: string;
+    label: string;
+    message: string;
+  }[];
 };
 
 type RefreshStatus = "idle" | "success" | "partial" | "error";
 
 type RefreshError = RefreshInsightsResponse["errors"][number];
+type RefreshWarning = RefreshInsightsResponse["warnings"][number];
 
 function getApiErrorMessage(error: unknown) {
   if (!(error instanceof ApiError)) return null;
@@ -123,6 +131,7 @@ export function RefreshInsightsButton({
   const [status, setStatus] = useState<RefreshStatus>("idle");
   const [failedCount, setFailedCount] = useState(0);
   const [refreshErrors, setRefreshErrors] = useState<RefreshError[]>([]);
+  const [refreshWarnings, setRefreshWarnings] = useState<RefreshWarning[]>([]);
   const [isFailureOpen, setIsFailureOpen] = useState(false);
   const lastUpdatedLabel = useMemo(
     () => formatLastUpdated(lastUpdatedAt),
@@ -135,6 +144,7 @@ export function RefreshInsightsButton({
     setStatus("idle");
     setFailedCount(0);
     setRefreshErrors([]);
+    setRefreshWarnings([]);
     setIsFailureOpen(false);
 
     try {
@@ -158,10 +168,15 @@ export function RefreshInsightsButton({
         },
       );
 
-      setStatus(result.failed > 0 ? "partial" : "success");
+      setStatus(
+        result.failed > 0 || result.warnings.length > 0
+          ? "partial"
+          : "success",
+      );
       setMessage(buildSuccessMessage(result));
       setFailedCount(result.failed);
       setRefreshErrors(result.errors);
+      setRefreshWarnings(result.warnings);
       router.refresh();
     } catch (error) {
       setStatus("error");
@@ -171,6 +186,7 @@ export function RefreshInsightsButton({
       );
       setFailedCount(0);
       setRefreshErrors([]);
+      setRefreshWarnings([]);
       setIsFailureOpen(false);
     } finally {
       setIsRefreshing(false);
@@ -183,55 +199,99 @@ export function RefreshInsightsButton({
       : status === "partial" || status === "error"
         ? TriangleAlert
         : null;
+  const warningCount = refreshWarnings.length;
+  const hasRefreshDetails = failedCount > 0 || warningCount > 0;
+  const detailLabel = joinPhrases(
+    [
+      failedCount > 0 ? `${failedCount} failed` : null,
+      warningCount > 0 ? `${warningCount} unavailable` : null,
+    ].filter((part): part is string => Boolean(part)),
+  );
 
   return (
     <div className="flex shrink-0 items-center gap-3">
       <div className="relative hidden min-w-0 flex-col items-end md:flex">
         <div className="flex items-center gap-1 text-[11px] font-medium text-muted">
           <span>{message ?? lastUpdatedLabel}</span>
-          {failedCount > 0 ? (
+          {hasRefreshDetails ? (
             <>
               <span>,</span>
               <button
                 type="button"
                 aria-expanded={isFailureOpen}
-                aria-label="Show failed insight refresh details"
+                aria-label="Show insight refresh details"
                 onClick={() => setIsFailureOpen((value) => !value)}
                 className="text-danger underline decoration-danger/40 underline-offset-2 transition hover:decoration-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger/30"
               >
-                {failedCount} failed
+                {detailLabel}
               </button>
             </>
           ) : null}
         </div>
-        {failedCount > 0 && isFailureOpen ? (
+        {hasRefreshDetails && isFailureOpen ? (
           <div className="absolute right-0 top-6 z-30 w-80 rounded-lg border border-line bg-paper p-2 text-left font-sans text-xs normal-case tracking-normal text-ink shadow-[0_18px_45px_rgba(24,22,18,0.14)]">
             <div className="border-b border-line px-2 pb-2">
-              <p className="font-semibold text-ink">Failed insights</p>
+              <p className="font-semibold text-ink">Refresh details</p>
               <p className="mt-0.5 text-[11px] leading-4 text-muted">
-                {formatCount(failedCount, "post")} could not be updated.
+                {joinPhrases(
+                  [
+                    failedCount > 0
+                      ? `${formatCount(failedCount, "post")} could not be updated`
+                      : null,
+                    warningCount > 0
+                      ? `${formatCount(warningCount, "metric")} unavailable`
+                      : null,
+                  ].filter((part): part is string => Boolean(part)),
+                )}
+                .
               </p>
             </div>
-            <div className="max-h-56 overflow-y-auto pt-2">
+            <div className="max-h-64 overflow-y-auto pt-2">
               {refreshErrors.length > 0 ? (
-                refreshErrors.map((error) => (
-                  <div
-                    key={error.postId}
-                    className="rounded-md px-2 py-2 hover:bg-card"
-                  >
-                    <p className="truncate font-medium text-ink">
-                      {error.title}
-                    </p>
-                    <p className="mt-1 break-words text-[11px] leading-4 text-muted">
-                      {error.message}
-                    </p>
-                  </div>
-                ))
-              ) : (
+                <div>
+                  <p className="px-2 pb-1 text-[10px] font-medium uppercase tracking-normal text-muted">
+                    Post failures
+                  </p>
+                  {refreshErrors.map((error) => (
+                    <div
+                      key={error.postId}
+                      className="rounded-md px-2 py-2 hover:bg-card"
+                    >
+                      <p className="truncate font-medium text-ink">
+                        {error.title}
+                      </p>
+                      <p className="mt-1 break-words text-[11px] leading-4 text-muted">
+                        {error.message}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+              {refreshWarnings.length > 0 ? (
+                <div className={refreshErrors.length > 0 ? "mt-2" : ""}>
+                  <p className="px-2 pb-1 text-[10px] font-medium uppercase tracking-normal text-muted">
+                    Account metrics
+                  </p>
+                  {refreshWarnings.map((warning) => (
+                    <div
+                      key={`${warning.accountId}:${warning.metric}:${warning.message}`}
+                      className="rounded-md px-2 py-2 hover:bg-card"
+                    >
+                      <p className="truncate font-medium text-ink">
+                        {warning.accountName} · {warning.label}
+                      </p>
+                      <p className="mt-1 break-words text-[11px] leading-4 text-muted">
+                        {warning.message}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+              {refreshErrors.length === 0 && refreshWarnings.length === 0 ? (
                 <p className="px-2 py-2 text-[11px] leading-4 text-muted">
-                  Instagram did not return post-level error details.
+                  Instagram did not return refresh details.
                 </p>
-              )}
+              ) : null}
             </div>
           </div>
         ) : null}

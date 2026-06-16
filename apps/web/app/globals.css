@@ -250,7 +250,8 @@ body {
   letter-spacing: -0.04em;
 }
 
-.dashboard-card-title {
+.dashboard-card-title,
+.analytics-card-title {
   font-family: var(--font-inter), Arial, Helvetica, sans-serif;
   font-size: 20px;
   font-weight: 500;

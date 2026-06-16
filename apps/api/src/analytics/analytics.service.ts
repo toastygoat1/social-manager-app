@@ -212,6 +212,13 @@ type RefreshInsightsResult = {
   failed: number;
   fetchedAt: string | null;
   errors: { postId: string; title: string; message: string }[];
+  warnings: {
+    accountId: string;
+    accountName: string;
+    metric: string;
+    label: string;
+    message: string;
+  }[];
 };
 
 type GraphApiError = {
@@ -291,6 +298,11 @@ type AccountInsightMetrics = {
   reach: number | null;
   impressions: number | null;
   profileViews: number | null;
+  warnings: {
+    metric: string;
+    label: string;
+    message: string;
+  }[];
   audienceDemographics: StoredAudienceBreakdowns;
 };
 
@@ -315,6 +327,11 @@ const REFRESH_INSIGHT_METRICS = [
 ] as const;
 const ACCOUNT_INSIGHT_METRICS = ['reach', 'views', 'profile_views'] as const;
 type AccountInsightMetric = (typeof ACCOUNT_INSIGHT_METRICS)[number];
+const ACCOUNT_INSIGHT_METRIC_LABELS: Record<AccountInsightMetric, string> = {
+  reach: 'Account reach',
+  views: 'Account views',
+  profile_views: 'Profile visits',
+};
 const AUDIENCE_BREAKDOWN_KEYS: AudienceBreakdownKey[] = [
   'gender',
   'age',
@@ -786,6 +803,7 @@ export class AnalyticsService {
         failed: 0,
         fetchedAt: null,
         errors: [],
+        warnings: [],
       };
     }
 
@@ -818,22 +836,32 @@ export class AnalyticsService {
       failed: 0,
       fetchedAt: null,
       errors: [],
+      warnings: [],
     };
     const snapshotSucceededAccountIds = new Set<string>();
 
     for (const account of accountRecords) {
       try {
-        await this.storeAccountSnapshot(
+        const warnings = await this.storeAccountSnapshot(
           account,
           decryptSecret(account.accessTokenEncrypted),
           fetchedAt,
         );
         result.accountSnapshots += 1;
+        result.warnings.push(...warnings);
         snapshotSucceededAccountIds.add(account.id);
       } catch (error) {
+        const message = this.getErrorMessage(error);
         this.logger.warn(
-          `Instagram account insight refresh skipped for ${account.id}: ${this.getErrorMessage(error)}`,
+          `Instagram account insight refresh skipped for ${account.id}: ${message}`,
         );
+        result.warnings.push({
+          accountId: account.id,
+          accountName: account.username,
+          metric: 'account_snapshot',
+          label: 'Account insights',
+          message,
+        });
       }
     }
 
@@ -1065,7 +1093,7 @@ export class AnalyticsService {
   }
 
   private async storeAccountSnapshot(
-    account: { id: string; igUserId: string },
+    account: { id: string; igUserId: string; username: string },
     accessToken: string,
     fetchedAt: Date,
   ) {
@@ -1099,6 +1127,12 @@ export class AnalyticsService {
         ...data,
       },
     });
+
+    return metrics.warnings.map((warning) => ({
+      accountId: account.id,
+      accountName: account.username,
+      ...warning,
+    }));
   }
 
   private async fetchAccountInsightMetrics(
@@ -1118,7 +1152,7 @@ export class AnalyticsService {
       throw new Error('Instagram account counts were not returned.');
     }
 
-    const [insights, audienceDemographics] = await Promise.all([
+    const [accountInsights, audienceDemographics] = await Promise.all([
       this.fetchAccountInsightsIndividually(igUserId, accessToken),
       this.fetchAudienceBreakdowns(igUserId, accessToken),
     ]);
@@ -1127,9 +1161,10 @@ export class AnalyticsService {
       followersCount,
       followingCount,
       mediaCount,
-      reach: insights.get('reach') ?? null,
-      impressions: insights.get('views') ?? null,
-      profileViews: insights.get('profile_views') ?? null,
+      reach: accountInsights.insights.get('reach') ?? null,
+      impressions: accountInsights.insights.get('views') ?? null,
+      profileViews: accountInsights.insights.get('profile_views') ?? null,
+      warnings: accountInsights.warnings,
       audienceDemographics,
     };
   }
@@ -1146,8 +1181,10 @@ export class AnalyticsService {
     igUserId: string,
     accessToken: string,
   ) {
-    const entries = await Promise.all(
+    const results = await Promise.all(
       ACCOUNT_INSIGHT_METRICS.map(async (metric) => {
+        const label = ACCOUNT_INSIGHT_METRIC_LABELS[metric];
+
         try {
           const url = this.createGraphUrl(`${igUserId}/insights`);
           url.searchParams.set('metric', metric);
@@ -1158,18 +1195,54 @@ export class AnalyticsService {
             metric,
           );
 
-          return value === null ? null : ([metric, value] as const);
-        } catch {
-          return null;
+          if (value === null) {
+            return {
+              entry: null,
+              warning: {
+                metric,
+                label,
+                message: `Instagram returned no value for ${label}.`,
+              },
+            };
+          }
+
+          return {
+            entry: [metric, value] as const,
+            warning: null,
+          };
+        } catch (error) {
+          return {
+            entry: null,
+            warning: {
+              metric,
+              label,
+              message: this.getErrorMessage(error),
+            },
+          };
         }
       }),
     );
 
-    return new Map(
-      entries.filter(
-        (entry): entry is [AccountInsightMetric, number] => entry !== null,
+    return {
+      insights: new Map(
+        results
+          .map((result) => result.entry)
+          .filter(
+            (entry): entry is [AccountInsightMetric, number] => entry !== null,
+          ),
       ),
-    );
+      warnings: results
+        .map((result) => result.warning)
+        .filter(
+          (
+            warning,
+          ): warning is {
+            metric: AccountInsightMetric;
+            label: string;
+            message: string;
+          } => warning !== null,
+        ),
+    };
   }
 
   private async fetchAudienceBreakdowns(

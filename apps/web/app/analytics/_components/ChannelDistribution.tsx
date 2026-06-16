@@ -114,7 +114,7 @@ export function ChannelDistribution({
       }`}
     >
       <header>
-        <h2 className="text-sm font-semibold text-ink">Content mix</h2>
+        <h2 className="analytics-card-title text-ink">Content mix</h2>
         <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
           By format / current period
         </p>

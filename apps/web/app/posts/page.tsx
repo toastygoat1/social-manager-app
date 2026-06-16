@@ -93,14 +93,20 @@ export default async function PostsPage({ searchParams }: PostsPageProps) {
   const filteredRows = filterRows(data.contentRows, selectedStatus);
 
   return (
-    <div className="app-shell-frame flex min-h-screen items-start gap-[2px] p-1 font-sans text-ink transition-colors duration-500">
+    <div
+      data-fit="screen"
+      className="app-shell-frame flex h-screen items-start gap-[2px] overflow-hidden p-1 font-sans text-ink transition-colors duration-500"
+    >
       <Sidebar
         active="posts"
         accounts={data.accounts}
         profile={getUserProfile(user)}
       />
-      <main className="analytics-theme app-shell-panel min-w-0 flex-1 overflow-y-auto bg-paper font-inter text-ink">
-        <div className="flex w-full flex-col">
+      <main
+        className="analytics-theme app-shell-panel flex min-w-0 flex-1 flex-col overflow-hidden font-inter text-ink"
+        style={{ backgroundColor: "#fff" }}
+      >
+        <div className="app-shell-fill flex min-h-0 w-full flex-col">
           <PostsTable
             rows={filteredRows}
             metadataFields={data.metadataFields}

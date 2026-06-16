@@ -61,7 +61,7 @@ export function PerformanceTrend({
     >
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-sm font-semibold text-ink">Performance</h2>
+          <h2 className="analytics-card-title text-ink">Performance</h2>
           <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
             Published-content totals / {rangeLabel ?? `last ${rangeDays} days`}
           </p>

@@ -72,7 +72,7 @@ export function AudienceCard({ insight }: { insight: AudienceInsight }) {
   return (
     <section className="flex min-w-0 flex-col gap-5 rounded-[10px] border border-line bg-paper p-[18px]">
       <header>
-        <h2 className="text-sm font-semibold text-ink">Audience</h2>
+        <h2 className="analytics-card-title text-ink">Audience</h2>
         <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
           Followers and demographics / synced account insights
         </p>

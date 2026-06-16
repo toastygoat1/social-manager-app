@@ -25,7 +25,7 @@ export function BestTimeCard({
       }`}
     >
       <header>
-        <h2 className="text-sm font-semibold text-ink">Best time to post</h2>
+        <h2 className="analytics-card-title text-ink">Best time to post</h2>
         <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
           Interaction intensity / {insight.timezone}
         </p>

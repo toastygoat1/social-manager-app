@@ -548,7 +548,7 @@ export function NotesBoard({
         <div className="flex items-center gap-2">
           <StickyNote className="size-4 text-[#9b6b13]" strokeWidth={1.8} />
           <div>
-            <h2 className="text-sm font-semibold text-ink">Notes</h2>
+            <h2 className="analytics-card-title text-ink">Notes</h2>
             <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
               {selectedAccount
                 ? getAccountTitle(selectedAccount)

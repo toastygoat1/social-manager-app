@@ -80,7 +80,7 @@ export function CompareAccountPicker({
   return (
     <section className="flex w-full flex-col gap-4 rounded-[10px] border border-line bg-paper p-[18px] lg:flex-row lg:items-center lg:justify-between">
       <div className="flex min-w-0 flex-col">
-        <p className="text-sm font-semibold text-ink">Comparing</p>
+        <h2 className="analytics-card-title text-ink">Comparing</h2>
         <span className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
           Select two accounts / matched analytics
         </span>

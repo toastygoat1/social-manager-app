@@ -925,6 +925,123 @@ describe('AnalyticsService', () => {
       failed: 0,
       fetchedAt: '2026-05-23T10:00:00.000Z',
       errors: [],
+      warnings: [],
+    });
+  });
+
+  it('returns warnings when optional account insight metrics are unavailable', async () => {
+    prisma.instagramAccount.findMany.mockResolvedValue([
+      {
+        id: 'account-1',
+        igUserId: 'ig-account-1',
+        username: 'ambacafe',
+        accessTokenEncrypted: encryptSecret('ig-token'),
+      },
+    ]);
+    prisma.contentPost.findMany.mockResolvedValue([]);
+
+    mockGlobalFetch((input: FetchInput) => {
+      const url = toMockUrl(input);
+
+      if (url.pathname === '/v21.0/ig-account-1') {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              followers_count: 1000,
+              follows_count: 90,
+              media_count: 24,
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          ),
+        );
+      }
+
+      if (url.pathname === '/v21.0/ig-account-1/insights') {
+        const metric = url.searchParams.get('metric');
+
+        if (metric === 'reach') {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                data: [{ name: 'reach', total_value: { value: 400 } }],
+              }),
+              { status: 200, headers: { 'Content-Type': 'application/json' } },
+            ),
+          );
+        }
+
+        if (metric === 'follower_demographics') {
+          return Promise.resolve(
+            new Response(JSON.stringify({ data: [] }), {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' },
+            }),
+          );
+        }
+
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              error: {
+                message: `${metric} is not available for this account`,
+                code: 100,
+                type: 'OAuthException',
+              },
+            }),
+            {
+              status: 400,
+              headers: { 'Content-Type': 'application/json' },
+            },
+          ),
+        );
+      }
+
+      return Promise.resolve(
+        new Response(JSON.stringify({ data: [] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+    });
+
+    const result = await service.refreshInsights('user-1', {
+      accountId: 'account-1',
+      range: '30d',
+    });
+
+    expect(prisma.analyticsSnapshot.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: expect.objectContaining({
+          reach: 400,
+          impressions: null,
+          profileViews: null,
+        }),
+      }),
+    );
+    expect(result).toEqual({
+      refreshed: 0,
+      removed: 0,
+      accountSnapshots: 1,
+      skipped: 0,
+      failed: 0,
+      fetchedAt: '2026-05-23T10:00:00.000Z',
+      errors: [],
+      warnings: [
+        {
+          accountId: 'account-1',
+          accountName: 'ambacafe',
+          metric: 'views',
+          label: 'Account views',
+          message: 'views is not available for this account',
+        },
+        {
+          accountId: 'account-1',
+          accountName: 'ambacafe',
+          metric: 'profile_views',
+          label: 'Profile visits',
+          message: 'profile_views is not available for this account',
+        },
+      ],
     });
   });
 
@@ -980,6 +1097,32 @@ describe('AnalyticsService', () => {
         );
       }
 
+      if (url.pathname === '/v21.0/ig-account-1/insights') {
+        const metric = url.searchParams.get('metric');
+        const values: Record<string, number> = {
+          reach: 400,
+          views: 620,
+          profile_views: 30,
+        };
+
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              data:
+                metric && metric in values
+                  ? [
+                      {
+                        name: metric,
+                        total_value: { value: values[metric] },
+                      },
+                    ]
+                  : [],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          ),
+        );
+      }
+
       return Promise.resolve(
         new Response(JSON.stringify({ data: [] }), {
           status: 200,
@@ -1013,6 +1156,7 @@ describe('AnalyticsService', () => {
       failed: 0,
       fetchedAt: '2026-05-23T10:00:00.000Z',
       errors: [],
+      warnings: [],
     });
   });
 });

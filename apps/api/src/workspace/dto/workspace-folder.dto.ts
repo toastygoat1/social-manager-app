@@ -20,6 +20,11 @@ export class CreateWorkspaceFolderDto {
   @IsOptional()
   @Matches(BANNER_COLOR_PATTERN)
   bannerColor?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  bannerImagePath?: string | null;
 }
 
 export class UpdateWorkspaceFolderDto {
@@ -41,4 +46,9 @@ export class UpdateWorkspaceFolderDto {
   @IsOptional()
   @Matches(BANNER_COLOR_PATTERN)
   bannerColor?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  bannerImagePath?: string | null;
 }

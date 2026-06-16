@@ -245,6 +245,7 @@ model WorkspaceFolder {
   bannerTitle       String?         @map("banner_title")
   bannerDescription String?         @map("banner_description") @db.Text
   bannerColor       String?         @map("banner_color")
+  bannerImagePath   String?         @map("banner_image_path")
   sortOrder         Int             @default(0) @map("sort_order")
   createdAt         DateTime        @default(now()) @map("created_at")
   updatedAt         DateTime        @updatedAt @map("updated_at")

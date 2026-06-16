@@ -133,7 +133,7 @@ export function RecentPosts({
     >
       <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <h2 className="text-sm font-semibold text-ink">{activeCopy.title}</h2>
+          <h2 className="analytics-card-title text-ink">{activeCopy.title}</h2>
           <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
             {activeCopy.description}
           </p>

@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '@social-manager/database';
+import { MediaService } from '../media/media.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type {
   CreateWorkspaceFolderDto,
@@ -199,6 +200,18 @@ function trimOrNull(value: string | null | undefined) {
   return trimmed ? trimmed : null;
 }
 
+function normalizeUserStoragePath(
+  userId: string,
+  value: string | null | undefined,
+) {
+  const path = trimOrNull(value);
+  if (!path) return null;
+  if (!path.startsWith(`${userId}/`)) {
+    throw new BadRequestException('Banner image is not available');
+  }
+  return path;
+}
+
 function hasOwnField(value: object, field: string): boolean {
   return Object.hasOwn(value, field);
 }
@@ -216,7 +229,10 @@ function getRequestedAccountIds(
 
 @Injectable()
 export class WorkspaceService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly media: MediaService,
+  ) {}
 
   async listFolders(userId: string, email: string) {
     await this.ensureUser(userId, email);
@@ -242,6 +258,7 @@ export class WorkspaceService {
         bannerTitle: trimOrNull(body.bannerTitle),
         bannerDescription: trimOrNull(body.bannerDescription),
         bannerColor: trimOrNull(body.bannerColor),
+        bannerImagePath: normalizeUserStoragePath(userId, body.bannerImagePath),
         sortOrder: folderCount,
       },
       include: WORKSPACE_FOLDER_INCLUDE,
@@ -270,6 +287,12 @@ export class WorkspaceService {
     }
     if (hasOwnField(body, 'bannerColor')) {
       data.bannerColor = trimOrNull(body.bannerColor);
+    }
+    if (hasOwnField(body, 'bannerImagePath')) {
+      data.bannerImagePath = normalizeUserStoragePath(
+        userId,
+        body.bannerImagePath,
+      );
     }
 
     const folder = await this.prisma.workspaceFolder.update({
@@ -490,10 +513,14 @@ export class WorkspaceService {
       include: WORKSPACE_FOLDER_INCLUDE,
     });
 
-    return folders.map((folder) => this.mapFolder(folder, email));
+    return Promise.all(folders.map((folder) => this.mapFolder(folder, email)));
   }
 
-  private mapFolder(folder: WorkspaceFolderRecord, email: string) {
+  private async mapFolder(folder: WorkspaceFolderRecord, email: string) {
+    const bannerImageUrl = folder.bannerImagePath
+      ? await this.media.createSignedPreviewUrl(folder.bannerImagePath)
+      : null;
+
     return {
       id: folder.id,
       name: folder.name,
@@ -501,6 +528,8 @@ export class WorkspaceService {
       bannerTitle: folder.bannerTitle,
       bannerDescription: folder.bannerDescription,
       bannerColor: folder.bannerColor,
+      bannerImagePath: folder.bannerImagePath,
+      bannerImageUrl,
       tasks: folder.tasks.map((task) => this.mapTask(task)),
     };
   }

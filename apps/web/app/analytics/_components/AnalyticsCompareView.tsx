@@ -98,7 +98,9 @@ export function AnalyticsCompareView({
       ) : (
         <section className="flex flex-col gap-5 rounded-[10px] border border-line bg-paper p-[18px]">
           <header>
-            <h2 className="text-sm font-semibold text-ink">Account comparison</h2>
+            <h2 className="analytics-card-title text-ink">
+              Account comparison
+            </h2>
             <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
               Side by side / matched metrics / {rangeLabel}
             </p>

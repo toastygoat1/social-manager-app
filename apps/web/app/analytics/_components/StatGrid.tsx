@@ -34,9 +34,9 @@ export function StatGrid({
           }`}
           style={{ animationDelay: `${Math.min(index, 7) * 45}ms` }}
         >
-          <p className="text-[11px] font-medium uppercase tracking-normal text-muted">
+          <h3 className="analytics-card-title text-ink">
             {stat.title}
-          </p>
+          </h3>
           <p
             className={`analytics-stat-value font-medium leading-none tracking-normal text-ink ${
               compact ? "text-[26px]" : "text-[30px]"

@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
+import Image from "next/image";
 import {
   CalendarDays,
   Check,
@@ -26,6 +27,7 @@ import {
   type FloatingAnchorRect,
 } from "@/app/_components/DateTimePickerPopover";
 import { apiFetchBrowser } from "@/lib/api/browser-client";
+import { createClient } from "@/lib/supabase/client";
 import type { Account } from "./data";
 
 type TaskUrgency = "High" | "Medium" | "Low";
@@ -52,6 +54,8 @@ type Workspace = {
   bannerTitle: string | null;
   bannerDescription: string | null;
   bannerColor: string | null;
+  bannerImagePath: string | null;
+  bannerImageUrl: string | null;
   tasks: WorkplaceTask[];
 };
 
@@ -61,6 +65,15 @@ type WorkplaceTaskBoardProps = {
 
 type WorkspaceFoldersResponse = {
   folders: Workspace[];
+};
+
+type MediaUploadUrlResponse = {
+  uploads: {
+    bucket: string;
+    storagePath: string;
+    token: string;
+    signedUrl: string;
+  }[];
 };
 
 type WorkspaceViewMode = "table" | "calendar" | "gantt" | "kanban";
@@ -648,28 +661,42 @@ function FolderTile({
   onDelete: () => void;
 }) {
   return (
-    <div className="group flex min-w-0 items-center gap-1">
+    <div className="group relative">
       <button
         type="button"
         role="tab"
         aria-selected={selected}
         onClick={onSelect}
-        className={`flex min-w-0 flex-1 items-center gap-2 rounded-md px-2.5 py-2 text-left transition ${
+        className={`flex w-full flex-col items-center rounded-md border px-2.5 py-3 text-center transition ${
           selected
-            ? "bg-card text-ink"
-            : "text-muted hover:bg-card/70 hover:text-ink"
+            ? "border-line bg-card text-ink"
+            : "border-transparent text-muted hover:border-line hover:bg-card/70 hover:text-ink"
         }`}
       >
         <span
           aria-hidden="true"
-          className="size-2.5 shrink-0 rounded-full"
-          style={{ backgroundColor: tone.body }}
-        />
-        <span className="min-w-0 flex-1 truncate text-xs font-semibold">
-          {workspace.name}
+          className="relative block h-[74px] w-[154px] shrink-0"
+        >
+          <span
+            className="absolute left-3 top-0 h-6 w-16 rounded-t-md"
+            style={{ backgroundColor: tone.tab }}
+          />
+          <span
+            className="absolute inset-x-0 top-5 h-[52px] rounded-md shadow-sm"
+            style={{ backgroundColor: tone.body }}
+          />
+          <span
+            className="absolute inset-x-0 top-5 h-5 rounded-t-md"
+            style={{ backgroundColor: tone.spine }}
+          />
         </span>
-        <span className="shrink-0 text-[10px] text-muted">
-          {workspace.tasks.length}
+        <span className="mt-2 flex w-full min-w-0 items-center justify-between gap-2">
+          <span className="min-w-0 flex-1 truncate text-xs font-semibold">
+            {workspace.name}
+          </span>
+          <span className="shrink-0 rounded-full bg-paper px-1.5 py-0.5 text-[10px] text-muted">
+            {workspace.tasks.length}
+          </span>
         </span>
       </button>
       <button
@@ -677,7 +704,7 @@ function FolderTile({
         aria-label={`Delete ${workspace.name} folder`}
         title={`Delete ${workspace.name} folder`}
         onClick={onDelete}
-        className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted opacity-0 transition hover:bg-danger/10 hover:text-danger group-hover:opacity-100 focus:opacity-100"
+        className="absolute right-2 top-2 flex size-7 shrink-0 items-center justify-center rounded-md bg-paper/90 text-muted opacity-0 shadow-sm transition hover:bg-danger/10 hover:text-danger group-hover:opacity-100 focus:opacity-100"
       >
         <X className="size-3.5" strokeWidth={2} />
       </button>
@@ -849,45 +876,59 @@ function DeadlineCalendar({
 function WorkspaceBanner({
   workspace,
   tone,
-  onEdit,
+  uploading,
+  onUpload,
 }: {
   workspace: Workspace;
   tone: (typeof FOLDER_TONES)[number];
-  onEdit: () => void;
+  uploading: boolean;
+  onUpload: (file: File) => void;
 }) {
   const bannerColor = getValidBannerColor(workspace.bannerColor, tone.body);
-  const title = workspace.bannerTitle?.trim() || workspace.name;
-  const description =
-    workspace.bannerDescription?.trim() ||
-    "Customize this banner for the brief, client, campaign, or workflow inside this folder.";
+  const fallbackTitle = workspace.bannerTitle?.trim() || "BANNER";
 
   return (
     <section
-      className="border-b border-line px-4 py-4"
+      className="relative flex h-[154px] items-center justify-center overflow-hidden border-b border-line bg-neutral-200"
       style={{
-        background: `linear-gradient(135deg, ${bannerColor}26, transparent 68%)`,
+        backgroundColor: workspace.bannerImageUrl
+          ? undefined
+          : `${bannerColor}33`,
       }}
     >
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted">
-            Folder banner
-          </p>
-          <h3 className="mt-1 truncate text-xl font-semibold leading-tight text-ink">
-            {title}
-          </h3>
-          <p className="mt-1 max-w-3xl text-sm leading-5 text-muted">
-            {description}
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={onEdit}
-          className="inline-flex h-8 shrink-0 items-center rounded-md border border-line bg-paper px-3 text-xs font-semibold text-ink transition hover:bg-card"
-        >
-          Edit banner
-        </button>
-      </div>
+      {workspace.bannerImageUrl ? (
+        <Image
+          src={workspace.bannerImageUrl}
+          alt=""
+          fill
+          sizes="100vw"
+          unoptimized
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+      ) : (
+        <h3 className="relative z-10 text-5xl font-medium tracking-[0.12em] text-ink md:text-7xl">
+          {fallbackTitle}
+        </h3>
+      )}
+
+      <label
+        className={`absolute right-3 top-3 z-20 inline-flex h-8 cursor-pointer items-center rounded-md border border-line bg-paper/95 px-3 text-xs font-semibold text-ink shadow-sm transition hover:bg-paper ${
+          uploading ? "pointer-events-none opacity-60" : ""
+        }`}
+      >
+        {uploading ? "Uploading..." : "Upload PNG"}
+        <input
+          type="file"
+          accept="image/png"
+          className="sr-only"
+          disabled={uploading}
+          onChange={(event) => {
+            const file = event.currentTarget.files?.[0];
+            event.currentTarget.value = "";
+            if (file) onUpload(file);
+          }}
+        />
+      </label>
     </section>
   );
 }
@@ -1193,6 +1234,9 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
   const [viewMode, setViewMode] = useState<WorkspaceViewMode>("table");
   const [isLoadingFolders, setIsLoadingFolders] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [bannerUploadWorkspaceId, setBannerUploadWorkspaceId] = useState<
+    string | null
+  >(null);
   const [syncError, setSyncError] = useState<string | null>(null);
   const selectedWorkspace =
     workspaces.find((workspace) => workspace.id === selectedWorkspaceId) ??
@@ -1392,55 +1436,50 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
     }
   }
 
-  async function updateSelectedFolderBanner() {
+  async function uploadSelectedFolderBanner(file: File) {
     if (!selectedWorkspace) return;
 
-    const bannerTitle = window.prompt(
-      "Banner title",
-      selectedWorkspace.bannerTitle ?? selectedWorkspace.name,
-    );
-    if (bannerTitle === null) return;
-
-    const bannerDescription = window.prompt(
-      "Banner description",
-      selectedWorkspace.bannerDescription ?? "",
-    );
-    if (bannerDescription === null) return;
-
-    const bannerColor = window.prompt(
-      "Banner color",
-      selectedWorkspace.bannerColor ?? selectedWorkspaceTone.body,
-    );
-    if (bannerColor === null) return;
-
-    const trimmedColor = bannerColor.trim();
-    if (trimmedColor && !/^#[0-9a-fA-F]{6}$/.test(trimmedColor)) {
-      window.alert("Use a hex color like #fb858b.");
+    if (file.type !== "image/png") {
+      window.alert("Please upload a PNG banner.");
       return;
     }
 
-    const bannerFields = {
-      bannerTitle: bannerTitle.trim() || null,
-      bannerDescription: bannerDescription.trim() || null,
-      bannerColor: trimmedColor || null,
-    };
-
-    setSyncError(null);
-    setWorkspaces((currentWorkspaces) =>
-      currentWorkspaces.map((workspace) =>
-        workspace.id === selectedWorkspace.id
-          ? { ...workspace, ...bannerFields }
-          : workspace,
-      ),
-    );
-
     try {
       setIsSyncing(true);
+      setBannerUploadWorkspaceId(selectedWorkspace.id);
+      setSyncError(null);
+
+      const uploadIntent = await apiFetchBrowser<MediaUploadUrlResponse>(
+        "/media/upload-urls",
+        {
+          method: "POST",
+          body: {
+            files: [
+              {
+                name: file.name,
+                mimeType: file.type,
+                fileSize: file.size,
+              },
+            ],
+          },
+        },
+      );
+      const upload = uploadIntent.uploads[0];
+      if (!upload) throw new Error("Could not prepare banner upload.");
+
+      const supabase = createClient();
+      const { error: uploadError } = await supabase.storage
+        .from(upload.bucket)
+        .uploadToSignedUrl(upload.storagePath, upload.token, file, {
+          contentType: file.type,
+        });
+      if (uploadError) throw uploadError;
+
       const savedWorkspace = await apiFetchBrowser<Workspace>(
         `/workspace/folders/${selectedWorkspace.id}`,
         {
           method: "PATCH",
-          body: bannerFields,
+          body: { bannerImagePath: upload.storagePath },
         },
       );
       setWorkspaces((currentWorkspaces) =>
@@ -1455,6 +1494,7 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
       );
     } finally {
       setIsSyncing(false);
+      setBannerUploadWorkspaceId(null);
     }
   }
 
@@ -1662,7 +1702,8 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
             <WorkspaceBanner
               workspace={selectedWorkspace}
               tone={selectedWorkspaceTone}
-              onEdit={updateSelectedFolderBanner}
+              uploading={bannerUploadWorkspaceId === selectedWorkspace.id}
+              onUpload={uploadSelectedFolderBanner}
             />
 
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-2">
@@ -1727,6 +1768,15 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
                       task table.
                     </div>
                   )}
+                  <button
+                    type="button"
+                    aria-label="Add row"
+                    onClick={addTaskToSelectedFolder}
+                    className="flex h-9 items-center border-b border-line bg-paper px-3 text-muted transition hover:bg-card hover:text-ink"
+                    style={{ width: TASK_TABLE_WIDTH }}
+                  >
+                    <Plus className="size-4" strokeWidth={1.8} />
+                  </button>
                 </div>
               ) : viewMode === "calendar" ? (
                 <DeadlineCalendar
