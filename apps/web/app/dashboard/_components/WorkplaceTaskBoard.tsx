@@ -18,6 +18,7 @@ import {
   Plus,
   Search,
   Trash2,
+  X,
   UserPlus,
 } from "lucide-react";
 import {
@@ -987,7 +988,7 @@ function FolderCover({
           height="142"
           rx="14"
           fill={workspace.bannerImageUrl ? "transparent" : FOLDER_BACK_FILL}
-          stroke="white"
+          stroke={folderColor}
           strokeWidth="4"
           vectorEffect="non-scaling-stroke"
         />
@@ -1880,6 +1881,55 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
     setNewAssigneeName("");
   }
 
+  async function deleteAssigneeName(name: string) {
+    const normalizedName = name.trim().toLowerCase();
+    if (!normalizedName) return;
+
+    const affectedTasks = workspaces.flatMap((workspace) =>
+      workspace.tasks
+        .filter((task) => task.assignee.trim().toLowerCase() === normalizedName)
+        .map((task) => ({ taskId: task.id, workspaceId: workspace.id })),
+    );
+
+    setSyncError(null);
+    setManualAssignees((currentAssignees) =>
+      currentAssignees.filter(
+        (assignee) => assignee.trim().toLowerCase() !== normalizedName,
+      ),
+    );
+    setWorkspaces((currentWorkspaces) =>
+      currentWorkspaces.map((workspace) => ({
+        ...workspace,
+        tasks: workspace.tasks.map((task) =>
+          task.assignee.trim().toLowerCase() === normalizedName
+            ? { ...task, assignee: "" }
+            : task,
+        ),
+      })),
+    );
+
+    if (affectedTasks.length === 0) return;
+
+    try {
+      setIsSyncing(true);
+      await Promise.all(
+        affectedTasks.map(({ taskId }) =>
+          apiFetchBrowser<WorkplaceTask>(`/workspace/tasks/${taskId}`, {
+            method: "PATCH",
+            body: { assignee: "" },
+          }),
+        ),
+      );
+    } catch (error) {
+      setSyncError(getErrorMessage(error));
+      void loadFolders(selectedWorkspaceId).catch((reloadError) =>
+        setSyncError(getErrorMessage(reloadError)),
+      );
+    } finally {
+      setIsSyncing(false);
+    }
+  }
+
   async function updateFolderColor(workspaceId: string, color: string) {
     setSyncError(null);
     setWorkspaces((currentWorkspaces) =>
@@ -2135,15 +2185,28 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
             </button>
           </div>
           {assigneeOptions.length > 0 ? (
-            <div className="mt-2 flex min-w-0 items-center -space-x-1.5">
-              {assigneeOptions.slice(0, 5).map((assignee) => (
-                <AssigneeAvatar key={assignee.id} assignee={assignee} />
+            <div className="mt-2 max-h-32 space-y-1 overflow-y-auto pr-1">
+              {assigneeOptions.map((assignee) => (
+                <div
+                  key={assignee.id}
+                  className="group/assignee flex h-8 min-w-0 items-center gap-2 rounded-md px-1 transition hover:bg-card"
+                >
+                  <AssigneeAvatar assignee={assignee} />
+                  <span className="min-w-0 flex-1 truncate text-xs font-medium text-ink">
+                    {assignee.name}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label={`Delete ${assignee.name} assignee`}
+                    onClick={() => {
+                      void deleteAssigneeName(assignee.name);
+                    }}
+                    className="flex size-6 shrink-0 items-center justify-center rounded-md text-muted opacity-60 transition hover:bg-danger/10 hover:text-danger hover:opacity-100 focus-visible:opacity-100"
+                  >
+                    <X className="size-3.5" strokeWidth={2} />
+                  </button>
+                </div>
               ))}
-              {assigneeOptions.length > 5 ? (
-                <span className="flex size-7 items-center justify-center rounded-full border border-paper bg-card text-[10px] font-semibold text-muted">
-                  +{assigneeOptions.length - 5}
-                </span>
-              ) : null}
             </div>
           ) : null}
         </div>
