@@ -40,6 +40,9 @@ import {
 
 const SELECTED_ACCOUNTS_STORAGE_KEY = "analytics:selectedAccountIds";
 
+type CompareAccountIds = [string | null, string | null, string | null];
+const REQUIRED_COMPARE_SLOT_COUNT = 2;
+
 type AccountsTopCardProps = {
   accounts: Account[];
   selectedAccountId: string | null;
@@ -47,7 +50,7 @@ type AccountsTopCardProps = {
   timeFilter: AnalyticsTimeFilter;
   lastUpdatedAt: string | null;
   isCompareMode?: boolean;
-  compareAccountIds?: [string | null, string | null];
+  compareAccountIds?: CompareAccountIds;
 };
 
 type AnalyticsHrefOptions = {
@@ -55,6 +58,7 @@ type AnalyticsHrefOptions = {
   accountIds?: string[];
   compareLeft?: string | null;
   compareRight?: string | null;
+  compareThird?: string | null;
   timeFilter: AnalyticsTimeFilter;
   view?: "single" | "compare";
 };
@@ -71,6 +75,7 @@ function analyticsHref({
   accountIds,
   compareLeft,
   compareRight,
+  compareThird,
   timeFilter,
   view = "single",
 }: AnalyticsHrefOptions) {
@@ -80,6 +85,7 @@ function analyticsHref({
     params.set("view", "compare");
     if (compareLeft) params.set("compareLeft", compareLeft);
     if (compareRight) params.set("compareRight", compareRight);
+    if (compareThird) params.set("compareThird", compareThird);
   } else if (accountIds && accountIds.length > 0) {
     accountIds.forEach((id) => params.append("accountId", id));
   } else if (accountId) {
@@ -92,19 +98,35 @@ function analyticsHref({
 function resolveCompareAccountIds(
   accounts: Account[],
   selectedAccountId: string | null,
-  compareAccountIds: [string | null, string | null],
+  compareAccountIds: CompareAccountIds,
 ) {
-  const compareLeft =
-    compareAccountIds[0] ??
-    accounts.find((account) => account.id === selectedAccountId)?.id ??
-    accounts[0]?.id ??
-    null;
-  const compareRight =
-    compareAccountIds[1] ??
-    accounts.find((account) => account.id !== compareLeft)?.id ??
-    null;
+  const resolved: CompareAccountIds = [
+    compareAccountIds[0],
+    compareAccountIds[1],
+    compareAccountIds[2],
+  ];
+  const usedAccountIds = new Set(resolved.filter(Boolean));
+  const fallbackAccountIds = [
+    selectedAccountId,
+    ...accounts.map((account) => account.id),
+  ];
 
-  return [compareLeft, compareRight] as const;
+  for (let index = 0; index < REQUIRED_COMPARE_SLOT_COUNT; index += 1) {
+    if (resolved[index]) continue;
+
+    const fallbackAccountId = fallbackAccountIds.find((accountId) => {
+      if (!accountId || usedAccountIds.has(accountId)) return false;
+
+      return accounts.some((account) => account.id === accountId);
+    });
+
+    if (fallbackAccountId) {
+      resolved[index] = fallbackAccountId;
+      usedAccountIds.add(fallbackAccountId);
+    }
+  }
+
+  return resolved;
 }
 
 function accountInitial(account: Account) {
@@ -167,7 +189,7 @@ export function AccountsTopCard({
   timeFilter,
   lastUpdatedAt,
   isCompareMode = false,
-  compareAccountIds = [null, null],
+  compareAccountIds = [null, null, null],
 }: AccountsTopCardProps) {
   const router = useRouter();
   const { beginNavigation, pendingTarget } = useAnalyticsNavigation();
@@ -213,7 +235,7 @@ export function AccountsTopCard({
   const customPanelCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
-  const [compareLeft, compareRight] = resolveCompareAccountIds(
+  const [compareLeft, compareRight, compareThird] = resolveCompareAccountIds(
     accounts,
     effectiveSelectedAccountId,
     effectiveCompareAccountIds,
@@ -225,6 +247,7 @@ export function AccountsTopCard({
   const compareModeHref = analyticsHref({
     compareLeft,
     compareRight,
+    compareThird,
     timeFilter,
     view: "compare",
   });
@@ -410,7 +433,7 @@ export function AccountsTopCard({
       label: nextAccountIds.length > 0 ? "selected accounts" : "overview",
       view: nextAccountIds.length > 0 ? "select" : "overview",
       selectedAccountIds: nextAccountIds,
-      compareAccountIds: [null, null],
+      compareAccountIds: [null, null, null],
     });
     router.push(href);
   }
@@ -529,7 +552,7 @@ export function AccountsTopCard({
                     label: "overview",
                     view: "overview",
                     selectedAccountIds: [],
-                    compareAccountIds: [null, null],
+                    compareAccountIds: [null, null, null],
                   },
                   isOverviewMode,
                 )
@@ -570,7 +593,11 @@ export function AccountsTopCard({
                       label: "compare",
                       view: "compare",
                       selectedAccountIds: [],
-                      compareAccountIds: [compareLeft, compareRight],
+                      compareAccountIds: [
+                        compareLeft,
+                        compareRight,
+                        compareThird,
+                      ],
                     },
                     isCompareMode,
                   )
@@ -688,6 +715,7 @@ export function AccountsTopCard({
                       ? analyticsHref({
                           compareLeft,
                           compareRight,
+                          compareThird,
                           timeFilter: { range: item.value },
                           view: "compare",
                         })
@@ -714,6 +742,7 @@ export function AccountsTopCard({
                             ? analyticsHref({
                                 compareLeft,
                                 compareRight,
+                                compareThird,
                                 timeFilter: { range: item.value },
                                 view: "compare",
                               })
@@ -729,8 +758,8 @@ export function AccountsTopCard({
                             : "overview",
                         selectedAccountIds: effectiveSelectedAccountIds,
                         compareAccountIds: effectiveIsCompareMode
-                          ? [compareLeft, compareRight]
-                          : [null, null],
+                          ? [compareLeft, compareRight, compareThird]
+                          : [null, null, null],
                       },
                       timeFilter.range === item.value,
                     )
@@ -784,6 +813,13 @@ export function AccountsTopCard({
                         type="hidden"
                         name="compareRight"
                         value={compareRight}
+                      />
+                    ) : null}
+                    {compareThird ? (
+                      <input
+                        type="hidden"
+                        name="compareThird"
+                        value={compareThird}
                       />
                     ) : null}
                   </>

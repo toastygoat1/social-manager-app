@@ -46,6 +46,9 @@ export function PerformanceTrend({
   const [metric, setMetric] = useState<PerformanceMetric>(() =>
     getInitialMetric(points),
   );
+  const [hoveredPointIndex, setHoveredPointIndex] = useState<number | null>(
+    null,
+  );
   const values = points.map((point) => point[metric]);
   const total = values.reduce((sum, value) => sum + value, 0);
   const height = compact ? 150 : 218;
@@ -65,6 +68,20 @@ export function PerformanceTrend({
   const areaPath = points.length
     ? `${path} L ${x(points.length - 1)} ${padding.top + innerHeight} L ${x(0)} ${padding.top + innerHeight} Z`
     : "";
+  const selectedMetric = METRICS.find((item) => item.id === metric) ?? METRICS[0];
+  const hoveredPoint =
+    hoveredPointIndex === null ? null : (points[hoveredPointIndex] ?? null);
+  const hoveredValue = hoveredPoint?.[metric] ?? null;
+  const hoveredX =
+    hoveredPointIndex === null ? 0 : x(hoveredPointIndex);
+  const hoveredY =
+    hoveredPoint && hoveredValue !== null ? y(hoveredValue) : 0;
+  const tooltipAlignment =
+    hoveredX < width * 0.18
+      ? "translateX(0)"
+      : hoveredX > width * 0.82
+        ? "translateX(-100%)"
+        : "translateX(-50%)";
 
   return (
     <section
@@ -113,60 +130,120 @@ export function PerformanceTrend({
           Refresh insights to build a performance trend.
         </div>
       ) : (
-        <svg
-          viewBox={`0 0 ${width} ${height}`}
-          preserveAspectRatio="none"
-          className={compact ? "h-[150px] w-full" : "h-[218px] w-full"}
-          aria-label={`${metric} trend for the selected period`}
-        >
-          {[0, 0.5, 1].map((ratio) => {
-            const value = Math.round(max * ratio);
-            const position = y(value);
+        <div className="relative">
+          <svg
+            viewBox={`0 0 ${width} ${height}`}
+            preserveAspectRatio="none"
+            className={compact ? "h-[150px] w-full" : "h-[218px] w-full"}
+            aria-label={`${metric} trend for the selected period`}
+          >
+            {[0, 0.5, 1].map((ratio) => {
+              const value = Math.round(max * ratio);
+              const position = y(value);
 
-            return (
-              <g key={ratio}>
-                <line
-                  x1={padding.left}
-                  y1={position}
-                  x2={width - padding.right}
-                  y2={position}
-                  stroke="var(--border)"
-                  strokeWidth="1"
-                />
-                <text
-                  x={padding.left - 8}
-                  y={position + 4}
-                  textAnchor="end"
-                  className="fill-muted font-mono text-[10px]"
-                >
-                  {formatNumber(value)}
-                </text>
-              </g>
-            );
-          })}
-          <path d={areaPath} fill="#5e6ad2" opacity="0.08" />
-          <path
-            d={path}
-            fill="none"
-            stroke="#5e6ad2"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          {points.map((point, index) => (
-            <g key={point.date}>
-              <circle cx={x(index)} cy={y(point[metric])} r="3" fill="#5e6ad2" />
-              <text
-                x={x(index)}
-                y={height - 8}
-                textAnchor="middle"
-                className="fill-muted font-mono text-[9px]"
-              >
-                {point.label}
-              </text>
-            </g>
-          ))}
-        </svg>
+              return (
+                <g key={ratio}>
+                  <line
+                    x1={padding.left}
+                    y1={position}
+                    x2={width - padding.right}
+                    y2={position}
+                    stroke="var(--border)"
+                    strokeWidth="1"
+                  />
+                  <text
+                    x={padding.left - 8}
+                    y={position + 4}
+                    textAnchor="end"
+                    className="fill-muted font-mono text-[10px]"
+                  >
+                    {formatNumber(value)}
+                  </text>
+                </g>
+              );
+            })}
+            <path d={areaPath} fill="#5e6ad2" opacity="0.08" />
+            {hoveredPoint ? (
+              <line
+                x1={hoveredX}
+                y1={padding.top}
+                x2={hoveredX}
+                y2={padding.top + innerHeight}
+                stroke="#5e6ad2"
+                strokeDasharray="4 4"
+                strokeOpacity="0.45"
+                strokeWidth="1"
+              />
+            ) : null}
+            <path
+              d={path}
+              fill="none"
+              stroke="#5e6ad2"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            {points.map((point, index) => {
+              const pointX = x(index);
+              const pointY = y(point[metric]);
+              const isHovered = hoveredPointIndex === index;
+
+              return (
+                <g key={point.date}>
+                  <circle
+                    cx={pointX}
+                    cy={pointY}
+                    r={isHovered ? "4.5" : "3"}
+                    fill="#5e6ad2"
+                  />
+                  <circle
+                    cx={pointX}
+                    cy={pointY}
+                    r="12"
+                    fill="transparent"
+                    className="cursor-crosshair"
+                    tabIndex={0}
+                    aria-label={`${point.label}: ${selectedMetric.label} ${formatNumber(point[metric])}`}
+                    onFocus={() => setHoveredPointIndex(index)}
+                    onBlur={() => setHoveredPointIndex(null)}
+                    onPointerEnter={() => setHoveredPointIndex(index)}
+                    onPointerLeave={() => setHoveredPointIndex(null)}
+                  />
+                  <text
+                    x={pointX}
+                    y={height - 8}
+                    textAnchor="middle"
+                    className="fill-muted font-mono text-[9px]"
+                  >
+                    {point.label}
+                  </text>
+                </g>
+              );
+            })}
+          </svg>
+          {hoveredPoint ? (
+            <div
+              className="pointer-events-none absolute z-20 min-w-[8.5rem] rounded-lg border border-line bg-paper px-3 py-2 text-xs text-ink shadow-[0_12px_28px_rgba(24,22,18,0.14)]"
+              style={{
+                left: `${(hoveredX / width) * 100}%`,
+                top: `${(hoveredY / height) * 100}%`,
+                transform: `${tooltipAlignment} translateY(calc(-100% - 10px))`,
+              }}
+            >
+              <p className="font-medium">{hoveredPoint.label}</p>
+              <p className="mt-1 flex items-center justify-between gap-4 font-mono text-[11px] text-muted">
+                <span>{selectedMetric.label}</span>
+                <span className="text-ink">{formatNumber(hoveredValue)}</span>
+              </p>
+              <p className="mt-0.5 flex items-center justify-between gap-4 font-mono text-[11px] text-muted">
+                <span>Posts</span>
+                <span className="text-ink">
+                  {formatNumber(hoveredPoint.postCount)}
+                </span>
+              </p>
+            </div>
+          ) : null}
+        </div>
       )}
     </section>
   );

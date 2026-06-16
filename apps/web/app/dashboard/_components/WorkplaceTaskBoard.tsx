@@ -14,6 +14,8 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  FileText,
+  Flag,
   Pencil,
   Plus,
   Search,
@@ -92,10 +94,7 @@ const WORKSPACE_FOLDERS_ENDPOINT = "/workspace/folders";
 const EMPTY_SELECTED_WORKSPACE_ID = "";
 const EMPTY_TASKS: WorkplaceTask[] = [];
 const CALENDAR_WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const FOLDER_BACK_FILL = "#424242";
 const FOLDER_FACE_FILL = "#ffffff";
-const FOLDER_FACE_PATH =
-  "M0 95.5C0 86.6634 7.16344 79.5 16 79.5H130.4C136.309 79.5 141.737 82.7568 144.518 87.9706L152.612 103.147C154.697 107.057 158.768 109.5 163.2 109.5H321C329.837 109.5 337 116.663 337 125.5V167C337 175.837 329.837 183 321 183H16C7.16344 183 0 175.837 0 167V95.5Z";
 const FOLDER_COLOR_OPTIONS = [
   FOLDER_FACE_FILL,
   "#fb858b",
@@ -149,6 +148,52 @@ const STATUS_STYLES: Record<TaskStatus, string> = {
   Review: "text-neutral-700",
   Done: "text-success",
 };
+
+const KANBAN_STATUS_META: Record<
+  TaskStatus,
+  {
+    label: string;
+    columnClassName: string;
+    pillClassName: string;
+    addClassName: string;
+  }
+> = {
+  "Not started": {
+    label: "PLANNING",
+    columnClassName: "bg-neutral-100/70",
+    pillClassName: "bg-neutral-100 text-neutral-700",
+    addClassName: "text-neutral-500 hover:text-ink",
+  },
+  "In progress": {
+    label: "IN DEVELOPMENT",
+    columnClassName: "bg-cta/5",
+    pillClassName: "bg-cta text-paper",
+    addClassName: "text-cta hover:text-ink",
+  },
+  Review: {
+    label: "IN REVIEW",
+    columnClassName: "bg-[#f6f0ed]",
+    pillClassName: "bg-[#a77968] text-white",
+    addClassName: "text-[#9a6a5c] hover:text-ink",
+  },
+  Done: {
+    label: "COMPLETE",
+    columnClassName: "bg-success/5",
+    pillClassName: "bg-success text-white",
+    addClassName: "text-success hover:text-ink",
+  },
+};
+
+const GANTT_BAR_STYLES: Record<TaskStatus, string> = {
+  "Not started": "bg-neutral-300",
+  "In progress": "bg-cta/30",
+  Review: "bg-[#d7c2b7]",
+  Done: "bg-success/35",
+};
+
+const GANTT_ROW_HEIGHT = 36;
+const GANTT_LEFT_WIDTH = 424;
+const GANTT_MONTH_WIDTH = 216;
 
 const CALENDAR_EVENT_STYLES: Record<TaskStatus, string> = {
   "Not started": "border-line bg-paper text-muted",
@@ -248,11 +293,57 @@ function startOfDay(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
-function daysBetween(start: Date, end: Date) {
-  const dayMs = 24 * 60 * 60 * 1000;
-  return Math.round(
-    (startOfDay(end).getTime() - startOfDay(start).getTime()) / dayMs,
+function startOfMonth(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function addMonths(date: Date, months: number) {
+  return new Date(date.getFullYear(), date.getMonth() + months, 1);
+}
+
+function getMonthKey(date: Date) {
+  return `${date.getFullYear()}-${padDatePart(date.getMonth() + 1)}`;
+}
+
+function daysInMonth(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+}
+
+function monthsBetween(start: Date, end: Date) {
+  return (
+    (end.getFullYear() - start.getFullYear()) * 12 +
+    end.getMonth() -
+    start.getMonth()
   );
+}
+
+function formatDateOnly(value: Date) {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+  }).format(value);
+}
+
+function formatTaskDateRange(task: WorkplaceTask) {
+  const start = parseLocalDateTime(task.startDate);
+  const deadline = parseLocalDateTime(task.deadline);
+
+  if (start && deadline) {
+    const sameMonth =
+      start.getFullYear() === deadline.getFullYear() &&
+      start.getMonth() === deadline.getMonth();
+    const startLabel = sameMonth
+      ? new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" })
+          .format(start)
+          .replace(/\d+$/, String(start.getDate()))
+      : formatDateOnly(start);
+
+    return `${startLabel} - ${formatDateOnly(deadline)}`;
+  }
+
+  if (deadline) return formatDateOnly(deadline);
+  if (start) return formatDateOnly(start);
+  return "No date";
 }
 
 function getValidBannerColor(
@@ -265,6 +356,19 @@ function getValidBannerColor(
 
 function getFolderColor(workspace: Workspace) {
   return getValidBannerColor(workspace.bannerColor, FOLDER_FACE_FILL);
+}
+
+function getFolderAbbreviation(value: string) {
+  const words = value.trim().split(/\s+/).filter(Boolean);
+
+  if (words.length === 0) return "FL";
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+
+  return words
+    .slice(0, 3)
+    .map((word) => word[0])
+    .join("")
+    .toUpperCase();
 }
 
 function getStableIndex(value: string, modulo: number) {
@@ -368,6 +472,11 @@ function getTaskAccountIds(task: WorkplaceTask) {
   return task.accountId ? [task.accountId] : [];
 }
 
+function getCellAnchorRect(trigger: HTMLElement) {
+  const cell = trigger.closest("[data-task-cell]") as HTMLElement | null;
+  return getFloatingAnchorRect(cell ?? trigger);
+}
+
 function getErrorMessage(error: unknown) {
   if (error instanceof Error) return error.message;
   return "Workspace sync failed. Please try again.";
@@ -377,14 +486,19 @@ function TaskCell({
   width,
   children,
   className = "",
+  flush = false,
 }: {
   width: number;
   children: ReactNode;
   className?: string;
+  flush?: boolean;
 }) {
   return (
     <div
-      className={`flex min-h-[78px] shrink-0 items-start border-r border-line/80 px-2.5 py-2.5 last:border-r-0 ${className}`}
+      data-task-cell
+      className={`flex min-h-9 shrink-0 items-center border-r border-line/80 last:border-r-0 ${
+        flush ? "p-0" : "px-2 py-1"
+      } ${className}`}
       style={{ width }}
     >
       {children}
@@ -403,7 +517,7 @@ function RowSelectCell({
 }) {
   return (
     <div
-      className="flex min-h-[78px] shrink-0 items-center justify-center border-r border-line/80"
+      className="flex min-h-9 shrink-0 items-center justify-center border-r border-line/80"
       style={{ width: ROW_NUMBER_COLUMN_WIDTH }}
     >
       <button
@@ -507,11 +621,11 @@ function EditableTextCell({
   }
 
   return (
-    <div className="group/cell relative flex min-h-9 w-full items-center px-2 py-1.5">
+    <div className="group/cell relative flex h-8 w-full items-center px-1">
       <span
-        className={`min-w-0 pr-8 text-xs leading-5 ${
-          multiline ? "max-h-[3.75rem] overflow-hidden" : "truncate"
-        } ${strong ? "font-semibold text-ink" : muted ? "text-muted" : "text-ink"}`}
+        className={`min-w-0 flex-1 truncate pr-7 text-xs leading-5 ${
+          strong ? "font-semibold text-ink" : muted ? "text-muted" : "text-ink"
+        }`}
         title={value}
       >
         {displayValue}
@@ -521,9 +635,7 @@ function EditableTextCell({
         onClick={startEditing}
         aria-label={`Edit ${ariaLabel.toLowerCase()}`}
         title={`Edit ${ariaLabel.toLowerCase()}`}
-        className={`absolute right-1 flex size-7 items-center justify-center rounded-md text-muted opacity-0 transition hover:bg-card hover:text-ink group-hover/cell:opacity-100 group-focus-within/cell:opacity-100 ${
-          multiline ? "top-1" : "top-1/2 -translate-y-1/2"
-        }`}
+        className="absolute right-0.5 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-muted opacity-0 transition hover:bg-card hover:text-ink group-hover/cell:opacity-100 group-focus-within/cell:opacity-100"
       >
         <Pencil className="size-3.5" strokeWidth={1.8} />
       </button>
@@ -603,6 +715,103 @@ function AccountAvatarStack({ accounts }: { accounts: Account[] }) {
   );
 }
 
+function MiniAccountAvatar({ account }: { account: Account }) {
+  const label = getAccountLabel(account);
+
+  return (
+    <span className="flex size-5 shrink-0 items-center justify-center overflow-hidden rounded-full border border-paper bg-neutral-600 text-[9px] font-semibold text-white">
+      {account.avatarUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={account.avatarUrl}
+          alt={`${label} profile picture`}
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        <span>{getAccountInitials(account) || "-"}</span>
+      )}
+    </span>
+  );
+}
+
+function MiniTextAvatar({ label, color }: { label: string; color: string }) {
+  return (
+    <span
+      className="flex size-5 shrink-0 items-center justify-center rounded-full border border-paper text-[9px] font-semibold text-white"
+      style={{ backgroundColor: color }}
+      title={label}
+    >
+      {getPersonInitials(label) || "?"}
+    </span>
+  );
+}
+
+function TaskPeopleStack({
+  task,
+  accountById,
+}: {
+  task: WorkplaceTask;
+  accountById: Map<string, Account>;
+}) {
+  const taskAccounts = getTaskAccountIds(task)
+    .map((accountId) => accountById.get(accountId))
+    .filter((account): account is Account => Boolean(account));
+  const overflowCount = Math.max(taskAccounts.length - 3, 0);
+
+  if (taskAccounts.length > 0) {
+    return (
+      <span className="flex shrink-0 -space-x-1.5">
+        {taskAccounts.slice(0, 3).map((account) => (
+          <MiniAccountAvatar key={account.id} account={account} />
+        ))}
+        {overflowCount > 0 ? (
+          <span className="flex size-5 items-center justify-center rounded-full border border-paper bg-card text-[9px] font-semibold text-muted">
+            +{overflowCount}
+          </span>
+        ) : null}
+      </span>
+    );
+  }
+
+  if (task.assignee.trim()) {
+    const assignee = makeAssigneeOption(task.assignee);
+    return (
+      <span className="flex shrink-0">
+        <MiniTextAvatar label={assignee.name} color={assignee.color} />
+      </span>
+    );
+  }
+
+  return null;
+}
+
+function DateChip({ task }: { task: WorkplaceTask }) {
+  return (
+    <span className="inline-flex h-6 max-w-full items-center gap-1 rounded-md border border-line bg-paper px-1.5 text-[11px] font-medium text-success">
+      <CalendarDays className="size-3 text-muted" strokeWidth={1.8} />
+      <span className="truncate">{formatTaskDateRange(task)}</span>
+    </span>
+  );
+}
+
+function UrgencyChip({ urgency }: { urgency: TaskUrgency }) {
+  const chipClassName =
+    urgency === "High"
+      ? "border-danger/20 text-danger"
+      : urgency === "Medium"
+        ? "border-amber-200 text-amber-700"
+        : "border-success/20 text-success";
+
+  return (
+    <span
+      className={`inline-flex h-6 items-center gap-1 rounded-md border bg-paper px-1.5 text-[11px] font-medium ${chipClassName}`}
+    >
+      <Flag className="size-3" strokeWidth={1.8} />
+      {urgency}
+    </span>
+  );
+}
+
 function AccountSelect({
   accountIds,
   accounts,
@@ -647,7 +856,7 @@ function AccountSelect({
 
   function toggleAccountMenu(trigger: HTMLElement) {
     setMenuAnchorRect((current) =>
-      current ? null : getFloatingAnchorRect(trigger),
+      current ? null : getCellAnchorRect(trigger),
     );
   }
 
@@ -660,7 +869,7 @@ function AccountSelect({
         aria-haspopup="listbox"
         disabled={accounts.length === 0}
         onClick={(event) => toggleAccountMenu(event.currentTarget)}
-        className="flex w-full items-center gap-2 bg-transparent px-2 py-1.5 text-left text-xs text-ink outline-none transition hover:text-ink focus:text-ink disabled:text-muted"
+        className="flex h-full min-h-9 w-full items-center gap-2 bg-transparent px-2.5 text-left text-xs text-ink outline-none transition hover:text-ink focus:text-ink disabled:text-muted"
         title={title}
       >
         {selectedAccounts.length > 0 ? (
@@ -795,7 +1004,7 @@ function AssigneeSelect({
 
   function toggleAssigneeMenu(trigger: HTMLElement) {
     setMenuAnchorRect((current) =>
-      current ? null : getFloatingAnchorRect(trigger),
+      current ? null : getCellAnchorRect(trigger),
     );
   }
 
@@ -807,7 +1016,7 @@ function AssigneeSelect({
         aria-expanded={Boolean(menuAnchorRect)}
         aria-haspopup="listbox"
         onClick={(event) => toggleAssigneeMenu(event.currentTarget)}
-        className="flex w-full items-center gap-2 bg-transparent px-2 py-1.5 text-left text-xs text-ink outline-none transition hover:text-ink focus:text-ink"
+        className="flex h-full min-h-9 w-full items-center gap-2 bg-transparent px-2.5 text-left text-xs text-ink outline-none transition hover:text-ink focus:text-ink"
         title={selectedAssignee?.name}
       >
         {selectedAssignee ? (
@@ -899,67 +1108,32 @@ function AssigneeSelect({
   );
 }
 
-function FolderCover({
-  workspace,
-  variant,
-  selected = false,
-}: {
-  workspace: Workspace;
-  variant: "tile" | "banner";
-  selected?: boolean;
-}) {
-  const isBanner = variant === "banner";
+function FolderCover({ workspace }: { workspace: Workspace }) {
   const title = workspace.name.trim() || "Folder";
   const folderColor = getFolderColor(workspace);
+  const textColor = getReadableTextColor(folderColor);
+  const abbreviation = getFolderAbbreviation(title);
 
   return (
-    <span
-      className={`relative block w-full overflow-hidden rounded-[18px] bg-transparent transition ${
-        isBanner ? "h-[236px] sm:h-[256px]" : "aspect-[337/183]"
-      } ${selected ? "shadow-md" : "shadow-sm"}`}
-    >
+    <span className="relative block h-[86px] w-full overflow-hidden rounded-t-md border-b border-line bg-card">
       {workspace.bannerImageUrl ? (
         <Image
           src={workspace.bannerImageUrl}
           alt=""
           fill
-          sizes={isBanner ? "100vw" : "230px"}
+          sizes="230px"
           unoptimized
           className="absolute inset-0 h-full w-full object-cover"
         />
-      ) : null}
-
-      <svg
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 h-full w-full"
-        viewBox="0 0 337 183"
-        preserveAspectRatio="none"
-        focusable="false"
-      >
-        <rect
-          x="2"
-          y="2"
-          width="333"
-          height="142"
-          rx="14"
-          fill={workspace.bannerImageUrl ? "transparent" : FOLDER_BACK_FILL}
-          stroke={folderColor}
-          strokeWidth="4"
-          vectorEffect="non-scaling-stroke"
-        />
-        <path d={FOLDER_FACE_PATH} fill={folderColor} />
-      </svg>
-
-      <span
-        className={`absolute z-10 block max-w-[58%] truncate font-inter font-medium text-neutral-950 ${
-          isBanner
-            ? "left-[3.9%] top-[52%] text-[26px] leading-none sm:text-[30px] md:text-[34px]"
-            : "left-[3.9%] top-[52%] text-[15px] leading-none"
-        }`}
-        title={title}
-      >
-        {title}
-      </span>
+      ) : (
+        <span
+          className="absolute inset-0 flex items-center justify-center font-inter text-3xl font-semibold leading-none"
+          style={{ backgroundColor: folderColor, color: textColor }}
+          title={title}
+        >
+          {abbreviation}
+        </span>
+      )}
     </span>
   );
 }
@@ -979,10 +1153,10 @@ function FolderTile({
 
   return (
     <div
-      className={`group/folder relative rounded-[22px] p-1 transition ${
+      className={`group/folder relative rounded-lg border bg-paper p-1 shadow-sm transition ${
         selected
-          ? "bg-card ring-2 ring-ink/65"
-          : "hover:bg-card/80 hover:ring-1 hover:ring-line"
+          ? "border-ink/70 ring-2 ring-ink/20"
+          : "border-line hover:border-ink/35 hover:bg-card/60"
       }`}
     >
       <button
@@ -991,13 +1165,22 @@ function FolderTile({
         aria-selected={selected}
         aria-label={`${workspace.name} folder, ${workspace.tasks.length} rows`}
         onClick={onSelect}
-        className="block w-full rounded-[18px] text-left outline-none transition focus-visible:ring-2 focus-visible:ring-ink/70"
+        className="block w-full overflow-hidden rounded-md text-left outline-none transition focus-visible:ring-2 focus-visible:ring-ink/70"
       >
-        <FolderCover workspace={workspace} selected={selected} variant="tile" />
+        <FolderCover workspace={workspace} />
+        <span className="flex h-8 items-center gap-2 bg-paper px-2">
+          <FileText
+            className="size-3.5 shrink-0 text-muted"
+            strokeWidth={1.8}
+          />
+          <span className="min-w-0 flex-1 truncate text-[11px] font-semibold uppercase text-ink">
+            {workspace.name || "Folder"}
+          </span>
+        </span>
       </button>
 
       <div
-        className={`absolute right-3 top-3 z-20 flex items-center gap-1 rounded-full bg-paper/95 p-1 shadow-sm transition ${
+        className={`absolute right-2 top-2 z-20 flex items-center gap-1 rounded-full border border-line bg-paper/95 p-1 shadow-sm transition ${
           selected
             ? "opacity-100"
             : "opacity-0 group-hover/folder:opacity-100 group-focus-within/folder:opacity-100"
@@ -1192,6 +1375,7 @@ function WorkspaceBanner({
   onUpload: (file: File) => void;
 }) {
   const title = workspace.name.trim() || "Folder";
+  const abbreviation = getFolderAbbreviation(title);
   const bannerColor = getFolderColor(workspace);
   const bannerTextColor = getReadableTextColor(bannerColor);
 
@@ -1214,8 +1398,9 @@ function WorkspaceBanner({
           <h2
             className="relative z-10 max-w-[82%] truncate text-center font-inter text-[38px] font-medium leading-none sm:text-[48px] md:text-[58px]"
             style={{ color: bannerTextColor }}
+            title={title}
           >
-            {title}
+            {abbreviation}
           </h2>
         )}
       </div>
@@ -1243,36 +1428,135 @@ function WorkspaceBanner({
   );
 }
 
-function GanttView({ tasks }: { tasks: WorkplaceTask[] }) {
+function GanttView({
+  tasks,
+  accounts,
+}: {
+  tasks: WorkplaceTask[];
+  accounts: Account[];
+}) {
+  const accountById = useMemo(
+    () => new Map(accounts.map((account) => [account.id, account])),
+    [accounts],
+  );
   const datedTasks = useMemo(
     () =>
       tasks
-        .map((task) => ({
-          task,
-          deadline: parseLocalDateTime(task.deadline),
-        }))
-        .filter((item): item is { task: WorkplaceTask; deadline: Date } =>
-          Boolean(item.deadline),
+        .map((task) => {
+          const deadline = parseLocalDateTime(task.deadline);
+          if (!deadline) return null;
+
+          const explicitStart = parseLocalDateTime(task.startDate);
+          const fallbackDays =
+            task.status === "Done"
+              ? 14
+              : task.status === "In progress"
+                ? 10
+                : task.status === "Review"
+                  ? 7
+                  : 4;
+          const start = explicitStart ?? addDays(deadline, -fallbackDays);
+
+          return {
+            task,
+            start: startOfDay(start),
+            deadline: startOfDay(deadline),
+          };
+        })
+        .filter(
+          (
+            item,
+          ): item is { task: WorkplaceTask; start: Date; deadline: Date } =>
+            Boolean(item),
         )
         .sort((a, b) => a.deadline.getTime() - b.deadline.getTime()),
     [tasks],
   );
   const timelineStart = useMemo(() => {
-    const firstDeadline = datedTasks[0]?.deadline ?? new Date();
-    return startOfDay(addDays(firstDeadline, -1));
+    const firstDate = datedTasks.reduce<Date | null>((earliest, item) => {
+      const candidate =
+        item.start.getTime() < item.deadline.getTime()
+          ? item.start
+          : item.deadline;
+      return !earliest || candidate.getTime() < earliest.getTime()
+        ? candidate
+        : earliest;
+    }, null);
+
+    return startOfMonth(firstDate ?? new Date());
   }, [datedTasks]);
   const timelineEnd = useMemo(() => {
-    const lastDeadline =
-      datedTasks[datedTasks.length - 1]?.deadline ?? addDays(new Date(), 6);
-    return startOfDay(addDays(lastDeadline, 2));
+    const lastDate = datedTasks.reduce<Date | null>((latest, item) => {
+      const candidate =
+        item.deadline.getTime() > item.start.getTime()
+          ? item.deadline
+          : item.start;
+      return !latest || candidate.getTime() > latest.getTime()
+        ? candidate
+        : latest;
+    }, null);
+
+    return addMonths(startOfMonth(lastDate ?? addMonths(new Date(), 2)), 2);
   }, [datedTasks]);
-  const days = useMemo(() => {
-    const dayCount = Math.max(7, daysBetween(timelineStart, timelineEnd) + 1);
-    return Array.from({ length: dayCount }, (_, index) =>
-      addDays(timelineStart, index),
+  const months = useMemo(() => {
+    const monthCount = Math.max(3, monthsBetween(timelineStart, timelineEnd));
+    return Array.from({ length: monthCount }, (_, index) =>
+      addMonths(timelineStart, index),
     );
   }, [timelineEnd, timelineStart]);
-  const chartWidth = 220 + days.length * 44;
+  const quarterGroups = useMemo(() => {
+    const groups: { key: string; label: string; span: number; year: number }[] =
+      [];
+
+    for (const month of months) {
+      const quarter = Math.floor(month.getMonth() / 3) + 1;
+      const key = `${month.getFullYear()}-Q${quarter}`;
+      const currentGroup = groups[groups.length - 1];
+
+      if (currentGroup?.key === key) {
+        currentGroup.span += 1;
+      } else {
+        groups.push({
+          key,
+          label: `Q${quarter}`,
+          span: 1,
+          year: month.getFullYear(),
+        });
+      }
+    }
+
+    return groups;
+  }, [months]);
+  const timelineWidth = months.length * GANTT_MONTH_WIDTH;
+  const rowCount = datedTasks.length + 1;
+  const contentHeight = Math.max(480, rowCount * GANTT_ROW_HEIGHT);
+
+  function getTimelineX(date: Date) {
+    const clampedMonthIndex = Math.min(
+      Math.max(monthsBetween(timelineStart, startOfMonth(date)), 0),
+      months.length - 1,
+    );
+    const month = months[clampedMonthIndex] ?? timelineStart;
+    const dayOffset = Math.min(
+      Math.max(date.getDate() - 1, 0),
+      daysInMonth(month) - 1,
+    );
+
+    return (
+      clampedMonthIndex * GANTT_MONTH_WIDTH +
+      (dayOffset / daysInMonth(month)) * GANTT_MONTH_WIDTH
+    );
+  }
+
+  const summaryStart = datedTasks[0]?.start ?? timelineStart;
+  const summaryEnd = datedTasks[datedTasks.length - 1]?.deadline ?? timelineEnd;
+  const summaryLeft = getTimelineX(summaryStart);
+  const summaryWidth = Math.max(120, getTimelineX(summaryEnd) - summaryLeft);
+  const today = startOfDay(new Date());
+  const todayInRange =
+    today.getTime() >= timelineStart.getTime() &&
+    today.getTime() <= timelineEnd.getTime();
+  const todayLeft = todayInRange ? getTimelineX(today) : null;
 
   if (tasks.length === 0) {
     return (
@@ -1283,89 +1567,180 @@ function GanttView({ tasks }: { tasks: WorkplaceTask[] }) {
   }
 
   return (
-    <section className="h-full overflow-auto p-4">
-      <div className="min-w-[860px]" style={{ width: chartWidth }}>
+    <section className="h-full overflow-auto bg-paper">
+      <div
+        className="min-h-full"
+        style={{ width: GANTT_LEFT_WIDTH + timelineWidth }}
+      >
         <div
-          className="grid border-b border-line text-[10px] font-semibold uppercase tracking-[0.06em] text-muted"
+          className="grid"
           style={{
-            gridTemplateColumns: `220px repeat(${days.length}, 44px)`,
+            gridTemplateColumns: `${GANTT_LEFT_WIDTH}px ${timelineWidth}px`,
           }}
         >
-          <div className="border-r border-line px-3 py-2">Task</div>
-          {days.map((day) => (
-            <div
-              key={toDateKey(day)}
-              className="border-r border-line px-1 py-2 text-center last:border-r-0"
-            >
-              {padDatePart(day.getDate())}
+          <div className="sticky left-0 z-20 border-r border-line bg-paper">
+            <div className="grid h-16 grid-cols-[1fr_104px] border-b border-line text-xs text-muted">
+              <div className="flex items-center px-7">Name</div>
+              <div className="flex items-center justify-between border-l border-line px-3">
+                <span>Due Date</span>
+                <span className="flex size-4 items-center justify-center rounded-full border border-muted text-[10px]">
+                  +
+                </span>
+              </div>
             </div>
-          ))}
-        </div>
-
-        <div className="divide-y divide-line">
-          {datedTasks.map(({ task, deadline }) => {
-            const dueIndex = Math.min(
-              Math.max(daysBetween(timelineStart, deadline), 0),
-              days.length - 1,
-            );
-            const progressWidth = `${((dueIndex + 1) / days.length) * 100}%`;
-
-            return (
+            <div
+              className="grid grid-cols-[1fr_104px] border-b border-line bg-card/25"
+              style={{ height: GANTT_ROW_HEIGHT }}
+            >
+              <div className="flex min-w-0 items-center gap-2 px-7 text-sm font-semibold text-ink">
+                <span className="text-muted">⌄</span>
+                <FileText className="size-4 text-muted" strokeWidth={1.8} />
+                <span className="truncate">Tasks</span>
+              </div>
+              <div className="border-l border-line" />
+            </div>
+            {datedTasks.map(({ task }) => (
               <div
                 key={task.id}
-                className="grid min-h-14"
-                style={{
-                  gridTemplateColumns: `220px repeat(${days.length}, 44px)`,
-                }}
+                className="grid grid-cols-[1fr_104px] border-b border-line text-sm"
+                style={{ height: GANTT_ROW_HEIGHT }}
               >
-                <div className="flex min-w-0 flex-col justify-center border-r border-line px-3 py-2">
-                  <span className="truncate text-xs font-semibold text-ink">
-                    {task.taskName}
-                  </span>
-                  <span className="mt-0.5 text-[11px] text-muted">
-                    {formatDeadlineLabel(task.deadline)}
-                  </span>
+                <div className="flex min-w-0 items-center gap-2 px-7">
+                  <span
+                    className={`size-3 rounded-full border ${
+                      task.status === "Done"
+                        ? "border-success bg-success"
+                        : task.status === "In progress"
+                          ? "border-cta bg-cta"
+                          : "border-muted/60 border-dashed"
+                    }`}
+                  />
+                  <span className="truncate text-ink">{task.taskName}</span>
                 </div>
                 <div
-                  className="relative"
-                  style={{ gridColumn: `2 / span ${days.length}` }}
+                  className={`flex items-center border-l border-line px-3 text-xs ${
+                    task.urgency === "High" ? "text-danger" : "text-success"
+                  }`}
                 >
-                  <div
-                    aria-hidden="true"
-                    className="absolute inset-0 grid"
-                    style={{
-                      gridTemplateColumns: `repeat(${days.length}, 44px)`,
-                    }}
-                  >
-                    {days.map((day) => (
-                      <span
-                        key={toDateKey(day)}
-                        className="border-r border-line/70 last:border-r-0"
-                      />
-                    ))}
-                  </div>
-                  <span
-                    className={`absolute left-0 top-1/2 h-2 -translate-y-1/2 rounded-full ${URGENCY_DOT_STYLES[task.urgency]}`}
-                    style={{ width: progressWidth }}
-                  />
-                  <span
-                    className="absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-paper bg-ink"
-                    style={{ left: progressWidth }}
-                    title={`${task.taskName} due ${formatDeadlineLabel(
-                      task.deadline,
-                    )}`}
-                  />
+                  {formatDeadlineLabel(task.deadline)}
                 </div>
               </div>
-            );
-          })}
+            ))}
+          </div>
+
+          <div>
+            <div className="h-16 border-b border-line bg-paper">
+              <div className="flex h-8 border-b border-line text-xs text-muted">
+                {quarterGroups.map((group) => (
+                  <div
+                    key={group.key}
+                    className="flex items-center justify-between border-r border-line px-2 last:border-r-0"
+                    style={{ width: group.span * GANTT_MONTH_WIDTH }}
+                  >
+                    <span>{group.year}</span>
+                    <span>{group.label}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="flex h-8 text-xs text-muted">
+                {months.map((month) => (
+                  <div
+                    key={getMonthKey(month)}
+                    className="flex items-center justify-center border-r border-line last:border-r-0"
+                    style={{ width: GANTT_MONTH_WIDTH }}
+                  >
+                    {new Intl.DateTimeFormat("en-US", {
+                      month: "short",
+                    }).format(month)}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div
+              className="relative"
+              style={{ height: contentHeight, width: timelineWidth }}
+            >
+              <div
+                aria-hidden="true"
+                className="absolute inset-0 grid"
+                style={{
+                  gridTemplateColumns: `repeat(${months.length}, ${GANTT_MONTH_WIDTH}px)`,
+                }}
+              >
+                {months.map((month) => (
+                  <span
+                    key={getMonthKey(month)}
+                    className="border-r border-dashed border-line last:border-r-0"
+                  />
+                ))}
+              </div>
+              {Array.from({ length: rowCount }).map((_, index) => (
+                <span
+                  key={index}
+                  aria-hidden="true"
+                  className="absolute left-0 right-0 border-b border-line"
+                  style={{ top: index * GANTT_ROW_HEIGHT }}
+                />
+              ))}
+              <span
+                className="absolute top-[13px] h-2 rounded-full bg-success/35"
+                style={{ left: summaryLeft, width: summaryWidth }}
+              >
+                <span className="block h-full w-1/5 rounded-full bg-success" />
+              </span>
+              {todayLeft !== null ? (
+                <span
+                  aria-hidden="true"
+                  className="absolute top-0 z-10 h-full w-px bg-danger"
+                  style={{ left: todayLeft }}
+                >
+                  <span className="absolute -left-1.5 -top-1 size-3 rounded-full bg-danger" />
+                </span>
+              ) : null}
+              {datedTasks.map(({ task, start, deadline }, index) => {
+                const startX = getTimelineX(start);
+                const endX = getTimelineX(addDays(deadline, 1));
+                const left = Math.min(startX, endX);
+                const width = Math.max(6, Math.abs(endX - startX));
+                const top = (index + 1) * GANTT_ROW_HEIGHT + 10;
+
+                return (
+                  <div key={task.id}>
+                    <span
+                      className={`absolute h-3.5 rounded-md shadow-sm ${GANTT_BAR_STYLES[task.status]}`}
+                      style={{ left, top, width }}
+                      title={`${task.taskName}: ${formatTaskDateRange(task)}`}
+                    />
+                    <span
+                      className="absolute flex max-w-[220px] items-center gap-1.5 truncate text-xs text-ink"
+                      style={{ left: left + width + 8, top: top - 1 }}
+                    >
+                      <TaskPeopleStack task={task} accountById={accountById} />
+                      <span className="truncate">{task.taskName}</span>
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </div>
     </section>
   );
 }
 
-function KanbanView({ tasks }: { tasks: WorkplaceTask[] }) {
+function KanbanView({
+  tasks,
+  accounts,
+}: {
+  tasks: WorkplaceTask[];
+  accounts: Account[];
+}) {
+  const accountById = useMemo(
+    () => new Map(accounts.map((account) => [account.id, account])),
+    [accounts],
+  );
   const tasksByStatus = useMemo(() => {
     const map = new Map<TaskStatus, WorkplaceTask[]>(
       STATUS_OPTIONS.map((status) => [status, []]),
@@ -1379,54 +1754,93 @@ function KanbanView({ tasks }: { tasks: WorkplaceTask[] }) {
   }, [tasks]);
 
   return (
-    <section className="h-full overflow-auto p-4">
-      <div className="grid min-w-[980px] grid-cols-4 gap-3">
+    <section className="h-full overflow-auto bg-paper p-4">
+      <div className="flex min-w-[1100px] items-start gap-3">
         {STATUS_OPTIONS.map((status) => {
           const columnTasks = tasksByStatus.get(status) ?? [];
+          const meta = KANBAN_STATUS_META[status];
 
           return (
             <section
               key={status}
-              className="min-h-[460px] border border-line bg-card/25"
+              className={`w-[264px] shrink-0 rounded-lg p-2 ${meta.columnClassName}`}
             >
-              <header className="flex items-center justify-between border-b border-line px-3 py-2">
-                <h3
-                  className={`text-xs font-semibold ${STATUS_STYLES[status]}`}
+              <header className="flex items-center justify-between gap-2 pb-2">
+                <div className="flex min-w-0 items-center gap-2">
+                  <span
+                    className={`inline-flex h-5 max-w-[158px] items-center gap-1 rounded-md px-1.5 text-[11px] font-semibold ${meta.pillClassName}`}
+                  >
+                    <span className="flex size-3 items-center justify-center rounded-full border border-current text-[8px]">
+                      {status === "Done" ? "✓" : "•"}
+                    </span>
+                    <span className="truncate">{meta.label}</span>
+                  </span>
+                  <span className="text-sm font-semibold text-cta">
+                    {columnTasks.length}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className="flex size-6 items-center justify-center rounded-md text-muted transition hover:bg-paper hover:text-ink"
+                  aria-label={`Add ${meta.label.toLowerCase()} task`}
                 >
-                  {status}
-                </h3>
-                <span className="text-xs text-muted">{columnTasks.length}</span>
+                  <Plus className="size-4" strokeWidth={1.8} />
+                </button>
               </header>
-              <div className="space-y-2 p-2">
+              <div className="max-h-[calc(100vh-260px)] space-y-2 overflow-y-auto pr-1">
                 {columnTasks.length > 0 ? (
                   columnTasks.map((task) => (
                     <article
                       key={task.id}
-                      className="rounded-md border border-line bg-paper p-3"
+                      className="rounded-lg border border-line bg-paper p-3 shadow-sm"
                     >
-                      <h4 className="line-clamp-2 text-xs font-semibold leading-5 text-ink">
+                      <h4 className="truncate text-sm font-medium leading-5 text-ink">
                         {task.taskName}
                       </h4>
-                      <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-muted">
-                        <span className={URGENCY_STYLES[task.urgency]}>
-                          {task.urgency}
-                        </span>
-                        <span>{formatDeadlineLabel(task.deadline)}</span>
+                      <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                        <TaskPeopleStack
+                          task={task}
+                          accountById={accountById}
+                        />
+                        <DateChip task={task} />
                       </div>
-                      <p className="mt-2 line-clamp-3 text-xs leading-5 text-muted">
-                        {task.briefExecution || task.notes || "No brief yet."}
-                      </p>
+                      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                        <UrgencyChip urgency={task.urgency} />
+                        <span className="inline-flex size-6 items-center justify-center rounded-md border border-line text-muted">
+                          <FileText className="size-3" strokeWidth={1.8} />
+                        </span>
+                      </div>
                     </article>
                   ))
                 ) : (
-                  <p className="px-2 py-6 text-center text-xs text-muted">
-                    No rows
-                  </p>
+                  <button
+                    type="button"
+                    className={`flex h-8 items-center gap-2 px-2 text-sm font-medium transition ${meta.addClassName}`}
+                  >
+                    <Plus className="size-4" strokeWidth={1.8} />
+                    Add Task
+                  </button>
                 )}
               </div>
+              {columnTasks.length > 0 ? (
+                <button
+                  type="button"
+                  className={`mt-2 flex h-8 items-center gap-2 px-2 text-sm font-medium transition ${meta.addClassName}`}
+                >
+                  <Plus className="size-4" strokeWidth={1.8} />
+                  Add Task
+                </button>
+              ) : null}
             </section>
           );
         })}
+        <button
+          type="button"
+          className="flex h-10 shrink-0 items-center gap-2 px-3 text-sm font-medium text-muted transition hover:text-ink"
+        >
+          <Plus className="size-4" strokeWidth={1.8} />
+          Add group
+        </button>
       </div>
     </section>
   );
@@ -1482,7 +1896,7 @@ function TaskRow({
           strong
         />
       </TaskCell>
-      <TaskCell width={135} className="items-center">
+      <TaskCell width={135} className="items-stretch" flush>
         <AssigneeSelect
           value={task.assignee}
           assignees={assignees}
@@ -1501,7 +1915,7 @@ function TaskRow({
           className={URGENCY_STYLES[task.urgency]}
         />
       </TaskCell>
-      <TaskCell width={190} className="items-center">
+      <TaskCell width={190} className="items-stretch" flush>
         <AccountSelect
           accountIds={taskAccountIds}
           accounts={accounts}
@@ -1519,7 +1933,7 @@ function TaskRow({
           className={STATUS_STYLES[task.status]}
         />
       </TaskCell>
-      <TaskCell width={220} className="items-center">
+      <TaskCell width={220} className="items-stretch" flush>
         <WorkspaceDateRangePicker
           deadline={task.deadline}
           startDate={task.startDate}
@@ -1531,7 +1945,7 @@ function TaskRow({
           }
         />
       </TaskCell>
-      <TaskCell width={300}>
+      <TaskCell width={300} className="items-center">
         <EditableTextCell
           ariaLabel="Brief execution"
           value={task.briefExecution}
@@ -1541,7 +1955,7 @@ function TaskRow({
           multiline
         />
       </TaskCell>
-      <TaskCell width={260}>
+      <TaskCell width={260} className="items-center">
         <EditableTextCell
           ariaLabel="Notes"
           value={task.notes}
@@ -2332,9 +2746,9 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
                   onReferenceChange={setCalendarReference}
                 />
               ) : viewMode === "gantt" ? (
-                <GanttView tasks={selectedTasks} />
+                <GanttView tasks={selectedTasks} accounts={accounts} />
               ) : (
-                <KanbanView tasks={selectedTasks} />
+                <KanbanView tasks={selectedTasks} accounts={accounts} />
               )}
             </div>
           </>

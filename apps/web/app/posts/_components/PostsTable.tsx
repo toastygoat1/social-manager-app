@@ -380,7 +380,7 @@ function SortableHeader({
   return (
     <th
       aria-sort={getAriaSort(column, sortState)}
-      className={`dashboard-ui-meta font-semibold text-ink ${getHeaderPaddingClass(
+      className={`sticky top-0 z-10 bg-card dashboard-ui-meta font-semibold text-ink ${getHeaderPaddingClass(
         column,
       )} ${getCellAlignClass(column.align)}`}
       style={{ width: column.width }}
@@ -546,7 +546,7 @@ export function PostsTable({
       <div className="mx-5 mb-5 mt-3 flex min-h-0 min-w-0 flex-1 sm:mx-7 sm:mb-7">
         <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border border-line bg-white">
           <div
-            className="min-h-0 max-w-full flex-1 overflow-auto"
+            className="posts-table-scrollarea min-h-0 max-w-full flex-1 overflow-auto"
             style={{ scrollbarGutter: "stable" }}
           >
             <table

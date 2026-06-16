@@ -131,7 +131,7 @@ function getRangePopoverPosition(anchorRect: FloatingAnchorRect) {
   if (typeof window === "undefined") {
     return {
       left: anchorRect.left,
-      top: anchorRect.bottom + POPOVER_GAP,
+      top: anchorRect.top,
     };
   }
 
@@ -140,14 +140,19 @@ function getRangePopoverPosition(anchorRect: FloatingAnchorRect) {
     Math.max(anchorRect.left, VIEWPORT_PADDING),
     Math.max(maxLeft, VIEWPORT_PADDING),
   );
-  const bottomTop = anchorRect.bottom + POPOVER_GAP;
+  const preferredTop = anchorRect.top;
   const fitsBelow =
-    bottomTop + POPOVER_HEIGHT <= window.innerHeight - VIEWPORT_PADDING;
+    preferredTop + POPOVER_HEIGHT <= window.innerHeight - VIEWPORT_PADDING;
   const top = fitsBelow
-    ? bottomTop
+    ? preferredTop
     : Math.max(VIEWPORT_PADDING, anchorRect.top - POPOVER_HEIGHT - POPOVER_GAP);
 
   return { left, top };
+}
+
+function getCellAnchorRect(trigger: HTMLElement) {
+  const cell = trigger.closest("[data-task-cell]") as HTMLElement | null;
+  return getFloatingAnchorRect(cell ?? trigger);
 }
 
 function nextWeekday(reference: Date, weekday: number) {
@@ -273,7 +278,7 @@ export function WorkspaceDateRangePicker({
     }
 
     setActiveField(startDate ? "deadline" : "startDate");
-    setPickerAnchorRect(getFloatingAnchorRect(trigger));
+    setPickerAnchorRect(getCellAnchorRect(trigger));
   }
 
   return (
@@ -284,7 +289,7 @@ export function WorkspaceDateRangePicker({
         aria-expanded={Boolean(pickerAnchorRect)}
         aria-haspopup="dialog"
         onClick={(event) => togglePicker(event.currentTarget)}
-        className="flex w-full items-center gap-1.5 px-2 py-1.5 text-left text-xs text-ink outline-none transition hover:text-cta focus:text-cta"
+        className="flex h-full min-h-9 w-full items-center gap-1.5 px-2.5 text-left text-xs text-ink outline-none transition hover:text-cta focus:text-cta"
       >
         <CalendarDays
           className="size-3.5 shrink-0 text-muted"

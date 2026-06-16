@@ -15,6 +15,8 @@ type AnalyticsCompareViewProps = {
   rangeLabel: string;
   rightAccountId: string | null;
   rightData: AnalyticsData | null;
+  thirdAccountId: string | null;
+  thirdData: AnalyticsData | null;
 };
 
 type CompareColumnProps = {
@@ -82,7 +84,11 @@ export function AnalyticsCompareView({
   rangeLabel,
   rightAccountId,
   rightData,
+  thirdAccountId,
+  thirdData,
 }: AnalyticsCompareViewProps) {
+  const showThirdColumn = Boolean(thirdAccountId);
+
   return (
     <div className="flex w-full flex-col gap-4">
       <CompareAccountPicker
@@ -90,6 +96,7 @@ export function AnalyticsCompareView({
         leftAccountId={leftAccountId}
         timeFilter={timeFilter}
         rightAccountId={rightAccountId}
+        thirdAccountId={thirdAccountId}
       />
       {accounts.length < 2 ? (
         <div className="flex min-h-[260px] items-center justify-center rounded-[10px] border border-line bg-paper px-6 text-center text-sm text-muted">
@@ -102,10 +109,14 @@ export function AnalyticsCompareView({
               Account comparison
             </h2>
             <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
-              Side by side / matched metrics / {rangeLabel}
+              Up to three accounts / matched metrics / {rangeLabel}
             </p>
           </header>
-          <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-2">
+          <div
+            className={`grid min-w-0 grid-cols-1 gap-4 ${
+              showThirdColumn ? "xl:grid-cols-3" : "xl:grid-cols-2"
+            }`}
+          >
             <CompareColumn
               marker="A"
               accountId={leftAccountId}
@@ -118,6 +129,14 @@ export function AnalyticsCompareView({
               data={rightData}
               rangeLabel={rangeLabel}
             />
+            {showThirdColumn ? (
+              <CompareColumn
+                marker="C"
+                accountId={thirdAccountId}
+                data={thirdData}
+                rangeLabel={rangeLabel}
+              />
+            ) : null}
           </div>
         </section>
       )}

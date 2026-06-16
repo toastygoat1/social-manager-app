@@ -32,6 +32,7 @@ type AnalyticsPageProps = {
     accountId?: string | string[];
     compareLeft?: string | string[];
     compareRight?: string | string[];
+    compareThird?: string | string[];
     range?: string | string[];
     startDate?: string | string[];
     endDate?: string | string[];
@@ -58,34 +59,56 @@ function getOwnedAccountId(
     : null;
 }
 
+type CompareAccountIds = [string | null, string | null, string | null];
+const REQUIRED_COMPARE_SLOT_COUNT = 2;
+
 function getCompareAccountIds(
   accounts: { id: string }[],
-  requestedLeftId: string | undefined,
-  requestedRightId: string | undefined,
+  requestedAccountIds: (string | undefined)[],
   selectedAccountId: string | undefined,
 ) {
-  const leftAccountId =
-    getOwnedAccountId(accounts, requestedLeftId) ??
-    getOwnedAccountId(accounts, selectedAccountId) ??
-    accounts[0]?.id ??
-    null;
-  const rightAccountId =
-    getOwnedAccountId(accounts, requestedRightId) ??
-    accounts.find((account) => account.id !== leftAccountId)?.id ??
-    null;
+  const resolved: CompareAccountIds = [null, null, null];
+  const usedAccountIds = new Set<string>();
 
-  return [leftAccountId, rightAccountId] as const;
+  requestedAccountIds.forEach((accountId, index) => {
+    const ownedAccountId = getOwnedAccountId(accounts, accountId);
+
+    if (ownedAccountId && !usedAccountIds.has(ownedAccountId)) {
+      resolved[index] = ownedAccountId;
+      usedAccountIds.add(ownedAccountId);
+    }
+  });
+
+  const fallbackAccountIds = [
+    selectedAccountId,
+    ...accounts.map((account) => account.id),
+  ];
+
+  for (let index = 0; index < REQUIRED_COMPARE_SLOT_COUNT; index += 1) {
+    if (resolved[index]) continue;
+
+    const fallbackAccountId = fallbackAccountIds.find((accountId) => {
+      const ownedAccountId = getOwnedAccountId(accounts, accountId);
+
+      return ownedAccountId && !usedAccountIds.has(ownedAccountId);
+    });
+
+    if (fallbackAccountId) {
+      resolved[index] = fallbackAccountId;
+      usedAccountIds.add(fallbackAccountId);
+    }
+  }
+
+  return resolved;
 }
 
 function getNavigationKey({
-  compareLeftAccountId,
-  compareRightAccountId,
+  compareAccountIds,
   isCompareMode,
   selectedAccountIds,
   timeFilter,
 }: {
-  compareLeftAccountId: string | null;
-  compareRightAccountId: string | null;
+  compareAccountIds: CompareAccountIds;
   isCompareMode: boolean;
   selectedAccountIds: string[];
   timeFilter: ReturnType<typeof resolveAnalyticsTimeFilter>;
@@ -93,9 +116,13 @@ function getNavigationKey({
   const params = createAnalyticsSearchParams(timeFilter);
 
   if (isCompareMode) {
+    const [compareLeftAccountId, compareRightAccountId, compareThirdAccountId] =
+      compareAccountIds;
+
     params.set("view", "compare");
     if (compareLeftAccountId) params.set("compareLeft", compareLeftAccountId);
     if (compareRightAccountId) params.set("compareRight", compareRightAccountId);
+    if (compareThirdAccountId) params.set("compareThird", compareThirdAccountId);
   } else {
     selectedAccountIds.forEach((accountId) =>
       params.append("accountId", accountId),
@@ -113,9 +140,14 @@ export default async function AnalyticsPage({
   const selectedAccountId = selectedAccountIds[0];
   const requestedCompareLeftId = firstParam(params.compareLeft);
   const requestedCompareRightId = firstParam(params.compareRight);
+  const requestedCompareThirdId = firstParam(params.compareThird);
   const isCompareMode =
     firstParam(params.view) === "compare" ||
-    Boolean(requestedCompareLeftId || requestedCompareRightId);
+    Boolean(
+      requestedCompareLeftId ||
+        requestedCompareRightId ||
+        requestedCompareThirdId,
+    );
   const selectedTimeFilter = resolveAnalyticsTimeFilter(
     firstParam(params.range),
     firstParam(params.startDate),
@@ -146,33 +178,33 @@ export default async function AnalyticsPage({
     accountIds: isCompareMode ? undefined : selectedAccountIds,
     timeFilter: selectedTimeFilter,
   });
-  const [compareLeftAccountId, compareRightAccountId] = isCompareMode
+  const compareAccountIds = isCompareMode
     ? getCompareAccountIds(
         data.accounts,
-        requestedCompareLeftId,
-        requestedCompareRightId,
+        [
+          requestedCompareLeftId,
+          requestedCompareRightId,
+          requestedCompareThirdId,
+        ],
         selectedAccountId,
       )
-    : [null, null];
-  const [compareLeftData, compareRightData] = isCompareMode
-    ? await Promise.all([
-        compareLeftAccountId
-          ? getAnalyticsData({
-              accountId: compareLeftAccountId,
-              timeFilter: selectedTimeFilter,
-            })
-          : Promise.resolve(null),
-        compareRightAccountId
-          ? getAnalyticsData({
-              accountId: compareRightAccountId,
-              timeFilter: selectedTimeFilter,
-            })
-          : Promise.resolve(null),
-      ])
-    : [null, null];
+    : ([null, null, null] satisfies CompareAccountIds);
+  const [compareLeftAccountId, compareRightAccountId, compareThirdAccountId] =
+    compareAccountIds;
+  const [compareLeftData, compareRightData, compareThirdData] = isCompareMode
+    ? await Promise.all(
+        compareAccountIds.map((accountId) =>
+          accountId
+            ? getAnalyticsData({
+                accountId,
+                timeFilter: selectedTimeFilter,
+              })
+            : Promise.resolve(null),
+        ),
+      )
+    : [null, null, null];
   const navigationKey = getNavigationKey({
-    compareLeftAccountId,
-    compareRightAccountId,
+    compareAccountIds,
     isCompareMode,
     selectedAccountIds: data.selectedAccountIds,
     timeFilter: selectedTimeFilter,
@@ -203,7 +235,7 @@ export default async function AnalyticsPage({
                 timeFilter={selectedTimeFilter}
                 lastUpdatedAt={data.lastUpdatedAt}
                 isCompareMode={isCompareMode}
-                compareAccountIds={[compareLeftAccountId, compareRightAccountId]}
+                compareAccountIds={compareAccountIds}
               />
             </div>
             <AnalyticsContentShell>
@@ -216,6 +248,8 @@ export default async function AnalyticsPage({
                   rangeLabel={selectedRangeLabel}
                   rightAccountId={compareRightAccountId}
                   rightData={compareRightData}
+                  thirdAccountId={compareThirdAccountId}
+                  thirdData={compareThirdData}
                 />
               ) : (
                 <>

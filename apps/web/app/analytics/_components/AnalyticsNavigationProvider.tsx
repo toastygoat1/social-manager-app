@@ -16,7 +16,7 @@ export type AnalyticsNavigationTarget = {
   label: string;
   view: AnalyticsNavigationView;
   selectedAccountIds: string[];
-  compareAccountIds: [string | null, string | null];
+  compareAccountIds: [string | null, string | null, string | null];
 };
 
 type AnalyticsNavigationContextValue = {
