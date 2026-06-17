@@ -688,7 +688,10 @@ export function SidebarPanel({
         })}
       </nav>
 
-      <section aria-label="Accounts" className="flex flex-col gap-4">
+      <section
+        aria-label="Accounts"
+        className="flex flex-col gap-4 border-t border-[var(--sidebar-dashed)] pt-3"
+      >
         {accounts.length === 0 && !isCompact ? (
           <p className="dashboard-ui-label px-2 py-3 text-[var(--sidebar-dim)]">
             No accounts connected yet

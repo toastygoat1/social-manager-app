@@ -1573,8 +1573,8 @@ function DeadlineCalendar({
   }
 
   return (
-    <section className="flex min-h-0 min-w-0 flex-1 flex-col">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-3">
+    <section className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
+      <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-3">
         <div className="flex min-w-0 items-center gap-2">
           <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-card text-cta">
             <CalendarDays className="size-4" strokeWidth={1.8} />
@@ -1612,7 +1612,7 @@ function DeadlineCalendar({
       </header>
 
       <div className="min-h-0 flex-1 overflow-auto">
-        <div className="flex min-h-full min-w-[960px] flex-col">
+        <div className="grid min-h-full min-w-[960px] grid-rows-[auto_1fr]">
           <div className="sticky top-0 z-20 grid grid-cols-7 border-b border-line bg-card">
             {CALENDAR_WEEKDAYS.map((day) => (
               <div
@@ -1843,6 +1843,7 @@ function GanttView({
 }) {
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const timelineHeaderRef = useRef<HTMLDivElement | null>(null);
+  const horizontalScrollbarRef = useRef<HTMLDivElement | null>(null);
   const verticalScrollerRef = useRef<HTMLDivElement | null>(null);
   const [showTaskList, setShowTaskList] = useState(true);
   const [leftWidth, setLeftWidth] = useState(GANTT_DEFAULT_LEFT_WIDTH);
@@ -1920,20 +1921,38 @@ function GanttView({
   const today = startOfDay(new Date());
   const todayLeft = getTimelineXFromColumns(today, timeline.columns);
 
+  const syncTimelineScroll = useCallback((
+    scrollLeft: number,
+    source?: HTMLDivElement | null,
+  ) => {
+    const header = timelineHeaderRef.current;
+    const chart = scrollerRef.current;
+    const scrollbar = horizontalScrollbarRef.current;
+
+    for (const element of [header, chart, scrollbar]) {
+      if (!element || element === source) continue;
+      if (element.scrollLeft !== scrollLeft) element.scrollLeft = scrollLeft;
+    }
+  }, []);
+
   function focusToday() {
     const scroller = scrollerRef.current;
     if (!scroller) return;
+    const nextScrollLeft = Math.max(0, todayLeft - scroller.clientWidth / 2);
 
     scroller.scrollTo({
-      left: Math.max(0, todayLeft - scroller.clientWidth / 2),
+      left: nextScrollLeft,
       behavior: "smooth",
     });
+    syncTimelineScroll(nextScrollLeft);
   }
 
   function syncTimelineHeader(event: React.UIEvent<HTMLDivElement>) {
-    const header = timelineHeaderRef.current;
-    if (!header) return;
-    header.scrollLeft = event.currentTarget.scrollLeft;
+    syncTimelineScroll(event.currentTarget.scrollLeft, event.currentTarget);
+  }
+
+  function syncTimelineScrollbar(event: React.UIEvent<HTMLDivElement>) {
+    syncTimelineScroll(event.currentTarget.scrollLeft, event.currentTarget);
   }
 
   function startResizingLeftPane(event: React.PointerEvent<HTMLButtonElement>) {
@@ -2006,8 +2025,8 @@ function GanttView({
     const header = timelineHeaderRef.current;
     const scroller = scrollerRef.current;
     if (!header || !scroller) return;
-    header.scrollLeft = scroller.scrollLeft;
-  }, [scale, showTaskList, timelineWidth]);
+    syncTimelineScroll(scroller.scrollLeft);
+  }, [scale, showTaskList, syncTimelineScroll, timelineWidth]);
 
   if (tasks.length === 0) {
     return (
@@ -2189,7 +2208,7 @@ function GanttView({
 
             <div
               ref={scrollerRef}
-              className="min-w-0 flex-1 overflow-x-auto"
+              className="min-w-0 flex-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
               onScroll={syncTimelineHeader}
             >
               <div className="min-h-full" style={{ width: timelineWidth }}>
@@ -2295,6 +2314,22 @@ function GanttView({
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+
+        <div className="flex shrink-0 border-t border-line bg-paper">
+          {showTaskList ? (
+            <div
+              className="shrink-0 border-r border-line bg-paper"
+              style={{ width: leftWidth }}
+            />
+          ) : null}
+          <div
+            ref={horizontalScrollbarRef}
+            className="h-4 min-w-0 flex-1 overflow-x-auto overflow-y-hidden"
+            onScroll={syncTimelineScrollbar}
+          >
+            <div className="h-px" style={{ width: timelineWidth }} />
           </div>
         </div>
 
