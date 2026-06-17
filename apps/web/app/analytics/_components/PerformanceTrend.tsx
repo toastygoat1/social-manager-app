@@ -9,19 +9,31 @@ type MetricOption = {
   id: PerformanceMetric;
   label: string;
   Icon: typeof Eye;
-  tone: string;
+  iconBg: string;
+  fillIcon?: boolean;
 };
 
 const METRICS: MetricOption[] = [
-  { id: "views", label: "Views", Icon: Eye, tone: "text-[var(--chart-2)]" },
-  { id: "reach", label: "Reach", Icon: Radio, tone: "text-muted" },
+  {
+    id: "views",
+    label: "Views",
+    Icon: Eye,
+    iconBg: "bg-[var(--chart-2)]",
+  },
+  { id: "reach", label: "Reach", Icon: Radio, iconBg: "bg-muted" },
   {
     id: "interactions",
     label: "Interactions",
     Icon: MessageCircle,
-    tone: "text-[var(--chart-3)]",
+    iconBg: "bg-[var(--chart-3)]",
   },
-  { id: "likes", label: "Likes", Icon: Heart, tone: "text-[var(--danger)]" },
+  {
+    id: "likes",
+    label: "Likes",
+    Icon: Heart,
+    iconBg: "bg-[var(--danger)]",
+    fillIcon: true,
+  },
 ];
 
 function getInitialMetric(points: PerformancePoint[]) {
@@ -106,7 +118,7 @@ export function PerformanceTrend({
         className="-ml-1 flex flex-wrap items-center gap-x-4 gap-y-2"
         aria-label="Performance metric"
       >
-        {METRICS.map(({ id, label, Icon, tone }) => {
+        {METRICS.map(({ id, label, Icon, iconBg, fillIcon }) => {
           const isActive = metric === id;
 
           return (
@@ -115,11 +127,19 @@ export function PerformanceTrend({
               type="button"
               onClick={() => setMetric(id)}
               aria-pressed={isActive}
-              className={`inline-flex min-w-0 items-center gap-1.5 rounded-sm px-1 py-0.5 text-xs font-medium transition-opacity hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta ${
+              className={`inline-flex min-w-0 items-center gap-1.5 rounded-sm px-1 py-0.5 text-[12px] font-medium transition-opacity hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta ${
                 isActive ? "text-ink" : "text-muted"
               }`}
             >
-              <Icon className={`size-3.5 shrink-0 ${tone}`} strokeWidth={2} />
+              <span
+                className={`grid size-4 shrink-0 place-items-center rounded-[4px] text-page ${iconBg}`}
+              >
+                <Icon
+                  className="size-3"
+                  strokeWidth={2.35}
+                  fill={fillIcon ? "currentColor" : "none"}
+                />
+              </span>
               <span className="truncate">{label}</span>
             </button>
           );

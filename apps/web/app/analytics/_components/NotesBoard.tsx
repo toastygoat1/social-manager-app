@@ -9,7 +9,7 @@ import {
   type FormEvent,
 } from "react";
 import { useRouter } from "next/navigation";
-import { LoaderCircle, Plus, StickyNote, X } from "lucide-react";
+import { LoaderCircle, Plus, X } from "lucide-react";
 import type { Account } from "@/app/dashboard/_components/data";
 import { ApiError, apiFetchBrowser } from "@/lib/api/browser-client";
 import type { AnalyticsNote } from "./data";
@@ -199,14 +199,6 @@ function getNoteRotation(noteId: string) {
   return NOTE_ROTATIONS[rotationIndex % NOTE_ROTATIONS.length];
 }
 
-function getNoteRows(body: string) {
-  const estimatedRows = body.split("\n").reduce((totalRows, line) => {
-    return totalRows + Math.max(1, Math.ceil(line.length / 42));
-  }, 0);
-
-  return Math.max(estimatedRows, 4);
-}
-
 function getTimestamp(value: string) {
   const timestamp = Date.parse(value);
   return Number.isFinite(timestamp) ? timestamp : 0;
@@ -239,37 +231,100 @@ function getNoteAccounts(note: BoardNote, accountById: Map<string, Account>) {
     .filter((account): account is Account => Boolean(account));
 }
 
-function NoteAccountFooter({
-  account,
-  className = "mt-4",
-  extraCount,
-}: {
-  account: Account | null;
-  className?: string;
-  extraCount: number;
-}) {
-  if (!account) return null;
+function AccountAvatar({ account }: { account: Account }) {
+  if (account.avatarUrl) {
+    return (
+      <span
+        aria-hidden="true"
+        className="size-5 shrink-0 rounded-full bg-cover bg-center"
+        style={{ backgroundImage: `url(${account.avatarUrl})` }}
+      />
+    );
+  }
 
   return (
+    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-white/55 text-[10px] font-semibold">
+      {getAccountInitial(account)}
+    </span>
+  );
+}
+
+function NoteAccountFooter({
+  accounts,
+  attachOptions,
+  isAttachOpen,
+  onAttach,
+  onDetach,
+  onToggleAttach,
+  pending,
+}: {
+  accounts: Account[];
+  attachOptions: Account[];
+  isAttachOpen: boolean;
+  onAttach: (accountId: string) => void;
+  onDetach: (accountId: string) => void;
+  onToggleAttach: () => void;
+  pending: boolean;
+}) {
+  return (
     <div
-      className={`flex h-7 shrink-0 items-center gap-2 text-xs font-medium opacity-75 ${className}`}
+      className="relative mt-3 flex h-8 shrink-0 items-center gap-1.5 text-xs font-medium opacity-80"
+      onClick={(event) => event.stopPropagation()}
     >
-      {account.avatarUrl ? (
-        <span
-          aria-hidden="true"
-          className="size-6 shrink-0 rounded-full bg-cover bg-center"
-          style={{ backgroundImage: `url(${account.avatarUrl})` }}
-        />
-      ) : (
-        <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-white/55 text-[11px] font-semibold">
-          {getAccountInitial(account)}
-        </span>
-      )}
-      <span className="min-w-0 truncate">{getAccountTitle(account)}</span>
-      {extraCount > 0 ? (
-        <span className="ml-auto shrink-0 rounded bg-white/45 px-1.5 py-0.5 text-[10px]">
-          +{extraCount}
-        </span>
+      <button
+        type="button"
+        title="Attach account"
+        aria-label="Attach account"
+        onClick={onToggleAttach}
+        disabled={pending}
+        className="flex size-7 shrink-0 items-center justify-center rounded-full bg-white/45 text-current transition hover:bg-white/65 disabled:pointer-events-none disabled:opacity-60"
+      >
+        {pending ? (
+          <LoaderCircle className="size-3.5 animate-spin" />
+        ) : (
+          <Plus className="size-4" strokeWidth={1.9} />
+        )}
+      </button>
+      <div className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden">
+        {accounts.map((account) => (
+          <span
+            key={account.id}
+            className="group flex h-7 min-w-0 max-w-[7rem] items-center gap-1 rounded-full bg-white/35 px-1.5 pr-2"
+            title={getAccountTitle(account)}
+          >
+            <AccountAvatar account={account} />
+            <span className="min-w-0 truncate">{getAccountTitle(account)}</span>
+            <button
+              type="button"
+              title={`Detach ${getAccountTitle(account)}`}
+              aria-label={`Detach ${getAccountTitle(account)}`}
+              onClick={() => onDetach(account.id)}
+              disabled={pending}
+              className="ml-0.5 flex size-4 shrink-0 items-center justify-center rounded-full opacity-0 transition hover:bg-white/45 group-hover:opacity-100 focus:opacity-100 disabled:pointer-events-none"
+            >
+              <X className="size-3" strokeWidth={2} />
+            </button>
+          </span>
+        ))}
+      </div>
+      {isAttachOpen ? (
+        <div className="absolute bottom-9 left-0 z-30 w-56 rounded-lg border border-black/10 bg-white/95 p-1.5 text-[#2f2a1f] shadow-[0_14px_30px_rgba(47,42,31,0.18)]">
+          {attachOptions.length > 0 ? (
+            attachOptions.map((account) => (
+              <button
+                key={account.id}
+                type="button"
+                onClick={() => onAttach(account.id)}
+                className="flex h-8 w-full items-center gap-2 rounded-md px-2 text-left text-xs font-medium transition hover:bg-black/5"
+              >
+                <AccountAvatar account={account} />
+                <span className="min-w-0 truncate">{getAccountTitle(account)}</span>
+              </button>
+            ))
+          ) : (
+            <p className="px-2 py-2 text-xs opacity-70">All accounts attached</p>
+          )}
+        </div>
       ) : null}
     </div>
   );
@@ -291,6 +346,9 @@ export function NotesBoard({
     : null;
   const [boardNotes, setBoardNotes] = useState(normalizedNotes);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [accountMenuNoteId, setAccountMenuNoteId] = useState<string | null>(
+    null,
+  );
   const [isComposerOpen, setIsComposerOpen] = useState(false);
   const [draft, setDraft] = useState("");
   const [draftAccountId, setDraftAccountId] = useState(() =>
@@ -382,6 +440,15 @@ export function NotesBoard({
       setEditingNoteId(null);
     }
   }, [boardNotes, editingNoteId]);
+
+  useEffect(() => {
+    if (
+      accountMenuNoteId &&
+      !boardNotes.some((note) => note.id === accountMenuNoteId)
+    ) {
+      setAccountMenuNoteId(null);
+    }
+  }, [accountMenuNoteId, boardNotes]);
 
   useEffect(() => {
     if (!("BroadcastChannel" in window)) return;
@@ -542,25 +609,42 @@ export function NotesBoard({
     setPendingAction(null);
   }
 
+  async function saveNoteAccounts(note: BoardNote, nextAccountIds: string[]) {
+    const accountIds = [...new Set(nextAccountIds)];
+
+    setError(null);
+    setPendingAction(`accounts:${note.id}`);
+
+    const saved = await patchNote(
+      note.id,
+      {
+        accountId: accountIds[0] ?? null,
+        accountIds,
+      },
+      "Note accounts could not be updated.",
+    );
+
+    if (saved) setAccountMenuNoteId(null);
+    setPendingAction(null);
+  }
+
+  function attachAccount(note: BoardNote, accountId: string) {
+    if (note.accountIds.includes(accountId)) return;
+
+    void saveNoteAccounts(note, [...note.accountIds, accountId]);
+  }
+
+  function detachAccount(note: BoardNote, accountId: string) {
+    void saveNoteAccounts(
+      note,
+      note.accountIds.filter((currentAccountId) => currentAccountId !== accountId),
+    );
+  }
+
   return (
     <section className="flex min-w-0 flex-col gap-3">
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2">
-          <StickyNote className="size-4 text-[#9b6b13]" strokeWidth={1.8} />
-          <div>
-            <h2 className="analytics-card-title text-ink">Notes</h2>
-            <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
-              {selectedAccount
-                ? getAccountTitle(selectedAccount)
-                : "All accounts"}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center justify-between gap-3 sm:justify-end">
-          <span className="font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
-            {boardNotes.length} saved
-          </span>
-        </div>
+      <header className="flex justify-center text-center">
+        <h2 className="analytics-card-title text-ink">Notes</h2>
       </header>
 
       {error ? (
@@ -573,14 +657,19 @@ export function NotesBoard({
         {boardNotes.map((note) => {
           const style = NOTE_COLORS[note.color];
           const noteAccounts = getNoteAccounts(note, accountById);
-          const primaryNoteAccount = noteAccounts[0] ?? null;
-          const extraAccountCount = Math.max(0, noteAccounts.length - 1);
+          const attachOptions = accounts.filter(
+            (account) => !note.accountIds.includes(account.id),
+          );
           const isEditing = editingNoteId === note.id;
+          const isAccountMenuOpen = accountMenuNoteId === note.id;
+          const isAccountPending =
+            pendingAction === `accounts:${note.id}` ||
+            pendingAction === `update:${note.id}`;
 
           return (
             <article
               key={note.id}
-              className="flex min-h-36 w-full cursor-default flex-col rounded-none p-4 font-medium"
+              className="flex h-44 w-full cursor-default flex-col rounded-none p-4 font-medium"
               style={{
                 backgroundColor: style.paper,
                 color: style.text,
@@ -589,7 +678,7 @@ export function NotesBoard({
               }}
               onClick={() => setEditingNoteId(note.id)}
             >
-              <div className="min-h-0 flex-1">
+              <div className="min-h-0 flex-1 overflow-hidden">
                 {isEditing ? (
                   <textarea
                     ref={focusTextAreaAtEnd}
@@ -599,18 +688,27 @@ export function NotesBoard({
                     }
                     onBlur={() => void saveNoteBody(note.id)}
                     maxLength={500}
-                    rows={getNoteRows(note.body)}
-                    className="block min-h-20 w-full resize-none overflow-hidden border-0 bg-transparent p-0 text-sm font-medium leading-6 text-current outline-none"
+                    rows={4}
+                    className="block h-full min-h-0 w-full resize-none overflow-y-auto border-0 bg-transparent p-0 text-sm font-medium leading-6 text-current outline-none"
                   />
                 ) : (
-                  <p className="whitespace-pre-wrap break-words text-sm font-medium leading-6">
+                  <p className="h-full overflow-y-auto whitespace-pre-wrap break-words text-sm font-medium leading-6">
                     {note.body}
                   </p>
                 )}
               </div>
               <NoteAccountFooter
-                account={primaryNoteAccount}
-                extraCount={extraAccountCount}
+                accounts={noteAccounts}
+                attachOptions={attachOptions}
+                isAttachOpen={isAccountMenuOpen}
+                onToggleAttach={() =>
+                  setAccountMenuNoteId((currentNoteId) =>
+                    currentNoteId === note.id ? null : note.id,
+                  )
+                }
+                onAttach={(accountId) => attachAccount(note, accountId)}
+                onDetach={(accountId) => detachAccount(note, accountId)}
+                pending={isAccountPending}
               />
             </article>
           );
@@ -619,7 +717,7 @@ export function NotesBoard({
         {isComposerOpen ? (
           <form
             onSubmit={createNote}
-            className="flex min-h-36 w-full flex-col rounded-none p-4 font-medium"
+            className="flex h-44 w-full flex-col rounded-none p-4 font-medium"
             style={{
               backgroundColor: draftNoteStyle.paper,
               color: draftNoteStyle.text,
@@ -627,10 +725,7 @@ export function NotesBoard({
               transform: "rotate(-0.4deg)",
             }}
           >
-            <div className="mb-2 flex items-center justify-between gap-2">
-              <span className="text-[10px] font-medium uppercase tracking-[0.04em] opacity-70">
-                New note
-              </span>
+            <div className="mb-2 flex justify-end">
               <button
                 type="button"
                 onClick={() => setIsComposerOpen(false)}
@@ -646,16 +741,24 @@ export function NotesBoard({
               onChange={(event) => setDraft(event.target.value)}
               maxLength={500}
               autoFocus
-              rows={getNoteRows(draft)}
+              rows={4}
               placeholder="Write a note..."
-              className="block min-h-20 flex-1 resize-none overflow-hidden border-0 bg-transparent p-0 text-sm font-medium leading-6 text-current outline-none placeholder:text-current placeholder:opacity-60"
+              className="block min-h-0 flex-1 resize-none overflow-y-auto border-0 bg-transparent p-0 text-sm font-medium leading-6 text-current outline-none placeholder:text-current placeholder:opacity-60"
             />
-            <div className="mt-4 flex items-center justify-between gap-3">
-              <NoteAccountFooter
-                account={composerAccount}
-                className=""
-                extraCount={0}
-              />
+            <div className="mt-3 flex h-8 shrink-0 items-center justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                {composerAccount ? (
+                  <span
+                    className="flex h-7 max-w-full items-center gap-1.5 rounded-full bg-white/35 px-1.5 pr-2 text-xs font-medium opacity-80"
+                    title={getAccountTitle(composerAccount)}
+                  >
+                    <AccountAvatar account={composerAccount} />
+                    <span className="min-w-0 truncate">
+                      {getAccountTitle(composerAccount)}
+                    </span>
+                  </span>
+                ) : null}
+              </div>
               <button
                 type="submit"
                 disabled={!canCreate || pendingAction === "create"}
@@ -677,7 +780,7 @@ export function NotesBoard({
             onClick={openComposer}
             title="Add note"
             aria-label="Add note"
-            className="flex min-h-36 w-full flex-col items-center justify-center gap-2 rounded-none border border-dashed border-[#d8d0a8] bg-transparent p-4 text-sm font-medium text-muted transition hover:border-[#bfb48a] hover:text-ink"
+            className="flex h-44 w-full flex-col items-center justify-center gap-2 rounded-none border border-dashed border-[#d8d0a8] bg-transparent p-4 text-sm font-medium text-muted transition hover:border-[#bfb48a] hover:text-ink"
           >
             <Plus className="size-5" strokeWidth={1.7} />
             <span>Add note</span>

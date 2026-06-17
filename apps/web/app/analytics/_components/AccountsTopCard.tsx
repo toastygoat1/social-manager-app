@@ -705,96 +705,97 @@ export function AccountsTopCard({
             lastUpdatedAt={lastUpdatedAt}
             disabled={accounts.length === 0}
           />
-          <div ref={customPanelRootRef} className="relative">
-            <div className="flex overflow-hidden rounded-lg border border-line bg-paper">
-              {ANALYTICS_RANGE_PRESETS.map((item, index) => (
-                <Link
-                  key={item.value}
-                  href={
-                    effectiveIsCompareMode
-                      ? analyticsHref({
-                          compareLeft,
-                          compareRight,
-                          compareThird,
-                          timeFilter: { range: item.value },
-                          view: "compare",
-                        })
-                      : analyticsHref({
-                          accountIds: effectiveSelectedAccountIds,
-                          timeFilter: { range: item.value },
-                        })
-                  }
-                  className={`flex h-9 min-w-11 items-center justify-center px-3 text-sm font-medium transition ${
-                    index < ANALYTICS_RANGE_PRESETS.length - 1
-                      ? "border-r border-line"
-                      : ""
-                  } ${
-                    timeFilter.range === item.value
-                      ? "bg-card text-ink"
-                      : "text-muted hover:text-ink"
-                  }`}
-                  onClick={(event) =>
-                    handleLinkNavigation(
-                      event,
-                      {
-                        key:
-                          effectiveIsCompareMode
-                            ? analyticsHref({
-                                compareLeft,
-                                compareRight,
-                                compareThird,
-                                timeFilter: { range: item.value },
-                                view: "compare",
-                              })
-                            : analyticsHref({
-                                accountIds: effectiveSelectedAccountIds,
-                                timeFilter: { range: item.value },
-                              }),
-                        label: item.label,
-                        view: effectiveIsCompareMode
-                          ? "compare"
-                          : effectiveSelectedAccountIds.length > 0
-                            ? "select"
-                            : "overview",
-                        selectedAccountIds: effectiveSelectedAccountIds,
-                        compareAccountIds: effectiveIsCompareMode
-                          ? [compareLeft, compareRight, compareThird]
-                          : [null, null, null],
-                      },
-                      timeFilter.range === item.value,
-                    )
-                  }
-                >
-                  {item.label}
-                </Link>
-              ))}
-              <button
-                type="button"
-                aria-expanded={isCustomOpen}
-                onClick={toggleCustomPanel}
-                className={`flex h-9 items-center gap-1.5 border-l border-line px-3 text-sm font-medium transition ${
-                  customIsActive || isCustomOpen
+          <div
+            ref={customPanelRootRef}
+            className="flex min-w-0 flex-wrap items-center overflow-hidden rounded-lg border border-line bg-paper"
+          >
+            {ANALYTICS_RANGE_PRESETS.map((item, index) => (
+              <Link
+                key={item.value}
+                href={
+                  effectiveIsCompareMode
+                    ? analyticsHref({
+                        compareLeft,
+                        compareRight,
+                        compareThird,
+                        timeFilter: { range: item.value },
+                        view: "compare",
+                      })
+                    : analyticsHref({
+                        accountIds: effectiveSelectedAccountIds,
+                        timeFilter: { range: item.value },
+                      })
+                }
+                className={`flex h-9 min-w-11 items-center justify-center px-3 text-sm font-medium transition ${
+                  index < ANALYTICS_RANGE_PRESETS.length - 1
+                    ? "border-r border-line"
+                    : ""
+                } ${
+                  timeFilter.range === item.value
                     ? "bg-card text-ink"
                     : "text-muted hover:text-ink"
                 }`}
+                onClick={(event) =>
+                  handleLinkNavigation(
+                    event,
+                    {
+                      key:
+                        effectiveIsCompareMode
+                          ? analyticsHref({
+                              compareLeft,
+                              compareRight,
+                              compareThird,
+                              timeFilter: { range: item.value },
+                              view: "compare",
+                            })
+                          : analyticsHref({
+                              accountIds: effectiveSelectedAccountIds,
+                              timeFilter: { range: item.value },
+                            }),
+                      label: item.label,
+                      view: effectiveIsCompareMode
+                        ? "compare"
+                        : effectiveSelectedAccountIds.length > 0
+                          ? "select"
+                          : "overview",
+                      selectedAccountIds: effectiveSelectedAccountIds,
+                      compareAccountIds: effectiveIsCompareMode
+                        ? [compareLeft, compareRight, compareThird]
+                        : [null, null, null],
+                    },
+                    timeFilter.range === item.value,
+                  )
+                }
               >
-                <CalendarDays className="size-3.5" strokeWidth={1.8} />
-                Custom
-                <ChevronDown
-                  className={`size-3.5 transition ${
-                    isCustomOpen ? "rotate-180" : ""
-                  }`}
-                  strokeWidth={1.8}
-                />
-              </button>
-            </div>
+                {item.label}
+              </Link>
+            ))}
+            <button
+              type="button"
+              aria-expanded={isCustomOpen}
+              onClick={toggleCustomPanel}
+              className={`flex h-9 items-center gap-1.5 border-l border-line px-3 text-sm font-medium transition ${
+                customIsActive || isCustomOpen
+                  ? "bg-card text-ink"
+                  : "text-muted hover:text-ink"
+              }`}
+            >
+              <CalendarDays className="size-3.5" strokeWidth={1.8} />
+              Custom
+              <ChevronDown
+                className={`size-3.5 transition ${
+                  isCustomOpen ? "rotate-180" : ""
+                }`}
+                strokeWidth={1.8}
+              />
+            </button>
             {isCustomMounted ? (
               <form
                 action="/analytics"
-                className={`absolute right-0 top-11 z-40 grid w-[26rem] max-w-[calc(100vw-2rem)] gap-1.5 rounded-lg border border-line bg-paper p-1.5 shadow-[0_18px_45px_rgba(24,22,18,0.14)] transition-[opacity,transform] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] sm:grid-cols-[minmax(9.75rem,1fr)_minmax(9.75rem,1fr)_4.75rem] ${
+                className={`flex h-9 min-w-0 items-center gap-1.5 overflow-hidden border-l border-line bg-paper px-1.5 transition-[max-width,opacity] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
                   isCustomOpen
-                    ? "translate-y-0 scale-100 opacity-100"
-                    : "pointer-events-none -translate-y-1 scale-[0.98] opacity-0"
+                    ? "max-w-[calc(100vw-2rem)] opacity-100 sm:max-w-[31rem]"
+                    : "pointer-events-none max-w-0 opacity-0"
                 }`}
               >
                 <input type="hidden" name="range" value="custom" />
@@ -848,7 +849,7 @@ export function AccountsTopCard({
                 <button
                   type="button"
                   onClick={(event) => openDatePicker("start", event.currentTarget)}
-                  className="flex h-8 min-w-0 items-center gap-2 rounded-md border border-line bg-page px-3 text-left transition hover:bg-card"
+                  className="flex h-8 w-[9.75rem] shrink-0 items-center gap-2 rounded-md border border-line bg-page px-3 text-left transition hover:bg-card"
                 >
                   <span className="shrink-0 text-[11px] font-medium uppercase text-muted">
                     From
@@ -860,7 +861,7 @@ export function AccountsTopCard({
                 <button
                   type="button"
                   onClick={(event) => openDatePicker("end", event.currentTarget)}
-                  className="flex h-8 min-w-0 items-center gap-2 rounded-md border border-line bg-page px-3 text-left transition hover:bg-card"
+                  className="flex h-8 w-[9.75rem] shrink-0 items-center gap-2 rounded-md border border-line bg-page px-3 text-left transition hover:bg-card"
                 >
                   <span className="shrink-0 text-[11px] font-medium uppercase text-muted">
                     To
@@ -872,7 +873,7 @@ export function AccountsTopCard({
                 <button
                   type="submit"
                   disabled={!customStartDate || !customEndDate}
-                  className="flex h-8 min-w-[4.75rem] items-center justify-center rounded-md bg-ink px-4 text-sm font-semibold text-page transition hover:opacity-90 disabled:pointer-events-none disabled:opacity-40"
+                  className="flex h-8 min-w-[4.75rem] shrink-0 items-center justify-center rounded-md bg-ink px-4 text-sm font-semibold text-page transition hover:opacity-90 disabled:pointer-events-none disabled:opacity-40"
                 >
                   Apply
                 </button>
