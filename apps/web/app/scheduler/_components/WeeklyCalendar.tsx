@@ -21,6 +21,7 @@ function formatHour(hour: number) {
 
 type Props = {
   reference: Date;
+  todayIso: string;
   events: SchedulerEvent[];
   loading: boolean;
   onOpenPost: (event: SchedulerEvent) => void;
@@ -29,6 +30,7 @@ type Props = {
 
 export function WeeklyCalendar({
   reference,
+  todayIso,
   events,
   onOpenPost,
   dragController,
@@ -61,13 +63,21 @@ export function WeeklyCalendar({
           <div />
           {weekDays.map((day) => {
             const isDropTarget = dragController?.dropTargetIso === day.iso;
+            const isToday = day.iso === todayIso;
+            const backgroundClass = isDropTarget
+              ? "bg-[#eef2ff]"
+              : day.isWeekend
+                ? "bg-[#efeee9]"
+                : "bg-[#f8f6f1]";
             return (
               <div
                 key={day.iso}
                 {...getDateDropProps(dragController, day.iso)}
-                className={`flex flex-col items-center justify-center gap-0.5 border-l border-[#eee9df] py-2.5 transition-colors ${
+                className={`flex flex-col items-center justify-center gap-0.5 border-l border-[#eee9df] py-2.5 transition-colors ${backgroundClass} ${
                   isDropTarget
-                    ? "bg-[#eef2ff] ring-2 ring-inset ring-[#607ffc]"
+                    ? "ring-2 ring-inset ring-[#607ffc]"
+                    : isToday
+                      ? "ring-2 ring-inset ring-[#171510]"
                     : ""
                 }`}
               >
@@ -89,13 +99,18 @@ export function WeeklyCalendar({
             </span>
             {weekDays.map((day) => {
               const isDropTarget = dragController?.dropTargetIso === day.iso;
+              const backgroundClass = isDropTarget
+                ? "bg-[#eef2ff]"
+                : day.isWeekend
+                  ? "bg-[#f5f4f0]"
+                  : "bg-[#fffdf9]";
               return (
                 <div
                   key={day.iso}
                   {...getDateDropProps(dragController, day.iso)}
-                  className={`flex flex-col gap-1 border-l border-[#eee9df] p-1.5 transition-colors ${
+                  className={`flex flex-col gap-1 border-l border-[#eee9df] p-1.5 transition-colors ${backgroundClass} ${
                     isDropTarget
-                      ? "bg-[#eef2ff] ring-2 ring-inset ring-[#607ffc]"
+                      ? "ring-2 ring-inset ring-[#607ffc]"
                       : ""
                   }`}
                 >
@@ -129,13 +144,18 @@ export function WeeklyCalendar({
             {weekDays.map((day, dayIndex) => {
               const cellEvents = eventsByCell.get(`${dayIndex}:${hour}`) ?? [];
               const isDropTarget = dragController?.dropTargetIso === day.iso;
+              const backgroundClass = isDropTarget
+                ? "bg-[#eef2ff]"
+                : day.isWeekend
+                  ? "bg-[#f5f4f0]"
+                  : "bg-[#fffdf9]";
               return (
                 <div
                   key={dayIndex}
                   {...getDateDropProps(dragController, day.iso)}
-                  className={`flex min-w-0 flex-col gap-1 border-l border-[#eee9df] p-1.5 transition-colors hover:bg-[#fcfbf8] ${
+                  className={`flex min-w-0 flex-col gap-1 border-l border-[#eee9df] p-1.5 transition-colors ${backgroundClass} hover:bg-[#fcfbf8] ${
                     isDropTarget
-                      ? "bg-[#eef2ff] ring-2 ring-inset ring-[#607ffc]"
+                      ? "ring-2 ring-inset ring-[#607ffc]"
                       : ""
                   }`}
                 >

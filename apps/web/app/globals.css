@@ -241,75 +241,70 @@ body {
 }
 
 .posts-table-scrollarea {
+  -ms-overflow-style: none;
   overscroll-behavior: contain;
-  scrollbar-width: none;
+  scrollbar-width: none !important;
 }
 
 .posts-table-scrollarea::-webkit-scrollbar {
-  display: none;
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
 }
 
 .posts-table-custom-scrollbar {
-  position: relative;
-  flex-shrink: 0;
-  background: #f3f3f3;
+  position: absolute;
+  z-index: 20;
+  background: transparent;
+  opacity: 0.72;
   user-select: none;
+  transition: opacity 120ms ease;
+}
+
+.posts-table-custom-scrollbar:hover,
+.posts-table-custom-scrollbar:active {
+  opacity: 1;
 }
 
 .posts-table-custom-scrollbar--horizontal {
-  height: 12px;
-  min-width: 0;
-  flex: 1;
-  border-top: 1px solid var(--border);
-}
-
-.posts-table-custom-scrollbar--vertical,
-.posts-table-scrollbar-spacer {
-  width: 12px;
-  border-left: 1px solid var(--border);
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 10px;
+  cursor: ew-resize;
 }
 
 .posts-table-custom-scrollbar--vertical {
-  min-height: 0;
-  align-self: stretch;
-}
-
-.posts-table-scrollbar-spacer {
-  background: #f3f3f3;
-}
-
-.posts-table-scrollbar-corner {
-  width: 12px;
-  height: 12px;
-  flex-shrink: 0;
-  border-top: 1px solid var(--border);
-  border-left: 1px solid var(--border);
-  background: #f3f3f3;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 10px;
+  cursor: ns-resize;
 }
 
 .posts-table-custom-scrollbar__thumb {
   position: absolute;
   border-radius: 999px;
-  background: #c6c6c6;
+  background: rgb(39 39 39 / 38%);
   transition: background-color 120ms ease;
 }
 
 .posts-table-custom-scrollbar__thumb:hover,
 .posts-table-custom-scrollbar__thumb:active {
-  background: #a8a8a8;
+  background: rgb(39 39 39 / 58%);
 }
 
 .posts-table-custom-scrollbar__thumb--horizontal {
   top: 3px;
   left: 0;
-  height: 6px;
+  height: 4px;
   cursor: ew-resize;
 }
 
 .posts-table-custom-scrollbar__thumb--vertical {
   top: 0;
   left: 3px;
-  width: 6px;
+  width: 4px;
   cursor: ns-resize;
 }
 

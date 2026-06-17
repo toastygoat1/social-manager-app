@@ -140,12 +140,6 @@ const URGENCY_STYLES: Record<TaskUrgency, string> = {
   Low: "text-success",
 };
 
-const URGENCY_DOT_STYLES: Record<TaskUrgency, string> = {
-  High: "bg-danger",
-  Medium: "bg-cta",
-  Low: "bg-success",
-};
-
 const STATUS_STYLES: Record<TaskStatus, string> = {
   "Not started": "text-muted",
   "In progress": "text-cta",
@@ -196,6 +190,7 @@ const GANTT_BAR_STYLES: Record<TaskStatus, string> = {
 };
 
 const GANTT_ROW_HEIGHT = 36;
+const GANTT_HEADER_HEIGHT = 64;
 const GANTT_DEFAULT_LEFT_WIDTH = 424;
 const GANTT_MIN_LEFT_WIDTH = 320;
 const GANTT_MAX_LEFT_WIDTH = 620;
@@ -209,13 +204,10 @@ const GANTT_MIN_COLUMNS: Record<GanttScale, number> = {
   month: 10,
   quarter: 9,
 };
-
-const CALENDAR_EVENT_STYLES: Record<TaskStatus, string> = {
-  "Not started": "border-line bg-paper text-muted",
-  "In progress": "border-cta/20 bg-cta/10 text-cta",
-  Review: "border-neutral-200 bg-neutral-100 text-neutral-700",
-  Done: "border-success/20 bg-success/10 text-success",
-};
+const CALENDAR_WEEK_MIN_HEIGHT = 118;
+const CALENDAR_RANGE_TOP = 34;
+const CALENDAR_RANGE_HEIGHT = 27;
+const CALENDAR_RANGE_GAP = 5;
 
 const URGENCY_OPTIONS: TaskUrgency[] = ["High", "Medium", "Low"];
 const STATUS_OPTIONS: TaskStatus[] = [
@@ -293,6 +285,12 @@ function parseLocalDateTime(value: string) {
 
 function addDays(date: Date, days: number) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
+}
+
+function daysBetween(start: Date, end: Date) {
+  return Math.round(
+    (startOfDay(end).getTime() - startOfDay(start).getTime()) / 86_400_000,
+  );
 }
 
 function buildDeadlineCalendarCells(reference: Date): DeadlineCalendarCell[] {
@@ -1493,24 +1491,74 @@ function DeadlineCalendar({
     () => buildDeadlineCalendarCells(reference),
     [reference],
   );
-  const eventsByDate = useMemo(() => {
-    const map = new Map<string, WorkplaceTask[]>();
+  const weeks = useMemo(
+    () =>
+      Array.from({ length: 6 }, (_, index) =>
+        cells.slice(index * 7, index * 7 + 7),
+      ),
+    [cells],
+  );
+  const calendarTasks = useMemo(
+    () =>
+      tasks
+        .map((task) => {
+          const deadline = parseLocalDateTime(task.deadline);
+          if (!deadline) return null;
 
-    for (const task of tasks) {
-      const deadline = parseLocalDateTime(task.deadline);
-      if (!deadline) continue;
+          const parsedStart = parseLocalDateTime(task.startDate) ?? deadline;
+          const start =
+            parsedStart.getTime() <= deadline.getTime()
+              ? startOfDay(parsedStart)
+              : startOfDay(deadline);
+          const end =
+            parsedStart.getTime() <= deadline.getTime()
+              ? startOfDay(deadline)
+              : startOfDay(parsedStart);
 
-      const dateKey = toDateKey(deadline);
-      const dateEvents = map.get(dateKey) ?? [];
-      dateEvents.push(task);
-      map.set(dateKey, dateEvents);
-    }
+          return { task, start, end };
+        })
+        .filter(
+          (
+            item,
+          ): item is { task: WorkplaceTask; start: Date; end: Date } =>
+            Boolean(item),
+        )
+        .sort((a, b) => {
+          const startDifference = a.start.getTime() - b.start.getTime();
+          return startDifference || a.end.getTime() - b.end.getTime();
+        }),
+    [tasks],
+  );
+  const segmentsByWeek = useMemo(
+    () =>
+      weeks.map((week) => {
+        const weekStart = week[0]?.date;
+        const weekEnd = week[6]?.date;
+        if (!weekStart || !weekEnd) return [];
 
-    return map;
-  }, [tasks]);
-  const deadlineCount = tasks.filter((task) =>
-    Boolean(parseLocalDateTime(task.deadline)),
-  ).length;
+        return calendarTasks.flatMap(({ task, start, end }) => {
+          if (end.getTime() < weekStart.getTime()) return [];
+          if (start.getTime() > weekEnd.getTime()) return [];
+
+          const segmentStart =
+            start.getTime() < weekStart.getTime() ? weekStart : start;
+          const segmentEnd =
+            end.getTime() > weekEnd.getTime() ? weekEnd : end;
+
+          return [
+            {
+              task,
+              startColumn: daysBetween(weekStart, segmentStart),
+              columnSpan: daysBetween(segmentStart, segmentEnd) + 1,
+              continuesBefore: start.getTime() < weekStart.getTime(),
+              continuesAfter: end.getTime() > weekEnd.getTime(),
+            },
+          ];
+        });
+      }),
+    [calendarTasks, weeks],
+  );
+  const deadlineCount = calendarTasks.length;
 
   function shiftMonth(monthOffset: number) {
     onReferenceChange(
@@ -1558,7 +1606,7 @@ function DeadlineCalendar({
       </header>
 
       <div className="min-h-0 flex-1 overflow-auto">
-        <div className="flex min-h-full min-w-[900px] flex-col">
+        <div className="flex min-h-full min-w-[960px] flex-col">
           <div className="grid grid-cols-7 border-b border-line bg-card">
             {CALENDAR_WEEKDAYS.map((day) => (
               <div
@@ -1569,63 +1617,77 @@ function DeadlineCalendar({
               </div>
             ))}
           </div>
-          <div className="grid flex-1 auto-rows-fr grid-cols-7">
-            {cells.map((cell, index) => {
-              const dayEvents = eventsByDate.get(cell.dateKey) ?? [];
-              const visibleEvents = dayEvents.slice(0, 3);
-              const hiddenCount = dayEvents.length - visibleEvents.length;
-              const isToday = cell.dateKey === todayKey;
+          <div className="flex flex-1 flex-col">
+            {weeks.map((week, weekIndex) => {
+              const segments = segmentsByWeek[weekIndex] ?? [];
+              const rowHeight = Math.max(
+                CALENDAR_WEEK_MIN_HEIGHT,
+                CALENDAR_RANGE_TOP +
+                  segments.length *
+                    (CALENDAR_RANGE_HEIGHT + CALENDAR_RANGE_GAP) +
+                  12,
+              );
 
               return (
                 <div
-                  key={cell.dateKey}
-                  className={`min-h-[92px] border-r border-line p-2.5 ${
-                    index >= 7 ? "border-t" : ""
-                  } ${(index + 1) % 7 === 0 ? "border-r-0" : ""} ${
-                    cell.outside ? "bg-card/50 text-muted" : "bg-paper"
-                  } ${isToday ? "ring-2 ring-inset ring-cta/35" : ""}`}
+                  key={week.map((cell) => cell.dateKey).join("-")}
+                  className="relative grid flex-1 grid-cols-7 border-b border-line last:border-b-0"
+                  style={{ minHeight: rowHeight }}
                 >
-                  <div className="mb-2 flex items-center justify-between gap-2">
-                    <span
-                      className={`flex size-6 items-center justify-center rounded-full text-xs font-semibold ${
-                        isToday
-                          ? "bg-cta text-white"
-                          : cell.outside
-                            ? "text-muted"
-                            : "text-ink"
-                      }`}
-                    >
-                      {cell.day}
-                    </span>
-                    {dayEvents.length ? (
-                      <span className="rounded-full bg-paper px-1.5 py-0.5 text-[10px] text-muted">
-                        {dayEvents.length} due
-                      </span>
-                    ) : null}
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    {visibleEvents.map((task) => (
-                      <span
-                        key={task.id}
-                        title={`${task.taskName} - ${formatDeadlineLabel(
-                          task.deadline,
-                        )}`}
-                        className={`flex min-w-0 items-center gap-1.5 rounded-md border px-2 py-1 text-left text-[11px] ${CALENDAR_EVENT_STYLES[task.status]}`}
+                  {week.map((cell, dayIndex) => {
+                    const isToday = cell.dateKey === todayKey;
+
+                    return (
+                      <div
+                        key={cell.dateKey}
+                        className={`relative border-r border-line p-2 last:border-r-0 ${
+                          cell.outside ? "bg-card/35 text-muted" : "bg-paper"
+                        } ${isToday ? "ring-1 ring-inset ring-ink" : ""}`}
                       >
-                        <span
-                          className={`size-1.5 shrink-0 rounded-full ${URGENCY_DOT_STYLES[task.urgency]}`}
-                        />
-                        <span className="truncate font-semibold">
-                          {task.taskName}
+                        <span className="absolute right-2 top-2 text-xs text-muted">
+                          {cell.day}
                         </span>
+                        {dayIndex === 0 ? (
+                          <span className="sr-only">
+                            Week starting {formatDateOnly(cell.date)}
+                          </span>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                  {segments.map((segment, lane) => {
+                    const left = (segment.startColumn / 7) * 100;
+                    const width = (segment.columnSpan / 7) * 100;
+                    const urgencyColor =
+                      segment.task.urgency === "High"
+                        ? "rgb(220 38 38)"
+                        : segment.task.urgency === "Medium"
+                          ? "rgb(37 99 235)"
+                          : "rgb(5 150 105)";
+
+                    return (
+                      <span
+                        key={`${segment.task.id}-${weekIndex}`}
+                        title={`${segment.task.taskName} - ${formatTaskDateRange(
+                          segment.task,
+                        )}`}
+                        className={`absolute flex items-center overflow-hidden bg-neutral-200 px-2 text-xs text-ink ${
+                          segment.continuesBefore ? "rounded-l-none" : ""
+                        } ${segment.continuesAfter ? "rounded-r-none" : ""}`}
+                        style={{
+                          left: `calc(${left}% + 4px)`,
+                          top:
+                            CALENDAR_RANGE_TOP +
+                            lane * (CALENDAR_RANGE_HEIGHT + CALENDAR_RANGE_GAP),
+                          width: `calc(${width}% - 8px)`,
+                          height: CALENDAR_RANGE_HEIGHT,
+                          borderLeft: `3px solid ${urgencyColor}`,
+                        }}
+                      >
+                        <span className="truncate">{segment.task.taskName}</span>
                       </span>
-                    ))}
-                    {hiddenCount > 0 ? (
-                      <span className="px-2 text-xs text-muted">
-                        +{hiddenCount} more
-                      </span>
-                    ) : null}
-                  </div>
+                    );
+                  })}
                 </div>
               );
             })}
@@ -1702,12 +1764,14 @@ function WorkspaceBanner({
 function GanttToolbar({
   scale,
   showTaskList,
+  onAddTask,
   onFocusToday,
   onScaleChange,
   onToggleTaskList,
 }: {
   scale: GanttScale;
   showTaskList: boolean;
+  onAddTask: () => void;
   onFocusToday: () => void;
   onScaleChange: (scale: GanttScale) => void;
   onToggleTaskList: () => void;
@@ -1734,6 +1798,14 @@ function GanttToolbar({
       >
         Today
       </button>
+      <button
+        type="button"
+        onClick={onAddTask}
+        className="flex h-7 items-center gap-1 rounded-md border border-line bg-paper px-2 text-xs font-medium text-ink transition hover:bg-card"
+      >
+        <Plus className="size-3.5" strokeWidth={1.8} />
+        Add Task
+      </button>
       <label className="relative">
         <span className="sr-only">Gantt view</span>
         <select
@@ -1758,15 +1830,20 @@ function GanttToolbar({
 function GanttView({
   tasks,
   accounts,
+  onAddTask,
 }: {
   tasks: WorkplaceTask[];
   accounts: Account[];
+  onAddTask: () => void;
 }) {
   const scrollerRef = useRef<HTMLDivElement | null>(null);
+  const verticalScrollerRef = useRef<HTMLDivElement | null>(null);
   const [showTaskList, setShowTaskList] = useState(true);
   const [leftWidth, setLeftWidth] = useState(GANTT_DEFAULT_LEFT_WIDTH);
   const [scale, setScale] = useState<GanttScale>("quarter");
   const [chartViewportWidth, setChartViewportWidth] = useState(720);
+  const [ganttViewportHeight, setGanttViewportHeight] = useState(0);
+  const [hoveredTaskId, setHoveredTaskId] = useState<string | null>(null);
   const accountById = useMemo(
     () => new Map(accounts.map((account) => [account.id, account])),
     [accounts],
@@ -1811,7 +1888,17 @@ function GanttView({
   );
   const timelineWidth = timeline.width;
   const rowCount = datedTasks.length + 1;
-  const contentHeight = Math.max(620, rowCount * GANTT_ROW_HEIGHT + 80);
+  const minimumBodyHeight = rowCount * GANTT_ROW_HEIGHT;
+  const contentHeight = Math.max(
+    minimumBodyHeight,
+    ganttViewportHeight
+      ? ganttViewportHeight - GANTT_HEADER_HEIGHT
+      : minimumBodyHeight,
+  );
+  const rowLineCount = Math.max(
+    rowCount + 1,
+    Math.ceil(contentHeight / GANTT_ROW_HEIGHT) + 1,
+  );
 
   const summaryStart = datedTasks[0]?.start ?? timeline.range.start;
   const summaryEnd =
@@ -1878,18 +1965,49 @@ function GanttView({
     return () => observer.disconnect();
   }, [leftWidth, showTaskList]);
 
+  useEffect(() => {
+    const scroller = verticalScrollerRef.current;
+    if (!scroller) return;
+    const verticalScroller = scroller;
+
+    function updateGanttHeight() {
+      setGanttViewportHeight(Math.ceil(verticalScroller.clientHeight));
+    }
+
+    updateGanttHeight();
+
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", updateGanttHeight);
+      return () => window.removeEventListener("resize", updateGanttHeight);
+    }
+
+    const observer = new ResizeObserver(updateGanttHeight);
+    observer.observe(verticalScroller);
+
+    return () => observer.disconnect();
+  }, [scale, showTaskList, tasks.length]);
+
   if (tasks.length === 0) {
     return (
       <section className="flex h-full min-h-0 flex-col bg-paper">
         <GanttToolbar
           scale={scale}
           showTaskList={showTaskList}
+          onAddTask={onAddTask}
           onFocusToday={focusToday}
           onScaleChange={setScale}
           onToggleTaskList={() => setShowTaskList((current) => !current)}
         />
-        <div className="flex flex-1 items-center justify-center px-6 text-center text-sm text-muted">
-          This folder is empty. Add rows to build a Gantt timeline.
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center text-sm text-muted">
+          <span>This folder is empty. Add rows to build a Gantt timeline.</span>
+          <button
+            type="button"
+            onClick={onAddTask}
+            className="inline-flex h-8 items-center gap-2 rounded-md border border-line px-3 text-xs font-semibold text-ink transition hover:bg-card"
+          >
+            <Plus className="size-4" strokeWidth={1.8} />
+            Add Task
+          </button>
         </div>
       </section>
     );
@@ -1900,11 +2018,12 @@ function GanttView({
       <GanttToolbar
         scale={scale}
         showTaskList={showTaskList}
+        onAddTask={onAddTask}
         onFocusToday={focusToday}
         onScaleChange={setScale}
         onToggleTaskList={() => setShowTaskList((current) => !current)}
       />
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div ref={verticalScrollerRef} className="min-h-0 flex-1 overflow-y-auto">
         <div className="flex min-h-full">
           {showTaskList ? (
             <div
@@ -1934,7 +2053,11 @@ function GanttView({
               {datedTasks.map(({ task }) => (
                 <div
                   key={task.id}
-                  className="grid grid-cols-[1fr_104px] border-b border-line text-sm"
+                  onMouseEnter={() => setHoveredTaskId(task.id)}
+                  onMouseLeave={() => setHoveredTaskId(null)}
+                  className={`grid grid-cols-[1fr_104px] border-b border-line text-sm transition ${
+                    hoveredTaskId === task.id ? "bg-card" : "bg-paper"
+                  }`}
                   style={{ height: GANTT_ROW_HEIGHT }}
                 >
                   <div className="flex min-w-0 items-center gap-2 px-7">
@@ -1997,7 +2120,7 @@ function GanttView({
               </div>
 
               <div
-                className="relative overflow-hidden"
+                className="relative overflow-hidden border-b border-line"
                 style={{
                   height: contentHeight,
                   minHeight: "100%",
@@ -2008,7 +2131,9 @@ function GanttView({
                   <span
                     key={column.key}
                     aria-hidden="true"
-                    className={`absolute top-0 h-full border-r border-dashed border-line last:border-r-0 ${
+                    className={`absolute top-0 h-full border-r border-line last:border-r-0 ${
+                      scale === "week" ? "border-dashed" : "border-solid"
+                    } ${
                       column.shaded
                         ? "bg-[repeating-linear-gradient(135deg,rgba(0,0,0,0.035)_0,rgba(0,0,0,0.035)_1px,transparent_1px,transparent_5px)]"
                         : ""
@@ -2016,7 +2141,22 @@ function GanttView({
                     style={{ left: column.left, width: column.width }}
                   />
                 ))}
-                {Array.from({ length: rowCount }).map((_, index) => (
+                {datedTasks.map(({ task }, index) => (
+                  <span
+                    key={`hover-${task.id}`}
+                    aria-hidden="true"
+                    onMouseEnter={() => setHoveredTaskId(task.id)}
+                    onMouseLeave={() => setHoveredTaskId(null)}
+                    className={`absolute left-0 right-0 transition ${
+                      hoveredTaskId === task.id ? "bg-card" : "bg-transparent"
+                    }`}
+                    style={{
+                      top: (index + 1) * GANTT_ROW_HEIGHT,
+                      height: GANTT_ROW_HEIGHT,
+                    }}
+                  />
+                ))}
+                {Array.from({ length: rowLineCount }).map((_, index) => (
                   <span
                     key={index}
                     aria-hidden="true"
@@ -2057,7 +2197,11 @@ function GanttView({
                   );
 
                   return (
-                    <div key={task.id}>
+                    <div
+                      key={task.id}
+                      onMouseEnter={() => setHoveredTaskId(task.id)}
+                      onMouseLeave={() => setHoveredTaskId(null)}
+                    >
                       <span
                         className={`absolute h-3.5 rounded-md shadow-sm ${GANTT_BAR_STYLES[task.status]}`}
                         style={{ left, top, width }}
@@ -3160,7 +3304,11 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
                   onReferenceChange={setCalendarReference}
                 />
               ) : viewMode === "gantt" ? (
-                <GanttView tasks={selectedTasks} accounts={accounts} />
+                <GanttView
+                  tasks={selectedTasks}
+                  accounts={accounts}
+                  onAddTask={addTaskToSelectedFolder}
+                />
               ) : (
                 <KanbanView
                   tasks={selectedTasks}

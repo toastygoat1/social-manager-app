@@ -148,6 +148,7 @@ export type WeekDay = {
   label: string;
   date: number;
   iso: string;
+  isWeekend: boolean;
 };
 
 export function startOfWeekSunday(reference: Date): Date {
@@ -169,6 +170,7 @@ export function buildWeekDays(reference: Date): WeekDay[] {
       label: DAY_LABELS[(d.getDay() + 7) % 7],
       date: d.getDate(),
       iso: toIsoDate(d),
+      isWeekend: d.getDay() === 0 || d.getDay() === 6,
     };
   });
 }
@@ -177,6 +179,7 @@ export type MonthCell = {
   day: number;
   iso: string;
   outside: boolean;
+  isWeekend: boolean;
 };
 
 export function buildMonthGrid(reference: Date): MonthCell[][] {
@@ -195,6 +198,7 @@ export function buildMonthGrid(reference: Date): MonthCell[][] {
         day: cellDate.getDate(),
         iso: toIsoDate(cellDate),
         outside: cellDate.getMonth() !== month,
+        isWeekend: cellDate.getDay() === 0 || cellDate.getDay() === 6,
       });
     }
     grid.push(week);

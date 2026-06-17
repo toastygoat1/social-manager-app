@@ -127,23 +127,32 @@ function DayCell({
   const isDropTarget = dragController?.dropTargetIso === cell.iso;
   const visibleEvents = events.slice(0, 4);
   const additionalCount = events.length - visibleEvents.length;
+  const backgroundClass = isDropTarget
+    ? "bg-[#eef2ff]"
+    : cell.outside
+      ? cell.isWeekend
+        ? "bg-[#f1f0ec]"
+        : "bg-[#fbfaf7]"
+      : cell.isWeekend
+        ? "bg-[#f5f4f0]"
+        : "bg-[#fffdf9]";
 
   return (
     <div
       {...getDateDropProps(dragController, cell.iso)}
-      className={`relative min-h-0 min-w-0 overflow-hidden border-b border-r border-[#eee9df] p-1.5 transition-colors ${
-        cell.outside ? "bg-[#fbfaf7] text-[#ada79e]" : "bg-[#fffdf9]"
+      className={`relative min-h-0 min-w-0 overflow-hidden border-b border-r border-[#eee9df] p-1.5 transition-colors ${backgroundClass} ${
+        cell.outside ? "text-[#ada79e]" : ""
       } ${isDraggingPost ? "outline outline-1 -outline-offset-1 outline-[#dfe5ff]" : ""} ${
         isDropTarget
-          ? "z-[2] bg-[#eef2ff] ring-2 ring-inset ring-[#607ffc] shadow-[inset_0_0_0_1px_#607ffc]"
+          ? "z-[2] ring-2 ring-inset ring-[#607ffc] shadow-[inset_0_0_0_1px_#607ffc]"
           : ""
-      } ${isToday && !isDropTarget ? "z-[1] bg-[#f4f6ff] ring-2 ring-inset ring-[#6682fa]" : ""}`}
+      } ${isToday && !isDropTarget ? "z-[1] ring-2 ring-inset ring-[#171510]" : ""}`}
     >
       <div className="mb-1 flex h-4 items-center gap-2">
         <span
           className={`text-[10px] font-semibold ${
             isToday
-              ? "text-[#526fe6]"
+              ? "text-[#171510]"
               : cell.outside
                 ? "text-[#a49e94]"
                 : "text-[#4d473f]"
@@ -199,10 +208,14 @@ export function MonthlyCalendar({
   return (
     <div className="relative flex min-h-0 w-full flex-1 flex-col overflow-hidden bg-[#fffdf9]">
       <div className="grid h-8 shrink-0 grid-cols-7 border-b border-[#e7e1d6] bg-[#f8f6f1]">
-        {MONTH_DAYS.map((day) => (
+        {MONTH_DAYS.map((day, index) => (
           <div
             key={day}
-            className="flex items-center border-r border-[#eee9df] px-2 text-[9px] font-semibold tracking-[0.12em] text-[#898278] last:border-r-0"
+            className={`flex items-center border-r border-[#eee9df] px-2 text-[9px] font-semibold tracking-[0.12em] last:border-r-0 ${
+              index === 0 || index === 6
+                ? "bg-[#efeee9] text-[#746d63]"
+                : "text-[#898278]"
+            }`}
           >
             {day}
           </div>

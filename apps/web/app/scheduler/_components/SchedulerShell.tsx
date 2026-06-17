@@ -318,6 +318,7 @@ export function SchedulerShell({ initialReferenceIso, initialData }: Props) {
         ) : view === "week" ? (
           <WeeklyCalendar
             reference={reference}
+            todayIso={todayIso}
             events={data.events}
             loading={loading}
             onOpenPost={openPost}

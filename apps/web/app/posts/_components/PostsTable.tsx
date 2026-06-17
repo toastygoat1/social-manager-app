@@ -652,17 +652,6 @@ export function PostsTable({
       ),
     );
   }, [filteredRows, sortState]);
-  const horizontalThumb = getScrollbarThumbMetrics({
-    clientSize: scrollMetrics.clientWidth,
-    scrollSize: scrollMetrics.scrollWidth,
-    scrollPosition: scrollMetrics.scrollLeft,
-  });
-  const verticalThumb = getScrollbarThumbMetrics({
-    clientSize: scrollMetrics.clientHeight,
-    scrollSize: scrollMetrics.scrollHeight,
-    scrollPosition: scrollMetrics.scrollTop,
-  });
-
   function updateScrollMetrics() {
     const node = scrollAreaRef.current;
     if (!node) return;
@@ -755,43 +744,38 @@ export function PostsTable({
 
       <div className="mx-5 mb-5 mt-3 flex min-h-0 min-w-0 flex-1 sm:mx-7 sm:mb-7">
         <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border border-line bg-white">
-          <div className="flex shrink-0 border-b border-line bg-card">
-            <div className="min-w-0 flex-1 overflow-hidden">
-              <table
-                className="w-full table-fixed border-collapse text-left"
-                style={{
-                  minWidth: tableMinWidth,
-                  transform: `translateX(-${scrollMetrics.scrollLeft}px)`,
-                }}
-              >
-                <colgroup>
+          <div className="shrink-0 overflow-hidden border-b border-line bg-card">
+            <table
+              className="w-full table-fixed border-collapse text-left"
+              style={{
+                minWidth: tableMinWidth,
+                transform: `translateX(-${scrollMetrics.scrollLeft}px)`,
+              }}
+            >
+              <colgroup>
+                {columns.map((column) => (
+                  <col key={column.key} style={{ width: column.width }} />
+                ))}
+              </colgroup>
+              <thead>
+                <tr>
                   {columns.map((column) => (
-                    <col key={column.key} style={{ width: column.width }} />
+                    <SortableHeader
+                      key={column.key}
+                      column={column}
+                      sortState={sortState}
+                      onSort={handleSort}
+                    />
                   ))}
-                </colgroup>
-                <thead>
-                  <tr>
-                    {columns.map((column) => (
-                      <SortableHeader
-                        key={column.key}
-                        column={column}
-                        sortState={sortState}
-                        onSort={handleSort}
-                      />
-                    ))}
-                  </tr>
-                </thead>
-              </table>
-            </div>
-            {verticalThumb.isScrollable ? (
-              <div aria-hidden="true" className="posts-table-scrollbar-spacer" />
-            ) : null}
+                </tr>
+              </thead>
+            </table>
           </div>
 
-          <div className="flex min-h-0 min-w-0 flex-1">
+          <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
             <div
               ref={scrollAreaRef}
-              className="posts-table-scrollarea min-h-0 max-w-full flex-1 overflow-auto"
+              className="posts-table-scrollarea h-full min-h-0 w-full overflow-auto"
               onScroll={updateScrollMetrics}
             >
               <table
@@ -882,23 +866,12 @@ export function PostsTable({
               metrics={scrollMetrics}
               scrollAreaRef={scrollAreaRef}
             />
+            <CustomScrollbar
+              axis="horizontal"
+              metrics={scrollMetrics}
+              scrollAreaRef={scrollAreaRef}
+            />
           </div>
-
-          {horizontalThumb.isScrollable ? (
-            <div className="flex shrink-0">
-              <CustomScrollbar
-                axis="horizontal"
-                metrics={scrollMetrics}
-                scrollAreaRef={scrollAreaRef}
-              />
-              {verticalThumb.isScrollable ? (
-                <div
-                  aria-hidden="true"
-                  className="posts-table-scrollbar-corner"
-                />
-              ) : null}
-            </div>
-          ) : null}
 
           <PostDetailsModal
             postId={selectedPostId}
