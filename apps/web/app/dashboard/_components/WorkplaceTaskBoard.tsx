@@ -2076,11 +2076,19 @@ function GanttView({
                 {timeline.groups.map((group) => (
                   <span
                     key={group.key}
-                    className="absolute inset-y-0 flex items-center justify-between overflow-hidden whitespace-nowrap border-r border-line px-2 last:border-r-0"
+                    className="absolute inset-y-0 flex items-center justify-between overflow-hidden whitespace-nowrap px-2"
                     style={{ left: group.left, width: group.width }}
                   >
                     <span className="truncate">{group.label}</span>
                   </span>
+                ))}
+                {groupBoundaryPositions.map((left) => (
+                  <span
+                    key={`top-header-boundary-${left}`}
+                    aria-hidden="true"
+                    className="absolute inset-y-0 z-10 border-r border-line"
+                    style={{ left }}
+                  />
                 ))}
               </div>
               <div className="relative h-8 text-xs text-muted">
@@ -2114,11 +2122,11 @@ function GanttView({
           <div className="flex min-h-full">
             {showTaskList ? (
               <div
-                className="shrink-0 border-r border-line bg-paper"
-                style={{ width: leftWidth }}
+                className="relative shrink-0 border-r border-line bg-paper"
+                style={{ width: leftWidth, height: contentHeight }}
               >
                 <div
-                  className="grid grid-cols-[1fr_104px] border-b border-line bg-card/25"
+                  className="grid grid-cols-[1fr_104px] bg-card/25"
                   style={{ height: GANTT_ROW_HEIGHT }}
                 >
                   <div className="flex min-w-0 items-center gap-2 px-7 text-sm font-semibold text-ink">
@@ -2133,7 +2141,7 @@ function GanttView({
                     key={task.id}
                     onMouseEnter={() => setHoveredTaskId(task.id)}
                     onMouseLeave={() => setHoveredTaskId(null)}
-                    className={`grid grid-cols-[1fr_104px] border-b border-line text-sm transition ${
+                    className={`grid grid-cols-[1fr_104px] text-sm transition ${
                       hoveredTaskId === task.id ? "bg-neutral-100" : "bg-paper"
                     }`}
                     style={{ height: GANTT_ROW_HEIGHT }}
@@ -2175,7 +2183,7 @@ function GanttView({
                 <button
                   type="button"
                   onClick={onAddTask}
-                  className="grid w-full grid-cols-[1fr_104px] border-b border-line bg-paper text-left text-sm text-muted transition hover:bg-card hover:text-ink"
+                  className="grid w-full grid-cols-[1fr_104px] bg-paper text-left text-sm text-muted transition hover:bg-card hover:text-ink"
                   style={{ height: GANTT_ROW_HEIGHT }}
                 >
                   <span className="flex min-w-0 items-center gap-2 px-7">
@@ -2184,6 +2192,14 @@ function GanttView({
                   </span>
                   <span />
                 </button>
+                {Array.from({ length: rowLineCount }).map((_, index) => (
+                  <span
+                    key={index}
+                    aria-hidden="true"
+                    className="pointer-events-none absolute left-0 right-0 z-20 border-t border-line"
+                    style={{ top: (index + 1) * GANTT_ROW_HEIGHT }}
+                  />
+                ))}
               </div>
             ) : null}
 
@@ -2246,7 +2262,7 @@ function GanttView({
                     <span
                       key={index}
                       aria-hidden="true"
-                      className="absolute left-0 right-0 border-b border-line"
+                      className="absolute left-0 right-0 z-[3] border-t border-line"
                       style={{ top: (index + 1) * GANTT_ROW_HEIGHT }}
                     />
                   ))}
