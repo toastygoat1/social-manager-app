@@ -115,14 +115,14 @@ export function CompareAccountPicker({
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
         {visibleSlots.map((slot, slotIndex) => (
           <label key={slot.marker} className="flex min-w-0 items-center gap-2">
-            <span className="flex size-5 items-center justify-center rounded bg-[#5e6ad2] font-mono text-[10px] text-white">
+            <span className="flex size-5 items-center justify-center rounded bg-cta font-mono text-[10px] text-page">
               {slot.marker}
             </span>
             <select
               aria-label={slot.ariaLabel}
               value={compareAccountIds[slotIndex] ?? ""}
               onChange={(event) => updateAccount(slotIndex, event.target.value)}
-              className="h-9 w-full min-w-48 rounded-lg border border-line bg-paper px-3 text-xs text-ink outline-none transition focus:border-[#5e6ad2] sm:w-52"
+              className="h-9 w-full min-w-48 rounded-lg border border-line bg-paper px-3 text-xs text-ink outline-none transition focus:border-cta sm:w-52"
             >
               <option value="" disabled={slotIndex < 2}>
                 {slotIndex < 2 ? "Select account" : "No third account"}

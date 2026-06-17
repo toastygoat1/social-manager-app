@@ -65,7 +65,9 @@ export function BestTimeCard({
                         className="aspect-square rounded-[2px] bg-card"
                         style={
                           opacity > 0
-                            ? { backgroundColor: `rgba(94, 106, 210, ${opacity})` }
+                            ? {
+                                backgroundColor: `color-mix(in srgb, var(--chart-1) ${Math.round(opacity * 100)}%, transparent)`,
+                              }
                             : undefined
                         }
                       />
@@ -76,7 +78,7 @@ export function BestTimeCard({
             </div>
           </div>
           <div className="flex items-start gap-2 rounded-lg bg-card p-3 text-xs leading-5 text-ink">
-            <span className="mt-1 size-2 shrink-0 rounded-full bg-[#5e6ad2]" />
+            <span className="mt-1 size-2 shrink-0 rounded-full bg-cta" />
             {insight.topWindow ? (
               <p>
                 Strongest observed window:{" "}

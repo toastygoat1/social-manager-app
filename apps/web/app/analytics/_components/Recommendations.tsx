@@ -22,9 +22,9 @@ export function Recommendations({ recommendations }: RecommendationsProps) {
           recommendations.map((rec) => (
             <div
               key={rec.title}
-              className="flex w-full flex-col gap-2 rounded-r-lg border-l-2 border-[#5e6ad2] bg-card px-4 py-3.5"
+              className="flex w-full flex-col gap-2 rounded-r-lg border-l-2 border-cta bg-card px-4 py-3.5"
             >
-              <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-[#5e6ad2]">
+              <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-cta">
                 Insight
               </p>
               <p className="text-sm font-semibold text-ink">{rec.title}</p>

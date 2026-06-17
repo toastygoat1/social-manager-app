@@ -43,7 +43,7 @@ function Breakdown({
             <span className="truncate text-ink">{item.label}</span>
             <span className="h-1.5 overflow-hidden rounded-sm bg-line">
               <span
-                className="block h-full rounded-sm bg-[#5e6ad2]"
+                className="block h-full rounded-sm bg-cta"
                 style={{ width: `${item.percentage}%` }}
               />
             </span>

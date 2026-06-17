@@ -23,7 +23,7 @@ function AccountMark({
 }) {
   return (
     <span
-      className={`flex shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-page bg-[#5e6ad2] font-medium text-white ${
+      className={`flex shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-page bg-cta font-medium text-page ${
         compact ? "size-8 text-[11px]" : "size-9 text-xs"
       }`}
     >

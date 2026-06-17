@@ -6,7 +6,7 @@ import { createAnalyticsSearchParams } from "./time-filter";
 
 function Avatar({ row }: { row: AccountPerformance }) {
   return (
-    <span className="flex size-7 items-center justify-center overflow-hidden rounded-full bg-[#5e6ad2] text-[11px] font-medium text-white">
+    <span className="flex size-7 items-center justify-center overflow-hidden rounded-full bg-cta text-[11px] font-medium text-page">
       <AvatarImage
         src={row.account.avatarUrl}
         width={28}

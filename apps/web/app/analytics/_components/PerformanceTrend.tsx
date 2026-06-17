@@ -115,7 +115,7 @@ export function PerformanceTrend({
               type="button"
               onClick={() => setMetric(id)}
               aria-pressed={isActive}
-              className={`inline-flex min-w-0 items-center gap-1.5 rounded-sm px-1 py-0.5 text-xs font-medium transition-opacity hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5e6ad2] ${
+              className={`inline-flex min-w-0 items-center gap-1.5 rounded-sm px-1 py-0.5 text-xs font-medium transition-opacity hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta ${
                 isActive ? "text-ink" : "text-muted"
               }`}
             >
@@ -162,14 +162,14 @@ export function PerformanceTrend({
                 </g>
               );
             })}
-            <path d={areaPath} fill="#5e6ad2" opacity="0.08" />
+            <path d={areaPath} fill="var(--chart-1)" opacity="0.08" />
             {hoveredPoint ? (
               <line
                 x1={hoveredX}
                 y1={padding.top}
                 x2={hoveredX}
                 y2={padding.top + innerHeight}
-                stroke="#5e6ad2"
+                stroke="var(--chart-1)"
                 strokeDasharray="4 4"
                 strokeOpacity="0.45"
                 strokeWidth="1"
@@ -178,7 +178,7 @@ export function PerformanceTrend({
             <path
               d={path}
               fill="none"
-              stroke="#5e6ad2"
+              stroke="var(--chart-1)"
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -194,7 +194,7 @@ export function PerformanceTrend({
                     cx={pointX}
                     cy={pointY}
                     r={isHovered ? "4.5" : "3"}
-                    fill="#5e6ad2"
+                    fill="var(--chart-1)"
                   />
                   <circle
                     cx={pointX}

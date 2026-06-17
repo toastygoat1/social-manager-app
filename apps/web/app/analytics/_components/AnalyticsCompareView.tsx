@@ -48,7 +48,7 @@ function CompareColumn({
   return (
     <div className="flex min-w-0 flex-col gap-4">
       <div className="relative">
-        <span className="absolute right-4 top-4 z-10 flex size-6 items-center justify-center rounded-md bg-[#5e6ad2] font-mono text-[11px] font-medium text-white">
+        <span className="absolute right-4 top-4 z-10 flex size-6 items-center justify-center rounded-md bg-cta font-mono text-[11px] font-medium text-page">
           {marker}
         </span>
         <BannerHero

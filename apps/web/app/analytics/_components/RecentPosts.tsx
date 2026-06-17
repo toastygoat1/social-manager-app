@@ -182,7 +182,7 @@ export function RecentPosts({
               <button
                 type="button"
                 onClick={() => setSelectedPostId(post.id)}
-                className="flex min-w-0 flex-1 flex-col text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5e6ad2]"
+                className="flex min-w-0 flex-1 flex-col text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta"
               >
                 <div className="relative aspect-[4/3] w-full overflow-hidden bg-card">
                   <MediaPreview post={post} />

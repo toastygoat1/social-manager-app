@@ -136,7 +136,7 @@ function accountInitial(account: Account) {
 function Avatar({ account, size = 36 }: { account: Account; size?: number }) {
   return (
     <span
-      className="flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#5e6ad2] font-medium text-white shadow-[0_2px_8px_rgba(24,22,18,0.12)]"
+      className="flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-cta font-medium text-page shadow-[0_2px_8px_rgba(24,22,18,0.12)]"
       style={{ width: size, height: size }}
     >
       <AvatarImage

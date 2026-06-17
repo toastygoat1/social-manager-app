@@ -199,9 +199,14 @@ const GANTT_DEFAULT_LEFT_WIDTH = 424;
 const GANTT_MIN_LEFT_WIDTH = 320;
 const GANTT_MAX_LEFT_WIDTH = 620;
 const GANTT_COLUMN_WIDTHS: Record<GanttScale, number> = {
-  week: 56,
+  week: 64,
   month: 130,
   quarter: 156,
+};
+const GANTT_MIN_COLUMNS: Record<GanttScale, number> = {
+  week: 28,
+  month: 10,
+  quarter: 9,
 };
 
 const CALENDAR_EVENT_STYLES: Record<TaskStatus, string> = {
@@ -405,8 +410,16 @@ function getGanttRange(datedTasks: GanttDatedTask[], scale: GanttScale) {
   };
 }
 
-function buildGanttTimeline(datedTasks: GanttDatedTask[], scale: GanttScale) {
+function buildGanttTimeline(
+  datedTasks: GanttDatedTask[],
+  scale: GanttScale,
+  minimumWidth: number,
+) {
   const columnWidth = GANTT_COLUMN_WIDTHS[scale];
+  const minimumColumns = Math.max(
+    GANTT_MIN_COLUMNS[scale],
+    Math.ceil(minimumWidth / columnWidth),
+  );
   const range = getGanttRange(datedTasks, scale);
   const columns: GanttColumn[] = [];
   const groups: GanttHeaderGroup[] = [];
@@ -414,7 +427,7 @@ function buildGanttTimeline(datedTasks: GanttDatedTask[], scale: GanttScale) {
   if (scale === "week") {
     let cursor = startOfDay(range.start);
     let index = 0;
-    while (cursor.getTime() < range.end.getTime()) {
+    while (cursor.getTime() < range.end.getTime() || index < minimumColumns) {
       const columnStart = cursor;
       const columnEnd = addDays(cursor, 1);
       columns.push({
@@ -448,7 +461,7 @@ function buildGanttTimeline(datedTasks: GanttDatedTask[], scale: GanttScale) {
   } else if (scale === "month") {
     let cursor = startOfWeek(range.start);
     let index = 0;
-    while (cursor.getTime() < range.end.getTime()) {
+    while (cursor.getTime() < range.end.getTime() || index < minimumColumns) {
       const columnStart = cursor;
       const columnEnd = addDays(cursor, 7);
       columns.push({
@@ -485,7 +498,7 @@ function buildGanttTimeline(datedTasks: GanttDatedTask[], scale: GanttScale) {
   } else {
     let cursor = startOfMonth(range.start);
     let index = 0;
-    while (cursor.getTime() < range.end.getTime()) {
+    while (cursor.getTime() < range.end.getTime() || index < minimumColumns) {
       const columnStart = cursor;
       const columnEnd = addMonths(cursor, 1);
       columns.push({
@@ -524,10 +537,7 @@ function buildGanttTimeline(datedTasks: GanttDatedTask[], scale: GanttScale) {
     columns,
     groups,
     range,
-    width: Math.max(
-      columns.reduce((sum, column) => sum + column.width, 0),
-      720,
-    ),
+    width: columns.reduce((sum, column) => sum + column.width, 0),
   };
 }
 
@@ -1733,6 +1743,7 @@ function GanttView({
   const [showTaskList, setShowTaskList] = useState(true);
   const [leftWidth, setLeftWidth] = useState(GANTT_DEFAULT_LEFT_WIDTH);
   const [scale, setScale] = useState<GanttScale>("quarter");
+  const [chartViewportWidth, setChartViewportWidth] = useState(720);
   const accountById = useMemo(
     () => new Map(accounts.map((account) => [account.id, account])),
     [accounts],
@@ -1770,14 +1781,14 @@ function GanttView({
         .sort((a, b) => a.deadline.getTime() - b.deadline.getTime()),
     [tasks],
   );
+  const minimumTimelineWidth = Math.max(720, chartViewportWidth);
   const timeline = useMemo(
-    () => buildGanttTimeline(datedTasks, scale),
-    [datedTasks, scale],
+    () => buildGanttTimeline(datedTasks, scale, minimumTimelineWidth),
+    [datedTasks, minimumTimelineWidth, scale],
   );
   const timelineWidth = timeline.width;
   const rowCount = datedTasks.length + 1;
   const contentHeight = Math.max(620, rowCount * GANTT_ROW_HEIGHT + 80);
-  const visibleLeftWidth = showTaskList ? leftWidth : 0;
 
   const summaryStart = datedTasks[0]?.start ?? timeline.range.start;
   const summaryEnd =
@@ -1795,10 +1806,7 @@ function GanttView({
     if (!scroller) return;
 
     scroller.scrollTo({
-      left: Math.max(
-        0,
-        visibleLeftWidth + todayLeft - scroller.clientWidth / 2,
-      ),
+      left: Math.max(0, todayLeft - scroller.clientWidth / 2),
       behavior: "smooth",
     });
   }
@@ -1824,6 +1832,28 @@ function GanttView({
     window.addEventListener("pointermove", handlePointerMove);
     window.addEventListener("pointerup", handlePointerUp, { once: true });
   }
+
+  useEffect(() => {
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+    const chartScroller = scroller;
+
+    function updateChartWidth() {
+      setChartViewportWidth(Math.ceil(chartScroller.clientWidth));
+    }
+
+    updateChartWidth();
+
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", updateChartWidth);
+      return () => window.removeEventListener("resize", updateChartWidth);
+    }
+
+    const observer = new ResizeObserver(updateChartWidth);
+    observer.observe(chartScroller);
+
+    return () => observer.disconnect();
+  }, [leftWidth, showTaskList]);
 
   if (tasks.length === 0) {
     return (
@@ -1851,15 +1881,13 @@ function GanttView({
         onScaleChange={setScale}
         onToggleTaskList={() => setShowTaskList((current) => !current)}
       />
-      <div ref={scrollerRef} className="min-h-0 flex-1 overflow-auto">
-        <div
-          className="grid min-h-full min-w-full"
-          style={{
-            gridTemplateColumns: `${visibleLeftWidth}px minmax(${timelineWidth}px, 1fr)`,
-          }}
-        >
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="flex min-h-full">
           {showTaskList ? (
-            <div className="sticky left-0 z-20 border-r border-line bg-paper">
+            <div
+              className="relative z-20 shrink-0 border-r border-line bg-paper"
+              style={{ width: leftWidth }}
+            >
               <div className="grid h-16 grid-cols-[1fr_104px] border-b border-line text-xs text-muted">
                 <div className="flex items-center px-7">Name</div>
                 <div className="flex items-center justify-between border-l border-line px-3">
@@ -1916,104 +1944,112 @@ function GanttView({
             </div>
           ) : null}
 
-          <div className="min-w-0">
-            <div className="h-16 border-b border-line bg-paper">
-              <div className="relative h-8 border-b border-line text-xs text-muted">
-                {timeline.groups.map((group) => (
-                  <span
-                    key={group.key}
-                    className="absolute inset-y-0 flex items-center justify-between border-r border-line px-2 last:border-r-0"
-                    style={{ left: group.left, width: group.width }}
-                  >
-                    <span>{group.label}</span>
-                  </span>
-                ))}
+          <div ref={scrollerRef} className="min-w-0 flex-1 overflow-x-auto">
+            <div className="min-h-full" style={{ width: timelineWidth }}>
+              <div className="h-16 border-b border-line bg-paper">
+                <div className="relative h-8 border-b border-line text-xs text-muted">
+                  {timeline.groups.map((group) => (
+                    <span
+                      key={group.key}
+                      className="absolute inset-y-0 flex items-center justify-between overflow-hidden whitespace-nowrap border-r border-line px-2 last:border-r-0"
+                      style={{ left: group.left, width: group.width }}
+                    >
+                      <span className="truncate">{group.label}</span>
+                    </span>
+                  ))}
+                </div>
+                <div className="relative h-8 text-xs text-muted">
+                  {timeline.columns.map((column) => (
+                    <span
+                      key={column.key}
+                      className={`absolute inset-y-0 flex items-center justify-center overflow-hidden whitespace-nowrap border-r border-line px-1 last:border-r-0 ${
+                        column.muted ? "text-muted/60" : ""
+                      }`}
+                      style={{ left: column.left, width: column.width }}
+                    >
+                      {column.label}
+                    </span>
+                  ))}
+                </div>
               </div>
-              <div className="relative h-8 text-xs text-muted">
+
+              <div
+                className="relative"
+                style={{
+                  height: contentHeight,
+                  minHeight: "100%",
+                  minWidth: timelineWidth,
+                }}
+              >
                 {timeline.columns.map((column) => (
                   <span
                     key={column.key}
-                    className={`absolute inset-y-0 flex items-center justify-center border-r border-line px-1 last:border-r-0 ${
-                      column.muted ? "text-muted/60" : ""
+                    aria-hidden="true"
+                    className={`absolute top-0 h-full border-r border-dashed border-line last:border-r-0 ${
+                      column.shaded
+                        ? "bg-[repeating-linear-gradient(135deg,rgba(0,0,0,0.035)_0,rgba(0,0,0,0.035)_1px,transparent_1px,transparent_5px)]"
+                        : ""
                     }`}
                     style={{ left: column.left, width: column.width }}
-                  >
-                    {column.label}
-                  </span>
+                  />
                 ))}
-              </div>
-            </div>
-
-            <div
-              className="relative"
-              style={{
-                height: contentHeight,
-                minHeight: "100%",
-                minWidth: timelineWidth,
-              }}
-            >
-              {timeline.columns.map((column) => (
+                {Array.from({ length: rowCount }).map((_, index) => (
+                  <span
+                    key={index}
+                    aria-hidden="true"
+                    className="absolute left-0 right-0 border-b border-line"
+                    style={{ top: index * GANTT_ROW_HEIGHT }}
+                  />
+                ))}
                 <span
-                  key={column.key}
-                  aria-hidden="true"
-                  className={`absolute top-0 h-full border-r border-dashed border-line last:border-r-0 ${
-                    column.shaded
-                      ? "bg-[repeating-linear-gradient(135deg,rgba(0,0,0,0.035)_0,rgba(0,0,0,0.035)_1px,transparent_1px,transparent_5px)]"
-                      : ""
-                  }`}
-                  style={{ left: column.left, width: column.width }}
-                />
-              ))}
-              {Array.from({ length: rowCount }).map((_, index) => (
-                <span
-                  key={index}
-                  aria-hidden="true"
-                  className="absolute left-0 right-0 border-b border-line"
-                  style={{ top: index * GANTT_ROW_HEIGHT }}
-                />
-              ))}
-              <span
-                className="absolute top-[13px] h-2 rounded-full bg-success/35"
-                style={{ left: summaryLeft, width: summaryWidth }}
-              >
-                <span className="block h-full w-1/5 rounded-full bg-success" />
-              </span>
-              {todayLeft !== null ? (
-                <span
-                  aria-hidden="true"
-                  className="absolute top-0 z-10 h-full w-px bg-danger"
-                  style={{ left: todayLeft }}
+                  className="absolute top-[13px] h-2 rounded-full bg-success/35"
+                  style={{ left: summaryLeft, width: summaryWidth }}
                 >
-                  <span className="absolute -left-1.5 -top-1 size-3 rounded-full bg-danger" />
+                  <span className="block h-full w-1/5 rounded-full bg-success" />
                 </span>
-              ) : null}
-              {datedTasks.map(({ task, start, deadline }, index) => {
-                const startX = getTimelineXFromColumns(start, timeline.columns);
-                const endX = getTimelineXFromColumns(
-                  addDays(deadline, 1),
-                  timeline.columns,
-                );
-                const left = Math.min(startX, endX);
-                const width = Math.max(6, Math.abs(endX - startX));
-                const top = (index + 1) * GANTT_ROW_HEIGHT + 10;
+                {todayLeft !== null ? (
+                  <span
+                    aria-hidden="true"
+                    className="absolute top-0 z-10 h-full w-px bg-danger"
+                    style={{ left: todayLeft }}
+                  >
+                    <span className="absolute -left-1.5 -top-1 size-3 rounded-full bg-danger" />
+                  </span>
+                ) : null}
+                {datedTasks.map(({ task, start, deadline }, index) => {
+                  const startX = getTimelineXFromColumns(
+                    start,
+                    timeline.columns,
+                  );
+                  const endX = getTimelineXFromColumns(
+                    addDays(deadline, 1),
+                    timeline.columns,
+                  );
+                  const left = Math.min(startX, endX);
+                  const width = Math.max(6, Math.abs(endX - startX));
+                  const top = (index + 1) * GANTT_ROW_HEIGHT + 10;
 
-                return (
-                  <div key={task.id}>
-                    <span
-                      className={`absolute h-3.5 rounded-md shadow-sm ${GANTT_BAR_STYLES[task.status]}`}
-                      style={{ left, top, width }}
-                      title={`${task.taskName}: ${formatTaskDateRange(task)}`}
-                    />
-                    <span
-                      className="absolute flex max-w-[220px] items-center gap-1.5 truncate text-xs text-ink"
-                      style={{ left: left + width + 8, top: top - 1 }}
-                    >
-                      <TaskPeopleStack task={task} accountById={accountById} />
-                      <span className="truncate">{task.taskName}</span>
-                    </span>
-                  </div>
-                );
-              })}
+                  return (
+                    <div key={task.id}>
+                      <span
+                        className={`absolute h-3.5 rounded-md shadow-sm ${GANTT_BAR_STYLES[task.status]}`}
+                        style={{ left, top, width }}
+                        title={`${task.taskName}: ${formatTaskDateRange(task)}`}
+                      />
+                      <span
+                        className="absolute flex max-w-[220px] items-center gap-1.5 truncate text-xs text-ink"
+                        style={{ left: left + width + 8, top: top - 1 }}
+                      >
+                        <TaskPeopleStack
+                          task={task}
+                          accountById={accountById}
+                        />
+                        <span className="truncate">{task.taskName}</span>
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
