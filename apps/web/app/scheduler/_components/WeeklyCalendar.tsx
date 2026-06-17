@@ -67,7 +67,7 @@ export function WeeklyCalendar({
             const backgroundClass = isDropTarget
               ? "bg-[#eef2ff]"
               : day.isWeekend
-                ? "bg-[#efeee9]"
+                ? "bg-[#e9e9e9]"
                 : "bg-[#f8f6f1]";
             return (
               <div
@@ -77,14 +77,20 @@ export function WeeklyCalendar({
                   isDropTarget
                     ? "ring-2 ring-inset ring-[#607ffc]"
                     : isToday
-                      ? "ring-2 ring-inset ring-[#171510]"
-                    : ""
+                      ? "shadow-[inset_0_0_0_2px_#111111]"
+                      : ""
                 }`}
               >
-                <span className="text-[9px] font-semibold tracking-[0.12em] text-[#898278]">
+                <span className="text-[9px] font-semibold tracking-[0.12em] text-[#777777]">
                   {day.label}
                 </span>
-                <span className="text-sm font-medium text-[#302b23]">
+                <span
+                  className={`text-sm font-medium text-[#302b23] ${
+                    isToday
+                      ? "inline-flex h-6 min-w-6 items-center justify-center rounded-full border border-[#111111] px-1"
+                      : ""
+                  }`}
+                >
                   {day.date}
                 </span>
               </div>
@@ -102,7 +108,7 @@ export function WeeklyCalendar({
               const backgroundClass = isDropTarget
                 ? "bg-[#eef2ff]"
                 : day.isWeekend
-                  ? "bg-[#f5f4f0]"
+                  ? "bg-[#f4f4f4]"
                   : "bg-[#fffdf9]";
               return (
                 <div
@@ -147,13 +153,18 @@ export function WeeklyCalendar({
               const backgroundClass = isDropTarget
                 ? "bg-[#eef2ff]"
                 : day.isWeekend
-                  ? "bg-[#f5f4f0]"
+                  ? "bg-[#f4f4f4]"
                   : "bg-[#fffdf9]";
+              const hoverClass = isDropTarget
+                ? ""
+                : day.isWeekend
+                  ? "hover:bg-[#eeeeee]"
+                  : "hover:bg-[#f8f8f8]";
               return (
                 <div
                   key={dayIndex}
                   {...getDateDropProps(dragController, day.iso)}
-                  className={`flex min-w-0 flex-col gap-1 border-l border-[#eee9df] p-1.5 transition-colors ${backgroundClass} hover:bg-[#fcfbf8] ${
+                  className={`flex min-w-0 flex-col gap-1 border-l border-[#eee9df] p-1.5 transition-colors ${backgroundClass} ${hoverClass} ${
                     isDropTarget
                       ? "ring-2 ring-inset ring-[#607ffc]"
                       : ""

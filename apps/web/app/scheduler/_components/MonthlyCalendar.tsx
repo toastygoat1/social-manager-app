@@ -125,34 +125,32 @@ function DayCell({
   const isToday = cell.iso === todayIso;
   const isDraggingPost = Boolean(dragController?.draggingEventId);
   const isDropTarget = dragController?.dropTargetIso === cell.iso;
-  const visibleEvents = events.slice(0, 4);
-  const additionalCount = events.length - visibleEvents.length;
   const backgroundClass = isDropTarget
     ? "bg-[#eef2ff]"
     : cell.outside
       ? cell.isWeekend
-        ? "bg-[#f1f0ec]"
+        ? "bg-[#eeeeee]"
         : "bg-[#fbfaf7]"
       : cell.isWeekend
-        ? "bg-[#f5f4f0]"
+        ? "bg-[#f4f4f4]"
         : "bg-[#fffdf9]";
 
   return (
     <div
       {...getDateDropProps(dragController, cell.iso)}
-      className={`relative min-h-0 min-w-0 overflow-hidden border-b border-r border-[#eee9df] p-1.5 transition-colors ${backgroundClass} ${
+      className={`relative min-h-0 min-w-0 border-b border-r border-[#eee9df] p-1.5 pb-2 transition-colors ${backgroundClass} ${
         cell.outside ? "text-[#ada79e]" : ""
       } ${isDraggingPost ? "outline outline-1 -outline-offset-1 outline-[#dfe5ff]" : ""} ${
         isDropTarget
           ? "z-[2] ring-2 ring-inset ring-[#607ffc] shadow-[inset_0_0_0_1px_#607ffc]"
           : ""
-      } ${isToday && !isDropTarget ? "z-[1] ring-2 ring-inset ring-[#171510]" : ""}`}
+      } ${isToday && !isDropTarget ? "z-[1] shadow-[inset_0_0_0_2px_#111111]" : ""}`}
     >
       <div className="mb-1 flex h-4 items-center gap-2">
         <span
           className={`text-[10px] font-semibold ${
             isToday
-              ? "text-[#171510]"
+              ? "inline-flex h-4 min-w-4 items-center justify-center rounded-full border border-[#111111] px-1 text-[#111111]"
               : cell.outside
                 ? "text-[#a49e94]"
                 : "text-[#4d473f]"
@@ -162,7 +160,7 @@ function DayCell({
         </span>
       </div>
       <div className="flex flex-col gap-1">
-        {visibleEvents.map((event) => (
+        {events.map((event) => (
           <EventChip
             key={event.id}
             event={event}
@@ -170,11 +168,6 @@ function DayCell({
             dragController={dragController}
           />
         ))}
-        {additionalCount > 0 ? (
-          <span className="px-1 text-[9px] font-medium text-[#817a70]">
-            +{additionalCount} more
-          </span>
-        ) : null}
       </div>
     </div>
   );
@@ -213,7 +206,7 @@ export function MonthlyCalendar({
             key={day}
             className={`flex items-center border-r border-[#eee9df] px-2 text-[9px] font-semibold tracking-[0.12em] last:border-r-0 ${
               index === 0 || index === 6
-                ? "bg-[#efeee9] text-[#746d63]"
+                ? "bg-[#e9e9e9] text-[#6c6c6c]"
                 : "text-[#898278]"
             }`}
           >
@@ -221,17 +214,24 @@ export function MonthlyCalendar({
           </div>
         ))}
       </div>
-      <div className="grid min-h-0 flex-1 grid-cols-7 grid-rows-6">
-        {grid.flat().map((cell) => (
-          <DayCell
-            key={cell.iso}
-            cell={cell}
-            todayIso={todayIso}
-            events={eventsByIso.get(cell.iso) ?? []}
-            onOpenPost={onOpenPost}
-            dragController={dragController}
-          />
-        ))}
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div
+          className="grid min-h-full grid-cols-7"
+          style={{
+            gridAutoRows: "minmax(max(92px, calc(100% / 6)), max-content)",
+          }}
+        >
+          {grid.flat().map((cell) => (
+            <DayCell
+              key={cell.iso}
+              cell={cell}
+              todayIso={todayIso}
+              events={eventsByIso.get(cell.iso) ?? []}
+              onOpenPost={onOpenPost}
+              dragController={dragController}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );

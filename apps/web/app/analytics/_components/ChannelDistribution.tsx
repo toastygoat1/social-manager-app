@@ -27,8 +27,8 @@ function LegendRow({ item }: { item: DistributionItem }) {
 
 function DonutChart({ items }: { items: DistributionItem[] }) {
   const total = items.reduce((sum, item) => sum + item.value, 0);
-  const radius = 70;
-  const stroke = 20;
+  const radius = 62;
+  const stroke = 18;
   const circumference = 2 * Math.PI * radius;
   const { segments } = items.reduce(
     (acc, item) => {
@@ -59,21 +59,21 @@ function DonutChart({ items }: { items: DistributionItem[] }) {
   );
 
   return (
-    <svg viewBox="0 0 180 180" className="size-[168px]" aria-hidden="true">
+    <svg viewBox="0 0 160 160" className="size-[148px]" aria-hidden="true">
       <circle
-        cx="90"
-        cy="90"
+        cx="80"
+        cy="80"
         r={radius}
         fill="none"
         stroke="var(--border)"
         strokeWidth={stroke}
       />
-      <g transform="rotate(-90 90 90)">
+      <g transform="rotate(-90 80 80)">
         {segments.map(({ item, dash, gap, dashOffset }) => (
           <circle
             key={item.label}
-            cx="90"
-            cy="90"
+            cx="80"
+            cy="80"
             r={radius}
             fill="none"
             stroke={getPostFormatColor(item.label, item.color)}
@@ -84,16 +84,16 @@ function DonutChart({ items }: { items: DistributionItem[] }) {
         ))}
       </g>
       <text
-        x="90"
-        y="88"
+        x="80"
+        y="78"
         textAnchor="middle"
-        className="fill-ink font-mono text-[20px]"
+        className="fill-ink font-mono text-[18px]"
       >
         {total}
       </text>
       <text
-        x="90"
-        y="106"
+        x="80"
+        y="94"
         textAnchor="middle"
         className="fill-muted font-mono text-[9px] uppercase tracking-[0.12em]"
       >
@@ -127,13 +127,11 @@ export function ChannelDistribution({
           No content distribution yet
         </div>
       ) : (
-        <div
-          className={`flex items-center gap-6 ${
-            compact ? "flex-col" : "flex-col sm:flex-row xl:flex-col 2xl:flex-row"
-          }`}
-        >
-          <DonutChart items={items} />
-          <div className="flex w-full min-w-0 flex-1 flex-col gap-3">
+        <div className="flex min-w-0 flex-col items-center gap-4">
+          <div className="flex w-full justify-center">
+            <DonutChart items={items} />
+          </div>
+          <div className="flex w-full min-w-0 flex-col gap-3">
             {items.map((item) => (
               <LegendRow key={item.label} item={item} />
             ))}

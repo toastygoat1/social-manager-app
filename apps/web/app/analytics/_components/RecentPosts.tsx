@@ -24,7 +24,7 @@ import { getPostFormatColor } from "./post-format-colors";
 type StatMeta = {
   label: string;
   Icon: typeof Eye;
-  iconBg: string;
+  iconColor: string;
   fillIcon?: boolean;
 };
 
@@ -32,28 +32,28 @@ const STAT_META = {
   eye: {
     label: "Views",
     Icon: Eye,
-    iconBg: "bg-[var(--chart-2)]",
+    iconColor: "text-[var(--chart-2)]",
   },
   heart: {
     label: "Likes",
     Icon: Heart,
-    iconBg: "bg-[var(--danger)]",
+    iconColor: "text-[var(--danger)]",
     fillIcon: true,
   },
   comments: {
     label: "Comments",
     Icon: MessageSquareText,
-    iconBg: "bg-[var(--chart-3)]",
+    iconColor: "text-[var(--chart-3)]",
   },
   share: {
     label: "Shares",
     Icon: Share2,
-    iconBg: "bg-[var(--chart-1)]",
+    iconColor: "text-[var(--chart-1)]",
   },
   save: {
     label: "Saves",
     Icon: Bookmark,
-    iconBg: "bg-[var(--chart-7)]",
+    iconColor: "text-[var(--chart-7)]",
     fillIcon: true,
   },
 } satisfies Record<PostStat["icon"], StatMeta>;
@@ -90,23 +90,19 @@ const POST_LIST_MODES = [
 
 function StatChip({ stat }: { stat: PostStat }) {
   const meta: StatMeta = STAT_META[stat.icon];
-  const { label, Icon, iconBg, fillIcon } = meta;
+  const { label, Icon, iconColor, fillIcon } = meta;
 
   return (
     <div
-      className="flex h-9 min-w-0 items-center justify-center gap-1 rounded-md bg-card px-1.5"
+      className="flex min-w-0 items-center justify-center gap-1"
       title={label}
     >
-      <span
-        className={`grid size-5 shrink-0 place-items-center rounded-[5px] text-page ${iconBg}`}
-      >
-        <Icon
-          className="size-3.5"
-          strokeWidth={2.25}
-          fill={fillIcon ? "currentColor" : "none"}
-        />
-      </span>
-      <span className="min-w-0 truncate font-mono text-[11px] leading-none text-ink">
+      <Icon
+        className={`size-3.5 shrink-0 ${iconColor}`}
+        strokeWidth={2.35}
+        fill={fillIcon ? "currentColor" : "none"}
+      />
+      <span className="min-w-0 truncate font-mono text-[12px] leading-none text-ink">
         {formatNumber(stat.value)}
       </span>
     </div>
@@ -217,11 +213,11 @@ export function RecentPosts({
 
   return (
     <section
-      className={`flex min-w-0 flex-col rounded-[10px] border border-line bg-paper ${
-        compact ? "gap-4 p-4" : "gap-5 p-[18px]"
+      className={`flex min-w-0 flex-col overflow-hidden rounded-[10px] border border-line bg-paper ${
+        compact ? "h-[38rem] gap-4 p-4" : "h-[42rem] gap-5 p-[18px]"
       }`}
     >
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <header className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <h2 className="analytics-card-title text-ink">{activeCopy.title}</h2>
           <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.04em] text-muted">
@@ -254,83 +250,87 @@ export function RecentPosts({
           })}
         </div>
       </header>
-      <div
-        className={`grid w-full gap-3 ${
-          compact ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
-        }`}
-      >
-        {activePosts.length === 0 ? (
-          <div className="col-span-full flex h-36 items-center justify-center rounded-lg bg-card text-sm text-muted">
-            {activeCopy.empty}
-          </div>
-        ) : (
-          visiblePosts.map((post, index) => {
-            const account = accountById.get(post.accountId) ?? null;
-            const displayStats = DISPLAY_STAT_ICONS.map((icon) =>
-              post.stats.find((stat) => stat.icon === icon),
-            ).filter((stat): stat is PostStat => Boolean(stat));
-
-            return (
-              <article
-                key={post.id}
-                className="group flex min-w-0 flex-col rounded-lg border border-line bg-paper p-3 text-left transition hover:-translate-y-0.5 hover:border-ink/20 hover:shadow-[0_14px_30px_rgba(24,22,18,0.08)]"
-              >
-                <button
-                  type="button"
-                  onClick={() => setSelectedPostId(post.id)}
-                  className="flex min-w-0 flex-1 flex-col gap-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <span
-                      className="rounded-md px-2 py-1 font-mono text-[10px] font-medium uppercase tracking-[0.04em] text-page"
-                      style={{
-                        backgroundColor: getPostFormatColor(
-                          post.badge.label,
-                          post.badge.color,
-                        ),
-                      }}
-                    >
-                      {post.badge.label}
-                    </span>
-                    <span className="font-mono text-[24px] font-semibold leading-none text-ink">
-                      {String(index + 1).padStart(2, "0")}
-                    </span>
-                  </div>
-                  <div className="relative aspect-[16/9] w-full overflow-hidden rounded-md bg-card">
-                    <MediaPreview post={post} />
-                  </div>
-                  <AccountLine account={account} />
-                  <p className="line-clamp-2 min-h-10 text-[13px] leading-5 text-ink">
-                    {post.caption}
-                  </p>
-                  <div className="grid grid-cols-5 gap-1.5 border-t border-line pt-3">
-                    {displayStats.map((stat) => (
-                      <StatChip key={stat.icon} stat={stat} />
-                    ))}
-                  </div>
-                </button>
-              </article>
-            );
-          })
-        )}
-      </div>
-      {hasMorePosts ? (
-        <button
-          type="button"
-          onClick={() =>
-            setVisibleCount((currentCount) => currentCount + chunkSize)
-          }
-          className="mx-auto flex h-9 items-center gap-2 rounded-lg border border-line bg-paper px-3 text-sm font-medium text-ink transition hover:bg-card focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta"
+      <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+        <div
+          className={`grid w-full gap-3 ${
+            compact
+              ? "grid-cols-1"
+              : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+          }`}
         >
-          <Plus className="size-3.5" strokeWidth={2} />
-          <span>
-            Show {Math.min(chunkSize, hiddenPostCount)} more
-          </span>
-          <span className="font-mono text-[11px] text-muted">
-            {visiblePosts.length}/{activePosts.length}
-          </span>
-        </button>
-      ) : null}
+          {activePosts.length === 0 ? (
+            <div className="col-span-full flex h-36 items-center justify-center rounded-lg bg-card text-sm text-muted">
+              {activeCopy.empty}
+            </div>
+          ) : (
+            visiblePosts.map((post, index) => {
+              const account = accountById.get(post.accountId) ?? null;
+              const displayStats = DISPLAY_STAT_ICONS.map((icon) =>
+                post.stats.find((stat) => stat.icon === icon),
+              ).filter((stat): stat is PostStat => Boolean(stat));
+
+              return (
+                <article
+                  key={post.id}
+                  className="group flex min-w-0 flex-col rounded-lg border border-line bg-paper p-3 text-left transition hover:-translate-y-0.5 hover:border-ink/20 hover:shadow-[0_14px_30px_rgba(24,22,18,0.08)]"
+                >
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPostId(post.id)}
+                    className="flex min-w-0 flex-1 flex-col gap-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <span
+                        className="rounded-md px-2 py-1 font-mono text-[10px] font-medium uppercase tracking-[0.04em] text-page"
+                        style={{
+                          backgroundColor: getPostFormatColor(
+                            post.badge.label,
+                            post.badge.color,
+                          ),
+                        }}
+                      >
+                        {post.badge.label}
+                      </span>
+                      <span className="font-mono text-[24px] font-semibold leading-none text-ink">
+                        {String(index + 1).padStart(2, "0")}
+                      </span>
+                    </div>
+                    <div className="relative aspect-[16/9] w-full overflow-hidden rounded-md bg-card">
+                      <MediaPreview post={post} />
+                    </div>
+                    <AccountLine account={account} />
+                    <p className="line-clamp-2 min-h-10 text-[13px] leading-5 text-ink">
+                      {post.caption}
+                    </p>
+                    <div className="grid grid-cols-5 gap-2 border-t border-line pt-3">
+                      {displayStats.map((stat) => (
+                        <StatChip key={stat.icon} stat={stat} />
+                      ))}
+                    </div>
+                  </button>
+                </article>
+              );
+            })
+          )}
+        </div>
+      </div>
+      <div className="flex h-9 shrink-0 justify-center">
+        {hasMorePosts ? (
+          <button
+            type="button"
+            onClick={() =>
+              setVisibleCount((currentCount) => currentCount + chunkSize)
+            }
+            className="flex h-9 items-center gap-2 rounded-lg border border-line bg-paper px-3 text-sm font-medium text-ink transition hover:bg-card focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta"
+          >
+            <Plus className="size-3.5" strokeWidth={2} />
+            <span>Show {Math.min(chunkSize, hiddenPostCount)} more</span>
+            <span className="font-mono text-[11px] text-muted">
+              {visiblePosts.length}/{activePosts.length}
+            </span>
+          </button>
+        ) : null}
+      </div>
       <PostDetailsModal
         postId={selectedPostId}
         onClose={() => setSelectedPostId(null)}
