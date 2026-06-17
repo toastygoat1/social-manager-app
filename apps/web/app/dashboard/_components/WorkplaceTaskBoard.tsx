@@ -1900,6 +1900,7 @@ function GanttView({
   const groupBoundaryPositions = timeline.groups
     .map((group) => group.left + group.width)
     .filter((left) => left > 0 && left < timelineWidth);
+  const groupBoundaryPositionSet = new Set(groupBoundaryPositions);
 
   const summaryStart =
     datedTasks.reduce<Date | null>(
@@ -2109,7 +2110,7 @@ function GanttView({
               <button
                 type="button"
                 onClick={onAddTask}
-                className="grid grid-cols-[1fr_104px] border-b border-line bg-paper text-left text-sm text-muted transition hover:bg-card hover:text-ink"
+                className="grid w-full grid-cols-[1fr_104px] border-b border-line bg-paper text-left text-sm text-muted transition hover:bg-card hover:text-ink"
                 style={{ height: GANTT_ROW_HEIGHT }}
               >
                 <span className="flex min-w-0 items-center gap-2 px-7">
@@ -2145,7 +2146,11 @@ function GanttView({
                   {timeline.columns.map((column) => (
                     <span
                       key={column.key}
-                      className={`absolute inset-y-0 flex items-center justify-center overflow-hidden whitespace-nowrap border-r border-dashed border-line px-1 last:border-r-0 ${
+                      className={`absolute inset-y-0 flex items-center justify-center overflow-hidden whitespace-nowrap px-1 ${
+                        groupBoundaryPositionSet.has(column.left + column.width)
+                          ? ""
+                          : "border-r border-dashed border-line last:border-r-0"
+                      } ${
                         column.muted ? "text-muted/60" : ""
                       }`}
                       style={{ left: column.left, width: column.width }}
@@ -2176,7 +2181,11 @@ function GanttView({
                   <span
                     key={column.key}
                     aria-hidden="true"
-                    className={`absolute top-0 h-full border-r border-dashed border-line last:border-r-0 ${
+                    className={`absolute top-0 h-full ${
+                      groupBoundaryPositionSet.has(column.left + column.width)
+                        ? ""
+                        : "border-r border-dashed border-line last:border-r-0"
+                    } ${
                       column.shaded
                         ? "bg-[repeating-linear-gradient(135deg,rgba(0,0,0,0.035)_0,rgba(0,0,0,0.035)_1px,transparent_1px,transparent_5px)]"
                         : ""
@@ -2214,7 +2223,7 @@ function GanttView({
                     key={index}
                     aria-hidden="true"
                     className="absolute left-0 right-0 border-b border-line"
-                    style={{ top: index * GANTT_ROW_HEIGHT }}
+                    style={{ top: (index + 1) * GANTT_ROW_HEIGHT }}
                   />
                 ))}
                 <span
@@ -2226,7 +2235,7 @@ function GanttView({
                 {todayLeft !== null ? (
                   <span
                     aria-hidden="true"
-                    className="absolute top-0 z-10 h-full w-px bg-danger"
+                    className="pointer-events-none absolute top-0 z-30 h-full w-px bg-danger"
                     style={{ left: todayLeft }}
                   >
                     <span className="absolute -left-1.5 -top-1 size-3 rounded-full bg-danger" />
