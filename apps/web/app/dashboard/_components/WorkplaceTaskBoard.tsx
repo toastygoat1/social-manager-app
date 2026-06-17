@@ -1548,6 +1548,22 @@ function DeadlineCalendar({
       }),
     [calendarTasks, weeks],
   );
+  const weekRowHeights = useMemo(
+    () =>
+      segmentsByWeek.map((segments) =>
+        Math.max(
+          CALENDAR_WEEK_MIN_HEIGHT,
+          CALENDAR_RANGE_TOP +
+            segments.length * (CALENDAR_RANGE_HEIGHT + CALENDAR_RANGE_GAP) +
+            12,
+        ),
+      ),
+    [segmentsByWeek],
+  );
+  const calendarBodyMinHeight = weekRowHeights.reduce(
+    (total, rowHeight) => total + rowHeight,
+    0,
+  );
   const deadlineCount = calendarTasks.length;
 
   function shiftMonth(monthOffset: number) {
@@ -1597,7 +1613,7 @@ function DeadlineCalendar({
 
       <div className="min-h-0 flex-1 overflow-auto">
         <div className="flex min-h-full min-w-[960px] flex-col">
-          <div className="grid grid-cols-7 border-b border-line bg-card">
+          <div className="sticky top-0 z-20 grid grid-cols-7 border-b border-line bg-card">
             {CALENDAR_WEEKDAYS.map((day) => (
               <div
                 key={day}
@@ -1607,22 +1623,22 @@ function DeadlineCalendar({
               </div>
             ))}
           </div>
-          <div className="flex flex-1 flex-col">
+          <div
+            className="grid flex-1"
+            style={{
+              gridTemplateRows: weekRowHeights
+                .map((rowHeight) => `minmax(${rowHeight}px, 1fr)`)
+                .join(" "),
+              minHeight: calendarBodyMinHeight,
+            }}
+          >
             {weeks.map((week, weekIndex) => {
               const segments = segmentsByWeek[weekIndex] ?? [];
-              const rowHeight = Math.max(
-                CALENDAR_WEEK_MIN_HEIGHT,
-                CALENDAR_RANGE_TOP +
-                  segments.length *
-                    (CALENDAR_RANGE_HEIGHT + CALENDAR_RANGE_GAP) +
-                  12,
-              );
 
               return (
                 <div
                   key={week.map((cell) => cell.dateKey).join("-")}
-                  className="relative grid flex-1 grid-cols-7 border-b border-line last:border-b-0"
-                  style={{ minHeight: rowHeight }}
+                  className="relative grid grid-cols-7 border-b border-line last:border-b-0"
                 >
                   {week.map((cell, dayIndex) => {
                     const isToday = cell.dateKey === todayKey;

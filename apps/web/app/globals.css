@@ -202,13 +202,13 @@ body {
 }
 
 .app-shell-sidebar {
-  position: sticky;
-  top: 12px;
-  margin: 12px 8px 12px 12px;
-  border: 1px solid var(--sidebar-border);
-  border-radius: 10px;
+  position: relative;
+  top: 0;
+  margin: 0;
+  border-right: 1px solid var(--sidebar-border);
+  border-radius: 0;
   background: var(--sidebar-bg);
-  height: calc(var(--app-shell-panel-height) - 24px);
+  height: var(--app-shell-panel-height);
 }
 
 .app-shell-panel {
