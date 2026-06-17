@@ -15,6 +15,7 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  Ellipsis,
   FileText,
   Flag,
   PanelLeft,
@@ -1398,6 +1399,7 @@ function FolderTile({
   onColorChange: (color: string) => void;
 }) {
   const folderColor = getFolderColor(workspace);
+  const [colorMenuOpen, setColorMenuOpen] = useState(false);
 
   return (
     <div
@@ -1427,31 +1429,52 @@ function FolderTile({
         </span>
       </button>
 
-      <div
-        className={`absolute right-2 top-2 z-20 flex items-center gap-1 rounded-full border border-line bg-paper/95 p-1 shadow-sm transition ${
-          selected
+      <button
+        type="button"
+        aria-label="Folder options"
+        aria-expanded={colorMenuOpen}
+        onClick={() => setColorMenuOpen((current) => !current)}
+        className={`absolute right-2 top-2 z-30 flex size-7 items-center justify-center rounded-full border border-line bg-paper/95 text-ink shadow-sm transition hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 ${
+          colorMenuOpen
             ? "opacity-100"
             : "opacity-0 group-hover/folder:opacity-100 group-focus-within/folder:opacity-100"
         }`}
-        role="group"
-        aria-label="Folder colors"
       >
-        {FOLDER_COLOR_OPTIONS.map((color) => (
-          <button
-            key={color}
-            type="button"
-            aria-label={`Set folder color ${color}`}
-            aria-pressed={folderColor.toLowerCase() === color.toLowerCase()}
-            onClick={() => onColorChange(color)}
-            className={`size-4 rounded-full border transition hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 ${
-              folderColor.toLowerCase() === color.toLowerCase()
-                ? "border-ink"
-                : "border-white"
-            }`}
-            style={{ backgroundColor: color }}
-          />
-        ))}
-      </div>
+        <Ellipsis className="size-4" strokeWidth={1.8} />
+      </button>
+
+      {colorMenuOpen ? (
+        <div
+          className="absolute right-2 top-10 z-30 flex items-center gap-1 rounded-full border border-line bg-paper/95 p-1 shadow-sm"
+          onMouseLeave={() => setColorMenuOpen(false)}
+          onBlur={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget)) {
+              setColorMenuOpen(false);
+            }
+          }}
+          role="group"
+          aria-label="Folder colors"
+        >
+          {FOLDER_COLOR_OPTIONS.map((color) => (
+            <button
+              key={color}
+              type="button"
+              aria-label={`Set folder color ${color}`}
+              aria-pressed={folderColor.toLowerCase() === color.toLowerCase()}
+              onClick={() => {
+                onColorChange(color);
+                setColorMenuOpen(false);
+              }}
+              className={`size-4 rounded-full border transition hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 ${
+                folderColor.toLowerCase() === color.toLowerCase()
+                  ? "border-ink"
+                  : "border-white"
+              }`}
+              style={{ backgroundColor: color }}
+            />
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -1534,8 +1557,8 @@ function DeadlineCalendar({
         </div>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-auto p-4">
-        <div className="min-w-[760px] overflow-hidden border border-line bg-card/40">
+      <div className="min-h-0 flex-1 overflow-auto">
+        <div className="flex min-h-full min-w-[900px] flex-col">
           <div className="grid grid-cols-7 border-b border-line bg-card">
             {CALENDAR_WEEKDAYS.map((day) => (
               <div
@@ -1546,7 +1569,7 @@ function DeadlineCalendar({
               </div>
             ))}
           </div>
-          <div className="grid grid-cols-7">
+          <div className="grid flex-1 auto-rows-fr grid-cols-7">
             {cells.map((cell, index) => {
               const dayEvents = eventsByDate.get(cell.dateKey) ?? [];
               const visibleEvents = dayEvents.slice(0, 3);
@@ -1556,7 +1579,7 @@ function DeadlineCalendar({
               return (
                 <div
                   key={cell.dateKey}
-                  className={`min-h-[104px] border-r border-line p-2.5 ${
+                  className={`min-h-[92px] border-r border-line p-2.5 ${
                     index >= 7 ? "border-t" : ""
                   } ${(index + 1) % 7 === 0 ? "border-r-0" : ""} ${
                     cell.outside ? "bg-card/50 text-muted" : "bg-paper"
@@ -1888,7 +1911,7 @@ function GanttView({
               className="relative z-20 shrink-0 border-r border-line bg-paper"
               style={{ width: leftWidth }}
             >
-              <div className="grid h-16 grid-cols-[1fr_104px] border-b border-line text-xs text-muted">
+              <div className="sticky top-0 z-30 grid h-16 grid-cols-[1fr_104px] border-b border-line bg-paper text-xs text-muted">
                 <div className="flex items-center px-7">Name</div>
                 <div className="flex items-center justify-between border-l border-line px-3">
                   <span>Due Date</span>
@@ -1946,7 +1969,7 @@ function GanttView({
 
           <div ref={scrollerRef} className="min-w-0 flex-1 overflow-x-auto">
             <div className="min-h-full" style={{ width: timelineWidth }}>
-              <div className="h-16 border-b border-line bg-paper">
+              <div className="sticky top-0 z-20 h-16 border-b border-line bg-paper">
                 <div className="relative h-8 border-b border-line text-xs text-muted">
                   {timeline.groups.map((group) => (
                     <span
@@ -1974,11 +1997,11 @@ function GanttView({
               </div>
 
               <div
-                className="relative"
+                className="relative overflow-hidden"
                 style={{
                   height: contentHeight,
                   minHeight: "100%",
-                  minWidth: timelineWidth,
+                  width: timelineWidth,
                 }}
               >
                 {timeline.columns.map((column) => (
@@ -2028,6 +2051,10 @@ function GanttView({
                   const left = Math.min(startX, endX);
                   const width = Math.max(6, Math.abs(endX - startX));
                   const top = (index + 1) * GANTT_ROW_HEIGHT + 10;
+                  const labelLeft = Math.max(
+                    0,
+                    Math.min(left + width + 8, timelineWidth - 228),
+                  );
 
                   return (
                     <div key={task.id}>
@@ -2038,7 +2065,7 @@ function GanttView({
                       />
                       <span
                         className="absolute flex max-w-[220px] items-center gap-1.5 truncate text-xs text-ink"
-                        style={{ left: left + width + 8, top: top - 1 }}
+                        style={{ left: labelLeft, top: top - 1 }}
                       >
                         <TaskPeopleStack
                           task={task}
@@ -2895,7 +2922,7 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
   if (isLoadingFolders) {
     return (
       <section className="flex min-h-0 min-w-0 flex-1 overflow-hidden bg-paper">
-        <aside className="flex w-[252px] shrink-0 flex-col border-r border-line bg-paper">
+        <aside className="flex w-[252px] shrink-0 flex-col border-r border-line bg-paper shadow-[1px_0_0_rgba(17,24,39,0.08)]">
           <div className="border-b border-line px-4 py-4">
             <h1 className="text-xl font-semibold leading-tight text-ink">
               Workspace
@@ -2918,7 +2945,7 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
 
   return (
     <section className="flex min-h-0 min-w-0 flex-1 overflow-hidden bg-paper">
-      <aside className="flex w-[252px] shrink-0 flex-col border-r border-line bg-paper">
+      <aside className="flex w-[252px] shrink-0 flex-col border-r border-line bg-paper shadow-[1px_0_0_rgba(17,24,39,0.08)]">
         <div className="border-b border-line px-4 py-4">
           <h1 className="text-xl font-semibold leading-tight text-ink">
             Workspace
