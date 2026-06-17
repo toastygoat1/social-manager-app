@@ -7,6 +7,7 @@ import {
   Heart,
   ImageIcon,
   MessageSquareText,
+  Plus,
   Share2,
   TrendingUp,
   Video,
@@ -18,6 +19,7 @@ import type { Account } from "@/app/dashboard/_components/data";
 import { PostDetailsModal } from "@/app/scheduler/_components/PostDetailsModal";
 import { formatNumber } from "@/lib/format";
 import type { PostStat, RecentPost } from "./data";
+import { getPostFormatColor } from "./post-format-colors";
 
 type StatMeta = {
   label: string;
@@ -61,7 +63,10 @@ const DISPLAY_STAT_ICONS: PostStat["icon"][] = [
   "heart",
   "comments",
   "share",
+  "save",
 ];
+const POST_CHUNK_SIZE = 6;
+const COMPACT_POST_CHUNK_SIZE = 3;
 
 type PostListMode = "top" | "latest";
 
@@ -88,7 +93,10 @@ function StatChip({ stat }: { stat: PostStat }) {
   const { label, Icon, iconBg, fillIcon } = meta;
 
   return (
-    <div className="flex min-w-0 items-center gap-2 rounded-md bg-card px-2 py-1.5">
+    <div
+      className="flex h-9 min-w-0 items-center justify-center gap-1 rounded-md bg-card px-1.5"
+      title={label}
+    >
       <span
         className={`grid size-5 shrink-0 place-items-center rounded-[5px] text-page ${iconBg}`}
       >
@@ -98,13 +106,8 @@ function StatChip({ stat }: { stat: PostStat }) {
           fill={fillIcon ? "currentColor" : "none"}
         />
       </span>
-      <span className="min-w-0">
-        <span className="block truncate font-mono text-[12px] leading-4 text-ink">
-          {formatNumber(stat.value)}
-        </span>
-        <span className="block truncate text-[9px] font-medium uppercase leading-3 text-muted">
-          {label}
-        </span>
+      <span className="min-w-0 truncate font-mono text-[11px] leading-none text-ink">
+        {formatNumber(stat.value)}
       </span>
     </div>
   );
@@ -157,74 +160,28 @@ function getAccountTitle(account: Account | null | undefined) {
   );
 }
 
-function getAccountHandle(account: Account | null | undefined) {
-  if (!account) return "Account";
-
-  const username =
-    account.username?.replace(/^@/, "").trim() ||
-    account.name.replace(/^@/, "").trim();
-
-  return username ? `@${username}` : account.platform;
-}
-
 function getAccountInitial(account: Account | null | undefined) {
   return getAccountTitle(account).charAt(0).toUpperCase() || "A";
 }
 
-function AccountLine({
-  account,
-  badge,
-}: {
-  account: Account | null;
-  badge: RecentPost["badge"];
-}) {
+function AccountLine({ account }: { account: Account | null }) {
   return (
-    <div className="flex min-w-0 items-center justify-between gap-3">
-      <div className="flex min-w-0 items-center gap-2">
-        <span className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full">
-          <AvatarImage
-            src={account?.avatarUrl}
-            alt={account?.name ?? "Account"}
-            width={32}
-            height={32}
-            className="size-8 rounded-full object-cover"
-            fallback={getAccountInitial(account)}
-          />
-        </span>
-        <span className="min-w-0">
-          <span className="block truncate text-[13px] font-semibold leading-4 text-ink">
-            {getAccountTitle(account)}
-          </span>
-          <span className="block truncate font-mono text-[10px] leading-4 text-muted">
-            {getAccountHandle(account)}
-          </span>
-        </span>
-      </div>
-      <span
-        className="shrink-0 rounded-md px-2 py-1 font-mono text-[10px] font-medium uppercase tracking-[0.04em] text-page"
-        style={{ backgroundColor: badge.color }}
-      >
-        {badge.label}
+    <div className="flex min-w-0 items-center gap-2">
+      <span className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full">
+        <AvatarImage
+          src={account?.avatarUrl}
+          alt={account?.name ?? "Account"}
+          width={32}
+          height={32}
+          className="size-8 rounded-full object-cover"
+          fallback={getAccountInitial(account)}
+        />
+      </span>
+      <span className="min-w-0 truncate text-[13px] font-semibold leading-4 text-ink">
+        {getAccountTitle(account)}
       </span>
     </div>
   );
-}
-
-function formatTimeAgo(value: string | null) {
-  if (!value) return "-";
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
-
-  const diffMs = Date.now() - date.getTime();
-  const minute = 60 * 1000;
-  const hour = 60 * minute;
-  const day = 24 * hour;
-
-  if (diffMs < hour)
-    return `${Math.max(1, Math.floor(diffMs / minute))} min ago`;
-  if (diffMs < day) return `${Math.floor(diffMs / hour)} hours ago`;
-  return `${Math.floor(diffMs / day)} days ago`;
 }
 
 export function RecentPosts({
@@ -242,11 +199,21 @@ export function RecentPosts({
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [mode, setMode] = useState<PostListMode>("top");
   const activeCopy = POST_LIST_COPY[mode];
-  const visiblePosts = mode === "latest" ? latestPosts : posts;
+  const activePosts = mode === "latest" ? latestPosts : posts;
+  const chunkSize = compact ? COMPACT_POST_CHUNK_SIZE : POST_CHUNK_SIZE;
+  const [visibleCount, setVisibleCount] = useState(chunkSize);
+  const visiblePosts = activePosts.slice(0, visibleCount);
+  const hiddenPostCount = Math.max(0, activePosts.length - visiblePosts.length);
+  const hasMorePosts = hiddenPostCount > 0;
   const accountById = useMemo(
     () => new Map(accounts.map((account) => [account.id, account])),
     [accounts],
   );
+
+  function switchMode(nextMode: PostListMode) {
+    setMode(nextMode);
+    setVisibleCount(chunkSize);
+  }
 
   return (
     <section
@@ -272,7 +239,7 @@ export function RecentPosts({
               <button
                 type="button"
                 key={id}
-                onClick={() => setMode(id)}
+                onClick={() => switchMode(id)}
                 aria-pressed={isActive}
                 className={`inline-flex min-w-0 items-center justify-center gap-1.5 rounded-md px-2 text-[11px] font-medium transition ${
                   isActive
@@ -292,7 +259,7 @@ export function RecentPosts({
           compact ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
         }`}
       >
-        {visiblePosts.length === 0 ? (
+        {activePosts.length === 0 ? (
           <div className="col-span-full flex h-36 items-center justify-center rounded-lg bg-card text-sm text-muted">
             {activeCopy.empty}
           </div>
@@ -313,22 +280,30 @@ export function RecentPosts({
                   onClick={() => setSelectedPostId(post.id)}
                   className="flex min-w-0 flex-1 flex-col gap-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta"
                 >
-                  <div className="flex items-end justify-between gap-3">
-                    <span className="analytics-serif text-[34px] italic leading-none text-ink">
-                      {String(index + 1).padStart(2, "0")}
+                  <div className="flex items-center justify-between gap-3">
+                    <span
+                      className="rounded-md px-2 py-1 font-mono text-[10px] font-medium uppercase tracking-[0.04em] text-page"
+                      style={{
+                        backgroundColor: getPostFormatColor(
+                          post.badge.label,
+                          post.badge.color,
+                        ),
+                      }}
+                    >
+                      {post.badge.label}
                     </span>
-                    <span className="pb-1 font-mono text-[10px] text-muted">
-                      {formatTimeAgo(post.publishedAt)}
+                    <span className="font-mono text-[24px] font-semibold leading-none text-ink">
+                      {String(index + 1).padStart(2, "0")}
                     </span>
                   </div>
                   <div className="relative aspect-[16/9] w-full overflow-hidden rounded-md bg-card">
                     <MediaPreview post={post} />
                   </div>
-                  <AccountLine account={account} badge={post.badge} />
+                  <AccountLine account={account} />
                   <p className="line-clamp-2 min-h-10 text-[13px] leading-5 text-ink">
                     {post.caption}
                   </p>
-                  <div className="grid grid-cols-2 gap-2 border-t border-line pt-3">
+                  <div className="grid grid-cols-5 gap-1.5 border-t border-line pt-3">
                     {displayStats.map((stat) => (
                       <StatChip key={stat.icon} stat={stat} />
                     ))}
@@ -339,6 +314,23 @@ export function RecentPosts({
           })
         )}
       </div>
+      {hasMorePosts ? (
+        <button
+          type="button"
+          onClick={() =>
+            setVisibleCount((currentCount) => currentCount + chunkSize)
+          }
+          className="mx-auto flex h-9 items-center gap-2 rounded-lg border border-line bg-paper px-3 text-sm font-medium text-ink transition hover:bg-card focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta"
+        >
+          <Plus className="size-3.5" strokeWidth={2} />
+          <span>
+            Show {Math.min(chunkSize, hiddenPostCount)} more
+          </span>
+          <span className="font-mono text-[11px] text-muted">
+            {visiblePosts.length}/{activePosts.length}
+          </span>
+        </button>
+      ) : null}
       <PostDetailsModal
         postId={selectedPostId}
         onClose={() => setSelectedPostId(null)}

@@ -27,6 +27,10 @@ import {
 } from "@/app/_components/DateTimePickerPopover";
 import { AvatarImage } from "@/app/_components/AvatarImage";
 import type { Account } from "@/app/dashboard/_components/data";
+import {
+  ExportInsightsButton,
+  type AnalyticsExportDataset,
+} from "./ExportInsightsButton";
 import { RefreshInsightsButton } from "./RefreshInsightsButton";
 import {
   type AnalyticsNavigationTarget,
@@ -51,6 +55,8 @@ type AccountsTopCardProps = {
   lastUpdatedAt: string | null;
   isCompareMode?: boolean;
   compareAccountIds?: CompareAccountIds;
+  exportDatasets?: AnalyticsExportDataset[];
+  exportRangeLabel?: string;
 };
 
 type AnalyticsHrefOptions = {
@@ -190,6 +196,8 @@ export function AccountsTopCard({
   lastUpdatedAt,
   isCompareMode = false,
   compareAccountIds = [null, null, null],
+  exportDatasets = [],
+  exportRangeLabel = "",
 }: AccountsTopCardProps) {
   const router = useRouter();
   const { beginNavigation, pendingTarget } = useAnalyticsNavigation();
@@ -698,6 +706,11 @@ export function AccountsTopCard({
           </div>
         </div>
         <div className="ml-auto flex w-full min-w-0 flex-1 flex-wrap items-center justify-end gap-2.5 xl:w-auto">
+          <ExportInsightsButton
+            datasets={exportDatasets}
+            rangeLabel={exportRangeLabel}
+            disabled={accounts.length === 0}
+          />
           <RefreshInsightsButton
             selectedAccountId={selectedAccountId}
             selectedAccountIds={selectedAccountIds}

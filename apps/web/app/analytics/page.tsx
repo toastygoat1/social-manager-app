@@ -21,6 +21,8 @@ import {
   AnalyticsContentShell,
   AnalyticsNavigationProvider,
 } from "./_components/AnalyticsNavigationProvider";
+import type { AnalyticsExportDataset } from "./_components/ExportInsightsButton";
+import type { AnalyticsData } from "./_components/data";
 import {
   analyticsTimeFilterLabel,
   createAnalyticsSearchParams,
@@ -61,6 +63,43 @@ function getOwnedAccountId(
 
 type CompareAccountIds = [string | null, string | null, string | null];
 const REQUIRED_COMPARE_SLOT_COUNT = 2;
+
+type ExportAccount = {
+  id: string;
+  name: string;
+  displayName?: string | null;
+  username?: string | null;
+};
+
+function accountExportName(account: ExportAccount | undefined) {
+  if (!account) return "";
+
+  return (
+    account.displayName?.trim() ||
+    account.name.replace(/^@/, "").trim() ||
+    account.username?.replace(/^@/, "").trim() ||
+    "Instagram"
+  );
+}
+
+function getAccountExportName(
+  accounts: ExportAccount[],
+  accountId: string | null,
+  fallback: string,
+) {
+  return accountExportName(accounts.find((account) => account.id === accountId)) ||
+    fallback;
+}
+
+function getOverviewExportLabel(data: AnalyticsData) {
+  if (data.selectedAccountIds.length === 0) return "Overview";
+
+  const names = data.selectedAccountIds
+    .map((accountId) => getAccountExportName(data.accounts, accountId, "Account"))
+    .filter(Boolean);
+
+  return names.length > 0 ? names.join(", ") : "Selected accounts";
+}
 
 function getCompareAccountIds(
   accounts: { id: string }[],
@@ -203,6 +242,36 @@ export default async function AnalyticsPage({
         ),
       )
     : [null, null, null];
+  const exportDatasets: AnalyticsExportDataset[] = isCompareMode
+    ? [
+        {
+          label: `A - ${getAccountExportName(
+            data.accounts,
+            compareLeftAccountId,
+            "Account A",
+          )}`,
+          data: compareLeftData,
+        },
+        {
+          label: `B - ${getAccountExportName(
+            data.accounts,
+            compareRightAccountId,
+            "Account B",
+          )}`,
+          data: compareRightData,
+        },
+        {
+          label: `C - ${getAccountExportName(
+            data.accounts,
+            compareThirdAccountId,
+            "Account C",
+          )}`,
+          data: compareThirdData,
+        },
+      ].filter(
+        (dataset): dataset is AnalyticsExportDataset => dataset.data !== null,
+      )
+    : [{ label: getOverviewExportLabel(data), data }];
   const navigationKey = getNavigationKey({
     compareAccountIds,
     isCompareMode,
@@ -236,6 +305,8 @@ export default async function AnalyticsPage({
                 lastUpdatedAt={data.lastUpdatedAt}
                 isCompareMode={isCompareMode}
                 compareAccountIds={compareAccountIds}
+                exportDatasets={exportDatasets}
+                exportRangeLabel={selectedRangeLabel}
               />
             </div>
             <AnalyticsContentShell>

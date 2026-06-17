@@ -1,18 +1,21 @@
 import type { DistributionItem } from "./data";
+import { getPostFormatColor } from "./post-format-colors";
 
 function LegendRow({ item }: { item: DistributionItem }) {
+  const color = getPostFormatColor(item.label, item.color);
+
   return (
     <div className="grid grid-cols-[10px_72px_minmax(64px,1fr)_40px] items-center gap-2.5 text-xs">
       <span
         className="size-2 rounded-sm"
-        style={{ backgroundColor: item.color }}
+        style={{ backgroundColor: color }}
         aria-hidden="true"
       />
       <span className="truncate text-ink">{item.label}</span>
       <span className="relative h-1.5 overflow-hidden rounded-sm bg-line">
         <span
           className="absolute inset-y-0 left-0 rounded-sm"
-          style={{ backgroundColor: item.color, width: `${item.percentage}%` }}
+          style={{ backgroundColor: color, width: `${item.percentage}%` }}
         />
       </span>
       <span className="text-right font-mono text-[11px] text-muted">
@@ -73,7 +76,7 @@ function DonutChart({ items }: { items: DistributionItem[] }) {
             cy="90"
             r={radius}
             fill="none"
-            stroke={item.color}
+            stroke={getPostFormatColor(item.label, item.color)}
             strokeWidth={stroke}
             strokeDasharray={`${dash} ${gap}`}
             strokeDashoffset={dashOffset}

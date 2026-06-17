@@ -313,7 +313,6 @@ const ALLOWED_RANGE_DAYS = new Set([7, 30, 90]);
 const MAX_CUSTOM_RANGE_DAYS = 366;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MAX_RANGE_POSTS = 500;
-const MAX_RECENT_POSTS = 5;
 const MAX_CONTENT_ROWS = 20;
 const MAX_REFRESH_POSTS = 50;
 const REFRESH_INSIGHT_METRICS = [
@@ -2026,21 +2025,31 @@ function aggregateAudienceBreakdown(
 }
 
 function findTopPosts(posts: AnalyticsPost[]) {
-  return [...posts]
-    .sort((left, right) => postScore(right) - postScore(left))
-    .slice(0, MAX_RECENT_POSTS);
+  return [...posts].sort(compareTopPosts);
 }
 
 function findLatestPosts(posts: AnalyticsPost[]) {
-  return [...posts]
-    .sort((left, right) => postTimestamp(right) - postTimestamp(left))
-    .slice(0, MAX_RECENT_POSTS);
+  return [...posts].sort(
+    (left, right) => postTimestamp(right) - postTimestamp(left),
+  );
 }
 
-function postScore(post: AnalyticsPost) {
-  const analytics = latestAnalytics(post);
+function compareMetric(
+  left: number | null | undefined,
+  right: number | null | undefined,
+) {
+  return (right ?? -1) - (left ?? -1);
+}
+
+function compareTopPosts(left: AnalyticsPost, right: AnalyticsPost) {
+  const leftAnalytics = latestAnalytics(left);
+  const rightAnalytics = latestAnalytics(right);
+
   return (
-    analytics?.reach ?? analytics?.impressions ?? analytics?.engagement ?? -1
+    compareMetric(leftAnalytics?.reach, rightAnalytics?.reach) ||
+    compareMetric(leftAnalytics?.impressions, rightAnalytics?.impressions) ||
+    compareMetric(leftAnalytics?.engagement, rightAnalytics?.engagement) ||
+    postTimestamp(right) - postTimestamp(left)
   );
 }
 
