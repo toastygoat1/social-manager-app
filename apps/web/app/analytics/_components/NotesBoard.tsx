@@ -231,6 +231,13 @@ function getNoteAccounts(note: BoardNote, accountById: Map<string, Account>) {
     .filter((account): account is Account => Boolean(account));
 }
 
+function resizeTextareaToContent(element: HTMLTextAreaElement | null) {
+  if (!element) return;
+
+  element.style.height = "auto";
+  element.style.height = `${element.scrollHeight}px`;
+}
+
 function AccountAvatar({ account }: { account: Account }) {
   if (account.avatarUrl) {
     return (
@@ -268,6 +275,7 @@ function NoteAccountFooter({
 }) {
   return (
     <div
+      data-analytics-note-account-menu
       className="relative mt-3 flex h-8 shrink-0 items-center gap-1.5 text-xs font-medium opacity-80"
       onClick={(event) => event.stopPropagation()}
     >
@@ -451,6 +459,35 @@ export function NotesBoard({
   }, [accountMenuNoteId, boardNotes]);
 
   useEffect(() => {
+    if (!accountMenuNoteId) return;
+
+    function handleDocumentPointerDown(event: PointerEvent) {
+      const target = event.target;
+
+      if (
+        target instanceof Element &&
+        target.closest("[data-analytics-note-account-menu]")
+      ) {
+        return;
+      }
+
+      setAccountMenuNoteId(null);
+    }
+
+    function handleDocumentKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setAccountMenuNoteId(null);
+    }
+
+    document.addEventListener("pointerdown", handleDocumentPointerDown);
+    document.addEventListener("keydown", handleDocumentKeyDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handleDocumentPointerDown);
+      document.removeEventListener("keydown", handleDocumentKeyDown);
+    };
+  }, [accountMenuNoteId]);
+
+  useEffect(() => {
     if (!("BroadcastChannel" in window)) return;
 
     const channel = new BroadcastChannel(BOARD_CHANNEL);
@@ -484,6 +521,7 @@ export function NotesBoard({
       if (!element) return;
 
       window.requestAnimationFrame(() => {
+        resizeTextareaToContent(element);
         element.focus();
         const end = element.value.length;
         element.setSelectionRange(end, end);
@@ -669,7 +707,7 @@ export function NotesBoard({
           return (
             <article
               key={note.id}
-              className="flex h-44 w-full cursor-default flex-col rounded-none p-4 font-medium"
+              className="flex min-h-44 w-full cursor-default flex-col rounded-none p-4 font-medium"
               style={{
                 backgroundColor: style.paper,
                 color: style.text,
@@ -678,21 +716,22 @@ export function NotesBoard({
               }}
               onClick={() => setEditingNoteId(note.id)}
             >
-              <div className="min-h-0 flex-1 overflow-hidden">
+              <div className="flex-1">
                 {isEditing ? (
                   <textarea
                     ref={focusTextAreaAtEnd}
                     value={note.body}
-                    onChange={(event) =>
-                      updateLocalNote(note.id, { body: event.target.value })
-                    }
+                    onChange={(event) => {
+                      resizeTextareaToContent(event.currentTarget);
+                      updateLocalNote(note.id, { body: event.target.value });
+                    }}
                     onBlur={() => void saveNoteBody(note.id)}
                     maxLength={500}
-                    rows={4}
-                    className="block h-full min-h-0 w-full resize-none overflow-y-auto border-0 bg-transparent p-0 text-sm font-medium leading-6 text-current outline-none"
+                    rows={1}
+                    className="block min-h-[6rem] w-full resize-none overflow-hidden border-0 bg-transparent p-0 text-sm font-medium leading-6 text-current outline-none"
                   />
                 ) : (
-                  <p className="h-full overflow-y-auto whitespace-pre-wrap break-words text-sm font-medium leading-6">
+                  <p className="whitespace-pre-wrap break-words text-sm font-medium leading-6">
                     {note.body}
                   </p>
                 )}
@@ -717,7 +756,7 @@ export function NotesBoard({
         {isComposerOpen ? (
           <form
             onSubmit={createNote}
-            className="flex h-44 w-full flex-col rounded-none p-4 font-medium"
+            className="flex min-h-44 w-full flex-col rounded-none p-4 font-medium"
             style={{
               backgroundColor: draftNoteStyle.paper,
               color: draftNoteStyle.text,
@@ -738,12 +777,15 @@ export function NotesBoard({
             </div>
             <textarea
               value={draft}
-              onChange={(event) => setDraft(event.target.value)}
+              onChange={(event) => {
+                resizeTextareaToContent(event.currentTarget);
+                setDraft(event.target.value);
+              }}
               maxLength={500}
               autoFocus
-              rows={4}
+              rows={1}
               placeholder="Write a note..."
-              className="block min-h-0 flex-1 resize-none overflow-y-auto border-0 bg-transparent p-0 text-sm font-medium leading-6 text-current outline-none placeholder:text-current placeholder:opacity-60"
+              className="block min-h-[6rem] resize-none overflow-hidden border-0 bg-transparent p-0 text-sm font-medium leading-6 text-current outline-none placeholder:text-current placeholder:opacity-60"
             />
             <div className="mt-3 flex h-8 shrink-0 items-center justify-between gap-3">
               <div className="min-w-0 flex-1">
@@ -780,7 +822,7 @@ export function NotesBoard({
             onClick={openComposer}
             title="Add note"
             aria-label="Add note"
-            className="flex h-44 w-full flex-col items-center justify-center gap-2 rounded-none border border-dashed border-[#d8d0a8] bg-transparent p-4 text-sm font-medium text-muted transition hover:border-[#bfb48a] hover:text-ink"
+            className="flex min-h-44 w-full flex-col items-center justify-center gap-2 rounded-none border border-dashed border-[#d8d0a8] bg-transparent p-4 text-sm font-medium text-muted transition hover:border-[#bfb48a] hover:text-ink"
           >
             <Plus className="size-5" strokeWidth={1.7} />
             <span>Add note</span>

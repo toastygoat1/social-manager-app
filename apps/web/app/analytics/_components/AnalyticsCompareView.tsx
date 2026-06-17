@@ -20,6 +20,7 @@ type AnalyticsCompareViewProps = {
 };
 
 type CompareColumnProps = {
+  accounts: Account[];
   marker: string;
   accountId: string | null;
   data: AnalyticsData | null;
@@ -38,6 +39,7 @@ function EmptyCompareColumn() {
 }
 
 function CompareColumn({
+  accounts,
   marker,
   accountId,
   data,
@@ -69,6 +71,7 @@ function CompareColumn({
       <ChannelDistribution items={data.distribution} compact />
       <RecentPosts
         posts={data.recentPosts}
+        accounts={data.accounts.length > 0 ? data.accounts : accounts}
         latestPosts={data.latestPosts}
         compact
       />
@@ -118,12 +121,14 @@ export function AnalyticsCompareView({
             }`}
           >
             <CompareColumn
+              accounts={accounts}
               marker="A"
               accountId={leftAccountId}
               data={leftData}
               rangeLabel={rangeLabel}
             />
             <CompareColumn
+              accounts={accounts}
               marker="B"
               accountId={rightAccountId}
               data={rightData}
@@ -131,6 +136,7 @@ export function AnalyticsCompareView({
             />
             {showThirdColumn ? (
               <CompareColumn
+                accounts={accounts}
                 marker="C"
                 accountId={thirdAccountId}
                 data={thirdData}

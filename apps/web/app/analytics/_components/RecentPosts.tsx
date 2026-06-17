@@ -12,18 +12,56 @@ import {
   Video,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { AvatarImage } from "@/app/_components/AvatarImage";
+import type { Account } from "@/app/dashboard/_components/data";
 import { PostDetailsModal } from "@/app/scheduler/_components/PostDetailsModal";
 import { formatNumber } from "@/lib/format";
 import type { PostStat, RecentPost } from "./data";
 
-const ICONS = {
-  heart: Heart,
-  eye: Eye,
-  comments: MessageSquareText,
-  share: Share2,
-  save: Bookmark,
-} as const;
+type StatMeta = {
+  label: string;
+  Icon: typeof Eye;
+  iconBg: string;
+  fillIcon?: boolean;
+};
+
+const STAT_META = {
+  eye: {
+    label: "Views",
+    Icon: Eye,
+    iconBg: "bg-[var(--chart-2)]",
+  },
+  heart: {
+    label: "Likes",
+    Icon: Heart,
+    iconBg: "bg-[var(--danger)]",
+    fillIcon: true,
+  },
+  comments: {
+    label: "Comments",
+    Icon: MessageSquareText,
+    iconBg: "bg-[var(--chart-3)]",
+  },
+  share: {
+    label: "Shares",
+    Icon: Share2,
+    iconBg: "bg-[var(--chart-1)]",
+  },
+  save: {
+    label: "Saves",
+    Icon: Bookmark,
+    iconBg: "bg-[var(--chart-7)]",
+    fillIcon: true,
+  },
+} satisfies Record<PostStat["icon"], StatMeta>;
+
+const DISPLAY_STAT_ICONS: PostStat["icon"][] = [
+  "eye",
+  "heart",
+  "comments",
+  "share",
+];
 
 type PostListMode = "top" | "latest";
 
@@ -46,12 +84,27 @@ const POST_LIST_MODES = [
 ] as const;
 
 function StatChip({ stat }: { stat: PostStat }) {
-  const Icon = ICONS[stat.icon];
+  const meta: StatMeta = STAT_META[stat.icon];
+  const { label, Icon, iconBg, fillIcon } = meta;
+
   return (
-    <div className="flex min-w-0 items-center gap-1 overflow-hidden">
-      <Icon className="size-3 text-muted" strokeWidth={1.8} />
-      <span className="font-mono text-[10px] text-muted">
-        {formatNumber(stat.value)}
+    <div className="flex min-w-0 items-center gap-2 rounded-md bg-card px-2 py-1.5">
+      <span
+        className={`grid size-5 shrink-0 place-items-center rounded-[5px] text-page ${iconBg}`}
+      >
+        <Icon
+          className="size-3.5"
+          strokeWidth={2.25}
+          fill={fillIcon ? "currentColor" : "none"}
+        />
+      </span>
+      <span className="min-w-0">
+        <span className="block truncate font-mono text-[12px] leading-4 text-ink">
+          {formatNumber(stat.value)}
+        </span>
+        <span className="block truncate text-[9px] font-medium uppercase leading-3 text-muted">
+          {label}
+        </span>
       </span>
     </div>
   );
@@ -64,7 +117,7 @@ function MediaPreview({ post }: { post: RecentPost }) {
   if (previewImageUrl) {
     return (
       <div
-        className="absolute inset-0 bg-cover bg-center"
+        className="absolute inset-0 bg-cover bg-center transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.035]"
         style={{ backgroundImage: `url("${previewImageUrl}")` }}
         aria-label={post.caption}
         role="img"
@@ -75,7 +128,7 @@ function MediaPreview({ post }: { post: RecentPost }) {
   if (post.mediaUrl && post.mediaType === "VIDEO") {
     return (
       <video
-        className="absolute inset-0 size-full object-cover"
+        className="absolute inset-0 size-full object-cover transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.035]"
         muted
         playsInline
         preload="metadata"
@@ -89,6 +142,70 @@ function MediaPreview({ post }: { post: RecentPost }) {
   return (
     <div className="flex size-full items-center justify-center bg-card">
       <Icon className="size-9 text-muted" strokeWidth={1.6} />
+    </div>
+  );
+}
+
+function getAccountTitle(account: Account | null | undefined) {
+  if (!account) return "Unknown account";
+
+  return (
+    account.displayName?.trim() ||
+    account.name.replace(/^@/, "").trim() ||
+    account.username?.replace(/^@/, "").trim() ||
+    "Instagram"
+  );
+}
+
+function getAccountHandle(account: Account | null | undefined) {
+  if (!account) return "Account";
+
+  const username =
+    account.username?.replace(/^@/, "").trim() ||
+    account.name.replace(/^@/, "").trim();
+
+  return username ? `@${username}` : account.platform;
+}
+
+function getAccountInitial(account: Account | null | undefined) {
+  return getAccountTitle(account).charAt(0).toUpperCase() || "A";
+}
+
+function AccountLine({
+  account,
+  badge,
+}: {
+  account: Account | null;
+  badge: RecentPost["badge"];
+}) {
+  return (
+    <div className="flex min-w-0 items-center justify-between gap-3">
+      <div className="flex min-w-0 items-center gap-2">
+        <span className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full">
+          <AvatarImage
+            src={account?.avatarUrl}
+            alt={account?.name ?? "Account"}
+            width={32}
+            height={32}
+            className="size-8 rounded-full object-cover"
+            fallback={getAccountInitial(account)}
+          />
+        </span>
+        <span className="min-w-0">
+          <span className="block truncate text-[13px] font-semibold leading-4 text-ink">
+            {getAccountTitle(account)}
+          </span>
+          <span className="block truncate font-mono text-[10px] leading-4 text-muted">
+            {getAccountHandle(account)}
+          </span>
+        </span>
+      </div>
+      <span
+        className="shrink-0 rounded-md px-2 py-1 font-mono text-[10px] font-medium uppercase tracking-[0.04em] text-page"
+        style={{ backgroundColor: badge.color }}
+      >
+        {badge.label}
+      </span>
     </div>
   );
 }
@@ -112,10 +229,12 @@ function formatTimeAgo(value: string | null) {
 
 export function RecentPosts({
   posts,
+  accounts,
   latestPosts = posts,
   compact = false,
 }: {
   posts: RecentPost[];
+  accounts: Account[];
   latestPosts?: RecentPost[];
   compact?: boolean;
 }) {
@@ -124,6 +243,10 @@ export function RecentPosts({
   const [mode, setMode] = useState<PostListMode>("top");
   const activeCopy = POST_LIST_COPY[mode];
   const visiblePosts = mode === "latest" ? latestPosts : posts;
+  const accountById = useMemo(
+    () => new Map(accounts.map((account) => [account.id, account])),
+    [accounts],
+  );
 
   return (
     <section
@@ -174,43 +297,46 @@ export function RecentPosts({
             {activeCopy.empty}
           </div>
         ) : (
-          visiblePosts.map((post, index) => (
-            <article
-              key={post.id}
-              className="flex min-w-0 flex-col overflow-hidden rounded-lg border border-line bg-paper text-left transition hover:bg-card"
-            >
-              <button
-                type="button"
-                onClick={() => setSelectedPostId(post.id)}
-                className="flex min-w-0 flex-1 flex-col text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta"
+          visiblePosts.map((post, index) => {
+            const account = accountById.get(post.accountId) ?? null;
+            const displayStats = DISPLAY_STAT_ICONS.map((icon) =>
+              post.stats.find((stat) => stat.icon === icon),
+            ).filter((stat): stat is PostStat => Boolean(stat));
+
+            return (
+              <article
+                key={post.id}
+                className="group flex min-w-0 flex-col rounded-lg border border-line bg-paper p-3 text-left transition hover:-translate-y-0.5 hover:border-ink/20 hover:shadow-[0_14px_30px_rgba(24,22,18,0.08)]"
               >
-                <div className="relative aspect-[4/3] w-full overflow-hidden bg-card">
-                  <MediaPreview post={post} />
-                  <span className="analytics-serif absolute left-3 top-3 text-[28px] italic leading-none text-ink">
-                    {String(index + 1).padStart(2, "0")}
-                  </span>
-                  <span className="absolute bottom-3 left-3 rounded border border-line bg-page px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.04em] text-ink">
-                    {post.badge.label}
-                  </span>
-                </div>
-                <div className="flex w-full flex-col gap-3 p-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="line-clamp-2 min-h-9 text-[12px] leading-[18px] text-ink">
-                      {post.caption}
-                    </p>
-                    <span className="shrink-0 font-mono text-[10px] text-muted">
+                <button
+                  type="button"
+                  onClick={() => setSelectedPostId(post.id)}
+                  className="flex min-w-0 flex-1 flex-col gap-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta"
+                >
+                  <div className="flex items-end justify-between gap-3">
+                    <span className="analytics-serif text-[34px] italic leading-none text-ink">
+                      {String(index + 1).padStart(2, "0")}
+                    </span>
+                    <span className="pb-1 font-mono text-[10px] text-muted">
                       {formatTimeAgo(post.publishedAt)}
                     </span>
                   </div>
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-line pt-3">
-                    {post.stats.map((stat) => (
+                  <div className="relative aspect-[16/9] w-full overflow-hidden rounded-md bg-card">
+                    <MediaPreview post={post} />
+                  </div>
+                  <AccountLine account={account} badge={post.badge} />
+                  <p className="line-clamp-2 min-h-10 text-[13px] leading-5 text-ink">
+                    {post.caption}
+                  </p>
+                  <div className="grid grid-cols-2 gap-2 border-t border-line pt-3">
+                    {displayStats.map((stat) => (
                       <StatChip key={stat.icon} stat={stat} />
                     ))}
                   </div>
-                </div>
-              </button>
-            </article>
-          ))
+                </button>
+              </article>
+            );
+          })
         )}
       </div>
       <PostDetailsModal
