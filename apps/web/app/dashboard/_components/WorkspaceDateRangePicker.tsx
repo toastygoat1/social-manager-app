@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   CalendarDays,
+  CalendarPlus,
   ChevronDown,
   ChevronRight,
   ChevronUp,
@@ -33,6 +34,8 @@ type PresetOption = {
 type WorkspaceDateRangePickerProps = {
   startDate: string;
   deadline: string;
+  className?: string;
+  showEmptyText?: boolean;
   onStartDateChange: (value: string) => void;
   onDeadlineChange: (value: string) => void;
 };
@@ -264,6 +267,8 @@ function formatTriggerText(startDate: string, deadline: string) {
 export function WorkspaceDateRangePicker({
   startDate,
   deadline,
+  className = "",
+  showEmptyText = true,
   onStartDateChange,
   onDeadlineChange,
 }: WorkspaceDateRangePickerProps) {
@@ -280,6 +285,9 @@ export function WorkspaceDateRangePicker({
     setActiveField(startDate ? "deadline" : "startDate");
     setPickerAnchorRect(getCellAnchorRect(trigger));
   }
+  const triggerText = formatTriggerText(startDate, deadline);
+  const hasDateValue = Boolean(startDate || deadline);
+  const TriggerIcon = hasDateValue || showEmptyText ? CalendarDays : CalendarPlus;
 
   return (
     <>
@@ -289,15 +297,15 @@ export function WorkspaceDateRangePicker({
         aria-expanded={Boolean(pickerAnchorRect)}
         aria-haspopup="dialog"
         onClick={(event) => togglePicker(event.currentTarget)}
-        className="flex h-full min-h-9 w-full items-center gap-1.5 px-2.5 text-left text-xs text-ink outline-none transition hover:text-cta focus:text-cta"
+        className={`flex h-full min-h-9 w-full items-center gap-1.5 px-2.5 text-left text-xs text-ink outline-none transition hover:text-cta focus:text-cta ${className}`}
       >
-        <CalendarDays
+        <TriggerIcon
           className="size-3.5 shrink-0 text-muted"
           strokeWidth={1.8}
         />
-        <span className="min-w-0 truncate">
-          {formatTriggerText(startDate, deadline)}
-        </span>
+        {showEmptyText || hasDateValue ? (
+          <span className="min-w-0 truncate">{triggerText}</span>
+        ) : null}
       </button>
 
       {pickerAnchorRect ? (

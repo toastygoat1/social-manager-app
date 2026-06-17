@@ -234,6 +234,7 @@ type GanttDatedTask = {
   task: WorkplaceTask;
   start: Date;
   deadline: Date;
+  rowIndex: number;
 };
 
 type GanttColumn = {
@@ -314,16 +315,6 @@ function formatMonthLabel(reference: Date) {
     month: "long",
     year: "numeric",
   }).format(reference);
-}
-
-function formatDeadlineLabel(value: string) {
-  const parsed = parseLocalDateTime(value);
-  if (!parsed) return "No deadline";
-
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-  }).format(parsed);
 }
 
 function startOfDay(date: Date) {
@@ -1764,14 +1755,12 @@ function WorkspaceBanner({
 function GanttToolbar({
   scale,
   showTaskList,
-  onAddTask,
   onFocusToday,
   onScaleChange,
   onToggleTaskList,
 }: {
   scale: GanttScale;
   showTaskList: boolean;
-  onAddTask: () => void;
   onFocusToday: () => void;
   onScaleChange: (scale: GanttScale) => void;
   onToggleTaskList: () => void;
@@ -1798,14 +1787,6 @@ function GanttToolbar({
       >
         Today
       </button>
-      <button
-        type="button"
-        onClick={onAddTask}
-        className="flex h-7 items-center gap-1 rounded-md border border-line bg-paper px-2 text-xs font-medium text-ink transition hover:bg-card"
-      >
-        <Plus className="size-3.5" strokeWidth={1.8} />
-        Add Task
-      </button>
       <label className="relative">
         <span className="sr-only">Gantt view</span>
         <select
@@ -1830,10 +1811,19 @@ function GanttToolbar({
 function GanttView({
   tasks,
   accounts,
+  workspaceId,
+  onUpdate,
   onAddTask,
 }: {
   tasks: WorkplaceTask[];
   accounts: Account[];
+  workspaceId: string;
+  onUpdate: <K extends EditableTaskField>(
+    workspaceId: string,
+    taskId: string,
+    field: K,
+    value: WorkplaceTask[K],
+  ) => void;
   onAddTask: () => void;
 }) {
   const scrollerRef = useRef<HTMLDivElement | null>(null);
@@ -1848,38 +1838,46 @@ function GanttView({
     () => new Map(accounts.map((account) => [account.id, account])),
     [accounts],
   );
+  const ganttRows = useMemo(
+    () =>
+      tasks.map((task) => {
+        const deadline = parseLocalDateTime(task.deadline);
+        if (!deadline) return { task, start: null, deadline: null };
+
+        const explicitStart = parseLocalDateTime(task.startDate);
+        const fallbackDays =
+          task.status === "Done"
+            ? 14
+            : task.status === "In progress"
+              ? 10
+              : task.status === "Review"
+                ? 7
+                : 4;
+        const start = explicitStart ?? addDays(deadline, -fallbackDays);
+
+        return {
+          task,
+          start: startOfDay(start),
+          deadline: startOfDay(deadline),
+        };
+      }),
+    [tasks],
+  );
   const datedTasks = useMemo(
     () =>
-      tasks
-        .map((task) => {
-          const deadline = parseLocalDateTime(task.deadline);
-          if (!deadline) return null;
-
-          const explicitStart = parseLocalDateTime(task.startDate);
-          const fallbackDays =
-            task.status === "Done"
-              ? 14
-              : task.status === "In progress"
-                ? 10
-                : task.status === "Review"
-                  ? 7
-                  : 4;
-          const start = explicitStart ?? addDays(deadline, -fallbackDays);
-
-          return {
-            task,
-            start: startOfDay(start),
-            deadline: startOfDay(deadline),
-          };
-        })
-        .filter(
-          (
-            item,
-          ): item is { task: WorkplaceTask; start: Date; deadline: Date } =>
-            Boolean(item),
-        )
-        .sort((a, b) => a.deadline.getTime() - b.deadline.getTime()),
-    [tasks],
+      ganttRows.flatMap((row, rowIndex) =>
+        row.start && row.deadline
+          ? [
+              {
+                task: row.task,
+                start: row.start,
+                deadline: row.deadline,
+                rowIndex,
+              },
+            ]
+          : [],
+      ),
+    [ganttRows],
   );
   const minimumTimelineWidth = Math.max(720, chartViewportWidth);
   const timeline = useMemo(
@@ -1887,7 +1885,7 @@ function GanttView({
     [datedTasks, minimumTimelineWidth, scale],
   );
   const timelineWidth = timeline.width;
-  const rowCount = datedTasks.length + 2;
+  const rowCount = ganttRows.length + 2;
   const minimumBodyHeight = rowCount * GANTT_ROW_HEIGHT;
   const contentHeight = Math.max(
     minimumBodyHeight,
@@ -1902,11 +1900,23 @@ function GanttView({
   const groupBoundaryPositions = timeline.groups
     .map((group) => group.left + group.width)
     .filter((left) => left > 0 && left < timelineWidth);
-  const addTaskRowTop = (datedTasks.length + 1) * GANTT_ROW_HEIGHT;
 
-  const summaryStart = datedTasks[0]?.start ?? timeline.range.start;
+  const summaryStart =
+    datedTasks.reduce<Date | null>(
+      (earliest, item) =>
+        !earliest || item.start.getTime() < earliest.getTime()
+          ? item.start
+          : earliest,
+      null,
+    ) ?? timeline.range.start;
   const summaryEnd =
-    datedTasks[datedTasks.length - 1]?.deadline ?? timeline.range.end;
+    datedTasks.reduce<Date | null>(
+      (latest, item) =>
+        !latest || item.deadline.getTime() > latest.getTime()
+          ? item.deadline
+          : latest,
+      null,
+    ) ?? timeline.range.end;
   const summaryLeft = getTimelineXFromColumns(summaryStart, timeline.columns);
   const summaryWidth = Math.max(
     120,
@@ -1997,7 +2007,6 @@ function GanttView({
         <GanttToolbar
           scale={scale}
           showTaskList={showTaskList}
-          onAddTask={onAddTask}
           onFocusToday={focusToday}
           onScaleChange={setScale}
           onToggleTaskList={() => setShowTaskList((current) => !current)}
@@ -2022,7 +2031,6 @@ function GanttView({
       <GanttToolbar
         scale={scale}
         showTaskList={showTaskList}
-        onAddTask={onAddTask}
         onFocusToday={focusToday}
         onScaleChange={setScale}
         onToggleTaskList={() => setShowTaskList((current) => !current)}
@@ -2036,7 +2044,7 @@ function GanttView({
             >
               <div className="sticky top-0 z-30 grid h-16 grid-cols-[1fr_104px] border-b border-line bg-paper text-xs text-muted">
                 <div className="flex items-center px-7">Name</div>
-                <div className="flex items-center justify-between border-l border-line px-3">
+                <div className="flex items-center justify-between px-3">
                   <span>Due Date</span>
                   <span className="flex size-4 items-center justify-center rounded-full border border-muted text-[10px]">
                     +
@@ -2052,9 +2060,9 @@ function GanttView({
                   <FileText className="size-4 text-muted" strokeWidth={1.8} />
                   <span className="truncate">Tasks</span>
                 </div>
-                <div className="border-l border-line" />
+                <div />
               </div>
-              {datedTasks.map(({ task }) => (
+              {ganttRows.map(({ task }) => (
                 <div
                   key={task.id}
                   onMouseEnter={() => setHoveredTaskId(task.id)}
@@ -2076,12 +2084,25 @@ function GanttView({
                     />
                     <span className="truncate text-ink">{task.taskName}</span>
                   </div>
-                  <div
-                    className={`flex items-center border-l border-line px-3 text-xs ${
-                      task.urgency === "High" ? "text-danger" : "text-success"
-                    }`}
-                  >
-                    {formatDeadlineLabel(task.deadline)}
+                  <div className="flex items-stretch text-xs">
+                    <WorkspaceDateRangePicker
+                      deadline={task.deadline}
+                      startDate={task.startDate}
+                      showEmptyText={false}
+                      className={
+                        task.startDate || task.deadline
+                          ? task.urgency === "High"
+                            ? "text-danger"
+                            : "text-success"
+                          : "justify-center !px-0"
+                      }
+                      onDeadlineChange={(value) =>
+                        onUpdate(workspaceId, task.id, "deadline", value)
+                      }
+                      onStartDateChange={(value) =>
+                        onUpdate(workspaceId, task.id, "startDate", value)
+                      }
+                    />
                   </div>
                 </div>
               ))}
@@ -2095,7 +2116,7 @@ function GanttView({
                   <Plus className="size-4" strokeWidth={1.8} />
                   <span className="truncate">Add Task</span>
                 </span>
-                <span className="border-l border-line" />
+                <span />
               </button>
               <button
                 type="button"
@@ -2171,7 +2192,7 @@ function GanttView({
                     style={{ left }}
                   />
                 ))}
-                {datedTasks.map(({ task }, index) => (
+                {ganttRows.map(({ task }, index) => (
                   <span
                     key={`hover-${task.id}`}
                     aria-hidden="true"
@@ -2188,19 +2209,6 @@ function GanttView({
                     }}
                   />
                 ))}
-                <button
-                  type="button"
-                  aria-label="Add task"
-                  onClick={onAddTask}
-                  className="absolute left-0 right-0 z-[1] flex items-center gap-2 px-4 text-sm text-muted transition hover:bg-card hover:text-ink"
-                  style={{
-                    top: addTaskRowTop,
-                    height: GANTT_ROW_HEIGHT,
-                  }}
-                >
-                  <Plus className="size-4" strokeWidth={1.8} />
-                  Add Task
-                </button>
                 {Array.from({ length: rowLineCount }).map((_, index) => (
                   <span
                     key={index}
@@ -2224,7 +2232,7 @@ function GanttView({
                     <span className="absolute -left-1.5 -top-1 size-3 rounded-full bg-danger" />
                   </span>
                 ) : null}
-                {datedTasks.map(({ task, start, deadline }, index) => {
+                {datedTasks.map(({ task, start, deadline, rowIndex }) => {
                   const startX = getTimelineXFromColumns(
                     start,
                     timeline.columns,
@@ -2235,7 +2243,7 @@ function GanttView({
                   );
                   const left = Math.min(startX, endX);
                   const width = Math.max(6, Math.abs(endX - startX));
-                  const top = (index + 1) * GANTT_ROW_HEIGHT + 10;
+                  const top = (rowIndex + 1) * GANTT_ROW_HEIGHT + 10;
                   const labelLeft = Math.max(
                     0,
                     Math.min(left + width + 8, timelineWidth - 228),
@@ -2795,9 +2803,17 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
           workspace.id === workspaceId
             ? {
                 ...workspace,
-                tasks: workspace.tasks.map((task) =>
-                  task.id === taskId ? savedTask : task,
-                ),
+                tasks: workspace.tasks.map((task) => {
+                  if (task.id !== taskId) return task;
+
+                  return {
+                    ...savedTask,
+                    deadline:
+                      field === "deadline" || task.deadline
+                        ? savedTask.deadline
+                        : "",
+                  };
+                }),
               }
             : workspace,
         ),
@@ -3084,20 +3100,18 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
           body: {},
         },
       );
+      const unscheduledTask = {
+        ...nextTask,
+        startDate: "",
+        deadline: "",
+      };
       setWorkspaces((currentWorkspaces) =>
         currentWorkspaces.map((workspace) =>
           workspace.id === selectedWorkspace.id
-            ? { ...workspace, tasks: [...workspace.tasks, nextTask] }
+            ? { ...workspace, tasks: [...workspace.tasks, unscheduledTask] }
             : workspace,
         ),
       );
-
-      const nextDeadline = parseLocalDateTime(nextTask.deadline);
-      if (nextDeadline) {
-        setCalendarReference(
-          new Date(nextDeadline.getFullYear(), nextDeadline.getMonth(), 1),
-        );
-      }
     } catch (error) {
       setSyncError(getErrorMessage(error));
       void loadFolders(selectedWorkspace.id).catch((reloadError) =>
@@ -3352,6 +3366,8 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
                 <GanttView
                   tasks={selectedTasks}
                   accounts={accounts}
+                  workspaceId={selectedWorkspace.id}
+                  onUpdate={updateTask}
                   onAddTask={addTaskToSelectedFolder}
                 />
               ) : (
