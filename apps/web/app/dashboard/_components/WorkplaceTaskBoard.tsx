@@ -1887,7 +1887,7 @@ function GanttView({
     [datedTasks, minimumTimelineWidth, scale],
   );
   const timelineWidth = timeline.width;
-  const rowCount = datedTasks.length + 1;
+  const rowCount = datedTasks.length + 2;
   const minimumBodyHeight = rowCount * GANTT_ROW_HEIGHT;
   const contentHeight = Math.max(
     minimumBodyHeight,
@@ -1899,6 +1899,10 @@ function GanttView({
     rowCount + 1,
     Math.ceil(contentHeight / GANTT_ROW_HEIGHT) + 1,
   );
+  const groupBoundaryPositions = timeline.groups
+    .map((group) => group.left + group.width)
+    .filter((left) => left > 0 && left < timelineWidth);
+  const addTaskRowTop = (datedTasks.length + 1) * GANTT_ROW_HEIGHT;
 
   const summaryStart = datedTasks[0]?.start ?? timeline.range.start;
   const summaryEnd =
@@ -2056,7 +2060,7 @@ function GanttView({
                   onMouseEnter={() => setHoveredTaskId(task.id)}
                   onMouseLeave={() => setHoveredTaskId(null)}
                   className={`grid grid-cols-[1fr_104px] border-b border-line text-sm transition ${
-                    hoveredTaskId === task.id ? "bg-card" : "bg-paper"
+                    hoveredTaskId === task.id ? "bg-neutral-100" : "bg-paper"
                   }`}
                   style={{ height: GANTT_ROW_HEIGHT }}
                 >
@@ -2081,6 +2085,18 @@ function GanttView({
                   </div>
                 </div>
               ))}
+              <button
+                type="button"
+                onClick={onAddTask}
+                className="grid grid-cols-[1fr_104px] border-b border-line bg-paper text-left text-sm text-muted transition hover:bg-card hover:text-ink"
+                style={{ height: GANTT_ROW_HEIGHT }}
+              >
+                <span className="flex min-w-0 items-center gap-2 px-7">
+                  <Plus className="size-4" strokeWidth={1.8} />
+                  <span className="truncate">Add Task</span>
+                </span>
+                <span className="border-l border-line" />
+              </button>
               <button
                 type="button"
                 aria-label="Resize task list"
@@ -2108,13 +2124,21 @@ function GanttView({
                   {timeline.columns.map((column) => (
                     <span
                       key={column.key}
-                      className={`absolute inset-y-0 flex items-center justify-center overflow-hidden whitespace-nowrap border-r border-line px-1 last:border-r-0 ${
+                      className={`absolute inset-y-0 flex items-center justify-center overflow-hidden whitespace-nowrap border-r border-dashed border-line px-1 last:border-r-0 ${
                         column.muted ? "text-muted/60" : ""
                       }`}
                       style={{ left: column.left, width: column.width }}
                     >
                       {column.label}
                     </span>
+                  ))}
+                  {groupBoundaryPositions.map((left) => (
+                    <span
+                      key={`header-boundary-${left}`}
+                      aria-hidden="true"
+                      className="absolute inset-y-0 z-10 border-r border-line"
+                      style={{ left }}
+                    />
                   ))}
                 </div>
               </div>
@@ -2131,14 +2155,20 @@ function GanttView({
                   <span
                     key={column.key}
                     aria-hidden="true"
-                    className={`absolute top-0 h-full border-r border-line last:border-r-0 ${
-                      scale === "week" ? "border-dashed" : "border-solid"
-                    } ${
+                    className={`absolute top-0 h-full border-r border-dashed border-line last:border-r-0 ${
                       column.shaded
                         ? "bg-[repeating-linear-gradient(135deg,rgba(0,0,0,0.035)_0,rgba(0,0,0,0.035)_1px,transparent_1px,transparent_5px)]"
                         : ""
                     }`}
                     style={{ left: column.left, width: column.width }}
+                  />
+                ))}
+                {groupBoundaryPositions.map((left) => (
+                  <span
+                    key={`body-boundary-${left}`}
+                    aria-hidden="true"
+                    className="absolute top-0 z-[2] h-full border-r border-line"
+                    style={{ left }}
                   />
                 ))}
                 {datedTasks.map(({ task }, index) => (
@@ -2148,7 +2178,9 @@ function GanttView({
                     onMouseEnter={() => setHoveredTaskId(task.id)}
                     onMouseLeave={() => setHoveredTaskId(null)}
                     className={`absolute left-0 right-0 transition ${
-                      hoveredTaskId === task.id ? "bg-card" : "bg-transparent"
+                      hoveredTaskId === task.id
+                        ? "bg-neutral-100"
+                        : "bg-transparent"
                     }`}
                     style={{
                       top: (index + 1) * GANTT_ROW_HEIGHT,
@@ -2156,6 +2188,19 @@ function GanttView({
                     }}
                   />
                 ))}
+                <button
+                  type="button"
+                  aria-label="Add task"
+                  onClick={onAddTask}
+                  className="absolute left-0 right-0 z-[1] flex items-center gap-2 px-4 text-sm text-muted transition hover:bg-card hover:text-ink"
+                  style={{
+                    top: addTaskRowTop,
+                    height: GANTT_ROW_HEIGHT,
+                  }}
+                >
+                  <Plus className="size-4" strokeWidth={1.8} />
+                  Add Task
+                </button>
                 {Array.from({ length: rowLineCount }).map((_, index) => (
                   <span
                     key={index}
@@ -2203,12 +2248,12 @@ function GanttView({
                       onMouseLeave={() => setHoveredTaskId(null)}
                     >
                       <span
-                        className={`absolute h-3.5 rounded-md shadow-sm ${GANTT_BAR_STYLES[task.status]}`}
+                        className={`absolute z-10 h-3.5 rounded-md shadow-sm ${GANTT_BAR_STYLES[task.status]}`}
                         style={{ left, top, width }}
                         title={`${task.taskName}: ${formatTaskDateRange(task)}`}
                       />
                       <span
-                        className="absolute flex max-w-[220px] items-center gap-1.5 truncate text-xs text-ink"
+                        className="absolute z-10 flex max-w-[220px] items-center gap-1.5 truncate text-xs text-ink"
                         style={{ left: labelLeft, top: top - 1 }}
                       >
                         <TaskPeopleStack
