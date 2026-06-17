@@ -83,6 +83,7 @@ export type ActivityKind =
   | "account_disconnected"
   | "post_scheduled"
   | "post_published"
+  | "post_removed"
   | "post_pending"
   | "post_draft";
 

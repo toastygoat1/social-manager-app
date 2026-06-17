@@ -34,7 +34,7 @@
   --danger: #a92729;
 
   --sidebar-bg: transparent;
-  --sidebar-border: transparent;
+  --sidebar-border: var(--border);
   --sidebar-text: #1a1814;
   --sidebar-muted: #59544c;
   --sidebar-dim: #8a847a;
@@ -82,7 +82,7 @@
   --danger: #ff8d80;
 
   --sidebar-bg: transparent;
-  --sidebar-border: transparent;
+  --sidebar-border: var(--border);
   --sidebar-text: #f5f5f5;
   --sidebar-muted: #c5c5c5;
   --sidebar-dim: #8c8c8c;
@@ -204,7 +204,7 @@ body {
 .app-shell-sidebar {
   position: sticky;
   top: var(--app-shell-padding);
-  border-right: 0;
+  border-right: 1px solid var(--sidebar-border);
   background: var(--sidebar-bg);
   height: var(--app-shell-panel-height);
 }

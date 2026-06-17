@@ -20,6 +20,7 @@ const ICONS: Record<ActivityKind, typeof Activity> = {
   account_disconnected: Scissors,
   post_scheduled: CalendarDays,
   post_published: ArrowUpCircle,
+  post_removed: Scissors,
   post_pending: ArrowUpCircle,
   post_draft: Pencil,
 };
@@ -29,6 +30,7 @@ const ICON_COLORS: Record<ActivityKind, string> = {
   account_disconnected: "#e17b5f",
   post_scheduled: "#0d0d0d",
   post_published: "#2aa889",
+  post_removed: "#777777",
   post_pending: "#d4a547",
   post_draft: "#0d0d0d",
 };
@@ -81,6 +83,10 @@ function buildHeadline(item: ActivityRow): string {
     case "post_scheduled":
       return label && account
         ? `"${label}" has been scheduled on ${account}`
+        : item.title;
+    case "post_removed":
+      return label && account
+        ? `"${label}" was removed from ${account}`
         : item.title;
     case "post_pending":
       return label && account
