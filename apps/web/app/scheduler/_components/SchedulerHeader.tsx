@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import {
   CalendarDays,
   CalendarRange,
@@ -12,11 +12,28 @@ import {
   List,
   Plus,
   PlusSquare,
+  SlidersHorizontal,
+  X,
 } from "lucide-react";
 import { CreatePostModal, type CreatePostType } from "./CreatePostModal";
-import { formatPeriodLabel } from "./data";
+import {
+  formatPeriodLabel,
+  type EventStatus,
+  type SchedulerPostType,
+} from "./data";
 
 export type SchedulerView = "month" | "week" | "list";
+
+export type SchedulerFilterState = {
+  postTypes: SchedulerPostType[];
+  statuses: EventStatus[];
+  accountIds: string[];
+};
+
+export type SchedulerFilterAccountOption = {
+  id: string;
+  label: string;
+};
 
 type Props = {
   view: SchedulerView;
@@ -25,6 +42,13 @@ type Props = {
   onNext: () => void;
   onCreated: () => void;
   referenceIso: string;
+  filters: SchedulerFilterState;
+  filterAccounts: SchedulerFilterAccountOption[];
+  onFilterToggle: (
+    group: keyof SchedulerFilterState,
+    value: SchedulerFilterState[keyof SchedulerFilterState][number],
+  ) => void;
+  onClearFilters: () => void;
 };
 
 const CREATE_OPTIONS: {
@@ -69,6 +93,21 @@ const VIEW_OPTIONS: {
   { view: "list", label: "List view", Icon: List },
 ];
 
+const POST_TYPE_OPTIONS: { value: SchedulerPostType; label: string }[] = [
+  { value: "FEED", label: "Post" },
+  { value: "CAROUSEL", label: "Carousel" },
+  { value: "REEL", label: "Reel" },
+  { value: "STORY", label: "Story" },
+];
+
+const STATUS_OPTIONS: { value: EventStatus; label: string }[] = [
+  { value: "scheduled", label: "Scheduled" },
+  { value: "published", label: "Published" },
+  { value: "pending", label: "In review" },
+  { value: "draft", label: "Draft" },
+  { value: "removed", label: "Removed" },
+];
+
 export function SchedulerHeader({
   view,
   onViewChange,
@@ -76,10 +115,17 @@ export function SchedulerHeader({
   onNext,
   onCreated,
   referenceIso,
+  filters,
+  filterAccounts,
+  onFilterToggle,
+  onClearFilters,
 }: Props) {
   const [createOpen, setCreateOpen] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
   const [modalType, setModalType] = useState<CreatePostType | null>(null);
   const periodLabel = formatPeriodLabel(view, new Date(referenceIso));
+  const activeFilterCount =
+    filters.postTypes.length + filters.statuses.length + filters.accountIds.length;
 
   return (
     <header className="relative z-20 shrink-0 border-b border-[#e8e3da] bg-[#fffdf9]">
@@ -125,7 +171,98 @@ export function SchedulerHeader({
           <div className="relative">
             <button
               type="button"
-              onClick={() => setCreateOpen((open) => !open)}
+              aria-expanded={filterOpen}
+              onClick={() => {
+                setFilterOpen((open) => !open);
+                setCreateOpen(false);
+              }}
+              className={`flex h-8 items-center gap-1.5 rounded-md border px-3 text-[11px] font-semibold transition-colors ${
+                activeFilterCount > 0
+                  ? "border-[#171510] bg-[#171510] text-white"
+                  : "border-[#d8d8d8] bg-[#f8f8f8] text-[#3f3f3f] hover:bg-[#eeeeee]"
+              }`}
+            >
+              <SlidersHorizontal className="size-3.5" strokeWidth={2} />
+              Filter
+              {activeFilterCount > 0 ? (
+                <span className="flex min-w-4 items-center justify-center rounded-full bg-white px-1 text-[9px] font-bold text-[#171510]">
+                  {activeFilterCount}
+                </span>
+              ) : null}
+            </button>
+
+            {filterOpen ? (
+              <div className="absolute right-0 top-[38px] z-30 w-[292px] rounded-lg border border-[#d8d8d8] bg-paper p-3 shadow-lg">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold text-[#171510]">
+                      Filter posts
+                    </p>
+                    <p className="mt-0.5 text-[10px] text-[#777777]">
+                      Show only matching scheduled content
+                    </p>
+                  </div>
+                  {activeFilterCount > 0 ? (
+                    <button
+                      type="button"
+                      onClick={onClearFilters}
+                      className="flex h-7 items-center gap-1 rounded-md border border-[#d8d8d8] px-2 text-[10px] font-medium text-[#555555] hover:bg-[#f3f3f3]"
+                    >
+                      <X className="size-3" />
+                      Clear
+                    </button>
+                  ) : null}
+                </div>
+
+                <FilterGroup title="Post type">
+                  {POST_TYPE_OPTIONS.map((option) => (
+                    <FilterChip
+                      key={option.value}
+                      label={option.label}
+                      selected={filters.postTypes.includes(option.value)}
+                      onClick={() => onFilterToggle("postTypes", option.value)}
+                    />
+                  ))}
+                </FilterGroup>
+
+                <FilterGroup title="Status">
+                  {STATUS_OPTIONS.map((option) => (
+                    <FilterChip
+                      key={option.value}
+                      label={option.label}
+                      selected={filters.statuses.includes(option.value)}
+                      onClick={() => onFilterToggle("statuses", option.value)}
+                    />
+                  ))}
+                </FilterGroup>
+
+                <FilterGroup title="Account">
+                  {filterAccounts.length > 0 ? (
+                    filterAccounts.map((account) => (
+                      <FilterChip
+                        key={account.id}
+                        label={account.label}
+                        selected={filters.accountIds.includes(account.id)}
+                        onClick={() => onFilterToggle("accountIds", account.id)}
+                      />
+                    ))
+                  ) : (
+                    <span className="text-[11px] text-[#777777]">
+                      No accounts in this period
+                    </span>
+                  )}
+                </FilterGroup>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => {
+                setCreateOpen((open) => !open);
+                setFilterOpen(false);
+              }}
               className="flex h-8 items-center gap-1.5 rounded-md bg-[#141310] px-3 text-[11px] font-semibold text-white transition-transform duration-150 active:scale-[0.97]"
             >
               <Plus className="size-3" strokeWidth={2.5} />
@@ -235,6 +372,48 @@ function ViewButton({
       }`}
     >
       <Icon className="size-4" strokeWidth={1.8} />
+    </button>
+  );
+}
+
+function FilterGroup({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="border-t border-[#eeeeee] py-3 first:border-t-0 first:pt-0 last:pb-0">
+      <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#777777]">
+        {title}
+      </p>
+      <div className="flex flex-wrap gap-1.5">{children}</div>
+    </div>
+  );
+}
+
+function FilterChip({
+  label,
+  selected,
+  onClick,
+}: {
+  label: string;
+  selected: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={selected}
+      onClick={onClick}
+      className={`rounded-full border px-2.5 py-1 text-[10px] font-medium transition-colors ${
+        selected
+          ? "border-[#171510] bg-[#171510] text-white"
+          : "border-[#d8d8d8] bg-[#f8f8f8] text-[#555555] hover:bg-[#eeeeee]"
+      }`}
+    >
+      {label}
     </button>
   );
 }

@@ -13,7 +13,6 @@ import { useRouter } from "next/navigation";
 import {
   BadgeCheck,
   CalendarDays,
-  ChevronDown,
   Columns2,
   LayoutDashboard,
   Minus,
@@ -720,103 +719,100 @@ export function AccountsTopCard({
           />
           <div
             ref={customPanelRootRef}
-            className="flex shrink-0 flex-nowrap items-center overflow-hidden rounded-lg border border-line bg-paper"
+            className="relative h-9 w-[22.5rem] shrink-0 overflow-hidden rounded-lg border border-line bg-paper"
           >
-            {ANALYTICS_RANGE_PRESETS.map((item, index) => (
-              <Link
-                key={item.value}
-                href={
-                  effectiveIsCompareMode
-                    ? analyticsHref({
-                        compareLeft,
-                        compareRight,
-                        compareThird,
-                        timeFilter: { range: item.value },
-                        view: "compare",
-                      })
-                    : analyticsHref({
-                        accountIds: effectiveSelectedAccountIds,
-                        timeFilter: { range: item.value },
-                      })
-                }
-                aria-hidden={isCustomOpen}
+            <div
+              aria-hidden={isCustomOpen}
+              className={`absolute inset-0 flex items-center transition-opacity duration-150 ${
+                isCustomOpen
+                  ? "pointer-events-none opacity-0"
+                  : "opacity-100"
+              }`}
+            >
+              {ANALYTICS_RANGE_PRESETS.map((item, index) => (
+                <Link
+                  key={item.value}
+                  href={
+                    effectiveIsCompareMode
+                      ? analyticsHref({
+                          compareLeft,
+                          compareRight,
+                          compareThird,
+                          timeFilter: { range: item.value },
+                          view: "compare",
+                        })
+                      : analyticsHref({
+                          accountIds: effectiveSelectedAccountIds,
+                          timeFilter: { range: item.value },
+                        })
+                  }
+                  tabIndex={isCustomOpen ? -1 : undefined}
+                  className={`flex h-9 min-w-0 flex-1 items-center justify-center px-2 text-sm font-medium transition ${
+                    index < ANALYTICS_RANGE_PRESETS.length - 1
+                      ? "border-r border-line"
+                      : ""
+                  } ${
+                    timeFilter.range === item.value
+                      ? "bg-card text-ink"
+                      : "text-muted hover:text-ink"
+                  }`}
+                  onClick={(event) =>
+                    handleLinkNavigation(
+                      event,
+                      {
+                        key:
+                          effectiveIsCompareMode
+                            ? analyticsHref({
+                                compareLeft,
+                                compareRight,
+                                compareThird,
+                                timeFilter: { range: item.value },
+                                view: "compare",
+                              })
+                            : analyticsHref({
+                                accountIds: effectiveSelectedAccountIds,
+                                timeFilter: { range: item.value },
+                              }),
+                        label: item.label,
+                        view: effectiveIsCompareMode
+                          ? "compare"
+                          : effectiveSelectedAccountIds.length > 0
+                            ? "select"
+                            : "overview",
+                        selectedAccountIds: effectiveSelectedAccountIds,
+                        compareAccountIds: effectiveIsCompareMode
+                          ? [compareLeft, compareRight, compareThird]
+                          : [null, null, null],
+                      },
+                      timeFilter.range === item.value,
+                    )
+                  }
+                >
+                  {item.label}
+                </Link>
+              ))}
+              <button
+                type="button"
+                aria-expanded={isCustomOpen}
                 tabIndex={isCustomOpen ? -1 : undefined}
-                className={`flex h-9 items-center justify-center overflow-hidden whitespace-nowrap text-sm font-medium transition-[max-width,opacity,padding,color,background-color] duration-200 ${
-                  isCustomOpen
-                    ? "pointer-events-none max-w-0 min-w-0 px-0 opacity-0"
-                    : "max-w-20 min-w-11 px-3 opacity-100"
-                } ${
-                  !isCustomOpen && index < ANALYTICS_RANGE_PRESETS.length - 1
-                    ? "border-r border-line"
-                    : ""
-                } ${
-                  timeFilter.range === item.value
+                onClick={toggleCustomPanel}
+                className={`flex h-9 w-[6.25rem] shrink-0 items-center justify-center gap-1.5 border-l border-line px-3 text-sm font-medium transition ${
+                  customIsActive || isCustomOpen
                     ? "bg-card text-ink"
                     : "text-muted hover:text-ink"
                 }`}
-                onClick={(event) =>
-                  handleLinkNavigation(
-                    event,
-                    {
-                      key:
-                        effectiveIsCompareMode
-                          ? analyticsHref({
-                              compareLeft,
-                              compareRight,
-                              compareThird,
-                              timeFilter: { range: item.value },
-                              view: "compare",
-                            })
-                          : analyticsHref({
-                              accountIds: effectiveSelectedAccountIds,
-                              timeFilter: { range: item.value },
-                            }),
-                      label: item.label,
-                      view: effectiveIsCompareMode
-                        ? "compare"
-                        : effectiveSelectedAccountIds.length > 0
-                          ? "select"
-                          : "overview",
-                      selectedAccountIds: effectiveSelectedAccountIds,
-                      compareAccountIds: effectiveIsCompareMode
-                        ? [compareLeft, compareRight, compareThird]
-                        : [null, null, null],
-                    },
-                    timeFilter.range === item.value,
-                  )
-                }
               >
-                {item.label}
-              </Link>
-            ))}
-            <button
-              type="button"
-              aria-expanded={isCustomOpen}
-              onClick={toggleCustomPanel}
-              className={`flex h-9 items-center gap-1.5 px-3 text-sm font-medium transition ${
-                isCustomOpen ? "" : "border-l border-line"
-              } ${
-                customIsActive || isCustomOpen
-                  ? "bg-card text-ink"
-                  : "text-muted hover:text-ink"
-              }`}
-            >
-              <CalendarDays className="size-3.5" strokeWidth={1.8} />
-              Custom
-              <ChevronDown
-                className={`size-3.5 transition ${
-                  isCustomOpen ? "rotate-180" : ""
-                }`}
-                strokeWidth={1.8}
-              />
-            </button>
+                <CalendarDays className="size-3.5" strokeWidth={1.8} />
+                Custom
+              </button>
+            </div>
             {isCustomMounted ? (
               <form
                 action="/analytics"
-                className={`flex h-9 min-w-0 items-center gap-1.5 overflow-hidden border-l border-line bg-paper px-1.5 transition-[max-width,opacity] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                className={`absolute inset-0 flex h-9 items-center gap-1.5 overflow-hidden bg-paper px-1.5 transition-[clip-path,opacity] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
                   isCustomOpen
-                    ? "max-w-[calc(100vw-2rem)] opacity-100 sm:max-w-[31rem]"
-                    : "pointer-events-none max-w-0 opacity-0"
+                    ? "opacity-100 [clip-path:inset(0_0_0_0)]"
+                    : "pointer-events-none opacity-0 [clip-path:inset(0_0_0_100%)]"
                 }`}
               >
                 <input type="hidden" name="range" value="custom" />
@@ -870,31 +866,31 @@ export function AccountsTopCard({
                 <button
                   type="button"
                   onClick={(event) => openDatePicker("start", event.currentTarget)}
-                  className="flex h-8 w-[9.75rem] shrink-0 items-center gap-2 rounded-md border border-line bg-page px-3 text-left transition hover:bg-card"
+                  className="flex h-8 min-w-0 flex-1 items-center gap-1.5 rounded-md border border-line bg-page px-2.5 text-left transition hover:bg-card"
                 >
-                  <span className="shrink-0 text-[11px] font-medium uppercase text-muted">
+                  <span className="shrink-0 text-[10px] font-medium uppercase text-muted">
                     From
                   </span>
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">
+                  <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-ink">
                     {formatDateLabel(customStartDate)}
                   </span>
                 </button>
                 <button
                   type="button"
                   onClick={(event) => openDatePicker("end", event.currentTarget)}
-                  className="flex h-8 w-[9.75rem] shrink-0 items-center gap-2 rounded-md border border-line bg-page px-3 text-left transition hover:bg-card"
+                  className="flex h-8 min-w-0 flex-1 items-center gap-1.5 rounded-md border border-line bg-page px-2.5 text-left transition hover:bg-card"
                 >
-                  <span className="shrink-0 text-[11px] font-medium uppercase text-muted">
+                  <span className="shrink-0 text-[10px] font-medium uppercase text-muted">
                     To
                   </span>
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">
+                  <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-ink">
                     {formatDateLabel(customEndDate)}
                   </span>
                 </button>
                 <button
                   type="submit"
                   disabled={!customStartDate || !customEndDate}
-                  className="flex h-8 min-w-[4.75rem] shrink-0 items-center justify-center rounded-md bg-ink px-4 text-sm font-semibold text-page transition hover:opacity-90 disabled:pointer-events-none disabled:opacity-40"
+                  className="flex h-8 w-[4.5rem] shrink-0 items-center justify-center rounded-md bg-ink px-3 text-[12px] font-semibold text-page transition hover:opacity-90 disabled:pointer-events-none disabled:opacity-40"
                 >
                   Apply
                 </button>

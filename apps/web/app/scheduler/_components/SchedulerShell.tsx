@@ -9,7 +9,11 @@ import {
   useState,
 } from "react";
 import { ApiError, apiFetchBrowser } from "@/lib/api/browser-client";
-import { SchedulerHeader, type SchedulerView } from "./SchedulerHeader";
+import {
+  SchedulerHeader,
+  type SchedulerFilterState,
+  type SchedulerView,
+} from "./SchedulerHeader";
 import { ListCalendar } from "./ListCalendar";
 import { MonthlyCalendar } from "./MonthlyCalendar";
 import { PostDetailsModal } from "./PostDetailsModal";
@@ -21,6 +25,8 @@ import { WeeklyCalendar } from "./WeeklyCalendar";
 import {
   type SchedulerEvent,
   type SchedulerData,
+  type EventStatus,
+  type SchedulerPostType,
   EMPTY_SCHEDULER,
   rangeForMonth,
   rangeForWeek,
@@ -37,6 +43,18 @@ type SchedulerNotice = {
   message: string;
 };
 
+const EMPTY_FILTERS: SchedulerFilterState = {
+  postTypes: [],
+  statuses: [],
+  accountIds: [],
+};
+
+function toggleFilterValue<T extends string>(values: T[], value: T): T[] {
+  return values.includes(value)
+    ? values.filter((selected) => selected !== value)
+    : [...values, value];
+}
+
 export function SchedulerShell({ initialReferenceIso, initialData }: Props) {
   const [view, setView] = useState<SchedulerView>("month");
   const [reference, setReference] = useState<Date>(
@@ -50,6 +68,7 @@ export function SchedulerShell({ initialReferenceIso, initialData }: Props) {
   const [dropTargetIso, setDropTargetIso] = useState<string | null>(null);
   const [movingEventId, setMovingEventId] = useState<string | null>(null);
   const [notice, setNotice] = useState<SchedulerNotice | null>(null);
+  const [filters, setFilters] = useState<SchedulerFilterState>(EMPTY_FILTERS);
   const skipNextFetchRef = useRef(true);
   const draggingEventRef = useRef<SchedulerEvent | null>(null);
 
@@ -98,6 +117,75 @@ export function SchedulerShell({ initialReferenceIso, initialData }: Props) {
     skipNextFetchRef.current = false;
     void fetchEvents();
   }, [fetchEvents]);
+
+  const filterAccounts = useMemo(() => {
+    const accounts = new Map<string, string>();
+    for (const event of data.events) {
+      if (!event.accountId) continue;
+      accounts.set(
+        event.accountId,
+        event.accountUsername ? `@${event.accountUsername}` : "Unnamed account",
+      );
+    }
+    for (const accountId of filters.accountIds) {
+      if (!accounts.has(accountId)) accounts.set(accountId, "Selected account");
+    }
+    return Array.from(accounts.entries())
+      .map(([id, label]) => ({ id, label }))
+      .sort((first, second) => first.label.localeCompare(second.label));
+  }, [data.events, filters.accountIds]);
+
+  const filteredEvents = useMemo(() => {
+    const postTypes = new Set<SchedulerPostType>(filters.postTypes);
+    const statuses = new Set<EventStatus>(filters.statuses);
+    const accountIds = new Set(filters.accountIds);
+
+    return data.events.filter((event) => {
+      if (postTypes.size > 0 && (!event.postType || !postTypes.has(event.postType))) {
+        return false;
+      }
+      if (statuses.size > 0 && (!event.status || !statuses.has(event.status))) {
+        return false;
+      }
+      if (
+        accountIds.size > 0 &&
+        (!event.accountId || !accountIds.has(event.accountId))
+      ) {
+        return false;
+      }
+      return true;
+    });
+  }, [data.events, filters]);
+
+  const handleFilterToggle = useCallback(
+    (
+      group: keyof SchedulerFilterState,
+      value: SchedulerFilterState[keyof SchedulerFilterState][number],
+    ) => {
+      setFilters((current) => {
+        if (group === "postTypes") {
+          return {
+            ...current,
+            postTypes: toggleFilterValue(
+              current.postTypes,
+              value as SchedulerPostType,
+            ),
+          };
+        }
+        if (group === "statuses") {
+          return {
+            ...current,
+            statuses: toggleFilterValue(current.statuses, value as EventStatus),
+          };
+        }
+        return {
+          ...current,
+          accountIds: toggleFilterValue(current.accountIds, value),
+        };
+      });
+    },
+    [],
+  );
 
   const todayIso = useMemo(
     () => toIsoDate(new Date(initialReferenceIso)),
@@ -288,6 +376,10 @@ export function SchedulerShell({ initialReferenceIso, initialData }: Props) {
         onNext={() => shiftReference(1)}
         onCreated={refresh}
         referenceIso={reference.toISOString()}
+        filters={filters}
+        filterAccounts={filterAccounts}
+        onFilterToggle={handleFilterToggle}
+        onClearFilters={() => setFilters(EMPTY_FILTERS)}
       />
       {notice ? (
         <div
@@ -310,7 +402,7 @@ export function SchedulerShell({ initialReferenceIso, initialData }: Props) {
           <MonthlyCalendar
             reference={reference}
             todayIso={todayIso}
-            events={data.events}
+            events={filteredEvents}
             loading={loading}
             onOpenPost={openPost}
             dragController={dragController}
@@ -319,7 +411,7 @@ export function SchedulerShell({ initialReferenceIso, initialData }: Props) {
           <WeeklyCalendar
             reference={reference}
             todayIso={todayIso}
-            events={data.events}
+            events={filteredEvents}
             loading={loading}
             onOpenPost={openPost}
             dragController={dragController}
@@ -327,7 +419,7 @@ export function SchedulerShell({ initialReferenceIso, initialData }: Props) {
         ) : (
           <ListCalendar
             reference={reference}
-            events={data.events}
+            events={filteredEvents}
             loading={loading}
             onOpenPost={openPost}
             dragController={dragController}

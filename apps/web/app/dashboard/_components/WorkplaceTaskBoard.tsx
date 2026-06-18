@@ -1198,15 +1198,21 @@ function AssigneeSelect({
   assignees,
   onChange,
   onCreate,
+  onRename,
 }: {
   value: string;
   assignees: AssigneeOption[];
   onChange: (value: string) => void;
   onCreate: (value: string) => void;
+  onRename: (currentName: string, nextName: string) => void;
 }) {
   const [menuAnchorRect, setMenuAnchorRect] =
     useState<FloatingAnchorRect | null>(null);
   const [query, setQuery] = useState("");
+  const [editingAssigneeName, setEditingAssigneeName] = useState<string | null>(
+    null,
+  );
+  const [editingAssigneeValue, setEditingAssigneeValue] = useState("");
   const selectedAssignee =
     assignees.find(
       (assignee) => assignee.name.toLowerCase() === value.trim().toLowerCase(),
@@ -1224,6 +1230,8 @@ function AssigneeSelect({
   function closeMenu() {
     setMenuAnchorRect(null);
     setQuery("");
+    setEditingAssigneeName(null);
+    setEditingAssigneeValue("");
   }
 
   function selectAssignee(name: string) {
@@ -1237,6 +1245,26 @@ function AssigneeSelect({
 
     onCreate(name);
     selectAssignee(name);
+  }
+
+  function startEditingAssignee(assignee: AssigneeOption) {
+    setEditingAssigneeName(assignee.name);
+    setEditingAssigneeValue(assignee.name);
+  }
+
+  function cancelEditingAssignee() {
+    setEditingAssigneeName(null);
+    setEditingAssigneeValue("");
+  }
+
+  function submitEditedAssignee(currentName: string) {
+    const nextName = editingAssigneeValue.trim();
+    if (!nextName) return;
+
+    if (nextName.toLowerCase() !== currentName.trim().toLowerCase()) {
+      onRename(currentName, nextName);
+    }
+    cancelEditingAssignee();
   }
 
   function toggleAssigneeMenu(trigger: HTMLElement) {
@@ -1303,24 +1331,81 @@ function AssigneeSelect({
                   <p className="px-4 pb-2 text-xs font-medium text-muted">
                     Assignees
                   </p>
-                  {filteredAssignees.map((assignee) => (
-                    <button
-                      key={assignee.id}
-                      type="button"
-                      role="option"
-                      aria-selected={
-                        selectedAssignee?.name.toLowerCase() ===
-                        assignee.name.toLowerCase()
-                      }
-                      onClick={() => selectAssignee(assignee.name)}
-                      className="flex w-full items-center gap-3 px-3 py-1.5 text-left text-sm text-ink transition hover:bg-card"
-                    >
-                      <AssigneeAvatar assignee={assignee} />
-                      <span className="min-w-0 flex-1 truncate">
-                        {assignee.name}
-                      </span>
-                    </button>
-                  ))}
+                  {filteredAssignees.map((assignee) =>
+                    editingAssigneeName?.toLowerCase() ===
+                    assignee.name.toLowerCase() ? (
+                      <form
+                        key={assignee.id}
+                        onSubmit={(event) => {
+                          event.preventDefault();
+                          submitEditedAssignee(assignee.name);
+                        }}
+                        className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-ink"
+                      >
+                        <AssigneeAvatar assignee={assignee} />
+                        <input
+                          aria-label={`Edit ${assignee.name} assignee`}
+                          autoFocus
+                          value={editingAssigneeValue}
+                          onChange={(event) =>
+                            setEditingAssigneeValue(event.target.value)
+                          }
+                          onFocus={(event) => event.currentTarget.select()}
+                          onKeyDown={(event) => {
+                            if (event.key === "Escape") {
+                              event.preventDefault();
+                              cancelEditingAssignee();
+                            }
+                          }}
+                          className="h-7 min-w-0 flex-1 rounded-md border border-line bg-paper px-2 text-sm text-ink outline-none focus:border-ink"
+                        />
+                        <button
+                          type="submit"
+                          aria-label={`Save ${assignee.name} assignee`}
+                          className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted transition hover:bg-card hover:text-ink"
+                        >
+                          <Check className="size-3.5" strokeWidth={2} />
+                        </button>
+                        <button
+                          type="button"
+                          aria-label={`Cancel editing ${assignee.name}`}
+                          onClick={cancelEditingAssignee}
+                          className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted transition hover:bg-card hover:text-ink"
+                        >
+                          <X className="size-3.5" strokeWidth={2} />
+                        </button>
+                      </form>
+                    ) : (
+                      <div
+                        key={assignee.id}
+                        className="group/assignee-option flex w-full items-center gap-1 px-3 py-1.5 text-sm text-ink transition hover:bg-card"
+                      >
+                        <button
+                          type="button"
+                          role="option"
+                          aria-selected={
+                            selectedAssignee?.name.toLowerCase() ===
+                            assignee.name.toLowerCase()
+                          }
+                          onClick={() => selectAssignee(assignee.name)}
+                          className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                        >
+                          <AssigneeAvatar assignee={assignee} />
+                          <span className="min-w-0 flex-1 truncate">
+                            {assignee.name}
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          aria-label={`Edit ${assignee.name} assignee`}
+                          onClick={() => startEditingAssignee(assignee)}
+                          className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted opacity-0 transition hover:bg-paper hover:text-ink group-hover/assignee-option:opacity-100 focus-visible:opacity-100"
+                        >
+                          <Pencil className="size-3.5" strokeWidth={1.8} />
+                        </button>
+                      </div>
+                    ),
+                  )}
                   {canCreate ? (
                     <button
                       type="button"
@@ -2531,6 +2616,7 @@ function TaskRow({
   workspaceId,
   onToggleSelected,
   onCreateAssignee,
+  onRenameAssignee,
   onUpdate,
 }: {
   task: WorkplaceTask;
@@ -2541,6 +2627,7 @@ function TaskRow({
   workspaceId: string;
   onToggleSelected: () => void;
   onCreateAssignee: (value: string) => void;
+  onRenameAssignee: (currentName: string, nextName: string) => void;
   onUpdate: <K extends EditableTaskField>(
     workspaceId: string,
     taskId: string,
@@ -2580,6 +2667,7 @@ function TaskRow({
             onUpdate(workspaceId, task.id, "assignee", value)
           }
           onCreate={onCreateAssignee}
+          onRename={onRenameAssignee}
         />
       </TaskCell>
       <TaskCell width={115} className="items-center">
@@ -2938,6 +3026,78 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
   function submitNewAssignee() {
     addAssigneeName(newAssigneeName);
     setNewAssigneeName("");
+  }
+
+  async function renameAssigneeName(currentName: string, nextName: string) {
+    const normalizedCurrentName = currentName.trim().toLowerCase();
+    const trimmedNextName = nextName.trim();
+    const normalizedNextName = trimmedNextName.toLowerCase();
+    if (
+      !normalizedCurrentName ||
+      !trimmedNextName ||
+      normalizedCurrentName === normalizedNextName
+    ) {
+      return;
+    }
+
+    const affectedTasks = workspaces.flatMap((workspace) =>
+      workspace.tasks
+        .filter(
+          (task) =>
+            task.assignee.trim().toLowerCase() === normalizedCurrentName,
+        )
+        .map((task) => ({ taskId: task.id, workspaceId: workspace.id })),
+    );
+
+    setSyncError(null);
+    setManualAssignees((currentAssignees) => {
+      const alreadyHasNextName = currentAssignees.some(
+        (assignee) => assignee.trim().toLowerCase() === normalizedNextName,
+      );
+      let replacedCurrentName = false;
+
+      const renamedAssignees = currentAssignees.flatMap((assignee) => {
+        if (assignee.trim().toLowerCase() !== normalizedCurrentName) {
+          return [assignee];
+        }
+
+        replacedCurrentName = true;
+        return alreadyHasNextName ? [] : [trimmedNextName];
+      });
+
+      return replacedCurrentName ? renamedAssignees : currentAssignees;
+    });
+    setWorkspaces((currentWorkspaces) =>
+      currentWorkspaces.map((workspace) => ({
+        ...workspace,
+        tasks: workspace.tasks.map((task) =>
+          task.assignee.trim().toLowerCase() === normalizedCurrentName
+            ? { ...task, assignee: trimmedNextName }
+            : task,
+        ),
+      })),
+    );
+
+    if (affectedTasks.length === 0) return;
+
+    try {
+      setIsSyncing(true);
+      await Promise.all(
+        affectedTasks.map(({ taskId }) =>
+          apiFetchBrowser<WorkplaceTask>(`/workspace/tasks/${taskId}`, {
+            method: "PATCH",
+            body: { assignee: trimmedNextName },
+          }),
+        ),
+      );
+    } catch (error) {
+      setSyncError(getErrorMessage(error));
+      void loadFolders(selectedWorkspaceId).catch((reloadError) =>
+        setSyncError(getErrorMessage(reloadError)),
+      );
+    } finally {
+      setIsSyncing(false);
+    }
   }
 
   async function deleteAssigneeName(name: string) {
@@ -3394,6 +3554,9 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
                         workspaceId={selectedWorkspace.id}
                         onToggleSelected={() => toggleTaskSelection(task.id)}
                         onCreateAssignee={addAssigneeName}
+                        onRenameAssignee={(currentName, nextName) => {
+                          void renameAssigneeName(currentName, nextName);
+                        }}
                         onUpdate={updateTask}
                       />
                     ))

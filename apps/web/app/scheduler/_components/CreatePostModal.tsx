@@ -1528,27 +1528,33 @@ export function CreatePostModal({
             {submittingAction === "draft" ? "Saving..." : "Save as draft"}
           </button>
           <div className="flex flex-wrap items-center justify-end gap-2">
-            <div className="relative grid h-9 w-[154px] grid-cols-2 items-center rounded-lg border border-[#e7e1d6] bg-[#f7f5ef] p-1 text-[10px]">
+            <div className="relative grid h-9 w-[154px] grid-cols-2 items-center rounded-lg border border-[#d8d8d8] bg-[#f1f1f1] p-1 text-[10px]">
               <span
                 aria-hidden="true"
-                className={`absolute bottom-1 left-1 top-1 w-[calc(50%-4px)] rounded-md bg-paper shadow-sm transition-transform duration-300 ease-out ${
+                className={`absolute bottom-1 left-1 top-1 w-[calc(50%-4px)] rounded-md bg-[#171510] shadow-sm transition-transform duration-300 ease-out ${
                   primaryAction === "schedule" ? "translate-x-full" : "translate-x-0"
                 }`}
               />
               <button
                 type="button"
+                aria-pressed={primaryAction === "post-now"}
                 onClick={() => setPrimaryAction("post-now")}
                 className={`relative z-[1] h-full rounded-md transition-colors duration-300 ${
-                  primaryAction === "post-now" ? "font-semibold text-[#302b23]" : "text-[#756e64]"
+                  primaryAction === "post-now"
+                    ? "font-semibold text-white"
+                    : "text-[#666666] hover:text-[#171510]"
                 }`}
               >
                 Now
               </button>
               <button
                 type="button"
+                aria-pressed={primaryAction === "schedule"}
                 onClick={() => setPrimaryAction("schedule")}
                 className={`relative z-[1] h-full rounded-md transition-colors duration-300 ${
-                  primaryAction === "schedule" ? "font-semibold text-[#302b23]" : "text-[#756e64]"
+                  primaryAction === "schedule"
+                    ? "font-semibold text-white"
+                    : "text-[#666666] hover:text-[#171510]"
                 }`}
               >
                 Schedule

@@ -116,7 +116,7 @@ function MediaPreview({ post }: { post: RecentPost }) {
   if (previewImageUrl) {
     return (
       <div
-        className="absolute inset-0 bg-cover bg-center transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.035]"
+        className="absolute inset-0 bg-cover bg-center"
         style={{ backgroundImage: `url("${previewImageUrl}")` }}
         aria-label={post.caption}
         role="img"
@@ -127,7 +127,7 @@ function MediaPreview({ post }: { post: RecentPost }) {
   if (post.mediaUrl && post.mediaType === "VIDEO") {
     return (
       <video
-        className="absolute inset-0 size-full object-cover transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.035]"
+        className="absolute inset-0 size-full object-cover"
         muted
         playsInline
         preload="metadata"
@@ -255,7 +255,7 @@ export function RecentPosts({
           className={`grid w-full gap-3 ${
             compact
               ? "grid-cols-1"
-              : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+              : "grid-cols-1 md:grid-cols-2"
           }`}
         >
           {activePosts.length === 0 ? (
@@ -272,7 +272,7 @@ export function RecentPosts({
               return (
                 <article
                   key={post.id}
-                  className="group flex min-w-0 flex-col overflow-hidden rounded-lg border border-line bg-paper text-left transition hover:-translate-y-0.5 hover:border-ink/20 hover:shadow-[0_14px_30px_rgba(24,22,18,0.08)]"
+                  className="flex min-w-0 flex-col overflow-hidden rounded-lg border border-line bg-paper text-left transition-colors hover:border-ink/30"
                 >
                   <button
                     type="button"
@@ -292,14 +292,9 @@ export function RecentPosts({
                       <p className="line-clamp-2 min-h-10 text-[13px] leading-5 text-ink">
                         {post.caption}
                       </p>
-                      <div className="grid grid-cols-6 gap-x-2 gap-y-2 border-t border-line pt-3">
-                        {displayStats.map((stat, statIndex) => (
-                          <div
-                            key={stat.icon}
-                            className={
-                              statIndex < 3 ? "col-span-2" : "col-span-3"
-                            }
-                          >
+                      <div className="grid grid-cols-5 gap-2 pt-1">
+                        {displayStats.map((stat) => (
+                          <div key={stat.icon} className="min-w-0">
                             <StatChip stat={stat} />
                           </div>
                         ))}
