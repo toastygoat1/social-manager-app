@@ -705,7 +705,7 @@ export function AccountsTopCard({
             </div>
           </div>
         </div>
-        <div className="ml-auto flex w-full min-w-0 flex-1 flex-wrap items-center justify-end gap-2.5 xl:w-auto">
+        <div className="ml-auto flex w-full min-w-0 flex-1 flex-nowrap items-center justify-end gap-2.5 overflow-x-auto xl:w-auto xl:overflow-visible">
           <ExportInsightsButton
             datasets={exportDatasets}
             rangeLabel={exportRangeLabel}
@@ -720,7 +720,7 @@ export function AccountsTopCard({
           />
           <div
             ref={customPanelRootRef}
-            className="flex min-w-0 flex-wrap items-center overflow-hidden rounded-lg border border-line bg-paper"
+            className="flex shrink-0 flex-nowrap items-center overflow-hidden rounded-lg border border-line bg-paper"
           >
             {ANALYTICS_RANGE_PRESETS.map((item, index) => (
               <Link
@@ -739,8 +739,14 @@ export function AccountsTopCard({
                         timeFilter: { range: item.value },
                       })
                 }
-                className={`flex h-9 min-w-11 items-center justify-center px-3 text-sm font-medium transition ${
-                  index < ANALYTICS_RANGE_PRESETS.length - 1
+                aria-hidden={isCustomOpen}
+                tabIndex={isCustomOpen ? -1 : undefined}
+                className={`flex h-9 items-center justify-center overflow-hidden whitespace-nowrap text-sm font-medium transition-[max-width,opacity,padding,color,background-color] duration-200 ${
+                  isCustomOpen
+                    ? "pointer-events-none max-w-0 min-w-0 px-0 opacity-0"
+                    : "max-w-20 min-w-11 px-3 opacity-100"
+                } ${
+                  !isCustomOpen && index < ANALYTICS_RANGE_PRESETS.length - 1
                     ? "border-r border-line"
                     : ""
                 } ${
@@ -787,7 +793,9 @@ export function AccountsTopCard({
               type="button"
               aria-expanded={isCustomOpen}
               onClick={toggleCustomPanel}
-              className={`flex h-9 items-center gap-1.5 border-l border-line px-3 text-sm font-medium transition ${
+              className={`flex h-9 items-center gap-1.5 px-3 text-sm font-medium transition ${
+                isCustomOpen ? "" : "border-l border-line"
+              } ${
                 customIsActive || isCustomOpen
                   ? "bg-card text-ink"
                   : "text-muted hover:text-ink"

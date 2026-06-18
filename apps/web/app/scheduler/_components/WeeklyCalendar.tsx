@@ -77,20 +77,14 @@ export function WeeklyCalendar({
                   isDropTarget
                     ? "ring-2 ring-inset ring-[#607ffc]"
                     : isToday
-                      ? "shadow-[inset_0_0_0_2px_#111111]"
+                      ? "outline outline-2 -outline-offset-2 outline-[#111111]"
                       : ""
                 }`}
               >
                 <span className="text-[9px] font-semibold tracking-[0.12em] text-[#777777]">
                   {day.label}
                 </span>
-                <span
-                  className={`text-sm font-medium text-[#302b23] ${
-                    isToday
-                      ? "inline-flex h-6 min-w-6 items-center justify-center rounded-full border border-[#111111] px-1"
-                      : ""
-                  }`}
-                >
+                <span className="text-sm font-medium text-[#302b23]">
                   {day.date}
                 </span>
               </div>

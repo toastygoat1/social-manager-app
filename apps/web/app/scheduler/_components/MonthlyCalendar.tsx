@@ -144,13 +144,13 @@ function DayCell({
         isDropTarget
           ? "z-[2] ring-2 ring-inset ring-[#607ffc] shadow-[inset_0_0_0_1px_#607ffc]"
           : ""
-      } ${isToday && !isDropTarget ? "z-[1] shadow-[inset_0_0_0_2px_#111111]" : ""}`}
+      } ${isToday && !isDropTarget ? "z-[1] outline outline-2 -outline-offset-2 outline-[#111111]" : ""}`}
     >
       <div className="mb-1 flex h-4 items-center gap-2">
         <span
           className={`text-[10px] font-semibold ${
             isToday
-              ? "inline-flex h-4 min-w-4 items-center justify-center rounded-full border border-[#111111] px-1 text-[#111111]"
+              ? "text-[#111111]"
               : cell.outside
                 ? "text-[#a49e94]"
                 : "text-[#4d473f]"

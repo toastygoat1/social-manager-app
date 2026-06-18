@@ -272,40 +272,61 @@ export function RecentPosts({
               return (
                 <article
                   key={post.id}
-                  className="group flex min-w-0 flex-col rounded-lg border border-line bg-paper p-3 text-left transition hover:-translate-y-0.5 hover:border-ink/20 hover:shadow-[0_14px_30px_rgba(24,22,18,0.08)]"
+                  className="group flex min-w-0 flex-col overflow-hidden rounded-lg border border-line bg-paper text-left transition hover:-translate-y-0.5 hover:border-ink/20 hover:shadow-[0_14px_30px_rgba(24,22,18,0.08)]"
                 >
                   <button
                     type="button"
                     onClick={() => setSelectedPostId(post.id)}
-                    className="flex min-w-0 flex-1 flex-col gap-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta"
+                    className="flex min-w-0 flex-1 flex-col text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta"
                   >
-                    <div className="flex items-center justify-between gap-3">
+                    <div className="flex min-w-0 flex-1 flex-col gap-3 p-3">
+                      <div className="flex min-w-0 items-center justify-between gap-3">
+                        <AccountLine account={account} />
+                        <span className="shrink-0 font-mono text-[24px] font-semibold leading-none text-ink">
+                          {String(index + 1).padStart(2, "0")}
+                        </span>
+                      </div>
+                      <div className="relative aspect-[16/9] w-full overflow-hidden rounded-md bg-card">
+                        <MediaPreview post={post} />
+                      </div>
+                      <p className="line-clamp-2 min-h-10 text-[13px] leading-5 text-ink">
+                        {post.caption}
+                      </p>
+                      <div className="grid grid-cols-6 gap-x-2 gap-y-2 border-t border-line pt-3">
+                        {displayStats.map((stat, statIndex) => (
+                          <div
+                            key={stat.icon}
+                            className={
+                              statIndex < 3 ? "col-span-2" : "col-span-3"
+                            }
+                          >
+                            <StatChip stat={stat} />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex h-10 w-full items-center justify-center border-t border-line bg-card px-3">
                       <span
-                        className="rounded-md px-2 py-1 font-mono text-[10px] font-medium uppercase tracking-[0.04em] text-page"
+                        className="inline-flex min-w-0 items-center gap-2 font-mono text-[11px] font-semibold uppercase tracking-[0.06em]"
                         style={{
-                          backgroundColor: getPostFormatColor(
+                          color: getPostFormatColor(
                             post.badge.label,
                             post.badge.color,
                           ),
                         }}
                       >
-                        {post.badge.label}
+                        <span
+                          className="size-2 rounded-sm"
+                          style={{
+                            backgroundColor: getPostFormatColor(
+                              post.badge.label,
+                              post.badge.color,
+                            ),
+                          }}
+                          aria-hidden="true"
+                        />
+                        <span className="truncate">{post.badge.label}</span>
                       </span>
-                      <span className="font-mono text-[24px] font-semibold leading-none text-ink">
-                        {String(index + 1).padStart(2, "0")}
-                      </span>
-                    </div>
-                    <div className="relative aspect-[16/9] w-full overflow-hidden rounded-md bg-card">
-                      <MediaPreview post={post} />
-                    </div>
-                    <AccountLine account={account} />
-                    <p className="line-clamp-2 min-h-10 text-[13px] leading-5 text-ink">
-                      {post.caption}
-                    </p>
-                    <div className="grid grid-cols-5 gap-2 border-t border-line pt-3">
-                      {displayStats.map((stat) => (
-                        <StatChip key={stat.icon} stat={stat} />
-                      ))}
                     </div>
                   </button>
                 </article>
