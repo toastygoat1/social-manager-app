@@ -392,10 +392,6 @@ function StatusBadge({ status }: { status: EventStatus }) {
 
 type DetailMediaItem = SchedulerPostDetail["media"][number] | DraftUpload;
 
-function accountInitial(username: string) {
-  return username.replace(/^@/, "").trim().charAt(0).toUpperCase() || "I";
-}
-
 function postTypeLabel(postType: SchedulerPostDetail["postType"]) {
   if (postType === "FEED") return "Post";
   if (postType === "REEL") return "Reel";
@@ -407,10 +403,12 @@ function MediaVisual({
   item,
   className,
   imageClassName = "h-full w-full object-cover",
+  showVideoIcon = true,
 }: {
   item: DetailMediaItem;
   className: string;
   imageClassName?: string;
+  showVideoIcon?: boolean;
 }) {
   const previewUrl = mediaPreviewUrl(item);
   const sourceUrl = mediaSourceUrl(item);
@@ -432,13 +430,17 @@ function MediaVisual({
             muted
             playsInline
           />
-          <Play className="absolute size-10 fill-current text-paper drop-shadow" />
+          {showVideoIcon ? (
+            <Play className="absolute size-10 fill-current text-paper drop-shadow" />
+          ) : null}
         </>
       ) : item.fileType === "VIDEO" && imageUrl ? (
         <>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={imageUrl} alt="" className={imageClassName} />
-          <Play className="absolute size-10 fill-current text-paper drop-shadow" />
+          {showVideoIcon ? (
+            <Play className="absolute size-10 fill-current text-paper drop-shadow" />
+          ) : null}
         </>
       ) : (
         <ImageIcon className="size-10 text-paper/70" />
@@ -449,26 +451,18 @@ function MediaVisual({
 
 function PostPreview({
   post,
-  caption,
   media,
   selectedIndex,
   onSelectedIndexChange,
 }: {
   post: SchedulerPostDetail;
-  caption: string;
   media: DetailMediaItem[];
   selectedIndex: number;
   onSelectedIndexChange: (index: number) => void;
 }) {
   const activeIndex = Math.min(selectedIndex, Math.max(media.length - 1, 0));
   const activeMedia = media[activeIndex] ?? null;
-  const previewCaption = caption.trim() || "No caption yet.";
-  const isVerticalPreview =
-    post.postType === "REEL" || post.postType === "STORY";
   const formatLabel = postTypeLabel(post.postType);
-  const previewDate = post.scheduledFor
-    ? formatDate(post.scheduledFor)
-    : "Not scheduled";
 
   return (
     <section className="flex min-h-0 flex-col overflow-y-auto bg-[#f3f3f3] p-4 md:border-r md:border-line lg:p-6">
@@ -478,7 +472,7 @@ function PostPreview({
             Preview
           </p>
           <h3 className="mt-1 text-sm font-semibold text-ink">
-            {isVerticalPreview ? `${formatLabel} preview` : "Post preview"}
+            Media preview
           </h3>
         </div>
         <span className="rounded-full border border-line bg-paper px-3 py-1 text-[11px] font-semibold text-muted">
@@ -486,164 +480,49 @@ function PostPreview({
         </span>
       </div>
 
-      {isVerticalPreview ? (
-        <div className="mx-auto flex w-full max-w-[330px] flex-col gap-3">
-          <article className="relative aspect-[9/16] overflow-hidden rounded-[30px] border-[9px] border-[#141414] bg-black shadow-[0_20px_48px_rgba(0,0,0,0.24)]">
-            {activeMedia ? (
-              <MediaVisual item={activeMedia} className="absolute inset-0" />
-            ) : (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-paper/75">
-                <ImageIcon className="size-11" />
-                <p className="text-sm font-medium">No media attached</p>
-              </div>
-            )}
-
-            <div className="absolute inset-x-0 top-0 bg-gradient-to-b from-black/75 via-black/35 to-transparent px-3 pb-10 pt-3 text-white">
-              {post.postType === "STORY" ? (
-                <div className="mb-3 grid grid-cols-4 gap-1">
-                  {Array.from({ length: 4 }).map((_, index) => (
-                    <span
-                      key={index}
-                      className="h-0.5 rounded-full bg-white/65"
-                    />
-                  ))}
-                </div>
-              ) : null}
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex min-w-0 items-center gap-2">
-                  <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-white/85 text-[11px] font-semibold text-[#1b1b1b]">
-                    {accountInitial(post.accountUsername)}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="truncate text-xs font-semibold">
-                      @{post.accountUsername}
-                    </p>
-                    <p className="truncate text-[10px] text-white/75">
-                      {previewDate}
-                    </p>
-                  </div>
-                </div>
-                <span className="text-lg leading-none">...</span>
-              </div>
+      <div className="mx-auto flex w-full max-w-[460px] flex-col gap-3">
+        <article className="relative aspect-square overflow-hidden rounded-lg bg-black shadow-[0_14px_34px_rgba(0,0,0,0.18)]">
+          {activeMedia ? (
+            <MediaVisual
+              item={activeMedia}
+              className="absolute inset-0 bg-black"
+              imageClassName="h-full w-full object-contain"
+              showVideoIcon={false}
+            />
+          ) : (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-paper/75">
+              <ImageIcon className="size-11" />
+              <p className="text-sm font-medium">No media attached</p>
             </div>
-
-            {post.postType === "REEL" ? (
-              <div className="absolute bottom-20 right-3 flex flex-col items-center gap-4 text-white drop-shadow">
-                <Heart className="size-6" strokeWidth={2.2} />
-                <MessageSquareText className="size-6" strokeWidth={2.2} />
-                <Share2 className="size-6" strokeWidth={2.2} />
-              </div>
-            ) : null}
-
-            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/35 to-transparent px-3 pb-4 pt-12 text-white">
-              {post.postType === "REEL" ? (
-                <p className="line-clamp-3 text-xs leading-5">
-                  <span className="font-semibold">@{post.accountUsername}</span>{" "}
-                  {previewCaption}
-                </p>
-              ) : (
-                <p className="text-[11px] font-medium text-white/80">
-                  Story media preview
-                </p>
-              )}
-            </div>
-
-            {media.length > 1 ? (
-              <span className="absolute right-3 top-16 rounded-full bg-black/55 px-2.5 py-1 text-[11px] font-semibold text-white">
-                {activeIndex + 1} / {media.length}
-              </span>
-            ) : null}
-          </article>
+          )}
 
           {media.length > 1 ? (
-            <div className="flex gap-2 overflow-x-auto rounded-2xl border border-line bg-paper p-2">
-              {media.map((item, index) => (
-                <button
-                  type="button"
-                  key={item.id}
-                  aria-label={`Preview media ${index + 1}`}
-                  onClick={() => onSelectedIndexChange(index)}
-                  className={`relative size-12 shrink-0 overflow-hidden rounded-lg border ${
-                    activeIndex === index
-                      ? "border-ink"
-                      : "border-line opacity-70 hover:opacity-100"
-                  }`}
-                >
-                  <MediaVisual item={item} className="absolute inset-0" />
-                </button>
-              ))}
-            </div>
+            <span className="absolute right-3 top-3 rounded-full bg-black/65 px-2.5 py-1 text-[11px] font-semibold text-white">
+              {activeIndex + 1} / {media.length}
+            </span>
           ) : null}
-        </div>
-      ) : (
-        <article className="mx-auto flex min-h-0 w-full max-w-[430px] flex-col overflow-hidden rounded-[18px] border border-line bg-paper shadow-[0_18px_40px_rgba(23,21,16,0.12)]">
-          <header className="flex shrink-0 items-center justify-between gap-3 border-b border-line px-4 py-3">
-            <div className="flex min-w-0 items-center gap-2.5">
-              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#e6e6e6] text-xs font-semibold text-[#4b4b4b]">
-                {accountInitial(post.accountUsername)}
-              </span>
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-ink">
-                  @{post.accountUsername}
-                </p>
-                <p className="text-[11px] text-muted">{previewDate}</p>
-              </div>
-            </div>
-            <span className="text-lg leading-none text-muted">...</span>
-          </header>
-
-          <div className="relative aspect-square shrink-0 bg-[#2f2f2f]">
-            {activeMedia ? (
-              <MediaVisual item={activeMedia} className="absolute inset-0" />
-            ) : (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-paper/75">
-                <ImageIcon className="size-11" />
-                <p className="text-sm font-medium">No media attached</p>
-              </div>
-            )}
-            {media.length > 1 ? (
-              <span className="absolute right-3 top-3 rounded-full bg-ink/75 px-2.5 py-1 text-[11px] font-semibold text-paper">
-                {activeIndex + 1} / {media.length}
-              </span>
-            ) : null}
-          </div>
-
-          {media.length > 1 ? (
-            <div className="flex shrink-0 gap-2 overflow-x-auto border-t border-line bg-card p-2">
-              {media.map((item, index) => (
-                <button
-                  type="button"
-                  key={item.id}
-                  aria-label={`Preview media ${index + 1}`}
-                  onClick={() => onSelectedIndexChange(index)}
-                  className={`relative size-12 shrink-0 overflow-hidden rounded-lg border ${
-                    activeIndex === index
-                      ? "border-ink"
-                      : "border-line opacity-70 hover:opacity-100"
-                  }`}
-                >
-                  <MediaVisual item={item} className="absolute inset-0" />
-                </button>
-              ))}
-            </div>
-          ) : null}
-
-          <div className="shrink-0 border-t border-line px-4 py-3">
-            <div className="mb-2 flex items-center justify-between text-ink">
-              <div className="flex items-center gap-4">
-                <Heart className="size-5" strokeWidth={1.9} />
-                <MessageSquareText className="size-5" strokeWidth={1.9} />
-                <Share2 className="size-5" strokeWidth={1.9} />
-              </div>
-              <Bookmark className="size-5" strokeWidth={1.9} />
-            </div>
-            <p className="text-sm leading-6 text-ink">
-              <span className="font-semibold">@{post.accountUsername}</span>{" "}
-              <span className="whitespace-pre-wrap">{previewCaption}</span>
-            </p>
-          </div>
         </article>
-      )}
+
+        {media.length > 1 ? (
+          <div className="flex gap-2 overflow-x-auto rounded-lg border border-line bg-paper p-2">
+            {media.map((item, index) => (
+              <button
+                type="button"
+                key={item.id}
+                aria-label={`Preview media ${index + 1}`}
+                onClick={() => onSelectedIndexChange(index)}
+                className={`relative size-12 shrink-0 overflow-hidden rounded-md border ${
+                  activeIndex === index
+                    ? "border-ink"
+                    : "border-line opacity-70 hover:opacity-100"
+                }`}
+              >
+                <MediaVisual item={item} className="absolute inset-0" />
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
     </section>
   );
 }
@@ -1163,7 +1042,6 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
           <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden md:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
             <PostPreview
               post={post}
-              caption={caption}
               media={shownMedia}
               selectedIndex={previewIndex}
               onSelectedIndexChange={setPreviewIndex}
