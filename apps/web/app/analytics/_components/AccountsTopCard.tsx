@@ -151,6 +151,7 @@ function Avatar({ account, size = 36 }: { account: Account; size?: number }) {
         height={size}
         className="size-full object-cover"
         fallback={accountInitial(account)}
+        fallbackSeed={account.id}
       />
     </span>
   );
@@ -719,7 +720,7 @@ export function AccountsTopCard({
           />
           <div
             ref={customPanelRootRef}
-            className="relative h-9 w-[22.5rem] shrink-0 overflow-hidden rounded-lg border border-line bg-paper"
+            className="relative h-9 w-[28rem] shrink-0 overflow-hidden rounded-lg border border-line bg-paper"
           >
             <div
               aria-hidden={isCustomOpen}
@@ -796,20 +797,31 @@ export function AccountsTopCard({
                 aria-expanded={isCustomOpen}
                 tabIndex={isCustomOpen ? -1 : undefined}
                 onClick={toggleCustomPanel}
-                className={`flex h-9 w-[6.25rem] shrink-0 items-center justify-center gap-1.5 border-l border-line px-3 text-sm font-medium transition ${
+                className={`group/custom relative isolate flex h-9 w-[6.75rem] shrink-0 items-center justify-center gap-1.5 overflow-hidden border-l border-line px-3 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/15 ${
                   customIsActive || isCustomOpen
                     ? "bg-card text-ink"
                     : "text-muted hover:text-ink"
                 }`}
               >
-                <CalendarDays className="size-3.5" strokeWidth={1.8} />
-                Custom
+                <span
+                  aria-hidden="true"
+                  className={`pointer-events-none absolute inset-1 origin-left rounded-md border border-ink/60 transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                    customIsActive || isCustomOpen
+                      ? "scale-x-100 opacity-100"
+                      : "scale-x-0 opacity-0 group-hover/custom:scale-x-100 group-hover/custom:opacity-100"
+                  }`}
+                />
+                <CalendarDays
+                  className="relative z-10 size-3.5"
+                  strokeWidth={1.8}
+                />
+                <span className="relative z-10">Custom</span>
               </button>
             </div>
             {isCustomMounted ? (
               <form
                 action="/analytics"
-                className={`absolute inset-0 flex h-9 items-center gap-1.5 overflow-hidden bg-paper px-1.5 transition-[clip-path,opacity] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                className={`absolute inset-0 flex h-9 items-center gap-2 overflow-hidden bg-paper px-1.5 transition-[clip-path,opacity] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
                   isCustomOpen
                     ? "opacity-100 [clip-path:inset(0_0_0_0)]"
                     : "pointer-events-none opacity-0 [clip-path:inset(0_0_0_100%)]"
@@ -866,31 +878,31 @@ export function AccountsTopCard({
                 <button
                   type="button"
                   onClick={(event) => openDatePicker("start", event.currentTarget)}
-                  className="flex h-8 min-w-0 flex-1 items-center gap-1.5 rounded-md border border-line bg-page px-2.5 text-left transition hover:bg-card"
+                  className="flex h-7 min-w-0 flex-1 items-center gap-2 rounded-md border border-line bg-page px-2.5 text-left transition hover:border-ink/20 hover:bg-card"
                 >
-                  <span className="shrink-0 text-[10px] font-medium uppercase text-muted">
+                  <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-muted">
                     From
                   </span>
-                  <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-ink">
+                  <span className="min-w-0 flex-1 truncate text-[12px] font-semibold text-ink">
                     {formatDateLabel(customStartDate)}
                   </span>
                 </button>
                 <button
                   type="button"
                   onClick={(event) => openDatePicker("end", event.currentTarget)}
-                  className="flex h-8 min-w-0 flex-1 items-center gap-1.5 rounded-md border border-line bg-page px-2.5 text-left transition hover:bg-card"
+                  className="flex h-7 min-w-0 flex-1 items-center gap-2 rounded-md border border-line bg-page px-2.5 text-left transition hover:border-ink/20 hover:bg-card"
                 >
-                  <span className="shrink-0 text-[10px] font-medium uppercase text-muted">
+                  <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-muted">
                     To
                   </span>
-                  <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-ink">
+                  <span className="min-w-0 flex-1 truncate text-[12px] font-semibold text-ink">
                     {formatDateLabel(customEndDate)}
                   </span>
                 </button>
                 <button
                   type="submit"
                   disabled={!customStartDate || !customEndDate}
-                  className="flex h-8 w-[4.5rem] shrink-0 items-center justify-center rounded-md bg-ink px-3 text-[12px] font-semibold text-page transition hover:opacity-90 disabled:pointer-events-none disabled:opacity-40"
+                  className="flex h-7 w-[4.75rem] shrink-0 items-center justify-center rounded-md bg-ink px-3 text-[12px] font-semibold text-page transition hover:opacity-90 disabled:pointer-events-none disabled:bg-neutral-300 disabled:text-paper"
                 >
                   Apply
                 </button>

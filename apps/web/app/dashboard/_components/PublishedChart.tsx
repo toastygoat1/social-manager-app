@@ -441,6 +441,7 @@ export function PublishedChart({
                     height={24}
                     className="size-6 rounded-full object-cover"
                     fallback={getInitials(bar.account.name)}
+                    fallbackSeed={bar.account.id}
                   />
                   <span className="absolute -right-0.5 -top-0.5 size-2 rounded-full border border-paper bg-success" />
                 </span>

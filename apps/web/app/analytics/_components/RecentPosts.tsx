@@ -171,6 +171,7 @@ function AccountLine({ account }: { account: Account | null }) {
           height={32}
           className="size-8 rounded-full object-cover"
           fallback={getAccountInitial(account)}
+          fallbackSeed={account?.id ?? account?.name ?? "Account"}
         />
       </span>
       <span className="min-w-0 truncate text-[13px] font-semibold leading-4 text-ink">

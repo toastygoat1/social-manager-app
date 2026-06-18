@@ -34,6 +34,7 @@ function AccountMark({
         height={compact ? 32 : 36}
         className="size-full object-cover"
         fallback={accountInitial(account)}
+        fallbackSeed={account.id}
       />
     </span>
   );

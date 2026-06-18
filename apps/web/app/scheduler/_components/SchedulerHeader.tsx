@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import {
   CalendarDays,
   CalendarRange,
@@ -133,9 +133,57 @@ export function SchedulerHeader({
   const [filterOpen, setFilterOpen] = useState(false);
   const [accountsOpen, setAccountsOpen] = useState(false);
   const [modalType, setModalType] = useState<CreatePostType | null>(null);
+  const filterRef = useRef<HTMLDivElement>(null);
+  const accountsRef = useRef<HTMLDivElement>(null);
+  const createRef = useRef<HTMLDivElement>(null);
   const periodLabel = formatPeriodLabel(view, new Date(referenceIso));
   const activeFilterCount = filters.postTypes.length + filters.statuses.length;
   const activeAccountCount = filters.accountIds.length;
+  const selectedFilterAccounts = filterAccounts.filter((account) =>
+    filters.accountIds.includes(account.id),
+  );
+  const accountButtonPreviewAccounts = (
+    activeAccountCount > 0 ? selectedFilterAccounts : filterAccounts
+  ).slice(0, 3);
+
+  useEffect(() => {
+    if (!createOpen && !filterOpen && !accountsOpen) return;
+
+    function closeMenus() {
+      setCreateOpen(false);
+      setFilterOpen(false);
+      setAccountsOpen(false);
+    }
+
+    function handlePointerDown(event: PointerEvent) {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+
+      if (
+        filterRef.current?.contains(target) ||
+        accountsRef.current?.contains(target) ||
+        createRef.current?.contains(target)
+      ) {
+        return;
+      }
+
+      closeMenus();
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        closeMenus();
+      }
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [accountsOpen, createOpen, filterOpen]);
 
   return (
     <header className="relative z-20 shrink-0 border-b border-[#e8e3da] bg-[#fffdf9]">
@@ -165,20 +213,7 @@ export function SchedulerHeader({
         </div>
 
         <div className="flex items-center gap-2 md:justify-end">
-          <div className="flex h-8 overflow-hidden rounded-md border border-[#e7e1d6] bg-paper">
-            {VIEW_OPTIONS.map(({ view: optionView, label, Icon }, index) => (
-              <ViewButton
-                key={optionView}
-                label={label}
-                Icon={Icon}
-                selected={view === optionView}
-                onClick={() => onViewChange(optionView)}
-                divided={index > 0}
-              />
-            ))}
-          </div>
-
-          <div className="relative">
+          <div ref={filterRef} className="relative">
             <button
               type="button"
               aria-expanded={filterOpen}
@@ -208,16 +243,20 @@ export function SchedulerHeader({
                   <p className="text-xs font-semibold text-[#171510]">
                     Filter posts
                   </p>
-                  {activeFilterCount > 0 ? (
-                    <button
-                      type="button"
-                      onClick={onClearContentFilters}
-                      className="flex h-7 items-center gap-1 rounded-md border border-[#d8d8d8] px-2 text-[10px] font-medium text-[#555555] hover:bg-[#f3f3f3]"
-                    >
-                      <X className="size-3" />
-                      Clear
-                    </button>
-                  ) : null}
+                  <button
+                    type="button"
+                    aria-hidden={activeFilterCount === 0}
+                    tabIndex={activeFilterCount > 0 ? undefined : -1}
+                    onClick={onClearContentFilters}
+                    className={`flex h-7 items-center gap-1 rounded-md border border-[#d8d8d8] px-2 text-[10px] font-medium text-[#555555] hover:bg-[#f3f3f3] ${
+                      activeFilterCount > 0
+                        ? ""
+                        : "invisible pointer-events-none"
+                    }`}
+                  >
+                    <X className="size-3" />
+                    Clear
+                  </button>
                 </div>
 
                 <FilterGroup title="Post type">
@@ -228,7 +267,7 @@ export function SchedulerHeader({
                         key={postType}
                         label={style.label}
                         selected={filters.postTypes.includes(postType)}
-                        color={style.color}
+                        selectedClassName={style.chip}
                         onClick={() => onFilterToggle("postTypes", postType)}
                       />
                     );
@@ -253,7 +292,7 @@ export function SchedulerHeader({
             ) : null}
           </div>
 
-          <div className="relative">
+          <div ref={accountsRef} className="relative">
             <button
               type="button"
               aria-expanded={accountsOpen}
@@ -268,7 +307,24 @@ export function SchedulerHeader({
                   : "border-[#d8d8d8] bg-[#f8f8f8] text-[#3f3f3f] hover:bg-[#eeeeee]"
               }`}
             >
-              <Users className="size-3.5" strokeWidth={2} />
+              {accountButtonPreviewAccounts.length > 0 ? (
+                <span className="flex -space-x-1">
+                  {accountButtonPreviewAccounts.map((account) => (
+                    <AvatarImage
+                      key={account.id}
+                      src={account.avatarUrl}
+                      alt={account.label}
+                      width={16}
+                      height={16}
+                      className="size-4 rounded-full border border-white object-cover"
+                      fallback={account.label}
+                      fallbackSeed={account.id}
+                    />
+                  ))}
+                </span>
+              ) : (
+                <Users className="size-3.5" strokeWidth={2} />
+              )}
               Accounts
               {activeAccountCount > 0 ? (
                 <span className="flex min-w-4 items-center justify-center rounded-full bg-white px-1 text-[9px] font-bold text-[#171510]">
@@ -283,16 +339,20 @@ export function SchedulerHeader({
                   <p className="text-xs font-semibold text-[#171510]">
                     Filter accounts
                   </p>
-                  {activeAccountCount > 0 ? (
-                    <button
-                      type="button"
-                      onClick={onClearAccountFilters}
-                      className="flex h-7 items-center gap-1 rounded-md border border-[#d8d8d8] px-2 text-[10px] font-medium text-[#555555] hover:bg-[#f3f3f3]"
-                    >
-                      <X className="size-3" />
-                      Clear
-                    </button>
-                  ) : null}
+                  <button
+                    type="button"
+                    aria-hidden={activeAccountCount === 0}
+                    tabIndex={activeAccountCount > 0 ? undefined : -1}
+                    onClick={onClearAccountFilters}
+                    className={`flex h-7 items-center gap-1 rounded-md border border-[#d8d8d8] px-2 text-[10px] font-medium text-[#555555] hover:bg-[#f3f3f3] ${
+                      activeAccountCount > 0
+                        ? ""
+                        : "invisible pointer-events-none"
+                    }`}
+                  >
+                    <X className="size-3" />
+                    Clear
+                  </button>
                 </div>
 
                 <div className="flex flex-wrap gap-1.5">
@@ -315,7 +375,20 @@ export function SchedulerHeader({
             ) : null}
           </div>
 
-          <div className="relative">
+          <div className="flex h-8 overflow-hidden rounded-md border border-[#e7e1d6] bg-paper">
+            {VIEW_OPTIONS.map(({ view: optionView, label, Icon }, index) => (
+              <ViewButton
+                key={optionView}
+                label={label}
+                Icon={Icon}
+                selected={view === optionView}
+                onClick={() => onViewChange(optionView)}
+                divided={index > 0}
+              />
+            ))}
+          </div>
+
+          <div ref={createRef} className="relative">
             <button
               type="button"
               onClick={() => {
@@ -456,27 +529,14 @@ function FilterGroup({
 function FilterChip({
   label,
   selected,
-  color,
   selectedClassName,
   onClick,
 }: {
   label: string;
   selected: boolean;
-  color?: string;
   selectedClassName?: string;
   onClick: () => void;
 }) {
-  const colorStyle =
-    color && selected
-      ? { backgroundColor: color, borderColor: color, color: "#ffffff" }
-      : color
-        ? {
-            backgroundColor: `${color}12`,
-            borderColor: `${color}55`,
-            color,
-          }
-        : undefined;
-
   return (
     <button
       type="button"
@@ -487,7 +547,6 @@ function FilterChip({
           ? (selectedClassName ?? "border-[#171510] bg-[#171510] text-white")
           : "border-[#d8d8d8] bg-[#f8f8f8] text-[#555555] hover:bg-[#eeeeee]"
       }`}
-      style={colorStyle}
     >
       {label}
     </button>
@@ -522,6 +581,7 @@ function AccountFilterChip({
         height={20}
         className="size-5 rounded-full object-cover"
         fallback={account.label}
+        fallbackSeed={account.id}
       />
       <span className="max-w-[116px] truncate">{account.label}</span>
     </button>

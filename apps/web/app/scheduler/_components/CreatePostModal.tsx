@@ -410,10 +410,12 @@ function AccountAvatar({
   username,
   avatarUrl,
   className = "size-5 rounded",
+  fallbackSeed,
 }: {
   username: string;
   avatarUrl?: string | null;
   className?: string;
+  fallbackSeed?: string;
 }) {
   return (
     <span
@@ -426,6 +428,7 @@ function AccountAvatar({
         height={32}
         className="size-full object-cover"
         fallback={username.slice(0, 2)}
+        fallbackSeed={fallbackSeed ?? username}
       />
     </span>
   );
@@ -523,11 +526,13 @@ function MediaIssueList({
 }
 
 function AccountChip({
+  accountId,
   username,
   avatarUrl,
   selected,
   onClick,
 }: {
+  accountId: string;
   username: string;
   avatarUrl?: string | null;
   selected: boolean;
@@ -542,7 +547,11 @@ function AccountChip({
         selected ? "border-[#dcd6cb] bg-paper" : "border-[#eee9df] bg-[#fbfaf7]"
       }`}
     >
-      <AccountAvatar username={username} avatarUrl={avatarUrl} />
+      <AccountAvatar
+        username={username}
+        avatarUrl={avatarUrl}
+        fallbackSeed={accountId}
+      />
       <span className="min-w-0 flex-1 truncate">
         <span className="block truncate text-[11px] font-medium leading-4 text-[#302b23]">
           {username}
@@ -1099,6 +1108,7 @@ export function CreatePostModal({
                 {selectedAccounts.map((account) => (
                   <AccountChip
                     key={account.id}
+                    accountId={account.id}
                     username={account.username}
                     avatarUrl={account.avatarUrl}
                     selected
@@ -1122,6 +1132,7 @@ export function CreatePostModal({
                       availableAccounts.map((account) => (
                         <AccountChip
                           key={account.id}
+                          accountId={account.id}
                           username={account.username}
                           avatarUrl={account.avatarUrl}
                           selected={false}
@@ -1410,6 +1421,7 @@ export function CreatePostModal({
                     username={selectedAccounts[0].username}
                     avatarUrl={selectedAccounts[0].avatarUrl}
                     className="size-7 rounded-full"
+                    fallbackSeed={selectedAccounts[0].id}
                   />
                 ) : (
                   <span className="flex size-7 items-center justify-center rounded-full bg-[#e8e2d9] text-[#8e887d]">

@@ -162,6 +162,7 @@ function AccountPersonalizationDialog({
               height={80}
               className="size-20 rounded-full object-cover"
               fallback={getInitials(account.name)}
+              fallbackSeed={account.id}
             />
           </span>
           <p className="text-base font-semibold text-ink">

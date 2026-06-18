@@ -14,6 +14,7 @@ function Avatar({ row }: { row: AccountPerformance }) {
         alt=""
         className="size-full object-cover"
         fallback={row.account.name.replace(/^@/, "").charAt(0).toUpperCase()}
+        fallbackSeed={row.account.id}
       />
     </span>
   );

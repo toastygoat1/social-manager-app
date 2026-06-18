@@ -263,6 +263,7 @@ function AccountAvatar({ account, index }: { account: Account; index: number }) 
         height={40}
         className="size-full object-cover"
         fallback={getInitials(account.name, "I")}
+        fallbackSeed={account.id}
       />
     </span>
   );

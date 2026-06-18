@@ -218,6 +218,7 @@ export function RecentPostsPanel({ rows }: RecentPostsPanelProps) {
                           height={20}
                           className="size-5 rounded-full object-cover"
                           fallback={getInitials(row.account.name)}
+                          fallbackSeed={row.account.id}
                         />
                       </span>
                       <span className="dashboard-ui-meta truncate text-ink">

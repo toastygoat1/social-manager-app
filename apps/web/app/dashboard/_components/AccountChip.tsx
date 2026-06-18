@@ -94,6 +94,7 @@ export function AccountChip({
             height={28}
             className="size-7 object-cover"
             fallback={getFallbackInitial(name)}
+            fallbackSeed={accountId ?? name}
           />
         </div>
       </div>

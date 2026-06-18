@@ -1317,6 +1317,7 @@ function AssigneeSelect({
                     aria-label="Search assignees"
                     autoFocus
                     value={query}
+                    onFocus={cancelEditingAssignee}
                     onChange={(event) => setQuery(event.target.value)}
                     onKeyDown={(event) => {
                       if (event.key === "Enter" && canCreate) {

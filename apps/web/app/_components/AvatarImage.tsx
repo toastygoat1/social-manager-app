@@ -10,6 +10,7 @@ type AvatarImageProps = {
   height: number;
   className?: string;
   fallback: string;
+  fallbackSeed?: string;
 };
 
 const FALLBACK_COLORS = [
@@ -59,11 +60,13 @@ export function AvatarImage({
   height,
   className,
   fallback,
+  fallbackSeed,
 }: AvatarImageProps) {
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
   const fallbackSource = alt.trim() || fallback || "?";
+  const fallbackColorSource = fallbackSeed?.trim() || fallbackSource;
   const fallbackLabel = getFallbackLabel(fallbackSource);
-  const fallbackColor = getFallbackColor(fallbackSource);
+  const fallbackColor = getFallbackColor(fallbackColorSource);
 
   if (!src || failedSrc === src) {
     return (

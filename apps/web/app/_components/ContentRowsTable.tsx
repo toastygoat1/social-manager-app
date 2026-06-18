@@ -127,6 +127,7 @@ function AccountPill({ row }: { row: ContentRowsTableRow }) {
           height={24}
           className="size-6 rounded-full object-cover"
           fallback={getInitials(row.account.name)}
+          fallbackSeed={row.account.id}
         />
       </span>
       <span className="truncate">{row.account.name}</span>

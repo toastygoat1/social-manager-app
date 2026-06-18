@@ -50,7 +50,7 @@ export const SCHEDULER_STATUS_STYLE: Record<
     time: "text-[#777169]",
     dot: "bg-[#8c8982]",
     badge: "bg-[#e2dfd9] text-[#635e57]",
-    chip: "border-[#dad7d1] bg-[#f0efec] text-[#544f48]",
+    chip: "border-[#5f5b55] bg-[#5f5b55] text-white",
     bg: "bg-[#e2dfd9]",
     text: "text-[#635e57]",
   },
@@ -60,7 +60,7 @@ export const SCHEDULER_STATUS_STYLE: Record<
     time: "text-muted",
     dot: "bg-muted",
     badge: "bg-paper text-muted",
-    chip: "border-[#d8d8d8] bg-[#f8f8f8] text-[#666666]",
+    chip: "border-[#4d4d4d] bg-[#4d4d4d] text-white",
     bg: "bg-paper",
     text: "text-muted",
   },
@@ -68,12 +68,28 @@ export const SCHEDULER_STATUS_STYLE: Record<
 
 export const SCHEDULER_POST_TYPE_STYLE: Record<
   SchedulerPostType,
-  { label: string; color: string }
+  { label: string; color: string; chip: string }
 > = {
-  FEED: { label: "Post", color: POST_FORMAT_COLORS.Post },
-  CAROUSEL: { label: "Carousel", color: POST_FORMAT_COLORS.Carousel },
-  REEL: { label: "Reel", color: POST_FORMAT_COLORS.Reel },
-  STORY: { label: "Story", color: POST_FORMAT_COLORS.Story },
+  FEED: {
+    label: "Post",
+    color: POST_FORMAT_COLORS.Post,
+    chip: "border-[#c9dcff] bg-[#eef5ff] text-[#2d63be]",
+  },
+  CAROUSEL: {
+    label: "Carousel",
+    color: POST_FORMAT_COLORS.Carousel,
+    chip: "border-[#ffd7ad] bg-[#fff2e5] text-[#a95300]",
+  },
+  REEL: {
+    label: "Reel",
+    color: POST_FORMAT_COLORS.Reel,
+    chip: "border-[#d9d1ff] bg-[#f1efff] text-[#5842c5]",
+  },
+  STORY: {
+    label: "Story",
+    color: POST_FORMAT_COLORS.Story,
+    chip: "border-[#b7f1e6] bg-[#e9fffb] text-[#117c6c]",
+  },
 };
 
 export function getSchedulerStatusStyleFromLabel(label: string) {
