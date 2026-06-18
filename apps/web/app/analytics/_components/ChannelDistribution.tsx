@@ -1,11 +1,23 @@
 import type { DistributionItem } from "./data";
 import { getPostFormatColor } from "./post-format-colors";
 
+function distributionLabel(item: DistributionItem) {
+  const postLabel = item.value === 1 ? "post" : "posts";
+
+  return `${item.label}: ${item.value} ${postLabel} (${item.percentage}%)`;
+}
+
 function LegendRow({ item }: { item: DistributionItem }) {
   const color = getPostFormatColor(item.label, item.color);
+  const label = distributionLabel(item);
 
   return (
-    <div className="grid grid-cols-[10px_72px_minmax(64px,1fr)_40px] items-center gap-2.5 text-xs">
+    <div
+      className="group grid grid-cols-[10px_72px_minmax(64px,1fr)_40px] items-center gap-2.5 rounded-md px-1 py-1 text-xs outline-none transition hover:bg-card focus-visible:bg-card focus-visible:ring-2 focus-visible:ring-cta/25"
+      title={label}
+      aria-label={label}
+      tabIndex={0}
+    >
       <span
         className="size-2 rounded-sm"
         style={{ backgroundColor: color }}
@@ -14,7 +26,7 @@ function LegendRow({ item }: { item: DistributionItem }) {
       <span className="truncate text-ink">{item.label}</span>
       <span className="relative h-1.5 overflow-hidden rounded-sm bg-line">
         <span
-          className="absolute inset-y-0 left-0 rounded-sm"
+          className="absolute inset-y-0 left-0 rounded-sm transition-[filter,opacity] duration-150 group-hover:opacity-90 group-hover:brightness-110 group-focus-visible:opacity-90 group-focus-visible:brightness-110"
           style={{ backgroundColor: color, width: `${item.percentage}%` }}
         />
       </span>
@@ -64,7 +76,8 @@ function DonutChart({ items }: { items: DistributionItem[] }) {
     <svg
       viewBox={`0 0 ${size} ${size}`}
       className="aspect-square w-full max-w-[22rem]"
-      aria-hidden="true"
+      role="img"
+      aria-label="Content mix by post format"
     >
       <circle
         cx={center}
@@ -86,7 +99,12 @@ function DonutChart({ items }: { items: DistributionItem[] }) {
             strokeWidth={stroke}
             strokeDasharray={`${dash} ${gap}`}
             strokeDashoffset={dashOffset}
-          />
+            className="cursor-pointer transition-[opacity,stroke-width,filter] duration-150 hover:opacity-80 hover:[stroke-width:28px] focus-visible:opacity-80 focus-visible:[stroke-width:28px] focus-visible:outline-none"
+            tabIndex={0}
+            aria-label={distributionLabel(item)}
+          >
+            <title>{distributionLabel(item)}</title>
+          </circle>
         ))}
       </g>
       <text

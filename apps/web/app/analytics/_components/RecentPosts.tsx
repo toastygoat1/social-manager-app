@@ -214,7 +214,7 @@ export function RecentPosts({
 
   return (
     <section
-      className={`flex min-w-0 flex-col overflow-hidden rounded-[10px] border border-line bg-paper ${
+      className={`relative flex min-w-0 flex-col overflow-hidden rounded-[10px] border border-line bg-paper ${
         compact ? "h-[38rem] gap-4 p-4" : "h-[42rem] gap-5 p-[18px]"
       }`}
     >
@@ -251,7 +251,11 @@ export function RecentPosts({
           })}
         </div>
       </header>
-      <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+      <div
+        className={`min-h-0 flex-1 overflow-y-auto pr-1 ${
+          hasMorePosts ? "pb-14" : ""
+        }`}
+      >
         <div
           className={`grid w-full gap-3 ${
             compact
@@ -331,23 +335,21 @@ export function RecentPosts({
           )}
         </div>
       </div>
-      <div className="flex h-9 shrink-0 justify-center">
-        {hasMorePosts ? (
-          <button
-            type="button"
-            onClick={() =>
-              setVisibleCount((currentCount) => currentCount + chunkSize)
-            }
-            className="flex h-9 items-center gap-2 rounded-lg border border-line bg-paper px-3 text-sm font-medium text-ink transition hover:bg-card focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta"
-          >
-            <Plus className="size-3.5" strokeWidth={2} />
-            <span>Show {Math.min(chunkSize, hiddenPostCount)} more</span>
-            <span className="font-mono text-[11px] text-muted">
-              {visiblePosts.length}/{activePosts.length}
-            </span>
-          </button>
-        ) : null}
-      </div>
+      {hasMorePosts ? (
+        <button
+          type="button"
+          onClick={() =>
+            setVisibleCount((currentCount) => currentCount + chunkSize)
+          }
+          className="absolute bottom-3 left-1/2 z-10 flex h-9 -translate-x-1/2 items-center gap-2 rounded-lg border border-line bg-paper/95 px-3 text-sm font-medium text-ink shadow-[0_10px_24px_rgba(24,22,18,0.12)] backdrop-blur transition hover:border-ink/30 hover:bg-card focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta"
+        >
+          <Plus className="size-3.5" strokeWidth={2} />
+          <span>Show {Math.min(chunkSize, hiddenPostCount)} more</span>
+          <span className="font-mono text-[11px] text-muted">
+            {visiblePosts.length}/{activePosts.length}
+          </span>
+        </button>
+      ) : null}
       <PostDetailsModal
         postId={selectedPostId}
         onClose={() => setSelectedPostId(null)}

@@ -356,10 +356,28 @@ describe('AnalyticsService', () => {
     });
     expect(overview.distribution).toEqual([
       {
+        label: 'Story',
+        value: 0,
+        percentage: 0,
+        color: 'var(--chart-1)',
+      },
+      {
         label: 'Post',
         value: 1,
         percentage: 100,
         color: 'var(--chart-3)',
+      },
+      {
+        label: 'Reel',
+        value: 0,
+        percentage: 0,
+        color: 'var(--chart-8)',
+      },
+      {
+        label: 'Carousel',
+        value: 0,
+        percentage: 0,
+        color: 'var(--chart-7)',
       },
     ]);
     expect(overview.contentRows[0]).toMatchObject({

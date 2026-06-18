@@ -2151,7 +2151,7 @@ function buildDistribution(posts: AnalyticsPost[]): DistributionItem[] {
       percentage: Math.round((value / total) * 100),
       color: POST_TYPE_COLORS[postType],
     };
-  }).filter((item) => item.value > 0);
+  });
 }
 
 function buildContentCalendar(

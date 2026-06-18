@@ -885,19 +885,89 @@ function SelectInput<T extends string>({
   ariaLabel: string;
   className: string;
 }) {
+  const [menuAnchorRect, setMenuAnchorRect] =
+    useState<FloatingAnchorRect | null>(null);
+
+  function closeMenu() {
+    setMenuAnchorRect(null);
+  }
+
+  function toggleMenu(trigger: HTMLElement) {
+    setMenuAnchorRect((current) =>
+      current ? null : getCellAnchorRect(trigger),
+    );
+  }
+
+  function selectOption(option: T) {
+    onChange(option);
+    closeMenu();
+  }
+
   return (
-    <select
-      aria-label={ariaLabel}
-      value={value}
-      onChange={(event) => onChange(event.target.value as T)}
-      className={`w-full appearance-none border-0 bg-transparent px-2 py-1.5 text-center text-xs font-semibold outline-none ${className}`}
-    >
-      {options.map((option) => (
-        <option key={option} value={option}>
-          {option}
-        </option>
-      ))}
-    </select>
+    <>
+      <button
+        type="button"
+        aria-label={ariaLabel}
+        aria-expanded={Boolean(menuAnchorRect)}
+        aria-haspopup="listbox"
+        onClick={(event) => toggleMenu(event.currentTarget)}
+        className={`w-full border-0 bg-transparent px-2 py-1.5 text-center text-xs font-semibold outline-none transition hover:bg-card ${className}`}
+      >
+        {value}
+      </button>
+
+      {menuAnchorRect && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[9999]"
+              onKeyDown={(event) => {
+                if (event.key === "Escape") closeMenu();
+              }}
+              onMouseDown={closeMenu}
+            >
+              <div
+                role="listbox"
+                className="absolute overflow-hidden border border-line bg-paper shadow-xl"
+                style={{
+                  left: menuAnchorRect.left,
+                  top: menuAnchorRect.top,
+                  width: Math.max(160, menuAnchorRect.width),
+                }}
+                onMouseDown={(event) => event.stopPropagation()}
+              >
+                <div className="py-1">
+                  {options.map((option) => {
+                    const selected = option === value;
+
+                    return (
+                      <button
+                        key={option}
+                        type="button"
+                        role="option"
+                        aria-selected={selected}
+                        onClick={() => selectOption(option)}
+                        className={`flex w-full items-center gap-3 px-3 py-1.5 text-left text-sm transition hover:bg-card ${
+                          selected
+                            ? "font-semibold text-ink"
+                            : "font-medium text-ink"
+                        }`}
+                      >
+                        <span className="min-w-0 flex-1 truncate">
+                          {option}
+                        </span>
+                        {selected ? (
+                          <Check className="size-3.5" strokeWidth={2} />
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
+    </>
   );
 }
 
@@ -1052,6 +1122,7 @@ function AccountSelect({
 }) {
   const [menuAnchorRect, setMenuAnchorRect] =
     useState<FloatingAnchorRect | null>(null);
+  const [query, setQuery] = useState("");
   const accountById = useMemo(
     () => new Map(accounts.map((account) => [account.id, account])),
     [accounts],
@@ -1069,6 +1140,15 @@ function AccountSelect({
     selectedAccounts.length > 0
       ? selectedAccounts.map((account) => getAccountLabel(account)).join(", ")
       : "No account";
+  const normalizedQuery = query.trim().toLowerCase();
+  const filteredAccounts = accounts.filter((account) =>
+    getAccountLabel(account).toLowerCase().includes(normalizedQuery),
+  );
+
+  function closeMenu() {
+    setMenuAnchorRect(null);
+    setQuery("");
+  }
 
   function clearAccounts() {
     onChange([]);
@@ -1114,57 +1194,78 @@ function AccountSelect({
             <div
               className="fixed inset-0 z-[9999]"
               onKeyDown={(event) => {
-                if (event.key === "Escape") setMenuAnchorRect(null);
+                if (event.key === "Escape") closeMenu();
               }}
-              onMouseDown={() => setMenuAnchorRect(null)}
+              onMouseDown={closeMenu}
             >
               <div
                 role="listbox"
-                className="absolute max-h-44 overflow-y-auto border border-line bg-paper p-1 shadow-xl"
+                className="absolute max-h-[344px] overflow-hidden border border-line bg-paper shadow-xl"
                 style={{
                   left: menuAnchorRect.left,
                   top: menuAnchorRect.top,
-                  width: Math.max(240, menuAnchorRect.width),
+                  width: Math.max(280, menuAnchorRect.width),
                 }}
                 onMouseDown={(event) => event.stopPropagation()}
               >
-                <button
-                  type="button"
-                  role="option"
-                  aria-selected={selectedAccounts.length === 0}
-                  onClick={clearAccounts}
-                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-muted transition hover:bg-card hover:text-ink"
-                >
-                  <AccountAvatar account={null} />
-                  <span className="min-w-0 flex-1 truncate">No account</span>
-                  {selectedAccounts.length === 0 ? (
-                    <Check className="size-3.5" strokeWidth={2} />
-                  ) : null}
-                </button>
-                {accounts.map((account) => {
-                  const selected = selectedAccountIds.has(account.id);
+                <div className="flex h-12 items-center gap-2 border-b border-line px-3">
+                  <Search className="size-4 text-muted" strokeWidth={1.8} />
+                  <input
+                    aria-label="Search accounts"
+                    autoFocus
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    placeholder="Search accounts..."
+                    className="min-w-0 flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-muted"
+                  />
+                </div>
+                <div className="max-h-[292px] overflow-y-auto py-2">
+                  <p className="px-4 pb-2 text-xs font-medium text-muted">
+                    Accounts
+                  </p>
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={selectedAccounts.length === 0}
+                    onClick={clearAccounts}
+                    className="flex w-full items-center gap-3 px-3 py-1.5 text-left text-sm text-ink transition hover:bg-card"
+                  >
+                    <AccountAvatar account={null} />
+                    <span className="min-w-0 flex-1 truncate">No account</span>
+                    {selectedAccounts.length === 0 ? (
+                      <Check className="size-3.5" strokeWidth={2} />
+                    ) : null}
+                  </button>
+                  {filteredAccounts.map((account) => {
+                    const selected = selectedAccountIds.has(account.id);
 
-                  return (
-                    <button
-                      key={account.id}
-                      type="button"
-                      role="option"
-                      aria-selected={selected}
-                      onClick={() => toggleAccount(account.id)}
-                      className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition hover:bg-card ${
-                        selected ? "font-semibold text-ink" : "text-ink"
-                      }`}
-                    >
-                      <AccountAvatar account={account} />
-                      <span className="min-w-0 flex-1 truncate">
-                        {getAccountLabel(account)}
-                      </span>
-                      {selected ? (
-                        <Check className="size-3.5" strokeWidth={2} />
-                      ) : null}
-                    </button>
-                  );
-                })}
+                    return (
+                      <button
+                        key={account.id}
+                        type="button"
+                        role="option"
+                        aria-selected={selected}
+                        onClick={() => toggleAccount(account.id)}
+                        className={`flex w-full items-center gap-3 px-3 py-1.5 text-left text-sm transition hover:bg-card ${
+                          selected ? "font-semibold text-ink" : "text-ink"
+                        }`}
+                      >
+                        <AccountAvatar account={account} />
+                        <span className="min-w-0 flex-1 truncate">
+                          {getAccountLabel(account)}
+                        </span>
+                        {selected ? (
+                          <Check className="size-3.5" strokeWidth={2} />
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                  {filteredAccounts.length === 0 ? (
+                    <p className="px-4 py-2 text-sm text-muted">
+                      No accounts found
+                    </p>
+                  ) : null}
+                </div>
               </div>
             </div>,
             document.body,
