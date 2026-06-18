@@ -27,12 +27,14 @@ function LegendRow({ item }: { item: DistributionItem }) {
 
 function DonutChart({ items }: { items: DistributionItem[] }) {
   const total = items.reduce((sum, item) => sum + item.value, 0);
-  const radius = 62;
-  const stroke = 18;
+  const size = 220;
+  const center = size / 2;
+  const radius = 86;
+  const stroke = 24;
   const circumference = 2 * Math.PI * radius;
   const { segments } = items.reduce(
     (acc, item) => {
-      const dash = (item.value / total) * circumference;
+      const dash = (item.value / Math.max(1, total)) * circumference;
 
       return {
         offset: acc.offset + dash,
@@ -59,21 +61,25 @@ function DonutChart({ items }: { items: DistributionItem[] }) {
   );
 
   return (
-    <svg viewBox="0 0 160 160" className="size-[148px]" aria-hidden="true">
+    <svg
+      viewBox={`0 0 ${size} ${size}`}
+      className="aspect-square w-full max-w-[22rem]"
+      aria-hidden="true"
+    >
       <circle
-        cx="80"
-        cy="80"
+        cx={center}
+        cy={center}
         r={radius}
         fill="none"
         stroke="var(--border)"
         strokeWidth={stroke}
       />
-      <g transform="rotate(-90 80 80)">
+      <g transform={`rotate(-90 ${center} ${center})`}>
         {segments.map(({ item, dash, gap, dashOffset }) => (
           <circle
             key={item.label}
-            cx="80"
-            cy="80"
+            cx={center}
+            cy={center}
             r={radius}
             fill="none"
             stroke={getPostFormatColor(item.label, item.color)}
@@ -84,18 +90,18 @@ function DonutChart({ items }: { items: DistributionItem[] }) {
         ))}
       </g>
       <text
-        x="80"
-        y="78"
+        x={center}
+        y={center - 4}
         textAnchor="middle"
-        className="fill-ink font-mono text-[18px]"
+        className="fill-ink font-mono text-[24px]"
       >
         {total}
       </text>
       <text
-        x="80"
-        y="94"
+        x={center}
+        y={center + 17}
         textAnchor="middle"
-        className="fill-muted font-mono text-[9px] uppercase tracking-[0.12em]"
+        className="fill-muted font-mono text-[10px] uppercase tracking-[0.12em]"
       >
         Posts
       </text>
@@ -127,8 +133,8 @@ export function ChannelDistribution({
           No content distribution yet
         </div>
       ) : (
-        <div className="flex min-w-0 flex-col items-center gap-4">
-          <div className="flex w-full justify-center">
+        <div className="flex min-w-0 flex-col items-stretch gap-4">
+          <div className="grid w-full place-items-center">
             <DonutChart items={items} />
           </div>
           <div className="flex w-full min-w-0 flex-col gap-3">
