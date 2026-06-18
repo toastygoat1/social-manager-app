@@ -3,10 +3,10 @@ export const POST_FORMATS = ["Post", "Reel", "Carousel", "Story"] as const;
 export type PostFormat = (typeof POST_FORMATS)[number];
 
 export const POST_FORMAT_COLORS: Record<PostFormat, string> = {
-  Post: "#b2a4ed",
-  Carousel: "#73b1f4",
-  Reel: "#66d4ef",
-  Story: "#61ddbb",
+  Post: "#5D9BFE",
+  Carousel: "#FA962F",
+  Reel: "#8B75FE",
+  Story: "#31D8BB",
 };
 
 export function normalizePostFormat(type: string): PostFormat {

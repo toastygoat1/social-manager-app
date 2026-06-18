@@ -7,42 +7,11 @@ import {
 import {
   buildMonthGrid,
   type SchedulerEvent,
-  type EventStatus,
   type MonthCell,
   MONTH_DAYS,
   toIsoDate,
 } from "./data";
-
-const STATUS_STYLE: Record<
-  EventStatus,
-  { chip: string; time: string; dot: string }
-> = {
-  published: {
-    chip: "bg-[#e7f0e9] text-[#334f41]",
-    time: "text-[#5f8270]",
-    dot: "bg-[#6b917e]",
-  },
-  scheduled: {
-    chip: "bg-[#edf0ff] text-[#354579]",
-    time: "text-[#637bce]",
-    dot: "bg-[#607ffc]",
-  },
-  draft: {
-    chip: "bg-[#f0efec] text-[#544f48]",
-    time: "text-[#777169]",
-    dot: "bg-[#8c8982]",
-  },
-  pending: {
-    chip: "bg-[#fbf1dc] text-[#674d23]",
-    time: "text-[#a67832]",
-    dot: "bg-[#c79545]",
-  },
-  removed: {
-    chip: "bg-card text-muted",
-    time: "text-muted",
-    dot: "bg-muted",
-  },
-};
+import { SCHEDULER_STATUS_STYLE } from "./scheduler-styles";
 
 function formatTime(event: SchedulerEvent): string {
   if (event.allDay) return "ALL";
@@ -61,7 +30,7 @@ function EventChip({
   onOpenPost: (event: SchedulerEvent) => void;
   dragController?: SchedulerDragController;
 }) {
-  const style = STATUS_STYLE[event.status ?? "draft"];
+  const style = SCHEDULER_STATUS_STYLE[event.status ?? "draft"];
   const canDrag = canDragSchedulerEvent(event);
   const isDragging = dragController?.draggingEventId === event.id;
   const isMoving = dragController?.movingEventId === event.id;

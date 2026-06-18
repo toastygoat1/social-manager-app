@@ -1,24 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { ImagePlus, Link2Off, LoaderCircle, Trash2, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Link2Off, LoaderCircle, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { AvatarImage } from "@/app/_components/AvatarImage";
 import { ApiError, apiFetchBrowser } from "@/lib/api/browser-client";
-import { createClient } from "@/lib/supabase/client";
 import { POST_FORMAT_COLORS } from "./post-formats";
 import type { Account } from "./data";
 
 type AccountPersonalizationModalProps = {
   account: Account | null;
   onClose: () => void;
-};
-
-type BannerUploadUrlResponse = {
-  bucket: string;
-  storagePath: string;
-  token: string;
-  signedUrl: string;
 };
 
 const PRESET_COLORS = [
@@ -29,8 +21,6 @@ const PRESET_COLORS = [
   "#4318FF",
   "#1f2937",
 ];
-
-const MAX_BANNER_BYTES = 8 * 1024 * 1024;
 
 function getInitials(label: string) {
   return (
@@ -59,25 +49,31 @@ export function AccountPersonalizationModal({
   account,
   onClose,
 }: AccountPersonalizationModalProps) {
+  if (!account) return null;
+
+  return (
+    <AccountPersonalizationDialog
+      key={account.id}
+      account={account}
+      onClose={onClose}
+    />
+  );
+}
+
+function AccountPersonalizationDialog({
+  account,
+  onClose,
+}: {
+  account: Account;
+  onClose: () => void;
+}) {
   const router = useRouter();
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [bannerPreview, setBannerPreview] = useState<string | null>(null);
-  const [accentColor, setAccentColor] = useState("");
-  const [nickname, setNickname] = useState("");
-  const [note, setNote] = useState("");
+  const [accentColor, setAccentColor] = useState(account.accentColor ?? "");
+  const [nickname, setNickname] = useState(account.nickname ?? "");
+  const [note, setNote] = useState(account.note ?? "");
   const [isSaving, setIsSaving] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!account) return;
-    setBannerPreview(account.bannerUrl ?? null);
-    setAccentColor(account.accentColor ?? "");
-    setNickname(account.nickname ?? "");
-    setNote(account.note ?? "");
-    setError(null);
-  }, [account]);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -87,79 +83,7 @@ export function AccountPersonalizationModal({
     return () => window.removeEventListener("keydown", onKey);
   }, [account, onClose]);
 
-  if (!account) return null;
-
-  async function handleUpload(file: File) {
-    if (!account) return;
-    if (!file.type.startsWith("image/")) {
-      setError("Banner must be an image");
-      return;
-    }
-    if (file.size > MAX_BANNER_BYTES) {
-      setError("Banner must be smaller than 8MB");
-      return;
-    }
-    setError(null);
-    setIsUploading(true);
-    const localPreview = URL.createObjectURL(file);
-    setBannerPreview(localPreview);
-    try {
-      const intent = await apiFetchBrowser<BannerUploadUrlResponse>(
-        `/instagram/accounts/${encodeURIComponent(account.id)}/banner/upload-url`,
-        {
-          method: "POST",
-          body: {
-            name: file.name,
-            mimeType: file.type,
-            fileSize: file.size,
-          },
-        },
-      );
-      const supabase = createClient();
-      const { error: uploadError } = await supabase.storage
-        .from(intent.bucket)
-        .uploadToSignedUrl(intent.storagePath, intent.token, file, {
-          contentType: file.type,
-        });
-      if (uploadError) throw uploadError;
-      const updated = await apiFetchBrowser<Account>(
-        `/instagram/accounts/${encodeURIComponent(account.id)}/banner`,
-        {
-          method: "POST",
-          body: { storagePath: intent.storagePath },
-        },
-      );
-      setBannerPreview(updated.bannerUrl ?? null);
-      router.refresh();
-    } catch (err) {
-      setError(getApiMessage(err, "Could not upload banner"));
-      setBannerPreview(account?.bannerUrl ?? null);
-    } finally {
-      setIsUploading(false);
-      URL.revokeObjectURL(localPreview);
-    }
-  }
-
-  async function handleClearBanner() {
-    if (!account) return;
-    setIsUploading(true);
-    setError(null);
-    try {
-      await apiFetchBrowser(
-        `/instagram/accounts/${encodeURIComponent(account.id)}/banner`,
-        { method: "DELETE" },
-      );
-      setBannerPreview(null);
-      router.refresh();
-    } catch (err) {
-      setError(getApiMessage(err, "Could not remove banner"));
-    } finally {
-      setIsUploading(false);
-    }
-  }
-
   async function handleSave() {
-    if (!account) return;
     setIsSaving(true);
     setError(null);
     try {
@@ -183,7 +107,6 @@ export function AccountPersonalizationModal({
   }
 
   async function handleDisconnect() {
-    if (!account) return;
     const confirmed = window.confirm(
       `Disconnect ${account.name} from this workspace?`,
     );
@@ -204,7 +127,6 @@ export function AccountPersonalizationModal({
   }
 
   const previewAccent = accentColor || "#5e6ad2";
-  const showingPreview = bannerPreview;
 
   return (
     <div
@@ -228,70 +150,17 @@ export function AccountPersonalizationModal({
           <X className="size-4" strokeWidth={1.8} />
         </button>
 
-        <div
-          className="relative h-28 w-full"
-          style={
-            showingPreview
-              ? {
-                  backgroundImage: `url("${showingPreview}")`,
-                  backgroundSize: "cover",
-                  backgroundPosition: "center",
-                }
-              : {
-                  background: `linear-gradient(135deg, ${previewAccent} 0%, ${previewAccent}80 100%)`,
-                }
-          }
-        >
-          <div className="absolute right-3 bottom-3 flex gap-1.5">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              hidden
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) handleUpload(file);
-                if (event.target) event.target.value = "";
-              }}
-            />
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isUploading}
-              className="inline-flex items-center gap-1.5 rounded-full bg-paper/90 px-2.5 py-1 text-[11px] font-medium text-ink shadow-sm backdrop-blur transition hover:bg-paper disabled:pointer-events-none disabled:opacity-60"
-            >
-              {isUploading ? (
-                <LoaderCircle className="size-3.5 animate-spin" strokeWidth={2} />
-              ) : (
-                <ImagePlus className="size-3.5" strokeWidth={1.8} />
-              )}
-              {showingPreview ? "Replace banner" : "Upload banner"}
-            </button>
-            {showingPreview ? (
-              <button
-                type="button"
-                onClick={handleClearBanner}
-                disabled={isUploading}
-                aria-label="Remove banner"
-                className="grid size-7 place-items-center rounded-full bg-paper/90 text-muted shadow-sm backdrop-blur transition hover:bg-paper hover:text-ink disabled:pointer-events-none disabled:opacity-60"
-              >
-                <Trash2 className="size-3.5" strokeWidth={1.8} />
-              </button>
-            ) : null}
-          </div>
-        </div>
-
-        <div className="-mt-8 flex flex-col items-center gap-1 px-5">
+        <div className="flex flex-col items-center gap-1 px-5 pb-2 pt-8">
           <span
-            className="flex size-16 items-center justify-center overflow-hidden rounded-full border-4 bg-card"
-            style={{ borderColor: "var(--bg-light)" }}
+            className="flex size-20 items-center justify-center overflow-hidden rounded-full border-4 bg-card"
+            style={{ borderColor: previewAccent }}
           >
             <AvatarImage
               src={account.avatarUrl}
               alt={account.name}
-              width={64}
-              height={64}
-              className="size-16 rounded-full object-cover"
+              width={80}
+              height={80}
+              className="size-20 rounded-full object-cover"
               fallback={getInitials(account.name)}
             />
           </span>

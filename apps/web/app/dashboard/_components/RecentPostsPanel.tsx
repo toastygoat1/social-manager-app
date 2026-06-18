@@ -7,6 +7,7 @@ import { PostDetailsModal } from "@/app/scheduler/_components/PostDetailsModal";
 import type { ContentRow } from "./data";
 import {
   normalizePostFormat,
+  POST_FORMAT_COLORS,
   type PostFormat,
 } from "./post-formats";
 
@@ -28,17 +29,10 @@ const TAB_TO_FORMAT: Record<Tab, PostFormat | "All"> = {
 
 const TAB_ACTIVE_COLOR: Record<Tab, string> = {
   All: "#0d0d0d",
-  Posts: "#5D9BFE",
-  Carousel: "#FA962F",
-  Reels: "#8B75FE",
-  Stories: "#31D8BB",
-};
-
-const RECENT_POST_FORMAT_COLORS: Record<PostFormat, string> = {
-  Post: "#5D9BFE",
-  Carousel: "#FA962F",
-  Reel: "#8B75FE",
-  Story: "#31D8BB",
+  Posts: POST_FORMAT_COLORS.Post,
+  Carousel: POST_FORMAT_COLORS.Carousel,
+  Reels: POST_FORMAT_COLORS.Reel,
+  Stories: POST_FORMAT_COLORS.Story,
 };
 
 function getInitials(label: string) {
@@ -73,7 +67,7 @@ function displayText(value: string | null | undefined) {
 }
 
 function ThumbnailPlaceholder({ format }: { format: PostFormat }) {
-  const color = RECENT_POST_FORMAT_COLORS[format];
+  const color = POST_FORMAT_COLORS[format];
   return (
     <div
       className="flex h-full w-full items-center justify-center"
@@ -180,7 +174,7 @@ export function RecentPostsPanel({ rows }: RecentPostsPanelProps) {
           filtered.map((row, index) => {
             const format = normalizePostFormat(row.type);
             const preview = getThumbnail(row);
-            const color = RECENT_POST_FORMAT_COLORS[format];
+            const color = POST_FORMAT_COLORS[format];
             const captionLabel =
               displayText(row.caption) ?? displayText(row.contents) ?? "No caption";
 

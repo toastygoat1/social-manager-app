@@ -26,6 +26,7 @@ export type SchedulerEvent = {
   postType: SchedulerPostType | null;
   accountId: string | null;
   accountUsername: string | null;
+  accountAvatarUrl: string | null;
   caption: string | null;
 };
 

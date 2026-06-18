@@ -39,6 +39,7 @@ import {
   type InstagramMediaIssue,
   type InstagramRuleMediaItem,
 } from "./instagram-media-rules";
+import { SCHEDULER_STATUS_STYLE } from "./scheduler-styles";
 
 type Props = {
   postId: string | null;
@@ -72,36 +73,21 @@ type MediaAssetsResponse = {
 
 const STATUS_STYLE: Record<
   EventStatus,
-  { label: string; bg: string; text: string; Icon: typeof CheckCircle2 }
+  { Icon: typeof CheckCircle2 }
 > = {
   published: {
-    label: "Published",
-    bg: "bg-[#bcb1f2]",
-    text: "text-[#3a2a96]",
     Icon: CheckCircle2,
   },
   scheduled: {
-    label: "Scheduled",
-    bg: "bg-[#78dbe8]",
-    text: "text-[#104e61]",
     Icon: Clock3,
   },
   pending: {
-    label: "Awaiting approval",
-    bg: "bg-[#f7c852]",
-    text: "text-[#7a4a00]",
     Icon: TriangleAlert,
   },
   draft: {
-    label: "Draft",
-    bg: "bg-[#a9afbb]",
-    text: "text-[#1f2a3a]",
     Icon: Pencil,
   },
   removed: {
-    label: "Removed",
-    bg: "bg-card",
-    text: "text-muted",
     Icon: X,
   },
 };
@@ -391,12 +377,14 @@ function mediaSourceUrl(item: SchedulerPostDetail["media"][number] | DraftUpload
 }
 
 function StatusBadge({ status }: { status: EventStatus }) {
-  const style = STATUS_STYLE[status];
+  const iconStyle = STATUS_STYLE[status];
+  const style = SCHEDULER_STATUS_STYLE[status];
+  const Icon = iconStyle.Icon;
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${style.bg} ${style.text}`}
     >
-      <style.Icon className="size-3.5" strokeWidth={2.2} />
+      <Icon className="size-3.5" strokeWidth={2.2} />
       {style.label}
     </span>
   );

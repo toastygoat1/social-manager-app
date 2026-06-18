@@ -1,9 +1,4 @@
-const POST_FORMAT_COLORS = {
-  Post: "#5D9BFE",
-  Carousel: "#FA962F",
-  Reel: "#8B75FE",
-  Story: "#31D8BB",
-} as const;
+import { POST_FORMAT_COLORS } from "@/app/dashboard/_components/post-formats";
 
 export function getPostFormatColor(label: string, fallback = "#5D9BFE") {
   const normalized = label.trim().toLowerCase();

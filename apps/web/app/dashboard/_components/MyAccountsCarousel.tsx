@@ -38,48 +38,31 @@ export function MyAccountsCarousel({
       ) : (
         <div className="-mx-1 -mt-2 flex gap-4 overflow-x-auto px-1 pb-2 pt-2">
           {accounts.map((account) => {
-            const banner = account.bannerUrl ?? null;
-            const accent = account.accentColor ?? null;
             const displayName = account.nickname?.trim() || account.name;
             return (
               <button
                 type="button"
                 key={account.id}
                 onClick={() => setOpenAccount(account)}
-                className="group flex w-[224px] shrink-0 flex-col overflow-hidden rounded-[12px] border border-line bg-paper text-left transition-colors duration-200 hover:bg-card"
+                className="group flex w-[132px] shrink-0 flex-col items-center gap-3 rounded-[12px] border border-line bg-paper px-3 py-4 text-center transition-colors duration-200 hover:bg-card"
                 aria-label={`Personalize ${displayName}`}
               >
-                <div
-                  className="aspect-[16/9] w-full"
-                  style={
-                    banner
-                      ? {
-                          backgroundImage: `url("${banner}")`,
-                          backgroundSize: "cover",
-                          backgroundPosition: "center",
-                        }
-                      : {
-                          background: accent
-                            ? `linear-gradient(135deg, ${accent} 0%, ${accent}80 100%)`
-                            : "linear-gradient(135deg, #e9e9e9 0%, #f5f5f5 100%)",
-                        }
-                  }
-                />
-                <div className="flex items-center gap-2.5 px-4 py-3.5">
-                  <span className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full">
-                    <AvatarImage
-                      src={account.avatarUrl}
-                      alt={account.name}
-                      width={36}
-                      height={36}
-                      className="size-9 rounded-full object-cover"
-                      fallback={getInitials(account.name)}
-                    />
-                  </span>
-                  <span className="dashboard-ui-label truncate text-ink">
-                    {displayName}
-                  </span>
-                </div>
+                <span className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-full">
+                  <AvatarImage
+                    src={account.avatarUrl}
+                    alt={account.name}
+                    width={64}
+                    height={64}
+                    className="size-16 rounded-full object-cover"
+                    fallback={getInitials(account.name)}
+                  />
+                </span>
+                <span
+                  className="dashboard-ui-label max-w-full truncate text-ink"
+                  title={displayName}
+                >
+                  {displayName}
+                </span>
               </button>
             );
           })}

@@ -1,50 +1,10 @@
 import { GripVertical } from "lucide-react";
-import type { SchedulerEvent, EventStatus } from "./data";
+import type { SchedulerEvent } from "./data";
 import {
   canDragSchedulerEvent,
   type SchedulerDragController,
 } from "./drag";
-
-const STATUS_STYLE: Record<
-  EventStatus,
-  { card: string; time: string; dot: string; badge: string; label: string }
-> = {
-  published: {
-    card: "bg-[#e7f0e9] text-[#334f41]",
-    time: "text-[#5f8270]",
-    dot: "bg-[#6b917e]",
-    badge: "bg-[#d7e6dc] text-[#446455]",
-    label: "Published",
-  },
-  scheduled: {
-    card: "bg-[#edf0ff] text-[#354579]",
-    time: "text-[#637bce]",
-    dot: "bg-[#607ffc]",
-    badge: "bg-[#dfe5ff] text-[#506bc8]",
-    label: "Scheduled",
-  },
-  pending: {
-    card: "bg-[#fbf1dc] text-[#674d23]",
-    time: "text-[#a67832]",
-    dot: "bg-[#c79545]",
-    badge: "bg-[#f5e5be] text-[#85602b]",
-    label: "In review",
-  },
-  draft: {
-    card: "bg-[#f0efec] text-[#544f48]",
-    time: "text-[#777169]",
-    dot: "bg-[#8c8982]",
-    badge: "bg-[#e2dfd9] text-[#635e57]",
-    label: "Draft",
-  },
-  removed: {
-    card: "bg-card text-muted",
-    time: "text-muted",
-    dot: "bg-muted",
-    badge: "bg-paper text-muted",
-    label: "Removed",
-  },
-};
+import { SCHEDULER_STATUS_STYLE } from "./scheduler-styles";
 
 export function formatEventTime(event: SchedulerEvent) {
   if (event.allDay) return "All day";
@@ -65,7 +25,7 @@ export function AgendaEventCard({
   onOpenPost: (event: SchedulerEvent) => void;
   dragController?: SchedulerDragController;
 }) {
-  const style = STATUS_STYLE[event.status ?? "draft"];
+  const style = SCHEDULER_STATUS_STYLE[event.status ?? "draft"];
   const canDrag = canDragSchedulerEvent(event);
   const isDragging = dragController?.draggingEventId === event.id;
   const isMoving = dragController?.movingEventId === event.id;

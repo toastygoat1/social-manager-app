@@ -51,6 +51,7 @@ export type SchedulerEvent = {
   postType: PostType | null;
   accountId: string | null;
   accountUsername: string | null;
+  accountAvatarUrl: string | null;
   caption: string | null;
 };
 
@@ -321,11 +322,14 @@ export class SchedulerService {
 
     const accounts = await this.prisma.instagramAccount.findMany({
       where: { userId, isActive: true },
-      select: { id: true, username: true },
+      select: { id: true, username: true, avatarUrl: true },
     });
     const accountIds = accounts.map((a) => a.id);
     const usernameByAccountId = new Map(
       accounts.map((a) => [a.id, a.username] as const),
+    );
+    const avatarUrlByAccountId = new Map(
+      accounts.map((a) => [a.id, a.avatarUrl] as const),
     );
 
     const scheduledPosts = accountIds.length
@@ -360,6 +364,8 @@ export class SchedulerService {
           accountId: post.instagramAccountId,
           accountUsername:
             usernameByAccountId.get(post.instagramAccountId) ?? null,
+          accountAvatarUrl:
+            avatarUrlByAccountId.get(post.instagramAccountId) ?? null,
           caption: post.caption,
         };
       },
@@ -385,7 +391,13 @@ export class SchedulerService {
   ): Promise<SchedulerEvent> {
     const account = await this.prisma.instagramAccount.findUnique({
       where: { id: input.instagramAccountId },
-      select: { id: true, userId: true, username: true, isActive: true },
+      select: {
+        id: true,
+        userId: true,
+        username: true,
+        avatarUrl: true,
+        isActive: true,
+      },
     });
     if (!account) throw new NotFoundException('Instagram account not found');
     if (account.userId !== userId) {
@@ -495,6 +507,7 @@ export class SchedulerService {
       postType: post.postType,
       accountId: account.id,
       accountUsername: account.username,
+      accountAvatarUrl: account.avatarUrl,
       caption: post.caption,
     };
   }

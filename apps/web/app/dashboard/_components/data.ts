@@ -22,7 +22,6 @@ export type Account = {
   displayName?: string | null;
   platform: string;
   avatarUrl?: string | null;
-  bannerUrl?: string | null;
   accentColor?: string | null;
   nickname?: string | null;
   note?: string | null;

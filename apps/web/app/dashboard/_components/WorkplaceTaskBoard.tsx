@@ -1993,10 +1993,10 @@ function GanttView({
     minimumBodyHeight,
     ganttViewportHeight || minimumBodyHeight,
   );
-  const rowLineCount = Math.max(
-    rowCount + 1,
-    Math.ceil(contentHeight / GANTT_ROW_HEIGHT) + 1,
-  );
+  const rowLineCount = Math.floor(contentHeight / GANTT_ROW_HEIGHT);
+  const hasVerticalOverflow =
+    ganttViewportHeight > 0 && minimumBodyHeight > ganttViewportHeight + 1;
+  const hasHorizontalOverflow = timelineWidth > chartViewportWidth + 1;
   const groupBoundaryPositions = timeline.groups
     .map((group) => group.left + group.width)
     .filter((left) => left > 0 && left < timelineWidth);
@@ -2217,11 +2217,16 @@ function GanttView({
           </div>
         </div>
 
-        <div ref={verticalScrollerRef} className="min-h-0 flex-1 overflow-y-auto">
+        <div
+          ref={verticalScrollerRef}
+          className={`min-h-0 flex-1 ${
+            hasVerticalOverflow ? "overflow-y-auto" : "overflow-y-hidden"
+          }`}
+        >
           <div className="flex min-h-full">
             {showTaskList ? (
               <div
-                className="relative shrink-0 border-r border-line bg-paper"
+                className="relative shrink-0 overflow-hidden border-r border-line bg-paper"
                 style={{ width: leftWidth, height: contentHeight }}
               >
                 {ganttRows.map(({ task }) => (
@@ -2402,21 +2407,23 @@ function GanttView({
           </div>
         </div>
 
-        <div className="flex shrink-0 border-t border-line bg-paper">
-          {showTaskList ? (
+        {hasHorizontalOverflow ? (
+          <div className="flex shrink-0 border-t border-line bg-paper">
+            {showTaskList ? (
+              <div
+                className="shrink-0 border-r border-line bg-paper"
+                style={{ width: leftWidth }}
+              />
+            ) : null}
             <div
-              className="shrink-0 border-r border-line bg-paper"
-              style={{ width: leftWidth }}
-            />
-          ) : null}
-          <div
-            ref={horizontalScrollbarRef}
-            className="h-4 min-w-0 flex-1 overflow-x-auto overflow-y-hidden"
-            onScroll={syncTimelineScrollbar}
-          >
-            <div className="h-px" style={{ width: timelineWidth }} />
+              ref={horizontalScrollbarRef}
+              className="h-4 min-w-0 flex-1 overflow-x-auto overflow-y-hidden"
+              onScroll={syncTimelineScrollbar}
+            >
+              <div className="h-px" style={{ width: timelineWidth }} />
+            </div>
           </div>
-        </div>
+        ) : null}
 
         {showTaskList ? (
           <button

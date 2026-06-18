@@ -13,14 +13,20 @@ import {
   Plus,
   PlusSquare,
   SlidersHorizontal,
+  Users,
   X,
 } from "lucide-react";
+import { AvatarImage } from "@/app/_components/AvatarImage";
 import { CreatePostModal, type CreatePostType } from "./CreatePostModal";
 import {
   formatPeriodLabel,
   type EventStatus,
   type SchedulerPostType,
 } from "./data";
+import {
+  SCHEDULER_POST_TYPE_STYLE,
+  SCHEDULER_STATUS_STYLE,
+} from "./scheduler-styles";
 
 export type SchedulerView = "month" | "week" | "list";
 
@@ -33,6 +39,7 @@ export type SchedulerFilterState = {
 export type SchedulerFilterAccountOption = {
   id: string;
   label: string;
+  avatarUrl: string | null;
 };
 
 type Props = {
@@ -48,7 +55,8 @@ type Props = {
     group: keyof SchedulerFilterState,
     value: SchedulerFilterState[keyof SchedulerFilterState][number],
   ) => void;
-  onClearFilters: () => void;
+  onClearContentFilters: () => void;
+  onClearAccountFilters: () => void;
 };
 
 const CREATE_OPTIONS: {
@@ -93,19 +101,19 @@ const VIEW_OPTIONS: {
   { view: "list", label: "List view", Icon: List },
 ];
 
-const POST_TYPE_OPTIONS: { value: SchedulerPostType; label: string }[] = [
-  { value: "FEED", label: "Post" },
-  { value: "CAROUSEL", label: "Carousel" },
-  { value: "REEL", label: "Reel" },
-  { value: "STORY", label: "Story" },
+const POST_TYPE_OPTIONS: SchedulerPostType[] = [
+  "FEED",
+  "CAROUSEL",
+  "REEL",
+  "STORY",
 ];
 
-const STATUS_OPTIONS: { value: EventStatus; label: string }[] = [
-  { value: "scheduled", label: "Scheduled" },
-  { value: "published", label: "Published" },
-  { value: "pending", label: "In review" },
-  { value: "draft", label: "Draft" },
-  { value: "removed", label: "Removed" },
+const STATUS_OPTIONS: EventStatus[] = [
+  "scheduled",
+  "published",
+  "pending",
+  "draft",
+  "removed",
 ];
 
 export function SchedulerHeader({
@@ -118,14 +126,16 @@ export function SchedulerHeader({
   filters,
   filterAccounts,
   onFilterToggle,
-  onClearFilters,
+  onClearContentFilters,
+  onClearAccountFilters,
 }: Props) {
   const [createOpen, setCreateOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [accountsOpen, setAccountsOpen] = useState(false);
   const [modalType, setModalType] = useState<CreatePostType | null>(null);
   const periodLabel = formatPeriodLabel(view, new Date(referenceIso));
-  const activeFilterCount =
-    filters.postTypes.length + filters.statuses.length + filters.accountIds.length;
+  const activeFilterCount = filters.postTypes.length + filters.statuses.length;
+  const activeAccountCount = filters.accountIds.length;
 
   return (
     <header className="relative z-20 shrink-0 border-b border-[#e8e3da] bg-[#fffdf9]">
@@ -174,6 +184,7 @@ export function SchedulerHeader({
               aria-expanded={filterOpen}
               onClick={() => {
                 setFilterOpen((open) => !open);
+                setAccountsOpen(false);
                 setCreateOpen(false);
               }}
               className={`flex h-8 items-center gap-1.5 rounded-md border px-3 text-[11px] font-semibold transition-colors ${
@@ -192,20 +203,15 @@ export function SchedulerHeader({
             </button>
 
             {filterOpen ? (
-              <div className="absolute right-0 top-[38px] z-30 w-[292px] rounded-lg border border-[#d8d8d8] bg-paper p-3 shadow-lg">
+              <div className="scheduler-create-menu absolute right-0 top-[38px] z-30 w-[292px] rounded-lg border border-[#d8d8d8] bg-paper p-3 shadow-lg">
                 <div className="mb-3 flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-semibold text-[#171510]">
-                      Filter posts
-                    </p>
-                    <p className="mt-0.5 text-[10px] text-[#777777]">
-                      Show only matching scheduled content
-                    </p>
-                  </div>
+                  <p className="text-xs font-semibold text-[#171510]">
+                    Filter posts
+                  </p>
                   {activeFilterCount > 0 ? (
                     <button
                       type="button"
-                      onClick={onClearFilters}
+                      onClick={onClearContentFilters}
                       className="flex h-7 items-center gap-1 rounded-md border border-[#d8d8d8] px-2 text-[10px] font-medium text-[#555555] hover:bg-[#f3f3f3]"
                     >
                       <X className="size-3" />
@@ -215,33 +221,86 @@ export function SchedulerHeader({
                 </div>
 
                 <FilterGroup title="Post type">
-                  {POST_TYPE_OPTIONS.map((option) => (
-                    <FilterChip
-                      key={option.value}
-                      label={option.label}
-                      selected={filters.postTypes.includes(option.value)}
-                      onClick={() => onFilterToggle("postTypes", option.value)}
-                    />
-                  ))}
+                  {POST_TYPE_OPTIONS.map((postType) => {
+                    const style = SCHEDULER_POST_TYPE_STYLE[postType];
+                    return (
+                      <FilterChip
+                        key={postType}
+                        label={style.label}
+                        selected={filters.postTypes.includes(postType)}
+                        color={style.color}
+                        onClick={() => onFilterToggle("postTypes", postType)}
+                      />
+                    );
+                  })}
                 </FilterGroup>
 
                 <FilterGroup title="Status">
-                  {STATUS_OPTIONS.map((option) => (
-                    <FilterChip
-                      key={option.value}
-                      label={option.label}
-                      selected={filters.statuses.includes(option.value)}
-                      onClick={() => onFilterToggle("statuses", option.value)}
-                    />
-                  ))}
+                  {STATUS_OPTIONS.map((status) => {
+                    const style = SCHEDULER_STATUS_STYLE[status];
+                    return (
+                      <FilterChip
+                        key={status}
+                        label={style.label}
+                        selected={filters.statuses.includes(status)}
+                        selectedClassName={style.chip}
+                        onClick={() => onFilterToggle("statuses", status)}
+                      />
+                    );
+                  })}
                 </FilterGroup>
+              </div>
+            ) : null}
+          </div>
 
-                <FilterGroup title="Account">
+          <div className="relative">
+            <button
+              type="button"
+              aria-expanded={accountsOpen}
+              onClick={() => {
+                setAccountsOpen((open) => !open);
+                setFilterOpen(false);
+                setCreateOpen(false);
+              }}
+              className={`flex h-8 items-center gap-1.5 rounded-md border px-3 text-[11px] font-semibold transition-colors ${
+                activeAccountCount > 0
+                  ? "border-[#171510] bg-[#171510] text-white"
+                  : "border-[#d8d8d8] bg-[#f8f8f8] text-[#3f3f3f] hover:bg-[#eeeeee]"
+              }`}
+            >
+              <Users className="size-3.5" strokeWidth={2} />
+              Accounts
+              {activeAccountCount > 0 ? (
+                <span className="flex min-w-4 items-center justify-center rounded-full bg-white px-1 text-[9px] font-bold text-[#171510]">
+                  {activeAccountCount}
+                </span>
+              ) : null}
+            </button>
+
+            {accountsOpen ? (
+              <div className="scheduler-create-menu absolute right-0 top-[38px] z-30 w-[292px] rounded-lg border border-[#d8d8d8] bg-paper p-3 shadow-lg">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <p className="text-xs font-semibold text-[#171510]">
+                    Filter accounts
+                  </p>
+                  {activeAccountCount > 0 ? (
+                    <button
+                      type="button"
+                      onClick={onClearAccountFilters}
+                      className="flex h-7 items-center gap-1 rounded-md border border-[#d8d8d8] px-2 text-[10px] font-medium text-[#555555] hover:bg-[#f3f3f3]"
+                    >
+                      <X className="size-3" />
+                      Clear
+                    </button>
+                  ) : null}
+                </div>
+
+                <div className="flex flex-wrap gap-1.5">
                   {filterAccounts.length > 0 ? (
                     filterAccounts.map((account) => (
-                      <FilterChip
+                      <AccountFilterChip
                         key={account.id}
-                        label={account.label}
+                        account={account}
                         selected={filters.accountIds.includes(account.id)}
                         onClick={() => onFilterToggle("accountIds", account.id)}
                       />
@@ -251,7 +310,7 @@ export function SchedulerHeader({
                       No accounts in this period
                     </span>
                   )}
-                </FilterGroup>
+                </div>
               </div>
             ) : null}
           </div>
@@ -262,6 +321,7 @@ export function SchedulerHeader({
               onClick={() => {
                 setCreateOpen((open) => !open);
                 setFilterOpen(false);
+                setAccountsOpen(false);
               }}
               className="flex h-8 items-center gap-1.5 rounded-md bg-[#141310] px-3 text-[11px] font-semibold text-white transition-transform duration-150 active:scale-[0.97]"
             >
@@ -396,9 +456,50 @@ function FilterGroup({
 function FilterChip({
   label,
   selected,
+  color,
+  selectedClassName,
   onClick,
 }: {
   label: string;
+  selected: boolean;
+  color?: string;
+  selectedClassName?: string;
+  onClick: () => void;
+}) {
+  const colorStyle =
+    color && selected
+      ? { backgroundColor: color, borderColor: color, color: "#ffffff" }
+      : color
+        ? {
+            backgroundColor: `${color}12`,
+            borderColor: `${color}55`,
+            color,
+          }
+        : undefined;
+
+  return (
+    <button
+      type="button"
+      aria-pressed={selected}
+      onClick={onClick}
+      className={`rounded-full border px-2.5 py-1 text-[10px] font-medium transition-colors ${
+        selected
+          ? (selectedClassName ?? "border-[#171510] bg-[#171510] text-white")
+          : "border-[#d8d8d8] bg-[#f8f8f8] text-[#555555] hover:bg-[#eeeeee]"
+      }`}
+      style={colorStyle}
+    >
+      {label}
+    </button>
+  );
+}
+
+function AccountFilterChip({
+  account,
+  selected,
+  onClick,
+}: {
+  account: SchedulerFilterAccountOption;
   selected: boolean;
   onClick: () => void;
 }) {
@@ -407,13 +508,22 @@ function FilterChip({
       type="button"
       aria-pressed={selected}
       onClick={onClick}
-      className={`rounded-full border px-2.5 py-1 text-[10px] font-medium transition-colors ${
+      className={`inline-flex max-w-full items-center gap-1.5 rounded-full border py-1 pl-1 pr-2.5 text-[10px] font-medium transition-colors ${
         selected
           ? "border-[#171510] bg-[#171510] text-white"
           : "border-[#d8d8d8] bg-[#f8f8f8] text-[#555555] hover:bg-[#eeeeee]"
       }`}
+      title={account.label}
     >
-      {label}
+      <AvatarImage
+        src={account.avatarUrl}
+        alt={account.label}
+        width={20}
+        height={20}
+        className="size-5 rounded-full object-cover"
+        fallback={account.label}
+      />
+      <span className="max-w-[116px] truncate">{account.label}</span>
     </button>
   );
 }

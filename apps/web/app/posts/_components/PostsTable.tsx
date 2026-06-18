@@ -27,9 +27,11 @@ import type {
 } from "@/app/dashboard/_components/data";
 import {
   normalizePostFormat,
+  POST_FORMAT_COLORS,
   type PostFormat,
 } from "@/app/dashboard/_components/post-formats";
 import { PostDetailsModal } from "@/app/scheduler/_components/PostDetailsModal";
+import { getSchedulerStatusStyleFromLabel } from "@/app/scheduler/_components/scheduler-styles";
 import { formatNumber } from "@/lib/format";
 
 type PostsTableProps = {
@@ -100,13 +102,6 @@ const STATIC_COLUMNS: ColumnDefinition[] = [
   { key: "shares", label: "Shares", width: METRIC_COLUMN_WIDTH, align: "right" },
 ];
 
-const TYPE_COLORS: Record<PostFormat, string> = {
-  Post: "#5D9BFE",
-  Carousel: "#FA962F",
-  Reel: "#8B75FE",
-  Story: "#31D8BB",
-};
-
 const TYPE_ICONS: Record<PostFormat, typeof ImageIcon> = {
   Post: ImageIcon,
   Carousel: Images,
@@ -157,17 +152,7 @@ function getThumbnail(row: ContentRow) {
 
 function StatusPill({ status }: { status: string }) {
   const label = displayText(status) ?? "Draft";
-  const normalized = label.toLowerCase();
-  const tone =
-    normalized.includes("removed")
-      ? "bg-card text-muted"
-      : normalized.includes("publish")
-      ? "bg-emerald-50 text-success"
-      : normalized.includes("ready") || normalized.includes("scheduled")
-        ? "bg-indigo-50 text-[#5e6ad2]"
-        : normalized.includes("pending")
-          ? "bg-amber-50 text-[#98640d]"
-          : "bg-card text-muted";
+  const tone = getSchedulerStatusStyleFromLabel(label).badge;
 
   return (
     <span
@@ -190,7 +175,7 @@ function TypePill({ type }: { type: string }) {
       <Icon
         aria-hidden="true"
         className="size-4 shrink-0"
-        style={{ color: TYPE_COLORS[format] }}
+        style={{ color: POST_FORMAT_COLORS[format] }}
         strokeWidth={2}
       />
       <span className="truncate">{format}</span>
@@ -209,7 +194,7 @@ function MetricValue({ value }: { value: number | null | undefined }) {
 function Thumbnail({ row }: { row: ContentRow }) {
   const preview = getThumbnail(row);
   const format = normalizePostFormat(row.type);
-  const color = TYPE_COLORS[format];
+  const color = POST_FORMAT_COLORS[format];
 
   return (
     <span className="block h-12 w-[72px] shrink-0 overflow-hidden rounded-md bg-card">
@@ -743,7 +728,7 @@ export function PostsTable({
       </div>
 
       <div className="mx-5 mb-5 mt-3 flex min-h-0 min-w-0 flex-1 sm:mx-7 sm:mb-7">
-        <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border border-line bg-white">
+        <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-line bg-white">
           <div className="shrink-0 overflow-hidden border-b border-line bg-card">
             <table
               className="w-full table-fixed border-collapse text-left"

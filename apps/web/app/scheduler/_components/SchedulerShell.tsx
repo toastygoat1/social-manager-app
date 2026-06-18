@@ -119,19 +119,30 @@ export function SchedulerShell({ initialReferenceIso, initialData }: Props) {
   }, [fetchEvents]);
 
   const filterAccounts = useMemo(() => {
-    const accounts = new Map<string, string>();
+    const accounts = new Map<
+      string,
+      { id: string; label: string; avatarUrl: string | null }
+    >();
     for (const event of data.events) {
       if (!event.accountId) continue;
-      accounts.set(
-        event.accountId,
-        event.accountUsername ? `@${event.accountUsername}` : "Unnamed account",
-      );
+      accounts.set(event.accountId, {
+        id: event.accountId,
+        label: event.accountUsername
+          ? `@${event.accountUsername}`
+          : "Unnamed account",
+        avatarUrl: event.accountAvatarUrl ?? null,
+      });
     }
     for (const accountId of filters.accountIds) {
-      if (!accounts.has(accountId)) accounts.set(accountId, "Selected account");
+      if (!accounts.has(accountId)) {
+        accounts.set(accountId, {
+          id: accountId,
+          label: "Selected account",
+          avatarUrl: null,
+        });
+      }
     }
-    return Array.from(accounts.entries())
-      .map(([id, label]) => ({ id, label }))
+    return Array.from(accounts.values())
       .sort((first, second) => first.label.localeCompare(second.label));
   }, [data.events, filters.accountIds]);
 
@@ -379,7 +390,12 @@ export function SchedulerShell({ initialReferenceIso, initialData }: Props) {
         filters={filters}
         filterAccounts={filterAccounts}
         onFilterToggle={handleFilterToggle}
-        onClearFilters={() => setFilters(EMPTY_FILTERS)}
+        onClearContentFilters={() =>
+          setFilters((current) => ({ ...current, postTypes: [], statuses: [] }))
+        }
+        onClearAccountFilters={() =>
+          setFilters((current) => ({ ...current, accountIds: [] }))
+        }
       />
       {notice ? (
         <div

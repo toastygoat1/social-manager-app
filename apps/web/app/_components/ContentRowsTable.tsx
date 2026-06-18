@@ -6,10 +6,11 @@ import type {
 } from "@/app/dashboard/_components/data";
 import {
   normalizePostFormat,
-  type PostFormat,
+  POST_FORMAT_COLORS,
 } from "@/app/dashboard/_components/post-formats";
 import { AvatarImage } from "@/app/_components/AvatarImage";
 import { PostDetailsModal } from "@/app/scheduler/_components/PostDetailsModal";
+import { getSchedulerStatusStyleFromLabel } from "@/app/scheduler/_components/scheduler-styles";
 import { formatNumber } from "@/lib/format";
 import {
   ChevronLeft,
@@ -65,13 +66,6 @@ const TRAILING_COLUMNS: ColumnDefinition[] = [
   { label: "Comments", width: TRAILING_COLUMN_WIDTH, align: "right" },
   { label: "Shares", width: TRAILING_COLUMN_WIDTH, align: "right" },
 ];
-
-const TYPE_COLORS: Record<PostFormat, string> = {
-  Post: "#5D9BFE",
-  Carousel: "#FA962F",
-  Reel: "#8B75FE",
-  Story: "#31D8BB",
-};
 
 function getTotalWidth(metadataFields: MetadataFieldDefinition[]) {
   return (
@@ -150,7 +144,7 @@ function TypePill({ type }: { type: string }) {
   return (
     <span
       className="dashboard-ui-meta inline-flex max-w-full items-center rounded-md px-2 py-1 leading-none text-white"
-      style={{ backgroundColor: TYPE_COLORS[format] }}
+      style={{ backgroundColor: POST_FORMAT_COLORS[format] }}
       title={label}
     >
       <span className="truncate">{displayLabel}</span>
@@ -653,17 +647,7 @@ function StatusPill({ status }: { status: string }) {
   const label = displayText(status);
   if (!label) return null;
 
-  const normalized = label.toLowerCase();
-  const tone =
-    normalized === "removed"
-      ? "bg-card text-muted"
-      : normalized === "published"
-      ? "bg-emerald-50 text-success"
-      : normalized === "scheduled"
-        ? "bg-indigo-50 text-[#5e6ad2]"
-        : normalized === "pending"
-          ? "bg-amber-50 text-[#98640d]"
-          : "bg-card text-muted";
+  const tone = getSchedulerStatusStyleFromLabel(label).badge;
 
   return (
     <span
