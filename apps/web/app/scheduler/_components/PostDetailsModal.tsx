@@ -390,6 +390,166 @@ function StatusBadge({ status }: { status: EventStatus }) {
   );
 }
 
+type DetailMediaItem = SchedulerPostDetail["media"][number] | DraftUpload;
+
+function accountInitial(username: string) {
+  return username.replace(/^@/, "").trim().charAt(0).toUpperCase() || "I";
+}
+
+function postTypeLabel(postType: SchedulerPostDetail["postType"]) {
+  if (postType === "FEED") return "Post";
+  if (postType === "REEL") return "Reel";
+  if (postType === "STORY") return "Story";
+  return "Carousel";
+}
+
+function MediaVisual({
+  item,
+  className,
+  imageClassName = "h-full w-full object-cover",
+}: {
+  item: DetailMediaItem;
+  className: string;
+  imageClassName?: string;
+}) {
+  const previewUrl = mediaPreviewUrl(item);
+  const sourceUrl = mediaSourceUrl(item);
+  const imageUrl = previewUrl ?? sourceUrl;
+
+  return (
+    <div className={`relative flex items-center justify-center overflow-hidden bg-[#3f3f3f] ${className}`}>
+      {item.fileType === "IMAGE" && imageUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={imageUrl} alt="" className={imageClassName} />
+      ) : item.fileType === "VIDEO" && sourceUrl ? (
+        <>
+          <video
+            src={sourceUrl}
+            poster={previewUrl ?? undefined}
+            className={imageClassName}
+            muted
+            playsInline
+          />
+          <Play className="absolute size-10 fill-current text-paper drop-shadow" />
+        </>
+      ) : item.fileType === "VIDEO" && imageUrl ? (
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={imageUrl} alt="" className={imageClassName} />
+          <Play className="absolute size-10 fill-current text-paper drop-shadow" />
+        </>
+      ) : (
+        <ImageIcon className="size-10 text-paper/70" />
+      )}
+    </div>
+  );
+}
+
+function PostPreview({
+  post,
+  caption,
+  media,
+  selectedIndex,
+  onSelectedIndexChange,
+}: {
+  post: SchedulerPostDetail;
+  caption: string;
+  media: DetailMediaItem[];
+  selectedIndex: number;
+  onSelectedIndexChange: (index: number) => void;
+}) {
+  const activeIndex = Math.min(selectedIndex, Math.max(media.length - 1, 0));
+  const activeMedia = media[activeIndex] ?? null;
+  const previewCaption = caption.trim() || "No caption yet.";
+  const isTallPreview = post.postType === "REEL" || post.postType === "STORY";
+
+  return (
+    <section className="flex min-h-0 flex-col overflow-y-auto bg-[#f3f3f3] p-4 md:border-r md:border-line lg:p-6">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div>
+          <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted">
+            Preview
+          </p>
+          <h3 className="mt-1 text-sm font-semibold text-ink">
+            How this post will look
+          </h3>
+        </div>
+        <span className="rounded-full border border-line bg-paper px-3 py-1 text-[11px] font-semibold text-muted">
+          {postTypeLabel(post.postType)}
+        </span>
+      </div>
+
+      <article className="mx-auto flex min-h-0 w-full max-w-[430px] flex-col overflow-hidden rounded-[18px] border border-line bg-paper shadow-[0_18px_40px_rgba(23,21,16,0.12)]">
+        <header className="flex shrink-0 items-center justify-between gap-3 border-b border-line px-4 py-3">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#e6e6e6] text-xs font-semibold text-[#4b4b4b]">
+              {accountInitial(post.accountUsername)}
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-ink">
+                @{post.accountUsername}
+              </p>
+              <p className="text-[11px] text-muted">
+                {post.scheduledFor
+                  ? formatDate(post.scheduledFor)
+                  : "Not scheduled"}
+              </p>
+            </div>
+          </div>
+          <span className="text-lg leading-none text-muted">...</span>
+        </header>
+
+        <div
+          className={`relative shrink-0 bg-[#2f2f2f] ${
+            isTallPreview ? "aspect-[9/16] max-h-[560px]" : "aspect-square"
+          }`}
+        >
+          {activeMedia ? (
+            <MediaVisual item={activeMedia} className="absolute inset-0" />
+          ) : (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-paper/75">
+              <ImageIcon className="size-11" />
+              <p className="text-sm font-medium">No media attached</p>
+            </div>
+          )}
+          {media.length > 1 ? (
+            <span className="absolute right-3 top-3 rounded-full bg-ink/75 px-2.5 py-1 text-[11px] font-semibold text-paper">
+              {activeIndex + 1} / {media.length}
+            </span>
+          ) : null}
+        </div>
+
+        {media.length > 1 ? (
+          <div className="flex shrink-0 gap-2 overflow-x-auto border-t border-line bg-card p-2">
+            {media.map((item, index) => (
+              <button
+                type="button"
+                key={item.id}
+                aria-label={`Preview media ${index + 1}`}
+                onClick={() => onSelectedIndexChange(index)}
+                className={`relative size-12 shrink-0 overflow-hidden rounded-lg border ${
+                  activeIndex === index
+                    ? "border-ink"
+                    : "border-line opacity-70 hover:opacity-100"
+                }`}
+              >
+                <MediaVisual item={item} className="absolute inset-0" />
+              </button>
+            ))}
+          </div>
+        ) : null}
+
+        <div className="shrink-0 border-t border-line px-4 py-3">
+          <p className="text-sm leading-6 text-ink">
+            <span className="font-semibold">@{post.accountUsername}</span>{" "}
+            <span className="whitespace-pre-wrap">{previewCaption}</span>
+          </p>
+        </div>
+      </article>
+    </section>
+  );
+}
+
 export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
   const [post, setPost] = useState<SchedulerPostDetail | null>(null);
   const [loading, setLoading] = useState(false);
@@ -406,6 +566,7 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
     SchedulerPostDetail["media"]
   >([]);
   const [draftUploads, setDraftUploads] = useState<DraftUpload[]>([]);
+  const [previewIndex, setPreviewIndex] = useState(0);
 
   useEffect(() => {
     if (!postId) return;
@@ -424,6 +585,7 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
           metadataDefinitionsToFields(result.metadataFields, result.metadata),
         );
         setAttachedMedia(result.media);
+        setPreviewIndex(0);
         setDraftUploads((current) => {
           current.forEach((item) => URL.revokeObjectURL(item.previewUrl));
           return [];
@@ -869,7 +1031,7 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
       onClick={onClose}
     >
       <div
-        className="flex max-h-[calc(100vh-24px)] w-full max-w-5xl flex-col overflow-hidden rounded-[10px] border border-line bg-paper shadow-2xl"
+        className="flex max-h-[calc(100vh-24px)] w-full max-w-6xl flex-col overflow-hidden rounded-[10px] border border-line bg-paper shadow-2xl"
         onClick={(event) => event.stopPropagation()}
       >
         <header className="flex shrink-0 items-start justify-between gap-4 border-b border-line px-5 py-4">
@@ -900,75 +1062,71 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
             Loading post...
           </div>
         ) : post ? (
-          <div className="grid min-h-0 flex-1 grid-cols-1 overflow-y-auto md:grid-cols-[1.05fr_0.95fr]">
-            <section className="flex flex-col gap-5 border-b border-line p-7 md:border-b-0 md:border-r">
-              {isEditable ? (
-                <>
+          <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden md:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+            <PostPreview
+              post={post}
+              caption={caption}
+              media={shownMedia}
+              selectedIndex={previewIndex}
+              onSelectedIndexChange={setPreviewIndex}
+            />
+
+            <section className="flex min-h-0 flex-col gap-5 overflow-y-auto p-5 lg:p-6">
+              {notice ? (
+                <p className="rounded-lg bg-[#e6f7fa] px-3 py-2 text-sm font-medium text-ink">
+                  {notice}
+                </p>
+              ) : null}
+              {error ? (
+                <p className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-danger">
+                  {error}
+                </p>
+              ) : null}
+
+              <div className="rounded-xl border border-line bg-paper p-4">
+                <h3 className="mb-3 text-sm font-semibold text-ink">
+                  Content
+                </h3>
+                {isEditable ? (
                   <textarea
                     value={caption}
                     onChange={(event) => setCaption(event.target.value)}
                     placeholder="Write a caption"
                     maxLength={2200}
-                    className="min-h-28 resize-none rounded-xl border border-line bg-card p-3 text-sm text-ink placeholder:text-muted focus:border-cta-edge focus:outline-none"
+                    className="min-h-28 w-full resize-none rounded-xl border border-line bg-card p-3 text-sm text-ink placeholder:text-muted focus:border-cta-edge focus:outline-none"
                   />
-                  {metadataEditor}
-                </>
-              ) : (
-                <>
+                ) : (
                   <p className="whitespace-pre-wrap rounded-xl bg-card p-4 text-sm leading-6 text-ink">
                     {post.caption || "No caption"}
                   </p>
-                  {metadataEditor}
-                </>
-              )}
+                )}
+              </div>
 
-              <div>
-                <h3 className="mb-3 text-sm font-semibold text-ink">Media</h3>
+              {metadataEditor}
+
+              <div className="rounded-xl border border-line bg-paper p-4">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <h3 className="text-sm font-semibold text-ink">
+                    Media files
+                  </h3>
+                  <span className="text-xs font-medium text-muted">
+                    {shownMedia.length} / {mediaLimit(post.postType)}
+                  </span>
+                </div>
                 {shownMedia.length ? (
                   <div className="grid grid-cols-2 gap-3">
-                    {shownMedia.map((item) => {
-                      const previewUrl = mediaPreviewUrl(item);
-                      const sourceUrl = mediaSourceUrl(item);
-                      const imageUrl = previewUrl ?? sourceUrl;
-
-                      return (
-                        <div
-                          key={item.id}
-                          className="group relative overflow-hidden rounded-lg border border-line bg-card"
+                    {shownMedia.map((item, index) => (
+                      <div
+                        key={item.id}
+                        className="group relative overflow-hidden rounded-lg border border-line bg-card"
+                      >
+                        <button
+                          type="button"
+                          aria-label={`Show media ${index + 1} in preview`}
+                          onClick={() => setPreviewIndex(index)}
+                          className="block w-full text-left"
                         >
-                          <div className="relative flex aspect-square items-center justify-center overflow-hidden bg-[#495057]">
-                            {item.fileType === "IMAGE" && imageUrl ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img
-                                src={imageUrl}
-                                alt=""
-                                className="h-full w-full object-cover"
-                              />
-                            ) : item.fileType === "VIDEO" && sourceUrl ? (
-                              <>
-                                <video
-                                  src={sourceUrl}
-                                  poster={previewUrl ?? undefined}
-                                  className="h-full w-full object-cover"
-                                  muted
-                                  playsInline
-                                />
-                                <Play className="absolute size-9 fill-current text-paper" />
-                              </>
-                            ) : item.fileType === "VIDEO" && imageUrl ? (
-                              <>
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img
-                                  src={imageUrl}
-                                  alt=""
-                                  className="h-full w-full object-cover"
-                                />
-                                <Play className="absolute size-9 fill-current text-paper" />
-                              </>
-                            ) : (
-                              <ImageIcon className="size-10 text-paper/70" />
-                            )}
-                          </div>
+                          <MediaVisual item={item} className="aspect-square" />
                           <p className="px-3 pt-2 text-xs font-semibold text-ink">
                             {item.fileType === "IMAGE" ? "Image" : "Video"} -{" "}
                             {formatFileSize(item.fileSize)}
@@ -978,19 +1136,19 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
                               ? `${item.width} x ${item.height}`
                               : item.mimeType}
                           </p>
-                          {isDraft ? (
-                            <button
-                              type="button"
-                              aria-label="Remove media"
-                              onClick={() => removeMedia(item.id)}
-                              className="absolute right-2 top-2 flex size-7 items-center justify-center rounded-full bg-ink/75 text-paper opacity-0 transition group-hover:opacity-100"
-                            >
-                              <Trash2 className="size-3.5" />
-                            </button>
-                          ) : null}
-                        </div>
-                      );
-                    })}
+                        </button>
+                        {isDraft ? (
+                          <button
+                            type="button"
+                            aria-label="Remove media"
+                            onClick={() => removeMedia(item.id)}
+                            className="absolute right-2 top-2 flex size-7 items-center justify-center rounded-full bg-ink/75 text-paper opacity-0 transition group-hover:opacity-100"
+                          >
+                            <Trash2 className="size-3.5" />
+                          </button>
+                        ) : null}
+                      </div>
+                    ))}
                   </div>
                 ) : (
                   <div className="rounded-xl border border-dashed border-line bg-card px-4 py-8 text-center text-sm text-muted">
@@ -1015,15 +1173,17 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
                 ) : null}
                 <MediaIssueList issues={mediaIssues} />
               </div>
-            </section>
 
-            <section className="flex flex-col gap-5 p-7">
-              <div>
+              <div className="rounded-xl border border-line bg-paper p-4">
                 <h3 className="mb-2 text-sm font-semibold text-ink">
                   Information
                 </h3>
                 <DetailRow label="Account" value={`@${post.accountUsername}`} />
-                <DetailRow label="Format" value={post.postType} />
+                <DetailRow label="Format" value={postTypeLabel(post.postType)} />
+                <DetailRow
+                  label="Status"
+                  value={SCHEDULER_STATUS_STYLE[post.status].label}
+                />
                 <DetailRow label="Created" value={formatDate(post.createdAt)} />
                 <DetailRow
                   label="Scheduled"
@@ -1343,16 +1503,6 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
                 </div>
               ) : null}
 
-              {notice ? (
-                <p className="rounded-lg bg-[#e6f7fa] px-3 py-2 text-sm font-medium text-ink">
-                  {notice}
-                </p>
-              ) : null}
-              {error ? (
-                <p className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-danger">
-                  {error}
-                </p>
-              ) : null}
             </section>
           </div>
         ) : (

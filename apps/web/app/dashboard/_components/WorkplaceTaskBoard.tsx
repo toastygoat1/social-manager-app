@@ -681,16 +681,8 @@ function makeAssigneeOption(name: string): AssigneeOption {
   };
 }
 
-function buildAssigneeOptions(
-  workspaces: Workspace[],
-  manualAssignees: string[],
-) {
+function buildAssigneeOptions(workspaces: Workspace[]) {
   const assigneeNames = new Map<string, string>();
-
-  for (const assignee of manualAssignees) {
-    const trimmed = assignee.trim();
-    if (trimmed) assigneeNames.set(trimmed.toLowerCase(), trimmed);
-  }
 
   for (const workspace of workspaces) {
     for (const task of workspace.tasks) {
@@ -1197,13 +1189,11 @@ function AssigneeSelect({
   value,
   assignees,
   onChange,
-  onCreate,
   onRename,
 }: {
   value: string;
   assignees: AssigneeOption[];
   onChange: (value: string) => void;
-  onCreate: (value: string) => void;
   onRename: (currentName: string, nextName: string) => void;
 }) {
   const [menuAnchorRect, setMenuAnchorRect] =
@@ -1243,7 +1233,6 @@ function AssigneeSelect({
     const name = query.trim();
     if (!name) return;
 
-    onCreate(name);
     selectAssignee(name);
   }
 
@@ -2623,7 +2612,6 @@ function TaskRow({
   assignees,
   workspaceId,
   onToggleSelected,
-  onCreateAssignee,
   onRenameAssignee,
   onUpdate,
 }: {
@@ -2634,7 +2622,6 @@ function TaskRow({
   assignees: AssigneeOption[];
   workspaceId: string;
   onToggleSelected: () => void;
-  onCreateAssignee: (value: string) => void;
   onRenameAssignee: (currentName: string, nextName: string) => void;
   onUpdate: <K extends EditableTaskField>(
     workspaceId: string,
@@ -2674,7 +2661,6 @@ function TaskRow({
           onChange={(value) =>
             onUpdate(workspaceId, task.id, "assignee", value)
           }
-          onCreate={onCreateAssignee}
           onRename={onRenameAssignee}
         />
       </TaskCell>
@@ -2769,16 +2755,14 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(
     () => new Set(),
   );
-  const [manualAssignees, setManualAssignees] = useState<string[]>([]);
-  const [newAssigneeName, setNewAssigneeName] = useState("");
   const selectedWorkspace =
     workspaces.find((workspace) => workspace.id === selectedWorkspaceId) ??
     workspaces[0] ??
     null;
   const selectedTasks = selectedWorkspace?.tasks ?? EMPTY_TASKS;
   const assigneeOptions = useMemo(
-    () => buildAssigneeOptions(workspaces, manualAssignees),
-    [manualAssignees, workspaces],
+    () => buildAssigneeOptions(workspaces),
+    [workspaces],
   );
   const selectedVisibleTaskIds = selectedTasks
     .filter((task) => selectedTaskIds.has(task.id))
@@ -3014,36 +2998,13 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
     });
   }
 
-  function addAssigneeName(name: string) {
-    const trimmedName = name.trim();
-    if (!trimmedName) return;
-
-    setManualAssignees((currentAssignees) => {
-      if (
-        currentAssignees.some(
-          (assignee) => assignee.toLowerCase() === trimmedName.toLowerCase(),
-        )
-      ) {
-        return currentAssignees;
-      }
-
-      return [...currentAssignees, trimmedName];
-    });
-  }
-
-  function submitNewAssignee() {
-    addAssigneeName(newAssigneeName);
-    setNewAssigneeName("");
-  }
-
   async function renameAssigneeName(currentName: string, nextName: string) {
     const normalizedCurrentName = currentName.trim().toLowerCase();
     const trimmedNextName = nextName.trim();
-    const normalizedNextName = trimmedNextName.toLowerCase();
     if (
       !normalizedCurrentName ||
       !trimmedNextName ||
-      normalizedCurrentName === normalizedNextName
+      normalizedCurrentName === trimmedNextName.toLowerCase()
     ) {
       return;
     }
@@ -3058,23 +3019,6 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
     );
 
     setSyncError(null);
-    setManualAssignees((currentAssignees) => {
-      const alreadyHasNextName = currentAssignees.some(
-        (assignee) => assignee.trim().toLowerCase() === normalizedNextName,
-      );
-      let replacedCurrentName = false;
-
-      const renamedAssignees = currentAssignees.flatMap((assignee) => {
-        if (assignee.trim().toLowerCase() !== normalizedCurrentName) {
-          return [assignee];
-        }
-
-        replacedCurrentName = true;
-        return alreadyHasNextName ? [] : [trimmedNextName];
-      });
-
-      return replacedCurrentName ? renamedAssignees : currentAssignees;
-    });
     setWorkspaces((currentWorkspaces) =>
       currentWorkspaces.map((workspace) => ({
         ...workspace,
@@ -3095,55 +3039,6 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
           apiFetchBrowser<WorkplaceTask>(`/workspace/tasks/${taskId}`, {
             method: "PATCH",
             body: { assignee: trimmedNextName },
-          }),
-        ),
-      );
-    } catch (error) {
-      setSyncError(getErrorMessage(error));
-      void loadFolders(selectedWorkspaceId).catch((reloadError) =>
-        setSyncError(getErrorMessage(reloadError)),
-      );
-    } finally {
-      setIsSyncing(false);
-    }
-  }
-
-  async function deleteAssigneeName(name: string) {
-    const normalizedName = name.trim().toLowerCase();
-    if (!normalizedName) return;
-
-    const affectedTasks = workspaces.flatMap((workspace) =>
-      workspace.tasks
-        .filter((task) => task.assignee.trim().toLowerCase() === normalizedName)
-        .map((task) => ({ taskId: task.id, workspaceId: workspace.id })),
-    );
-
-    setSyncError(null);
-    setManualAssignees((currentAssignees) =>
-      currentAssignees.filter(
-        (assignee) => assignee.trim().toLowerCase() !== normalizedName,
-      ),
-    );
-    setWorkspaces((currentWorkspaces) =>
-      currentWorkspaces.map((workspace) => ({
-        ...workspace,
-        tasks: workspace.tasks.map((task) =>
-          task.assignee.trim().toLowerCase() === normalizedName
-            ? { ...task, assignee: "" }
-            : task,
-        ),
-      })),
-    );
-
-    if (affectedTasks.length === 0) return;
-
-    try {
-      setIsSyncing(true);
-      await Promise.all(
-        affectedTasks.map(({ taskId }) =>
-          apiFetchBrowser<WorkplaceTask>(`/workspace/tasks/${taskId}`, {
-            method: "PATCH",
-            body: { assignee: "" },
           }),
         ),
       );
@@ -3387,51 +3282,6 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
             Workspace
           </h1>
           <p className="mt-1 text-xs text-muted">{workspaces.length} folders</p>
-          <div className="mt-3 flex items-center gap-1.5">
-            <input
-              aria-label="Add assignee"
-              value={newAssigneeName}
-              onChange={(event) => setNewAssigneeName(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") submitNewAssignee();
-              }}
-              placeholder="Add assignee"
-              className="h-8 min-w-0 flex-1 rounded-md border border-line bg-paper px-2 text-xs text-ink outline-none transition placeholder:text-muted focus:border-ink"
-            />
-            <button
-              type="button"
-              aria-label="Add assignee"
-              onClick={submitNewAssignee}
-              className="flex size-8 shrink-0 items-center justify-center rounded-md border border-line text-muted transition hover:border-ink hover:text-ink"
-            >
-              <UserPlus className="size-4" strokeWidth={1.8} />
-            </button>
-          </div>
-          {assigneeOptions.length > 0 ? (
-            <div className="mt-2 max-h-32 space-y-1 overflow-y-auto pr-1">
-              {assigneeOptions.map((assignee) => (
-                <div
-                  key={assignee.id}
-                  className="group/assignee flex h-8 min-w-0 items-center gap-2 rounded-md px-1 transition hover:bg-card"
-                >
-                  <AssigneeAvatar assignee={assignee} />
-                  <span className="min-w-0 flex-1 truncate text-xs font-medium text-ink">
-                    {assignee.name}
-                  </span>
-                  <button
-                    type="button"
-                    aria-label={`Delete ${assignee.name} assignee`}
-                    onClick={() => {
-                      void deleteAssigneeName(assignee.name);
-                    }}
-                    className="flex size-6 shrink-0 items-center justify-center rounded-md text-muted opacity-60 transition hover:bg-danger/10 hover:text-danger hover:opacity-100 focus-visible:opacity-100"
-                  >
-                    <X className="size-3.5" strokeWidth={2} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          ) : null}
         </div>
 
         <div
@@ -3561,7 +3411,6 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
                         assignees={assigneeOptions}
                         workspaceId={selectedWorkspace.id}
                         onToggleSelected={() => toggleTaskSelection(task.id)}
-                        onCreateAssignee={addAssigneeName}
                         onRenameAssignee={(currentName, nextName) => {
                           void renameAssigneeName(currentName, nextName);
                         }}

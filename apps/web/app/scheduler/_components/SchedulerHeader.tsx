@@ -142,9 +142,8 @@ export function SchedulerHeader({
   const selectedFilterAccounts = filterAccounts.filter((account) =>
     filters.accountIds.includes(account.id),
   );
-  const accountButtonPreviewAccounts = (
-    activeAccountCount > 0 ? selectedFilterAccounts : filterAccounts
-  ).slice(0, 3);
+  const accountButtonPreviewAccounts = selectedFilterAccounts.slice(0, 2);
+  const hiddenAccountCount = Math.max(activeAccountCount - 2, 0);
 
   useEffect(() => {
     if (!createOpen && !filterOpen && !accountsOpen) return;
@@ -296,41 +295,48 @@ export function SchedulerHeader({
             <button
               type="button"
               aria-expanded={accountsOpen}
+              aria-label={
+                activeAccountCount > 0
+                  ? `Filter accounts, ${activeAccountCount} selected`
+                  : "Filter accounts"
+              }
               onClick={() => {
                 setAccountsOpen((open) => !open);
                 setFilterOpen(false);
                 setCreateOpen(false);
               }}
-              className={`flex h-8 items-center gap-1.5 rounded-md border px-3 text-[11px] font-semibold transition-colors ${
+              className={`flex h-8 items-center rounded-md border border-[#d8d8d8] bg-[#f8f8f8] text-[11px] font-semibold text-[#3f3f3f] transition-colors hover:bg-[#eeeeee] ${
                 activeAccountCount > 0
-                  ? "border-[#171510] bg-[#171510] text-white"
-                  : "border-[#d8d8d8] bg-[#f8f8f8] text-[#3f3f3f] hover:bg-[#eeeeee]"
+                  ? "w-[82px] justify-center px-2"
+                  : "gap-1.5 px-3"
               }`}
             >
-              {accountButtonPreviewAccounts.length > 0 ? (
-                <span className="flex -space-x-1">
+              {activeAccountCount > 0 ? (
+                <span className="flex items-center -space-x-2">
                   {accountButtonPreviewAccounts.map((account) => (
                     <AvatarImage
                       key={account.id}
                       src={account.avatarUrl}
                       alt={account.label}
-                      width={16}
-                      height={16}
-                      className="size-4 rounded-full border border-white object-cover"
+                      width={24}
+                      height={24}
+                      className="size-6 rounded-full border border-white object-cover"
                       fallback={account.label}
                       fallbackSeed={account.id}
                     />
                   ))}
+                  {hiddenAccountCount > 0 ? (
+                    <span className="flex size-6 items-center justify-center rounded-full border border-white bg-white text-[11px] font-semibold text-[#171510] shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+                      {hiddenAccountCount}+
+                    </span>
+                  ) : null}
                 </span>
               ) : (
-                <Users className="size-3.5" strokeWidth={2} />
+                <>
+                  <Users className="size-3.5" strokeWidth={2} />
+                  Accounts
+                </>
               )}
-              Accounts
-              {activeAccountCount > 0 ? (
-                <span className="flex min-w-4 items-center justify-center rounded-full bg-white px-1 text-[9px] font-bold text-[#171510]">
-                  {activeAccountCount}
-                </span>
-              ) : null}
             </button>
 
             {accountsOpen ? (
