@@ -144,14 +144,12 @@ export function SchedulerHeader({
   const periodLabel = formatPeriodLabel(view, new Date(referenceIso));
   const activeFilterCount = filters.postTypes.length + filters.statuses.length;
   const activeAccountCount = filters.accountIds.length;
-  const selectedFilterAccounts = filterAccounts.filter((account) =>
-    filters.accountIds.includes(account.id),
-  );
-  const accountButtonPreviewAccounts = selectedFilterAccounts.slice(0, 2);
-  const hiddenAccountCount = Math.max(
-    activeAccountCount - accountButtonPreviewAccounts.length,
-    0,
-  );
+  const soleSelectedAccount =
+    activeAccountCount === 1
+      ? (filterAccounts.find(
+          (account) => account.id === filters.accountIds[0],
+        ) ?? null)
+      : null;
   const normalizedAccountSearch = accountSearch.trim().toLowerCase();
   const visibleFilterAccounts = normalizedAccountSearch
     ? filterAccounts.filter((account) => {
@@ -326,24 +324,31 @@ export function SchedulerHeader({
                 setFilterOpen(false);
                 setCreateOpen(false);
               }}
-              className={`flex h-8 items-center justify-center rounded-md border border-line bg-card text-[11px] font-semibold text-ink hover:bg-page ${HEADER_ACTION_BUTTON_MOTION} ${
-                activeAccountCount > 0 ? "gap-2 pl-2 pr-3" : "gap-1.5 px-3"
+              className={`flex h-8 items-center gap-1.5 rounded-md border px-3 text-[11px] font-semibold ${HEADER_ACTION_BUTTON_MOTION} ${
+                activeAccountCount > 0
+                  ? "border-ink bg-ink text-page"
+                  : "border-line bg-card text-ink hover:bg-page"
               }`}
             >
-              {activeAccountCount > 0 ? (
-                <>
-                  <AccountButtonPreview
-                    accounts={accountButtonPreviewAccounts}
-                    hiddenCount={hiddenAccountCount}
-                  />
-                  <span>Accounts</span>
-                </>
+              {soleSelectedAccount ? (
+                <AvatarImage
+                  src={soleSelectedAccount.avatarUrl}
+                  alt={soleSelectedAccount.label}
+                  width={18}
+                  height={18}
+                  className="size-[18px] rounded-full border border-page/25 object-cover"
+                  fallback={soleSelectedAccount.label}
+                  fallbackSeed={soleSelectedAccount.id}
+                />
               ) : (
-                <>
-                  <Users className="size-3.5" strokeWidth={2} />
-                  <span>Accounts</span>
-                </>
+                <Users className="size-3.5" strokeWidth={2} />
               )}
+              Accounts
+              {activeAccountCount > 1 ? (
+                <span className="flex min-w-4 items-center justify-center rounded-full bg-page px-1 text-[9px] font-bold text-ink">
+                  {activeAccountCount}
+                </span>
+              ) : null}
             </button>
 
             {accountsOpen ? (
@@ -502,41 +507,6 @@ function DateHeader({ referenceIso }: { referenceIso: string }) {
         <p className="mt-0.5 truncate text-sm text-muted">{weekday}</p>
       </div>
     </div>
-  );
-}
-
-function AccountButtonPreview({
-  accounts,
-  hiddenCount,
-}: {
-  accounts: SchedulerFilterAccountOption[];
-  hiddenCount: number;
-}) {
-  const previewWidth =
-    hiddenCount > 0 ? "w-[60px]" : accounts.length > 1 ? "w-[34px]" : "w-5";
-
-  return (
-    <span className={`relative h-5 shrink-0 ${previewWidth}`}>
-      {accounts.map((account, index) => (
-        <AvatarImage
-          key={account.id}
-          src={account.avatarUrl}
-          alt={account.label}
-          width={20}
-          height={20}
-          className={`absolute top-0 size-5 rounded-full border border-paper object-cover shadow-[0_1px_2px_rgba(0,0,0,0.16)] ${
-            index === 0 ? "left-0 z-10" : "left-3 z-20"
-          }`}
-          fallback={account.label}
-          fallbackSeed={account.id}
-        />
-      ))}
-      {hiddenCount > 0 ? (
-        <span className="absolute left-[28px] top-0 z-30 flex h-5 min-w-[26px] items-center justify-center rounded-full border border-paper bg-paper px-1.5 text-[9px] font-semibold leading-none text-ink shadow-[0_1px_3px_rgba(0,0,0,0.16)]">
-          {hiddenCount}+
-        </span>
-      ) : null}
-    </span>
   );
 }
 
