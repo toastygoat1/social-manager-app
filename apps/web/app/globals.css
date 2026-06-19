@@ -294,6 +294,15 @@ body {
   background: rgb(39 39 39 / 58%);
 }
 
+:root[data-theme="dark"] .posts-table-custom-scrollbar__thumb {
+  background: rgb(244 239 230 / 32%);
+}
+
+:root[data-theme="dark"] .posts-table-custom-scrollbar__thumb:hover,
+:root[data-theme="dark"] .posts-table-custom-scrollbar__thumb:active {
+  background: rgb(244 239 230 / 52%);
+}
+
 .posts-table-custom-scrollbar__thumb--horizontal {
   top: 3px;
   left: 0;
@@ -738,6 +747,7 @@ html.theme-circle-transition::view-transition-new(root) {
 
 .adaptive-content-colors :is(
   .border-\[\#bfcaef\],
+  .border-\[\#ffc6c6\],
   .border-\[\#d9d3c8\],
   .border-\[\#dcd6cb\],
   .border-\[\#ddd7cd\],
@@ -874,6 +884,8 @@ html.theme-circle-transition::view-transition-new(root) {
 
 .adaptive-content-colors :is(
   .bg-\[\#fff7ed\],
+  .bg-\[\#ffd6d6\],
+  .bg-\[\#ffe8e8\],
   .bg-red-50
 ) {
   background-color: color-mix(in srgb, var(--danger) 12%, var(--bg-light));
@@ -921,7 +933,10 @@ html.theme-circle-transition::view-transition-new(root) {
 }
 
 .adaptive-content-colors :is(
+  .text-\[\#8a2f2f\],
   .text-\[\#8a3b12\],
+  .text-\[\#a23b3b\],
+  .text-\[\#b24646\],
   .text-\[\#b73333\]
 ) {
   color: var(--danger);
@@ -954,7 +969,10 @@ html.theme-circle-transition::view-transition-new(root) {
   background-color: var(--text-muted);
 }
 
-.adaptive-content-colors :is(.bg-\[\#d05c48\]) {
+.adaptive-content-colors :is(
+  .bg-\[\#d05c48\],
+  .bg-\[\#d64f4f\]
+) {
   background-color: var(--danger);
 }
 

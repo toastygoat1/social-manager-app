@@ -62,6 +62,7 @@ export type ContentRow = {
   status: string;
   audio: string;
   datePost: string;
+  publishedAt?: string | null;
   caption: string;
   views: number | null;
   likes: number | null;
@@ -107,6 +108,7 @@ export type DashboardData = {
   accounts: Account[];
   metadataFields: MetadataFieldDefinition[];
   contentRows: ContentRow[];
+  publishedChartRows: ContentRow[];
   activityRows: ActivityRow[];
 };
 
@@ -120,5 +122,6 @@ export const EMPTY_DASHBOARD: DashboardData = {
   accounts: [],
   metadataFields: [],
   contentRows: [],
+  publishedChartRows: [],
   activityRows: [],
 };

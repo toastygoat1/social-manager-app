@@ -5,21 +5,17 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import {
   BarChart3,
   CalendarDays,
-  ChevronDown,
   Columns2,
   FileText,
   Home,
   Inbox,
-  LoaderCircle,
   Moon,
   PanelLeftClose,
   PanelLeftOpen,
-  RefreshCw,
   Sparkles,
   Sun,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { AvatarImage } from "@/app/_components/AvatarImage";
 import {
   APP_THEME_COOKIE,
@@ -27,7 +23,6 @@ import {
   APP_THEME_MAX_AGE,
   type ThemeMode,
 } from "@/app/theme-preferences";
-import { ApiError, apiFetchBrowser } from "@/lib/api/browser-client";
 import type { UserProfile } from "@/lib/supabase/user-profile";
 import type { Account } from "./data";
 import {
@@ -60,14 +55,6 @@ type NavItem = {
   badge?: string;
 };
 
-type BackfillResponse = {
-  scanned: number;
-  imported: number;
-  updated: number;
-  analyticsCreated: number;
-  failed: number;
-};
-
 type ViewTransitionDocument = Document & {
   startViewTransition?: (callback: () => void) => {
     finished: Promise<void>;
@@ -97,7 +84,6 @@ const NAV_ITEMS: NavItem[] = [
   { key: "snow-ai", label: "Snow AI", Icon: Sparkles, href: "/chat-ai" },
 ];
 
-const VISIBLE_ACCOUNT_COUNT = 8;
 const AVATAR_COLORS = [
   "#e8855b",
   "#7b6cd9",
@@ -212,58 +198,6 @@ function getAccountTitle(account: Account) {
   return account.name.replace(/^@/, "").trim() || account.name;
 }
 
-function getAccountHandle(account: Account) {
-  const username =
-    account.username?.replace(/^@/, "").trim() ||
-    account.name.replace(/^@/, "").trim();
-
-  return username.startsWith("@") ? username : `@${username}`;
-}
-
-function getApiErrorMessage(error: unknown) {
-  if (!(error instanceof ApiError)) {
-    return null;
-  }
-
-  const body = error.body as { message?: string | string[] } | null;
-  const message = body?.message;
-
-  return Array.isArray(message) ? message[0] : message;
-}
-
-function getBackfillErrorMessage(error: unknown) {
-  if (error instanceof ApiError) {
-    if (error.status === 401) {
-      return "Please sign in again before importing Instagram posts.";
-    }
-
-    if (error.status === 404) {
-      return "This Instagram account is no longer connected.";
-    }
-
-    return (
-      getApiErrorMessage(error) ??
-      `Instagram posts could not be imported. API returned ${error.status}.`
-    );
-  }
-
-  return "Instagram posts could not be imported. Please try again after the API finishes redeploying.";
-}
-
-function getBackfillSuccessMessage(result: BackfillResponse) {
-  const parts = [
-    `${result.imported} imported`,
-    `${result.updated} updated`,
-    `${result.analyticsCreated} analytics snapshots`,
-  ];
-
-  if (result.failed > 0) {
-    parts.push(`${result.failed} failed`);
-  }
-
-  return `Backfill complete: ${parts.join(", ")}.`;
-}
-
 function getInsightsHref(accountId?: string | null) {
   if (!accountId) {
     return "/analytics";
@@ -285,7 +219,7 @@ function AccountAvatar({
 
   return (
     <span
-      className="dashboard-ui-meta flex size-[30px] shrink-0 items-center justify-center overflow-hidden rounded-full font-semibold text-white"
+      className="dashboard-ui-meta flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-full font-semibold text-white"
       style={{
         background: `linear-gradient(135deg, ${color}, ${color}cc)`,
       }}
@@ -293,8 +227,8 @@ function AccountAvatar({
       <AvatarImage
         src={account.avatarUrl}
         alt={account.name}
-        width={30}
-        height={30}
+        width={24}
+        height={24}
         className="size-full object-cover"
         fallback={getInitials(account.name, "I")}
         fallbackSeed={account.id}
@@ -312,49 +246,21 @@ function AccountRow({
   index: number;
   isCollapsed?: boolean;
 }) {
-  const router = useRouter();
-  const [isBackfilling, setIsBackfilling] = useState(false);
   const accountTitle = getAccountTitle(account);
-  const accountHandle = getAccountHandle(account);
-
-  async function backfillPosts() {
-    const confirmed = window.confirm(
-      `Import recent Instagram posts for ${account.name}? This will fetch up to 250 existing posts and current metrics.`,
-    );
-    if (!confirmed) return;
-
-    setIsBackfilling(true);
-
-    try {
-      const result = await apiFetchBrowser<BackfillResponse>(
-        `/instagram/accounts/${encodeURIComponent(account.id)}/backfill`,
-        {
-          method: "POST",
-          body: { limit: 250 },
-        },
-      );
-      window.alert(getBackfillSuccessMessage(result));
-      router.refresh();
-    } catch (error) {
-      window.alert(getBackfillErrorMessage(error));
-    } finally {
-      setIsBackfilling(false);
-    }
-  }
 
   return (
     <li
-      title={isCollapsed ? `${accountTitle} ${accountHandle}` : undefined}
+      title={isCollapsed ? accountTitle : undefined}
       className="group flex min-h-8 w-full items-center gap-1 rounded-md px-[3px] py-0 transition-colors duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
     >
       <Link
         href={getInsightsHref(account.id)}
-        aria-label={`View insights for ${account.name}`}
-        className="flex min-w-0 flex-1 items-center gap-1"
+        aria-label={`View insights for ${accountTitle}`}
+        className={`flex min-w-0 flex-1 items-center ${
+          isCollapsed ? "justify-center gap-0" : "gap-2"
+        }`}
       >
-        <span
-          className="grid size-8 shrink-0 place-items-center rounded-full"
-        >
+        <span className="grid size-7 shrink-0 place-items-center rounded-full">
           <AccountAvatar account={account} index={index} />
         </span>
         <span
@@ -365,9 +271,6 @@ function AccountRow({
           <span className="dashboard-ui-label block truncate text-[var(--sidebar-text)]">
             {accountTitle}
           </span>
-          <span className="dashboard-micro-text block truncate font-normal text-[var(--sidebar-dim)]">
-            {accountHandle}
-          </span>
         </span>
         <span
           className={`dashboard-micro-text shrink-0 overflow-hidden whitespace-nowrap font-semibold text-[var(--sidebar-dim)] transition-[max-width,opacity] duration-300 ease-out ${
@@ -377,30 +280,6 @@ function AccountRow({
           {getPlatformCode(account.platform)}
         </span>
       </Link>
-      <span
-        className={`grid shrink-0 overflow-hidden transition-[width,opacity] duration-300 ease-out ${
-          isCollapsed ? "w-0 opacity-0" : "w-6 opacity-100"
-        }`}
-      >
-        <button
-          type="button"
-          onClick={backfillPosts}
-          disabled={isBackfilling || isCollapsed}
-          tabIndex={isCollapsed ? -1 : undefined}
-          title="Import recent Instagram posts"
-          aria-label={`Import recent Instagram posts for ${account.name}`}
-          className="grid size-6 shrink-0 place-items-center rounded-md text-[var(--sidebar-dim)] transition-colors hover:bg-[var(--sidebar-success-bg)] hover:text-[var(--sidebar-success)] disabled:pointer-events-none disabled:opacity-60"
-        >
-          {isBackfilling ? (
-            <LoaderCircle
-              className="size-3.5 animate-spin"
-              strokeWidth={1.8}
-            />
-          ) : (
-            <RefreshCw className="size-3.5" strokeWidth={1.8} />
-          )}
-        </button>
-      </span>
     </li>
   );
 }
@@ -524,8 +403,6 @@ export function SidebarPanel({
     () => getSidebarNavKey(active),
   );
   const [isNarrowViewport, setIsNarrowViewport] = useState(false);
-  const visibleAccounts = accounts.slice(0, VISIBLE_ACCOUNT_COUNT);
-  const additionalAccounts = accounts.slice(VISIBLE_ACCOUNT_COUNT);
   const profileName = getProfileName(profile);
   const profileDetail = getProfileDetail(profile);
   const isCompact = isCollapsed || isNarrowViewport;
@@ -598,7 +475,7 @@ export function SidebarPanel({
   return (
     <aside
       data-theme={theme}
-      className={`app-shell-sidebar flex shrink-0 flex-col gap-4 overflow-y-auto px-3 pb-3 pt-4 font-inter text-[var(--sidebar-text)] transition-[width,background-color,border-color,color,box-shadow] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
+      className={`app-shell-sidebar flex shrink-0 flex-col gap-4 overflow-hidden px-3 pb-3 pt-4 font-inter text-[var(--sidebar-text)] transition-[width,background-color,border-color,color,box-shadow] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
         isCompact ? "w-16" : "w-[218px]"
       }`}
     >
@@ -691,15 +568,15 @@ export function SidebarPanel({
 
       <section
         aria-label="Accounts"
-        className="flex flex-col gap-4 border-t border-[var(--sidebar-dashed)] pt-3"
+        className="flex min-h-0 flex-1 flex-col border-t border-[var(--sidebar-dashed)] pt-3"
       >
         {accounts.length === 0 && !isCompact ? (
           <p className="dashboard-ui-label px-2 py-3 text-[var(--sidebar-dim)]">
             No accounts connected yet
           </p>
         ) : (
-          <ul className="flex flex-col gap-1">
-            {visibleAccounts.map((account, index) => (
+          <ul className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto pr-1">
+            {accounts.map((account, index) => (
               <AccountRow
                 key={account.id}
                 account={account}
@@ -709,41 +586,6 @@ export function SidebarPanel({
             ))}
           </ul>
         )}
-
-        {additionalAccounts.length > 0 && isCompact ? (
-          <div
-            title={`${additionalAccounts.length} more connected accounts`}
-            className="dashboard-ui-meta mx-auto flex size-8 items-center justify-center rounded-[5px] text-[var(--sidebar-dim)]"
-          >
-            +{additionalAccounts.length}
-          </div>
-        ) : null}
-
-        {additionalAccounts.length > 0 && !isCompact ? (
-          <details className="group">
-            <summary className="dashboard-ui-label flex min-h-8 cursor-pointer list-none items-center gap-2 rounded-md px-2 py-1.5 text-[var(--sidebar-muted)] transition-colors hover:bg-[var(--sidebar-hover)] hover:text-[var(--sidebar-text)] [&::-webkit-details-marker]:hidden">
-              <span className="grid size-[22px] shrink-0 place-items-center rounded-md border border-dashed border-[var(--sidebar-dashed)] text-[var(--sidebar-muted)]">
-                <ChevronDown
-                  className="size-[13px] transition-transform group-open:rotate-180"
-                  strokeWidth={1.7}
-                />
-              </span>
-              <span className="group-open:hidden">
-                Show {additionalAccounts.length} more
-              </span>
-              <span className="hidden group-open:inline">Show less</span>
-            </summary>
-            <ul className="mt-px flex flex-col gap-px">
-              {additionalAccounts.map((account, index) => (
-                <AccountRow
-                  key={account.id}
-                  account={account}
-                  index={VISIBLE_ACCOUNT_COUNT + index}
-                />
-              ))}
-            </ul>
-          </details>
-        ) : null}
       </section>
 
       <div className="mt-auto flex flex-col gap-1">

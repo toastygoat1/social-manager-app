@@ -401,15 +401,15 @@ export function SchedulerShell({ initialReferenceIso, initialData }: Props) {
         <div
           className={`mx-4 mt-2 flex min-h-9 shrink-0 items-center rounded-md border px-3 py-2 text-xs font-medium ${
             notice.type === "success"
-              ? "border-[#bfdfca] bg-[#f1faf4] text-[#2f6544]"
-              : "border-red-200 bg-red-50 text-danger"
+              ? "border-success/30 bg-success/10 text-success"
+              : "border-danger/30 bg-danger/10 text-danger"
           }`}
         >
           {notice.message}
         </div>
       ) : null}
       {errorMessage ? (
-        <div className="mx-4 mt-2 flex min-h-9 shrink-0 items-center rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-danger">
+        <div className="mx-4 mt-2 flex min-h-9 shrink-0 items-center rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-xs font-medium text-danger">
           {errorMessage}
         </div>
       ) : null}

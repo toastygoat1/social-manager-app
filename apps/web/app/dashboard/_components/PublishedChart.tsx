@@ -2,8 +2,12 @@
 
 import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { AvatarImage } from "@/app/_components/AvatarImage";
-import type { PostFormat } from "./post-formats";
-import type { Account } from "./data";
+import {
+  emptyBreakdown,
+  normalizePostFormat,
+  type PostFormat,
+} from "./post-formats";
+import type { Account, ContentRow } from "./data";
 
 export type PublishedBar = {
   accountId: string;
@@ -13,11 +17,13 @@ export type PublishedBar = {
 };
 
 type PublishedChartProps = {
-  total: number;
-  bars: PublishedBar[];
+  accounts: Account[];
+  rows: ContentRow[];
   cardWidth: number;
   cardHeight: number;
 };
+
+type PublishedRange = "day" | "week" | "month" | "year";
 
 const CHART_HEIGHT = 208;
 const MIN_AXIS_MAX = 10;
@@ -40,6 +46,16 @@ const PUBLISHED_FORMAT_LABELS: Record<PostFormat, string> = {
   Reel: "Reels",
   Story: "Story",
 };
+const PUBLISHED_RANGE_OPTIONS: {
+  value: PublishedRange;
+  label: string;
+  title: string;
+}[] = [
+  { value: "day", label: "1D", title: "Today" },
+  { value: "week", label: "1W", title: "This week" },
+  { value: "month", label: "1M", title: "This month" },
+  { value: "year", label: "1Y", title: "This year" },
+];
 
 function getInitials(label: string) {
   return (
@@ -76,13 +92,105 @@ function getTickTransform(tick: number, max: number) {
   return "translateY(-50%)";
 }
 
+function isPublishedStatus(status: string) {
+  return status.toLowerCase().includes("publish");
+}
+
+function parseDatePost(value: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (match) {
+    const [, year, month, day] = match;
+    return new Date(Number(year), Number(month) - 1, Number(day));
+  }
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function getPublishedDate(row: ContentRow) {
+  if (row.publishedAt) {
+    const date = new Date(row.publishedAt);
+    if (!Number.isNaN(date.getTime())) return date;
+  }
+
+  return parseDatePost(row.datePost);
+}
+
+function getRangeStart(range: PublishedRange, now: Date) {
+  if (range === "day") {
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  }
+
+  if (range === "week") {
+    const daysSinceMonday = (now.getDay() + 6) % 7;
+    return new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() - daysSinceMonday,
+    );
+  }
+
+  if (range === "month") {
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  }
+
+  return new Date(now.getFullYear(), 0, 1);
+}
+
+function getRowsForRange(rows: ContentRow[], range: PublishedRange) {
+  const now = new Date();
+  const start = getRangeStart(range, now);
+
+  return rows.filter((row) => {
+    if (!isPublishedStatus(row.status)) return false;
+    const publishedDate = getPublishedDate(row);
+    return Boolean(
+      publishedDate && publishedDate >= start && publishedDate <= now,
+    );
+  });
+}
+
+function buildPublishedBars(accounts: Account[], rows: ContentRow[]) {
+  const map = new Map<string, PublishedBar>();
+  let total = 0;
+
+  for (const account of accounts) {
+    map.set(account.id, {
+      accountId: account.id,
+      account,
+      total: 0,
+      breakdown: emptyBreakdown(),
+    });
+  }
+
+  for (const row of rows) {
+    const format = normalizePostFormat(row.type);
+    total += 1;
+    const existing =
+      map.get(row.account.id) ??
+      {
+        accountId: row.account.id,
+        account: row.account,
+        total: 0,
+        breakdown: emptyBreakdown(),
+      };
+    existing.total += 1;
+    existing.breakdown[format] += 1;
+    map.set(row.account.id, existing);
+  }
+
+  const bars = [...map.values()].sort((a, b) => b.total - a.total);
+  return { bars, total };
+}
+
 export function PublishedChart({
-  total,
-  bars,
+  accounts,
+  rows,
   cardWidth,
   cardHeight,
 }: PublishedChartProps) {
   const [mounted, setMounted] = useState(false);
+  const [activeRange, setActiveRange] = useState<PublishedRange>("month");
   const [activeFormats, setActiveFormats] =
     useState<PostFormat[]>(PUBLISHED_FORMATS);
   const [displayedFilteredTotal, setDisplayedFilteredTotal] =
@@ -102,6 +210,14 @@ export function PublishedChart({
     return () => window.cancelAnimationFrame(id);
   }, []);
 
+  const rangeRows = useMemo(
+    () => getRowsForRange(rows, activeRange),
+    [activeRange, rows],
+  );
+  const { bars, total } = useMemo(
+    () => buildPublishedBars(accounts, rangeRows),
+    [accounts, rangeRows],
+  );
   const visibleBars = useMemo(
     () =>
       bars.slice(0, 14).map((bar) => {
@@ -178,6 +294,12 @@ export function PublishedChart({
     return () => window.cancelAnimationFrame(frame);
   }, [filteredTotal]);
 
+  function selectRange(range: PublishedRange) {
+    setActiveRange(range);
+    setGuide(null);
+    setTooltip(null);
+  }
+
   function toggleFormat(format: PostFormat) {
     setActiveFormats((current) => {
       if (current.includes(format)) {
@@ -246,33 +368,61 @@ export function PublishedChart({
             </span>
           </div>
         </div>
-        <div className="flex flex-wrap justify-end gap-1.5">
-          {PUBLISHED_FORMATS.map((format) => {
-            const active = activeFormats.includes(format);
-            const color = PUBLISHED_BAR_COLORS[format];
-            const count = formatTotals[format].toString();
-            return (
-              <button
-                key={format}
-                type="button"
-                aria-label={`${PUBLISHED_FORMAT_LABELS[format]} ${count}`}
-                aria-pressed={active}
-                onClick={() => toggleFormat(format)}
-                className="dashboard-ui-label inline-flex w-[84px] items-center justify-center gap-1 rounded-[6px] border bg-[var(--toggle-bg)] px-2 py-0.5 transition-colors duration-200 hover:bg-[var(--toggle-hover-bg)] focus-visible:bg-[var(--toggle-hover-bg)]"
-                style={
-                  {
-                    "--toggle-bg": active ? color : "var(--published-toggle-bg)",
-                    "--toggle-hover-bg": active ? color : `${color}26`,
-                    color: active ? "#FFFFFF" : color,
-                    borderColor: color,
-                  } as CSSProperties
-                }
-              >
-                <span className="tabular-nums">{count}</span>
-                <span>{PUBLISHED_FORMAT_LABELS[format]}</span>
-              </button>
-            );
-          })}
+        <div className="flex flex-col items-end gap-2">
+          <div
+            aria-label="Published date range"
+            className="dashboard-ui-label grid grid-cols-4 rounded-[8px] border border-line bg-card p-1 text-muted"
+          >
+            {PUBLISHED_RANGE_OPTIONS.map((option) => {
+              const active = activeRange === option.value;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  aria-pressed={active}
+                  title={option.title}
+                  onClick={() => selectRange(option.value)}
+                  className={`h-7 w-11 rounded-[6px] transition-colors duration-200 ${
+                    active
+                      ? "bg-ink text-paper"
+                      : "hover:bg-paper hover:text-ink"
+                  }`}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
+          <div className="flex flex-wrap justify-end gap-1.5">
+            {PUBLISHED_FORMATS.map((format) => {
+              const active = activeFormats.includes(format);
+              const color = PUBLISHED_BAR_COLORS[format];
+              const count = formatTotals[format].toString();
+              return (
+                <button
+                  key={format}
+                  type="button"
+                  aria-label={`${PUBLISHED_FORMAT_LABELS[format]} ${count}`}
+                  aria-pressed={active}
+                  onClick={() => toggleFormat(format)}
+                  className="dashboard-ui-label inline-flex w-[84px] items-center justify-center gap-1 rounded-[6px] border bg-[var(--toggle-bg)] px-2 py-0.5 transition-colors duration-200 hover:bg-[var(--toggle-hover-bg)] focus-visible:bg-[var(--toggle-hover-bg)]"
+                  style={
+                    {
+                      "--toggle-bg": active
+                        ? color
+                        : "var(--published-toggle-bg)",
+                      "--toggle-hover-bg": active ? color : `${color}26`,
+                      color: active ? "#FFFFFF" : color,
+                      borderColor: color,
+                    } as CSSProperties
+                  }
+                >
+                  <span className="tabular-nums">{count}</span>
+                  <span>{PUBLISHED_FORMAT_LABELS[format]}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </header>
       <div className="mt-auto flex min-h-0 items-stretch">
@@ -449,7 +599,7 @@ export function PublishedChart({
             ))}
           </div>
 
-          {tooltip ? (
+          {tooltip && visibleBars[tooltip.index] ? (
             <FloatingBarTooltip
               bar={visibleBars[tooltip.index]}
               x={tooltip.x}

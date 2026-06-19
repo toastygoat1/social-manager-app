@@ -118,6 +118,7 @@ type ContentRow = {
   status: string;
   audio: string;
   datePost: string;
+  publishedAt: string | null;
   caption: string;
   views: number | null;
   likes: number | null;
@@ -137,6 +138,7 @@ type DashboardOverview = {
   accounts: AccountDto[];
   metadataFields: MetadataFieldDto[];
   contentRows: ContentRow[];
+  publishedChartRows: ContentRow[];
   activityRows: ActivityRow[];
 };
 
@@ -144,6 +146,11 @@ type DashboardPosts = {
   accounts: AccountDto[];
   metadataFields: MetadataFieldDto[];
   contentRows: ContentRow[];
+};
+
+type ListContentRowsOptions = {
+  take?: number;
+  where?: Prisma.ContentPostWhereInput;
 };
 
 @Injectable()
@@ -190,10 +197,11 @@ export class DashboardService {
   private async listContentRows(
     accountIds: string[],
     accounts: AccountDto[],
-    take?: number,
+    options: ListContentRowsOptions = {},
   ): Promise<ContentRow[]> {
+    const { take, where } = options;
     const posts = await this.prisma.contentPost.findMany({
-      where: { instagramAccountId: { in: accountIds } },
+      where: { instagramAccountId: { in: accountIds }, ...where },
       orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }],
       ...(take === undefined ? {} : { take }),
       include: DASHBOARD_CONTENT_POST_INCLUDE,
@@ -234,6 +242,7 @@ export class DashboardService {
         datePost: (post.publishedAt ?? post.scheduledFor ?? post.createdAt)
           .toISOString()
           .slice(0, 10),
+        publishedAt: post.publishedAt?.toISOString() ?? null,
         caption: post.caption?.slice(0, 60) ?? '—',
         views: latest?.impressions ?? null,
         likes: latest?.likeCount ?? null,
@@ -287,45 +296,58 @@ export class DashboardService {
         accounts: [],
         metadataFields,
         contentRows: [],
+        publishedChartRows: [],
         activityRows,
       };
     }
 
     const now = new Date();
+    const startOfThisYear = new Date(now.getFullYear(), 0, 1);
     const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
 
-    const [thisMonthAgg, lastMonthAgg, contentRows, uploadBuckets] =
-      await Promise.all([
-        this.prisma.postAnalytics.aggregate({
-          where: {
-            fetchedAt: { gte: startOfThisMonth },
-            contentPost: { instagramAccountId: { in: accountIds } },
+    const [
+      thisMonthAgg,
+      lastMonthAgg,
+      contentRows,
+      publishedChartRows,
+      uploadBuckets,
+    ] = await Promise.all([
+      this.prisma.postAnalytics.aggregate({
+        where: {
+          fetchedAt: { gte: startOfThisMonth },
+          contentPost: { instagramAccountId: { in: accountIds } },
+        },
+        _sum: { impressions: true, likeCount: true },
+      }),
+      this.prisma.postAnalytics.aggregate({
+        where: {
+          fetchedAt: { gte: startOfLastMonth, lt: startOfThisMonth },
+          contentPost: { instagramAccountId: { in: accountIds } },
+        },
+        _sum: { impressions: true, likeCount: true },
+      }),
+      this.listContentRows(accountIds, accounts, { take: 20 }),
+      this.listContentRows(accountIds, accounts, {
+        where: {
+          status: PostStatus.PUBLISHED,
+          publishedAt: { gte: startOfThisYear, lte: now },
+        },
+      }),
+      this.prisma.contentPost.findMany({
+        where: {
+          instagramAccountId: { in: accountIds },
+          publishedAt: {
+            gte: new Date(
+              now.getFullYear(),
+              now.getMonth(),
+              now.getDate() - (UPLOAD_CHART_DAYS - 1),
+            ),
           },
-          _sum: { impressions: true, likeCount: true },
-        }),
-        this.prisma.postAnalytics.aggregate({
-          where: {
-            fetchedAt: { gte: startOfLastMonth, lt: startOfThisMonth },
-            contentPost: { instagramAccountId: { in: accountIds } },
-          },
-          _sum: { impressions: true, likeCount: true },
-        }),
-        this.listContentRows(accountIds, accounts, 20),
-        this.prisma.contentPost.findMany({
-          where: {
-            instagramAccountId: { in: accountIds },
-            publishedAt: {
-              gte: new Date(
-                now.getFullYear(),
-                now.getMonth(),
-                now.getDate() - (UPLOAD_CHART_DAYS - 1),
-              ),
-            },
-          },
-          select: { publishedAt: true },
-        }),
-      ]);
+        },
+        select: { publishedAt: true },
+      }),
+    ]);
 
     const views = buildStatMetric(
       thisMonthAgg._sum.impressions,
@@ -350,6 +372,7 @@ export class DashboardService {
       accounts,
       metadataFields,
       contentRows,
+      publishedChartRows,
       activityRows,
     };
   }

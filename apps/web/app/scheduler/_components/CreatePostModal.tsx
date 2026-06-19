@@ -466,7 +466,7 @@ function MediaTile({
         </div>
       ) : null}
       {isCover ? (
-        <span className="absolute left-2 top-2 rounded bg-paper px-1.5 py-1 text-[8px] font-semibold uppercase tracking-wide text-[#423c35]">
+        <span className="absolute left-2 top-2 rounded bg-paper px-1.5 py-1 text-[8px] font-semibold uppercase tracking-wide text-ink">
           Cover
         </span>
       ) : null}
@@ -499,10 +499,10 @@ function MediaIssueList({
       className={
         compact
           ? "mt-2 text-[10px]"
-          : "mt-2 rounded-md border border-[#e7e1d6] bg-paper p-3 text-[10px]"
+          : "mt-2 rounded-md border border-line bg-paper p-3 text-[10px]"
       }
     >
-      <p className="mb-1 font-semibold uppercase tracking-wide text-[#817a70]">
+      <p className="mb-1 font-semibold uppercase tracking-wide text-muted">
         Instagram media checks
       </p>
       <div className="flex flex-col gap-1">
@@ -510,7 +510,7 @@ function MediaIssueList({
           <p
             key={issue.key}
             className={`flex items-start gap-2 leading-4 ${
-              issue.severity === "error" ? "text-[#b73333]" : "text-[#a57630]"
+              issue.severity === "error" ? "text-danger" : "text-chart-4"
             }`}
           >
             <CircleAlert className="mt-0.5 size-3 shrink-0" />
@@ -518,7 +518,7 @@ function MediaIssueList({
           </p>
         ))}
         {issues.length > 4 ? (
-          <p className="text-[#817a70]">+{issues.length - 4} more checks</p>
+          <p className="text-muted">+{issues.length - 4} more checks</p>
         ) : null}
       </div>
     </div>
@@ -544,7 +544,7 @@ function AccountChip({
       aria-pressed={selected}
       onClick={onClick}
       className={`flex h-[44px] min-w-[164px] shrink-0 items-center gap-2 overflow-hidden rounded-md border px-2.5 py-1.5 text-left ${
-        selected ? "border-[#dcd6cb] bg-paper" : "border-[#eee9df] bg-[#fbfaf7]"
+        selected ? "border-line bg-paper" : "border-line bg-card"
       }`}
     >
       <AccountAvatar
@@ -553,15 +553,15 @@ function AccountChip({
         fallbackSeed={accountId}
       />
       <span className="min-w-0 flex-1 truncate">
-        <span className="block truncate text-[11px] font-medium leading-4 text-[#302b23]">
+        <span className="block truncate text-[11px] font-medium leading-4 text-ink">
           {username}
         </span>
-        <span className="block truncate text-[9px] text-[#837c73]">
+        <span className="block truncate text-[9px] text-muted">
           IG - @{username}
         </span>
       </span>
       {selected ? (
-        <X className="size-3 shrink-0 text-[#968f84]" strokeWidth={2} />
+        <X className="size-3 shrink-0 text-muted" strokeWidth={2} />
       ) : null}
     </button>
   );
@@ -582,7 +582,7 @@ function Switch({
       className="shrink-0"
     >
       <div
-        className={`relative h-[18px] w-8 rounded-full ${on ? "bg-[#607ffc]" : "bg-[#dbd6cd]"}`}
+        className={`relative h-[18px] w-8 rounded-full ${on ? "bg-cta" : "bg-line"}`}
       >
         <div
           className={`absolute top-0.5 size-3.5 rounded-full bg-paper shadow-[0_2px_4px_0_rgba(39,39,39,0.1)] transition-all ${
@@ -1076,11 +1076,11 @@ export function CreatePostModal({
       onClick={onClose}
     >
       <div
-        className="flex h-[min(860px,calc(100vh-16px))] w-[min(1240px,calc(100vw-16px))] flex-col overflow-hidden rounded-xl border border-[#e7e1d6] bg-[#fffdfa] shadow-[0_22px_60px_rgba(42,39,33,0.18)]"
+        className="flex h-[min(860px,calc(100vh-16px))] w-[min(1240px,calc(100vw-16px))] flex-col overflow-hidden rounded-xl border border-line bg-paper shadow-[0_22px_60px_rgba(0,0,0,0.18)]"
         onClick={(e) => e.stopPropagation()}
       >
-        <header className="flex h-[60px] shrink-0 items-center justify-between border-b border-[#ece7de] px-5">
-          <h2 className="text-base font-semibold tracking-[-0.02em] text-[#171510]">
+        <header className="flex h-[60px] shrink-0 items-center justify-between border-b border-line px-5">
+          <h2 className="text-base font-semibold tracking-[-0.02em] text-ink">
             Schedule a post
           </h2>
           <div className="flex items-center">
@@ -1088,7 +1088,7 @@ export function CreatePostModal({
               type="button"
               aria-label="Close compose window"
               onClick={onClose}
-              className="flex size-7 items-center justify-center rounded-full text-[#797268] hover:bg-[#f3f0ea]"
+              className="flex size-7 items-center justify-center rounded-full text-muted transition-colors hover:bg-card hover:text-ink"
             >
               <X className="size-3.5" />
             </button>
@@ -1096,11 +1096,11 @@ export function CreatePostModal({
         </header>
 
         <div className="flex min-h-0 flex-1">
-          <div className="flex min-w-0 flex-1 flex-col gap-4 overflow-y-auto border-r border-[#ece7de] px-6 py-4">
+          <div className="flex min-w-0 flex-1 flex-col gap-4 overflow-y-auto border-r border-line px-6 py-4">
             <section>
               <div className="mb-2 flex items-center justify-between">
-                <h3 className="text-[11px] font-semibold text-[#27231d]">Publish to</h3>
-                <span className="text-[10px] text-[#817a70]">
+                <h3 className="text-[11px] font-semibold text-ink">Publish to</h3>
+                <span className="text-[10px] text-muted">
                   {selectedAccountIds.length} account{selectedAccountIds.length === 1 ? "" : "s"} selected
                 </span>
               </div>
@@ -1119,15 +1119,15 @@ export function CreatePostModal({
                   type="button"
                   aria-expanded={accountPickerOpen}
                   onClick={() => setAccountPickerOpen((current) => !current)}
-                  className="flex h-[44px] shrink-0 items-center gap-1.5 rounded-md border border-dashed border-[#ddd7cd] px-3 text-[10px] text-[#686158] transition-colors hover:bg-[#f7f5ef]"
+                  className="flex h-[44px] shrink-0 items-center gap-1.5 rounded-md border border-dashed border-line px-3 text-[10px] text-muted transition-colors hover:bg-card hover:text-ink"
                 >
                   <Plus className="size-3" />
                   Add account
                 </button>
                 {accountPickerOpen ? (
-                  <div className="absolute left-0 top-[52px] z-20 flex max-h-56 w-[360px] flex-col gap-2 overflow-y-auto rounded-lg border border-[#e7e1d6] bg-paper p-2 shadow-[0_14px_30px_rgba(39,39,39,0.12)]">
+                  <div className="absolute left-0 top-[52px] z-20 flex max-h-56 w-[360px] flex-col gap-2 overflow-y-auto rounded-lg border border-line bg-paper p-2 shadow-[0_14px_30px_rgba(0,0,0,0.16)]">
                     {accountsLoading ? (
-                      <p className="px-2 py-3 text-xs text-[#817a70]">Loading accounts...</p>
+                      <p className="px-2 py-3 text-xs text-muted">Loading accounts...</p>
                     ) : availableAccounts.length ? (
                       availableAccounts.map((account) => (
                         <AccountChip
@@ -1140,7 +1140,7 @@ export function CreatePostModal({
                         />
                       ))
                     ) : (
-                      <p className="px-2 py-3 text-xs text-[#817a70]">
+                      <p className="px-2 py-3 text-xs text-muted">
                         {accounts.length
                           ? "All connected accounts are selected."
                           : "No Instagram accounts connected yet."}
@@ -1152,7 +1152,7 @@ export function CreatePostModal({
             </section>
 
             <section>
-              <h3 className="mb-2 text-[11px] font-semibold text-[#27231d]">Post type</h3>
+              <h3 className="mb-2 text-[11px] font-semibold text-ink">Post type</h3>
               <div className="grid grid-cols-4 gap-1.5">
                 {(["post", "story", "reels", "carousel"] as const).map((option) => (
                   <button
@@ -1162,8 +1162,8 @@ export function CreatePostModal({
                     onClick={() => setComposeType(option)}
                     className={`h-8 rounded-md border text-[11px] font-medium ${
                       composeType === option
-                        ? "border-[#6682fa] bg-[#e7edff] text-[#4f69ca]"
-                        : "border-[#e7e1d6] bg-paper text-[#534e47]"
+                        ? "border-cta bg-cta/10 text-ink"
+                        : "border-line bg-paper text-muted hover:bg-card hover:text-ink"
                     }`}
                   >
                     {TYPE_LABEL[option]}
@@ -1174,12 +1174,12 @@ export function CreatePostModal({
 
             <section>
               <div className="mb-2 flex items-center justify-between">
-                <h3 className="text-[11px] font-semibold text-[#27231d]">Caption</h3>
-                <div className="flex items-center gap-3 text-[10px] text-[#766f66]">
+                <h3 className="text-[11px] font-semibold text-ink">Caption</h3>
+                <div className="flex items-center gap-3 text-[10px] text-muted">
                   <button
                     type="button"
                     onClick={() => insertCaptionToken("#")}
-                    className="inline-flex items-center gap-1 rounded px-1.5 py-1 transition-colors hover:bg-[#f3f0ea]"
+                    className="inline-flex items-center gap-1 rounded px-1.5 py-1 transition-colors hover:bg-card hover:text-ink"
                   >
                     <Hash className="size-3" />
                     Hashtag
@@ -1187,23 +1187,23 @@ export function CreatePostModal({
                   <button
                     type="button"
                     onClick={() => insertCaptionToken("@")}
-                    className="inline-flex items-center gap-1 rounded px-1.5 py-1 transition-colors hover:bg-[#f3f0ea]"
+                    className="inline-flex items-center gap-1 rounded px-1.5 py-1 transition-colors hover:bg-card hover:text-ink"
                   >
                     <AtSign className="size-3" />
                     Mention
                   </button>
                 </div>
               </div>
-              <div className="overflow-hidden rounded-md border border-[#e7e1d6] bg-paper">
+              <div className="overflow-hidden rounded-md border border-line bg-paper">
                 <textarea
                   ref={captionRef}
                   value={caption}
                   onChange={(e) => setCaption(e.target.value)}
                   maxLength={2200}
                   placeholder="Write a caption..."
-                  className="h-[82px] w-full resize-none bg-transparent px-3 py-2.5 text-[11px] leading-5 text-[#302b23] placeholder:text-[#9a9388] focus:outline-none"
+                  className="h-[82px] w-full resize-none bg-transparent px-3 py-2.5 text-[11px] leading-5 text-ink placeholder:text-muted focus:outline-none"
                 />
-                <div className="flex min-h-7 flex-wrap items-center gap-x-3 gap-y-1 border-t border-[#eee9df] px-3 py-1.5 text-[9px] text-[#827a71]">
+                <div className="flex min-h-7 flex-wrap items-center gap-x-3 gap-y-1 border-t border-line px-3 py-1.5 text-[9px] text-muted">
                   <span>{captionCount} / 2,200 characters</span>
                   <span>
                     {hashtagCount} hashtag{hashtagCount === 1 ? "" : "s"}
@@ -1217,8 +1217,8 @@ export function CreatePostModal({
 
             <section>
               <div className="mb-2 flex items-center justify-between">
-                <h3 className="text-[11px] font-semibold text-[#27231d]">Media</h3>
-                <span className="text-[10px] text-[#817a70]">
+                <h3 className="text-[11px] font-semibold text-ink">Media</h3>
+                <span className="text-[10px] text-muted">
                   {media.length} of {mediaLimitForType(composeType)} attached - 1080 x 1350 recommended
                 </span>
               </div>
@@ -1232,7 +1232,7 @@ export function CreatePostModal({
                   />
                 ))}
                 {media.length < mediaLimitForType(composeType) ? (
-                  <label className="flex h-[188px] cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-[#d9d3c8] bg-paper text-[#857e74]">
+                  <label className="flex h-[188px] cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-line bg-paper text-muted transition-colors hover:bg-card hover:text-ink">
                     <Plus className="size-4" strokeWidth={1.8} />
                     <span className="text-[10px] font-medium">Add</span>
                     <input
@@ -1253,7 +1253,7 @@ export function CreatePostModal({
 
             <section>
               <div className="mb-2 flex items-center justify-between">
-                <h3 className="text-[11px] font-semibold text-[#27231d]">Metadata</h3>
+                <h3 className="text-[11px] font-semibold text-ink">Metadata</h3>
                 <button
                   type="button"
                   disabled={metadataSaving}
@@ -1262,7 +1262,7 @@ export function CreatePostModal({
                       ? void saveMetadataFields()
                       : setMetadataEditing(true)
                   }
-                  className="inline-flex h-7 items-center gap-1 rounded px-1.5 text-[10px] text-[#686158] transition-colors hover:bg-[#f3f0ea]"
+                  className="inline-flex h-7 items-center gap-1 rounded px-1.5 text-[10px] text-muted transition-colors hover:bg-card hover:text-ink"
                 >
                   {metadataEditing ? (
                     <Save className="size-3" />
@@ -1295,7 +1295,7 @@ export function CreatePostModal({
                         placeholder="Label"
                         maxLength={40}
                         readOnly={field.fieldId !== null}
-                        className="h-9 rounded-md border border-[#e7e1d6] bg-paper px-3 text-[11px] text-[#302b23] placeholder:text-[#9a9388] focus:outline-none read-only:bg-[#f7f5ef] read-only:text-[#716b61]"
+                        className="h-9 rounded-md border border-line bg-paper px-3 text-[11px] text-ink placeholder:text-muted focus:outline-none read-only:bg-card read-only:text-muted"
                       />
                       <input
                         value={field.value}
@@ -1308,13 +1308,13 @@ export function CreatePostModal({
                         }
                         placeholder="Value"
                         maxLength={160}
-                        className="h-9 rounded-md border border-[#e7e1d6] bg-paper px-3 text-[11px] text-[#302b23] placeholder:text-[#9a9388] focus:outline-none"
+                        className="h-9 rounded-md border border-line bg-paper px-3 text-[11px] text-ink placeholder:text-muted focus:outline-none"
                       />
                       <button
                         type="button"
                         aria-label="Remove metadata field"
                         onClick={() => removeMetadataField(field.id)}
-                        className="flex size-9 items-center justify-center rounded-md border border-[#e7e1d6] bg-paper text-[#857e74] transition-colors hover:bg-[#f7f5ef]"
+                        className="flex size-9 items-center justify-center rounded-md border border-line bg-paper text-muted transition-colors hover:bg-card hover:text-ink"
                       >
                         <Trash2 className="size-3.5" />
                       </button>
@@ -1323,7 +1323,7 @@ export function CreatePostModal({
                   <button
                     type="button"
                     onClick={addMetadataField}
-                    className="inline-flex h-8 w-fit items-center gap-1 rounded-md border border-[#e7e1d6] bg-paper px-2.5 text-[10px] font-medium text-[#686158] transition-colors hover:bg-[#f7f5ef]"
+                    className="inline-flex h-8 w-fit items-center gap-1 rounded-md border border-line bg-paper px-2.5 text-[10px] font-medium text-muted transition-colors hover:bg-card hover:text-ink"
                   >
                     <Plus className="size-3" />
                     Add field
@@ -1336,8 +1336,8 @@ export function CreatePostModal({
                       key={field.id}
                       className="grid grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] gap-2"
                     >
-                      <div className="flex h-9 min-w-0 items-center rounded-md border border-[#e7e1d6] bg-[#f7f5ef] px-3">
-                        <span className="truncate text-[10px] font-semibold text-[#6e685f]">
+                      <div className="flex h-9 min-w-0 items-center rounded-md border border-line bg-card px-3">
+                        <span className="truncate text-[10px] font-semibold text-muted">
                           {field.label || "Metadata"}
                         </span>
                       </div>
@@ -1352,7 +1352,7 @@ export function CreatePostModal({
                         }
                         placeholder="-"
                         maxLength={160}
-                        className="h-9 min-w-0 rounded-md border border-[#e7e1d6] bg-paper px-3 text-[11px] text-[#302b23] placeholder:text-[#9a9388] focus:outline-none"
+                        className="h-9 min-w-0 rounded-md border border-line bg-paper px-3 text-[11px] text-ink placeholder:text-muted focus:outline-none"
                         aria-label={`${field.label || "Metadata"} value`}
                       />
                     </div>
@@ -1362,7 +1362,7 @@ export function CreatePostModal({
                 <button
                   type="button"
                   onClick={() => setMetadataEditing(true)}
-                  className="flex h-10 w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-[#d9d3c8] bg-paper text-[10px] font-medium text-[#857e74] transition-colors hover:bg-[#f7f5ef]"
+                  className="flex h-10 w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-line bg-paper text-[10px] font-medium text-muted transition-colors hover:bg-card hover:text-ink"
                 >
                   <Pencil className="size-3" />
                   Add metadata
@@ -1371,17 +1371,17 @@ export function CreatePostModal({
             </section>
 
             <section>
-              <h3 className="mb-2 text-[11px] font-semibold text-[#27231d]">Options</h3>
-              <div className="flex items-center gap-3 rounded-md border border-[#e7e1d6] bg-paper px-3 py-2.5">
+              <h3 className="mb-2 text-[11px] font-semibold text-ink">Options</h3>
+              <div className="flex items-center gap-3 rounded-md border border-line bg-paper px-3 py-2.5">
                 <Switch
                   on={requiresApproval}
                   onToggle={() => setRequiresApproval((value) => !value)}
                 />
                 <span className="min-w-0">
-                  <span className="block text-[11px] font-medium text-[#302b23]">
+                  <span className="block text-[11px] font-medium text-ink">
                     Wait for approval
                   </span>
-                  <span className="block text-[10px] text-[#817a70]">
+                  <span className="block text-[10px] text-muted">
                     Require approval before publishing.
                   </span>
                 </span>
@@ -1389,13 +1389,13 @@ export function CreatePostModal({
             </section>
 
             {error ? (
-              <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
+              <p className="rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-xs font-medium text-danger">
                 {error}
               </p>
             ) : null}
             {accountResults.length ? (
-              <div className="flex flex-col gap-2 rounded-md border border-[#e7e1d6] bg-paper p-3">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-[#817a70]">
+              <div className="flex flex-col gap-2 rounded-md border border-line bg-paper p-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted">
                   Account results
                 </p>
                 {accountResults.map((result) => (
@@ -1403,7 +1403,7 @@ export function CreatePostModal({
                     key={result.accountId}
                     className="flex items-start justify-between gap-3 text-xs"
                   >
-                    <span className="font-medium text-[#302b23]">@{result.username}</span>
+                    <span className="font-medium text-ink">@{result.username}</span>
                     <span className={result.ok ? "text-success" : "text-danger"}>
                       {result.ok ? "Success" : result.message}
                     </span>
@@ -1413,8 +1413,8 @@ export function CreatePostModal({
             ) : null}
           </div>
 
-          <aside className="hidden w-[360px] shrink-0 flex-col gap-3 bg-[#f7f5ef] px-4 py-4 lg:flex">
-            <div className="overflow-hidden rounded-lg border border-[#e4ded4] bg-paper">
+          <aside className="hidden w-[360px] shrink-0 flex-col gap-3 bg-card px-4 py-4 lg:flex">
+            <div className="overflow-hidden rounded-lg border border-line bg-paper">
               <div className="flex h-[44px] items-center gap-2 px-3">
                 {selectedAccounts[0] ? (
                   <AccountAvatar
@@ -1424,19 +1424,19 @@ export function CreatePostModal({
                     fallbackSeed={selectedAccounts[0].id}
                   />
                 ) : (
-                  <span className="flex size-7 items-center justify-center rounded-full bg-[#e8e2d9] text-[#8e887d]">
+                  <span className="flex size-7 items-center justify-center rounded-full bg-card text-muted">
                     <User className="size-3.5" />
                   </span>
                 )}
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[11px] font-semibold text-[#302b23]">
+                  <span className="block truncate text-[11px] font-semibold text-ink">
                     {previewAccountLabel}
                   </span>
-                  <span className="block truncate text-[9px] text-[#817a70]">
+                  <span className="block truncate text-[9px] text-muted">
                     Instagram - Sponsored
                   </span>
                 </span>
-                <MoreHorizontal className="size-3.5 text-[#716b61]" />
+                <MoreHorizontal className="size-3.5 text-muted" />
               </div>
               <div className="relative flex aspect-[4/5] items-center justify-center overflow-hidden bg-gradient-to-br from-[#8252a4] via-[#55517c] to-[#28314f]">
                 {isCarouselPreview ? (
@@ -1473,35 +1473,35 @@ export function CreatePostModal({
                 ) : null}
               </div>
               <div className="px-3 py-2.5">
-                <div className="flex items-center gap-3 text-[#302b23]">
+                <div className="flex items-center gap-3 text-ink">
                   <Heart className="size-4" />
                   <MessageCircle className="size-4" />
                   <Send className="size-4" />
                   <Bookmark className="ml-auto size-4" />
                 </div>
-                <p className="mt-1.5 text-[10px] font-semibold text-[#302b23]">
+                <p className="mt-1.5 text-[10px] font-semibold text-ink">
                   1,284 likes - {previewAccountLabel}
                 </p>
-                <p className="mt-1 line-clamp-2 text-[10px] leading-4 text-[#302b23]">
+                <p className="mt-1 line-clamp-2 text-[10px] leading-4 text-ink">
                   {caption || "Your caption preview will appear here as you write."}
                 </p>
-                <p className="mt-1.5 text-[9px] uppercase tracking-wide text-[#a29a8f]">
+                <p className="mt-1.5 text-[9px] uppercase tracking-wide text-muted">
                   2 minutes ago
                 </p>
               </div>
             </div>
-            <div className="rounded-lg border border-[#e4ded4] bg-paper p-3 text-[10px]">
-              <p className={`flex items-center gap-2 ${hasBlockingPreviewError ? "text-[#b73333]" : "text-[#568164]"}`}>
+            <div className="rounded-lg border border-line bg-paper p-3 text-[10px]">
+              <p className={`flex items-center gap-2 ${hasBlockingPreviewError ? "text-danger" : "text-success"}`}>
                 {hasBlockingPreviewError ? <CircleAlert className="size-3" /> : <Check className="size-3" />}
                 {hasBlockingPreviewError ? "No accounts selected" : "Account selected"}
               </p>
               <p
                 className={`mt-1 flex items-center gap-2 ${
                   mediaErrorCount
-                    ? "text-[#b73333]"
+                    ? "text-danger"
                     : media.length
-                      ? "text-[#568164]"
-                      : "text-[#a57630]"
+                      ? "text-success"
+                      : "text-chart-4"
                 }`}
               >
                 {media.length && !mediaErrorCount ? (
@@ -1518,11 +1518,11 @@ export function CreatePostModal({
                     : "Add media before publishing"}
               </p>
               <MediaIssueList issues={mediaIssues} compact />
-              <p className={`mt-1 flex items-center gap-2 ${hasCaption ? "text-[#568164]" : "text-[#a57630]"}`}>
+              <p className={`mt-1 flex items-center gap-2 ${hasCaption ? "text-success" : "text-chart-4"}`}>
                 {hasCaption ? <Check className="size-3" /> : <CircleAlert className="size-3" />}
                 {hasCaption ? "Caption added" : "Add a caption"}
               </p>
-              <p className={`mt-1 flex items-center gap-2 ${captionCount <= 125 ? "text-[#568164]" : "text-[#a57630]"}`}>
+              <p className={`mt-1 flex items-center gap-2 ${captionCount <= 125 ? "text-success" : "text-chart-4"}`}>
                 {captionCount <= 125 ? <Check className="size-3" /> : <CircleAlert className="size-3" />}
                 Caption {captionCount <= 125 ? "fits above the fold" : "may truncate in feed"}
               </p>
@@ -1530,20 +1530,20 @@ export function CreatePostModal({
           </aside>
         </div>
 
-        <footer className="flex min-h-[64px] shrink-0 flex-wrap items-center justify-between gap-3 border-t border-[#ece7de] bg-[#fffdfa] px-6 py-3">
+        <footer className="flex min-h-[64px] shrink-0 flex-wrap items-center justify-between gap-3 border-t border-line bg-paper px-6 py-3">
           <button
             type="button"
             disabled={scheduleDisabled}
             onClick={() => void handleSubmit("draft")}
-            className="h-9 rounded-lg border border-[#e7e1d6] bg-paper px-4 text-[11px] font-medium text-[#615a50] shadow-sm transition-colors hover:bg-[#f7f5ef] disabled:opacity-50"
+            className="h-9 rounded-lg border border-line bg-paper px-4 text-[11px] font-medium text-muted transition-colors hover:bg-card hover:text-ink disabled:opacity-50"
           >
             {submittingAction === "draft" ? "Saving..." : "Save as draft"}
           </button>
           <div className="flex flex-wrap items-center justify-end gap-2">
-            <div className="relative grid h-9 w-[154px] grid-cols-2 items-center rounded-lg border border-[#d8d8d8] bg-[#f1f1f1] p-1 text-[10px]">
+            <div className="relative grid h-9 w-[154px] grid-cols-2 items-center rounded-lg border border-line bg-card p-1 text-[10px]">
               <span
                 aria-hidden="true"
-                className={`absolute bottom-1 left-1 top-1 w-[calc(50%-4px)] rounded-md bg-[#171510] shadow-sm transition-transform duration-300 ease-out ${
+                className={`absolute bottom-1 left-1 top-1 w-[calc(50%-4px)] rounded-md bg-ink transition-transform duration-300 ease-out ${
                   primaryAction === "schedule" ? "translate-x-full" : "translate-x-0"
                 }`}
               />
@@ -1553,8 +1553,8 @@ export function CreatePostModal({
                 onClick={() => setPrimaryAction("post-now")}
                 className={`relative z-[1] h-full rounded-md transition-colors duration-300 ${
                   primaryAction === "post-now"
-                    ? "font-semibold text-white"
-                    : "text-[#666666] hover:text-[#171510]"
+                    ? "font-semibold text-page"
+                    : "text-muted hover:text-ink"
                 }`}
               >
                 Now
@@ -1565,8 +1565,8 @@ export function CreatePostModal({
                 onClick={() => setPrimaryAction("schedule")}
                 className={`relative z-[1] h-full rounded-md transition-colors duration-300 ${
                   primaryAction === "schedule"
-                    ? "font-semibold text-white"
-                    : "text-[#666666] hover:text-[#171510]"
+                    ? "font-semibold text-page"
+                    : "text-muted hover:text-ink"
                 }`}
               >
                 Schedule
@@ -1576,11 +1576,11 @@ export function CreatePostModal({
               onClick={showSchedulePicker}
               className={`flex h-9 cursor-pointer items-center gap-2 overflow-hidden rounded-lg bg-paper shadow-sm transition-[width,opacity,transform,border-color,padding] duration-300 ease-out ${
                 primaryAction === "schedule"
-                  ? "w-[214px] translate-x-0 border border-[#e7e1d6] px-3 opacity-100"
+                  ? "w-[214px] translate-x-0 border border-line px-3 opacity-100"
                   : "pointer-events-none w-0 translate-x-2 border border-transparent px-0 opacity-0"
               }`}
             >
-              <Calendar className="size-3.5 text-[#756e64]" strokeWidth={1.8} />
+              <Calendar className="size-3.5 text-muted" strokeWidth={1.8} />
               <input
                 ref={scheduledForRef}
                 aria-label="Scheduled date and time"
@@ -1588,14 +1588,14 @@ export function CreatePostModal({
                 value={scheduledFor}
                 min={minScheduledFor}
                 onChange={(e) => setScheduledFor(e.target.value)}
-                className="schedule-datetime-input min-w-[170px] cursor-pointer bg-transparent text-[10px] font-medium text-[#4e4840] focus:outline-none"
+                className="schedule-datetime-input min-w-[170px] cursor-pointer bg-transparent text-[10px] font-medium text-ink focus:outline-none"
               />
             </label>
             <button
               type="button"
               disabled={scheduleDisabled}
               onClick={() => void handleSubmit(primaryAction)}
-              className="flex h-9 min-w-[112px] items-center justify-center rounded-lg bg-[#171510] px-5 text-[11px] font-semibold text-white shadow-sm transition-colors hover:bg-[#24211b] disabled:opacity-60"
+              className="flex h-9 min-w-[112px] items-center justify-center rounded-lg bg-ink px-5 text-[11px] font-semibold text-page transition-colors hover:opacity-90 disabled:opacity-60"
             >
               {submitButtonLabel}
             </button>

@@ -425,7 +425,7 @@ function SortableHeader({
         type="button"
         onClick={() => onSort(column.key)}
         aria-label={`${column.label}, ${sortLabel}`}
-        className={`inline-flex w-full max-w-full items-center gap-1.5 rounded-md text-inherit transition hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5e6ad2] ${getHeaderJustifyClass(
+        className={`inline-flex w-full max-w-full items-center gap-1.5 rounded-md text-inherit transition hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta ${getHeaderJustifyClass(
           column.align,
         )}`}
       >
@@ -688,8 +688,8 @@ export function PostsTable({
   }
 
   return (
-    <div className="flex h-full min-h-0 w-full flex-col bg-white">
-      <div className="mx-5 mt-4 flex flex-wrap items-center gap-3 bg-white sm:mx-7 sm:mt-6">
+    <div className="adaptive-content-colors flex h-full min-h-0 w-full flex-col bg-paper">
+      <div className="mx-5 mt-4 flex flex-wrap items-center gap-3 bg-paper sm:mx-7 sm:mt-6">
         <label className="relative flex min-w-[240px] flex-1 items-center sm:max-w-[360px]">
           <Search
             aria-hidden="true"
@@ -700,7 +700,7 @@ export function PostsTable({
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search posts, accounts, status, metadata..."
-            className="dashboard-ui-label h-9 w-full rounded-lg border border-line bg-white pl-9 pr-3 text-ink outline-none transition placeholder:font-normal focus:border-[#b7b7b7] focus:bg-white"
+            className="dashboard-ui-label h-9 w-full rounded-lg border border-line bg-paper pl-9 pr-3 text-ink outline-none transition placeholder:font-normal placeholder:text-muted focus:border-cta focus:bg-paper"
             type="search"
           />
         </label>
@@ -716,7 +716,7 @@ export function PostsTable({
               className={`dashboard-ui-label inline-flex h-9 shrink-0 items-center rounded-lg border px-3 transition ${
                 tab.isActive
                   ? "border-ink bg-ink text-paper"
-                  : "border-line bg-white text-muted hover:bg-card hover:text-ink"
+                  : "border-line bg-paper text-muted hover:bg-card hover:text-ink"
               }`}
             >
               {tab.label}
@@ -729,7 +729,7 @@ export function PostsTable({
       </div>
 
       <div className="mx-5 mb-5 mt-3 flex min-h-0 min-w-0 flex-1 sm:mx-7 sm:mb-7">
-        <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-line bg-white">
+        <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-line bg-paper">
           <div className="shrink-0 overflow-hidden border-b border-line bg-card">
             <table
               className="w-full table-fixed border-collapse text-left"
@@ -800,7 +800,7 @@ export function PostsTable({
                             setSelectedPostId(row.id);
                           }
                         }}
-                        className="group cursor-pointer border-b border-line transition-colors hover:bg-card focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#5e6ad2]"
+                        className="group cursor-pointer border-b border-line transition-colors hover:bg-card focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-cta"
                       >
                         <td className="px-5 py-3 align-middle">
                           <div className="flex min-w-0 items-center gap-3">

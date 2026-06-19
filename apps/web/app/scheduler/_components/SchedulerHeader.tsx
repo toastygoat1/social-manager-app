@@ -185,7 +185,7 @@ export function SchedulerHeader({
   }, [accountsOpen, createOpen, filterOpen]);
 
   return (
-    <header className="relative z-20 shrink-0 border-b border-[#e8e3da] bg-[#fffdf9]">
+    <header className="relative z-20 shrink-0 border-b border-line bg-paper">
       <div className="grid min-h-[74px] grid-cols-1 items-center gap-3 px-4 py-3 md:grid-cols-[minmax(180px,1fr)_auto_minmax(180px,1fr)] lg:px-6">
         <DateHeader referenceIso={referenceIso} />
 
@@ -194,18 +194,18 @@ export function SchedulerHeader({
             type="button"
             aria-label="Previous period"
             onClick={onPrev}
-            className="flex size-8 items-center justify-center rounded-md border border-[#e7e1d6] bg-paper text-[#6d665d] hover:bg-[#f4f1eb]"
+            className="flex size-8 items-center justify-center rounded-md border border-line bg-paper text-muted transition-colors hover:bg-card hover:text-ink"
           >
             <ChevronLeft className="size-3.5" />
           </button>
-          <h1 className="min-w-[168px] text-center text-[20px] font-normal tracking-[-0.01em] text-[#171510] [font-family:Georgia,serif]">
+          <h1 className="min-w-[168px] text-center text-[20px] font-normal tracking-[-0.01em] text-ink [font-family:Georgia,serif]">
             {periodLabel}
           </h1>
           <button
             type="button"
             aria-label="Next period"
             onClick={onNext}
-            className="flex size-8 items-center justify-center rounded-md border border-[#e7e1d6] bg-paper text-[#6d665d] hover:bg-[#f4f1eb]"
+            className="flex size-8 items-center justify-center rounded-md border border-line bg-paper text-muted transition-colors hover:bg-card hover:text-ink"
           >
             <ChevronRight className="size-3.5" />
           </button>
@@ -223,23 +223,23 @@ export function SchedulerHeader({
               }}
               className={`flex h-8 items-center gap-1.5 rounded-md border px-3 text-[11px] font-semibold transition-colors ${
                 activeFilterCount > 0
-                  ? "border-[#171510] bg-[#171510] text-white"
-                  : "border-[#d8d8d8] bg-[#f8f8f8] text-[#3f3f3f] hover:bg-[#eeeeee]"
+                  ? "border-ink bg-ink text-page"
+                  : "border-line bg-card text-ink hover:bg-page"
               }`}
             >
               <SlidersHorizontal className="size-3.5" strokeWidth={2} />
               Filter
               {activeFilterCount > 0 ? (
-                <span className="flex min-w-4 items-center justify-center rounded-full bg-white px-1 text-[9px] font-bold text-[#171510]">
+                <span className="flex min-w-4 items-center justify-center rounded-full bg-page px-1 text-[9px] font-bold text-ink">
                   {activeFilterCount}
                 </span>
               ) : null}
             </button>
 
             {filterOpen ? (
-              <div className="scheduler-create-menu absolute right-0 top-[38px] z-30 w-[292px] rounded-lg border border-[#d8d8d8] bg-paper p-3 shadow-lg">
+              <div className="scheduler-create-menu absolute right-0 top-[38px] z-30 w-[292px] rounded-lg border border-line bg-paper p-3 shadow-lg">
                 <div className="mb-3 flex items-center justify-between gap-3">
-                  <p className="text-xs font-semibold text-[#171510]">
+                  <p className="text-xs font-semibold text-ink">
                     Filter posts
                   </p>
                   <button
@@ -247,7 +247,7 @@ export function SchedulerHeader({
                     aria-hidden={activeFilterCount === 0}
                     tabIndex={activeFilterCount > 0 ? undefined : -1}
                     onClick={onClearContentFilters}
-                    className={`flex h-7 items-center gap-1 rounded-md border border-[#d8d8d8] px-2 text-[10px] font-medium text-[#555555] hover:bg-[#f3f3f3] ${
+                    className={`flex h-7 items-center gap-1 rounded-md border border-line px-2 text-[10px] font-medium text-muted transition-colors hover:bg-card hover:text-ink ${
                       activeFilterCount > 0
                         ? ""
                         : "invisible pointer-events-none"
@@ -305,7 +305,7 @@ export function SchedulerHeader({
                 setFilterOpen(false);
                 setCreateOpen(false);
               }}
-              className={`flex h-8 items-center rounded-md border border-[#d8d8d8] bg-[#f8f8f8] text-[11px] font-semibold text-[#3f3f3f] transition-colors hover:bg-[#eeeeee] ${
+              className={`flex h-8 items-center rounded-md border border-line bg-card text-[11px] font-semibold text-ink transition-colors hover:bg-page ${
                 activeAccountCount > 0
                   ? "w-[82px] justify-center px-2"
                   : "gap-1.5 px-3"
@@ -320,13 +320,13 @@ export function SchedulerHeader({
                       alt={account.label}
                       width={24}
                       height={24}
-                      className="size-6 rounded-full border border-white object-cover"
+                      className="size-6 rounded-full border border-paper object-cover"
                       fallback={account.label}
                       fallbackSeed={account.id}
                     />
                   ))}
                   {hiddenAccountCount > 0 ? (
-                    <span className="flex size-6 items-center justify-center rounded-full border border-white bg-white text-[11px] font-semibold text-[#171510] shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+                    <span className="flex size-6 items-center justify-center rounded-full border border-paper bg-paper text-[11px] font-semibold text-ink shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
                       {hiddenAccountCount}+
                     </span>
                   ) : null}
@@ -340,9 +340,9 @@ export function SchedulerHeader({
             </button>
 
             {accountsOpen ? (
-              <div className="scheduler-create-menu absolute right-0 top-[38px] z-30 w-[292px] rounded-lg border border-[#d8d8d8] bg-paper p-3 shadow-lg">
+              <div className="scheduler-create-menu absolute right-0 top-[38px] z-30 w-[292px] rounded-lg border border-line bg-paper p-3 shadow-lg">
                 <div className="mb-3 flex items-center justify-between gap-3">
-                  <p className="text-xs font-semibold text-[#171510]">
+                  <p className="text-xs font-semibold text-ink">
                     Filter accounts
                   </p>
                   <button
@@ -350,7 +350,7 @@ export function SchedulerHeader({
                     aria-hidden={activeAccountCount === 0}
                     tabIndex={activeAccountCount > 0 ? undefined : -1}
                     onClick={onClearAccountFilters}
-                    className={`flex h-7 items-center gap-1 rounded-md border border-[#d8d8d8] px-2 text-[10px] font-medium text-[#555555] hover:bg-[#f3f3f3] ${
+                    className={`flex h-7 items-center gap-1 rounded-md border border-line px-2 text-[10px] font-medium text-muted transition-colors hover:bg-card hover:text-ink ${
                       activeAccountCount > 0
                         ? ""
                         : "invisible pointer-events-none"
@@ -372,7 +372,7 @@ export function SchedulerHeader({
                       />
                     ))
                   ) : (
-                    <span className="text-[11px] text-[#777777]">
+                    <span className="text-[11px] text-muted">
                       No accounts in this period
                     </span>
                   )}
@@ -381,7 +381,7 @@ export function SchedulerHeader({
             ) : null}
           </div>
 
-          <div className="flex h-8 overflow-hidden rounded-md border border-[#e7e1d6] bg-paper">
+          <div className="flex h-8 overflow-hidden rounded-md border border-line bg-paper">
             {VIEW_OPTIONS.map(({ view: optionView, label, Icon }, index) => (
               <ViewButton
                 key={optionView}
@@ -402,7 +402,7 @@ export function SchedulerHeader({
                 setFilterOpen(false);
                 setAccountsOpen(false);
               }}
-              className="flex h-8 items-center gap-1.5 rounded-md bg-[#141310] px-3 text-[11px] font-semibold text-white transition-transform duration-150 active:scale-[0.97]"
+              className="flex h-8 items-center gap-1.5 rounded-md bg-ink px-3 text-[11px] font-semibold text-page transition-transform duration-150 active:scale-[0.97]"
             >
               <Plus className="size-3" strokeWidth={2.5} />
               Create
@@ -414,7 +414,7 @@ export function SchedulerHeader({
             </button>
 
             {createOpen ? (
-              <div className="scheduler-create-menu absolute right-0 top-[38px] z-30 flex w-[256px] flex-col gap-1 rounded-lg border border-[#e8e3da] bg-paper p-2 shadow-lg">
+              <div className="scheduler-create-menu absolute right-0 top-[38px] z-30 flex w-[256px] flex-col gap-1 rounded-lg border border-line bg-paper p-2 shadow-lg">
                 {CREATE_OPTIONS.map(({ Icon, label, body, type }) => (
                   <button
                     key={label}
@@ -423,9 +423,9 @@ export function SchedulerHeader({
                       setModalType(type);
                       setCreateOpen(false);
                     }}
-                    className="flex items-center gap-3 rounded-md px-3 py-2.5 text-left hover:bg-[#f7f5f0]"
+                    className="flex items-center gap-3 rounded-md px-3 py-2.5 text-left transition-colors hover:bg-card"
                   >
-                    <Icon className="size-4 text-[#514b42]" strokeWidth={1.8} />
+                    <Icon className="size-4 text-muted" strokeWidth={1.8} />
                     <span className="flex flex-col gap-0.5">
                       <span className="text-xs font-semibold text-ink">
                         {label}
@@ -466,19 +466,19 @@ function DateHeader({ referenceIso }: { referenceIso: string }) {
 
   return (
     <div className="flex min-w-0 items-center gap-3">
-      <div className="flex h-[56px] w-[56px] shrink-0 flex-col overflow-hidden rounded-md border border-[#e4dfd6] bg-[#fffdf9] text-center">
-        <span className="flex h-6 items-center justify-center bg-[#f1f0ed] text-[13px] font-medium tracking-[0.03em] text-[#5f5a52]">
+      <div className="flex h-[56px] w-[56px] shrink-0 flex-col overflow-hidden rounded-md border border-line bg-paper text-center">
+        <span className="flex h-6 items-center justify-center bg-card text-[13px] font-medium tracking-[0.03em] text-muted">
           {month}
         </span>
-        <span className="flex flex-1 items-center justify-center text-[18px] font-semibold text-[#15130f]">
+        <span className="flex flex-1 items-center justify-center text-[18px] font-semibold text-ink">
           {day}
         </span>
       </div>
       <div className="min-w-0">
-        <h1 className="truncate text-[18px] font-semibold tracking-[-0.02em] text-[#171510]">
+        <h1 className="truncate text-[18px] font-semibold tracking-[-0.02em] text-ink">
           {fullDate}
         </h1>
-        <p className="mt-0.5 truncate text-sm text-[#5f5a52]">{weekday}</p>
+        <p className="mt-0.5 truncate text-sm text-muted">{weekday}</p>
       </div>
     </div>
   );
@@ -504,10 +504,10 @@ function ViewButton({
       aria-pressed={selected}
       onClick={onClick}
       title={label}
-      className={`flex size-8 items-center justify-center ${divided ? "border-l border-[#e7e1d6]" : ""} ${
+      className={`flex size-8 items-center justify-center transition-colors ${divided ? "border-l border-line" : ""} ${
         selected
-          ? "bg-[#f5f1e9] font-semibold text-[#27231c]"
-          : "bg-paper text-[#736c62]"
+          ? "bg-card font-semibold text-ink"
+          : "bg-paper text-muted hover:bg-card hover:text-ink"
       }`}
     >
       <Icon className="size-4" strokeWidth={1.8} />
@@ -523,8 +523,8 @@ function FilterGroup({
   children: ReactNode;
 }) {
   return (
-    <div className="border-t border-[#eeeeee] py-3 first:border-t-0 first:pt-0 last:pb-0">
-      <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#777777]">
+    <div className="border-t border-line py-3 first:border-t-0 first:pt-0 last:pb-0">
+      <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted">
         {title}
       </p>
       <div className="flex flex-wrap gap-1.5">{children}</div>
@@ -550,8 +550,8 @@ function FilterChip({
       onClick={onClick}
       className={`rounded-full border px-2.5 py-1 text-[10px] font-medium transition-colors ${
         selected
-          ? (selectedClassName ?? "border-[#171510] bg-[#171510] text-white")
-          : "border-[#d8d8d8] bg-[#f8f8f8] text-[#555555] hover:bg-[#eeeeee]"
+          ? (selectedClassName ?? "border-ink bg-ink text-page")
+          : "border-line bg-card text-muted hover:bg-page hover:text-ink"
       }`}
     >
       {label}
@@ -575,8 +575,8 @@ function AccountFilterChip({
       onClick={onClick}
       className={`inline-flex max-w-full items-center gap-1.5 rounded-full border py-1 pl-1 pr-2.5 text-[10px] font-medium transition-colors ${
         selected
-          ? "border-[#171510] bg-[#171510] text-white"
-          : "border-[#d8d8d8] bg-[#f8f8f8] text-[#555555] hover:bg-[#eeeeee]"
+          ? "border-ink bg-ink text-page"
+          : "border-line bg-card text-muted hover:bg-page hover:text-ink"
       }`}
       title={account.label}
     >

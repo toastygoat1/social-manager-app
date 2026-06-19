@@ -17,6 +17,7 @@ type DashboardOverviewResponse = {
   accounts: DashboardData["accounts"];
   metadataFields: DashboardData["metadataFields"];
   contentRows: ContentRow[];
+  publishedChartRows?: ContentRow[];
   activityRows: DashboardData["activityRows"];
 };
 const MEDIA_UPLOAD_COLOR = "var(--chart-1)";
@@ -124,6 +125,10 @@ export async function getDashboardData(): Promise<DashboardData> {
     calendar: overview?.calendar ?? EMPTY_DASHBOARD.calendar,
     metadataFields: overview?.metadataFields ?? EMPTY_DASHBOARD.metadataFields,
     contentRows: overview?.contentRows ?? EMPTY_DASHBOARD.contentRows,
+    publishedChartRows:
+      overview?.publishedChartRows ??
+      overview?.contentRows ??
+      EMPTY_DASHBOARD.publishedChartRows,
     activityRows: overview?.activityRows ?? EMPTY_DASHBOARD.activityRows,
     accounts: dashboardAccounts,
   };

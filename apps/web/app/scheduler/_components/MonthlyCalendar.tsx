@@ -69,7 +69,7 @@ function EventChip({
         canDrag
           ? "cursor-grab touch-none hover:-translate-y-px hover:shadow-sm active:cursor-grabbing"
           : ""
-      } ${isDragging ? "opacity-40 ring-2 ring-[#607ffc]" : ""} ${
+      } ${isDragging ? "opacity-40 ring-2 ring-cta" : ""} ${
         isMoving ? "opacity-60" : ""
       }`}
     >
@@ -95,34 +95,34 @@ function DayCell({
   const isDraggingPost = Boolean(dragController?.draggingEventId);
   const isDropTarget = dragController?.dropTargetIso === cell.iso;
   const backgroundClass = isDropTarget
-    ? "bg-[#eef2ff]"
+    ? "bg-cta/10"
     : cell.outside
       ? cell.isWeekend
-        ? "bg-[#eeeeee]"
-        : "bg-[#fbfaf7]"
+        ? "bg-card/70"
+        : "bg-card/35"
       : cell.isWeekend
-        ? "bg-[#f4f4f4]"
-        : "bg-[#fffdf9]";
+        ? "bg-card/55"
+        : "bg-paper";
 
   return (
     <div
       {...getDateDropProps(dragController, cell.iso)}
-      className={`relative min-h-0 min-w-0 border-b border-r border-[#eee9df] p-1.5 pb-2 transition-colors ${backgroundClass} ${
-        cell.outside ? "text-[#ada79e]" : ""
-      } ${isDraggingPost ? "outline outline-1 -outline-offset-1 outline-[#dfe5ff]" : ""} ${
+      className={`relative min-h-0 min-w-0 border-b border-r border-line p-1.5 pb-2 transition-colors ${backgroundClass} ${
+        cell.outside ? "text-muted/60" : ""
+      } ${isDraggingPost ? "outline outline-1 -outline-offset-1 outline-cta/30" : ""} ${
         isDropTarget
-          ? "z-[2] ring-2 ring-inset ring-[#607ffc] shadow-[inset_0_0_0_1px_#607ffc]"
+          ? "z-[2] ring-2 ring-inset ring-cta shadow-[inset_0_0_0_1px_var(--cta)]"
           : ""
-      } ${isToday && !isDropTarget ? "z-[1] outline outline-2 -outline-offset-2 outline-[#111111]" : ""}`}
+      } ${isToday && !isDropTarget ? "z-[1] outline outline-2 -outline-offset-2 outline-ink" : ""}`}
     >
       <div className="mb-1 flex h-4 items-center gap-2">
         <span
           className={`text-[10px] font-semibold ${
             isToday
-              ? "text-[#111111]"
+              ? "text-ink"
               : cell.outside
-                ? "text-[#a49e94]"
-                : "text-[#4d473f]"
+                ? "text-muted/60"
+                : "text-muted"
           }`}
         >
           {cell.day}
@@ -168,15 +168,15 @@ export function MonthlyCalendar({
   }
 
   return (
-    <div className="relative flex min-h-0 w-full flex-1 flex-col overflow-hidden bg-[#fffdf9]">
-      <div className="grid h-8 shrink-0 grid-cols-7 border-b border-[#e7e1d6] bg-[#f8f6f1]">
+    <div className="relative flex min-h-0 w-full flex-1 flex-col overflow-hidden bg-paper">
+      <div className="grid h-8 shrink-0 grid-cols-7 border-b border-line bg-card">
         {MONTH_DAYS.map((day, index) => (
           <div
             key={day}
-            className={`flex items-center border-r border-[#eee9df] px-2 text-[9px] font-semibold tracking-[0.12em] last:border-r-0 ${
+            className={`flex items-center border-r border-line px-2 text-[9px] font-semibold tracking-[0.12em] last:border-r-0 ${
               index === 0 || index === 6
-                ? "bg-[#e9e9e9] text-[#6c6c6c]"
-                : "text-[#898278]"
+                ? "bg-card/80 text-muted"
+                : "text-muted"
             }`}
           >
             {day}

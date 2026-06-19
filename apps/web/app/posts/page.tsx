@@ -103,8 +103,7 @@ export default async function PostsPage({ searchParams }: PostsPageProps) {
         profile={getUserProfile(user)}
       />
       <main
-        className="analytics-theme app-shell-panel flex min-w-0 flex-1 flex-col overflow-hidden font-inter text-ink"
-        style={{ backgroundColor: "#fff" }}
+        className="analytics-theme app-shell-panel flex min-w-0 flex-1 flex-col overflow-hidden bg-paper font-inter text-ink"
       >
         <div className="app-shell-fill flex min-h-0 w-full flex-col">
           <PostsTable

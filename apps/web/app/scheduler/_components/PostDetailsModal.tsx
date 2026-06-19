@@ -316,7 +316,7 @@ function MediaIssueList({ issues }: { issues: InstagramMediaIssue[] }) {
           <p
             key={issue.key}
             className={`flex items-start gap-2 leading-5 ${
-              issue.severity === "error" ? "text-danger" : "text-[#a57630]"
+              issue.severity === "error" ? "text-danger" : "text-chart-4"
             }`}
           >
             <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
@@ -465,7 +465,7 @@ function PostPreview({
   const formatLabel = postTypeLabel(post.postType);
 
   return (
-    <section className="flex min-h-0 flex-col overflow-y-auto bg-[#f3f3f3] p-4 md:border-r md:border-line lg:p-6">
+    <section className="flex min-h-0 flex-col overflow-y-auto bg-card p-4 md:border-r md:border-line lg:p-6">
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
           <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted">
@@ -1049,12 +1049,12 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
 
             <section className="flex min-h-0 flex-col gap-5 overflow-y-auto p-5 lg:p-6">
               {notice ? (
-                <p className="rounded-lg bg-[#e6f7fa] px-3 py-2 text-sm font-medium text-ink">
+                <p className="rounded-lg border border-cta/20 bg-cta/10 px-3 py-2 text-sm font-medium text-ink">
                   {notice}
                 </p>
               ) : null}
               {error ? (
-                <p className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-danger">
+                <p className="rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm font-medium text-danger">
                   {error}
                 </p>
               ) : null}
@@ -1309,7 +1309,7 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
                   </p>
                 )}
                 {post.comments.errorMessage && commentItems.length ? (
-                  <p className="mt-3 rounded-lg bg-[#fff8e8] px-3 py-2 text-xs font-medium text-muted">
+                  <p className="mt-3 rounded-lg border border-chart-4/30 bg-chart-4/10 px-3 py-2 text-xs font-medium text-muted">
                     {post.comments.errorMessage}
                   </p>
                 ) : null}
@@ -1345,7 +1345,7 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
                       onChange={(event) =>
                         setRequiresApproval(event.target.checked)
                       }
-                      className="size-4 accent-[#1d6b81]"
+                      className="size-4 accent-cta"
                     />
                   </label>
                   <div className="flex gap-3">
@@ -1413,7 +1413,7 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
               ) : null}
 
               {post.status === "pending" ? (
-                <div className="rounded-xl border border-[#f7c852] bg-[#fff8e8] p-4">
+                <div className="rounded-xl border border-chart-4/35 bg-chart-4/10 p-4">
                   <p className="text-sm font-semibold text-ink">
                     This post is waiting for approval.
                   </p>
@@ -1451,7 +1451,7 @@ export function PostDetailsModal({ postId, onClose, onChanged }: Props) {
               ) : null}
 
               {post.latestFailure ? (
-                <div className="rounded-xl border border-red-200 bg-red-50 p-4">
+                <div className="rounded-xl border border-danger/30 bg-danger/10 p-4">
                   <p className="text-sm font-semibold text-danger">
                     {post.latestFailure.retryable
                       ? "Publishing failed"

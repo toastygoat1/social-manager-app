@@ -55,36 +55,36 @@ export function WeeklyCalendar({
   }
 
   return (
-    <section className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-[#fffdf9]">
+    <section className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-paper">
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div
-          className={`sticky top-0 z-10 grid ${GRID_COLS} border-b border-[#e7e1d6] bg-[#f8f6f1]`}
+          className={`sticky top-0 z-10 grid ${GRID_COLS} border-b border-line bg-card`}
         >
           <div />
           {weekDays.map((day) => {
             const isDropTarget = dragController?.dropTargetIso === day.iso;
             const isToday = day.iso === todayIso;
             const backgroundClass = isDropTarget
-              ? "bg-[#eef2ff]"
+              ? "bg-cta/10"
               : day.isWeekend
-                ? "bg-[#e9e9e9]"
-                : "bg-[#f8f6f1]";
+                ? "bg-card/80"
+                : "bg-card";
             return (
               <div
                 key={day.iso}
                 {...getDateDropProps(dragController, day.iso)}
-                className={`flex flex-col items-center justify-center gap-0.5 border-l border-[#eee9df] py-2.5 transition-colors ${backgroundClass} ${
+                className={`flex flex-col items-center justify-center gap-0.5 border-l border-line py-2.5 transition-colors ${backgroundClass} ${
                   isDropTarget
-                    ? "ring-2 ring-inset ring-[#607ffc]"
+                    ? "ring-2 ring-inset ring-cta"
                     : isToday
-                      ? "outline outline-2 -outline-offset-2 outline-[#111111]"
+                      ? "outline outline-2 -outline-offset-2 outline-ink"
                       : ""
                 }`}
               >
-                <span className="text-[9px] font-semibold tracking-[0.12em] text-[#777777]">
+                <span className="text-[9px] font-semibold tracking-[0.12em] text-muted">
                   {day.label}
                 </span>
-                <span className="text-sm font-medium text-[#302b23]">
+                <span className="text-sm font-medium text-ink">
                   {day.date}
                 </span>
               </div>
@@ -93,24 +93,24 @@ export function WeeklyCalendar({
         </div>
 
         {allDayEvents.length ? (
-          <div className={`grid ${GRID_COLS} border-b border-[#eee9df]`}>
-            <span className="px-2 pt-3 text-right text-[9px] font-semibold text-[#8a8379]">
+          <div className={`grid ${GRID_COLS} border-b border-line`}>
+            <span className="px-2 pt-3 text-right text-[9px] font-semibold text-muted">
               ALL DAY
             </span>
             {weekDays.map((day) => {
               const isDropTarget = dragController?.dropTargetIso === day.iso;
               const backgroundClass = isDropTarget
-                ? "bg-[#eef2ff]"
+                ? "bg-cta/10"
                 : day.isWeekend
-                  ? "bg-[#f4f4f4]"
-                  : "bg-[#fffdf9]";
+                  ? "bg-card/55"
+                  : "bg-paper";
               return (
                 <div
                   key={day.iso}
                   {...getDateDropProps(dragController, day.iso)}
-                  className={`flex flex-col gap-1 border-l border-[#eee9df] p-1.5 transition-colors ${backgroundClass} ${
+                  className={`flex flex-col gap-1 border-l border-line p-1.5 transition-colors ${backgroundClass} ${
                     isDropTarget
-                      ? "ring-2 ring-inset ring-[#607ffc]"
+                      ? "ring-2 ring-inset ring-cta"
                       : ""
                   }`}
                 >
@@ -136,31 +136,31 @@ export function WeeklyCalendar({
         {hours.map((hour) => (
           <div
             key={hour}
-            className={`grid ${GRID_COLS} min-h-[56px] border-b border-[#eee9df]`}
+            className={`grid ${GRID_COLS} min-h-[56px] border-b border-line`}
           >
-            <span className="px-2 pt-2.5 text-right text-[10px] text-[#817a70]">
+            <span className="px-2 pt-2.5 text-right text-[10px] text-muted">
               {formatHour(hour)}
             </span>
             {weekDays.map((day, dayIndex) => {
               const cellEvents = eventsByCell.get(`${dayIndex}:${hour}`) ?? [];
               const isDropTarget = dragController?.dropTargetIso === day.iso;
               const backgroundClass = isDropTarget
-                ? "bg-[#eef2ff]"
+                ? "bg-cta/10"
                 : day.isWeekend
-                  ? "bg-[#f4f4f4]"
-                  : "bg-[#fffdf9]";
+                  ? "bg-card/55"
+                  : "bg-paper";
               const hoverClass = isDropTarget
                 ? ""
                 : day.isWeekend
-                  ? "hover:bg-[#eeeeee]"
-                  : "hover:bg-[#f8f8f8]";
+                  ? "hover:bg-card/80"
+                  : "hover:bg-card";
               return (
                 <div
                   key={dayIndex}
                   {...getDateDropProps(dragController, day.iso)}
-                  className={`flex min-w-0 flex-col gap-1 border-l border-[#eee9df] p-1.5 transition-colors ${backgroundClass} ${hoverClass} ${
+                  className={`flex min-w-0 flex-col gap-1 border-l border-line p-1.5 transition-colors ${backgroundClass} ${hoverClass} ${
                     isDropTarget
-                      ? "ring-2 ring-inset ring-[#607ffc]"
+                      ? "ring-2 ring-inset ring-cta"
                       : ""
                   }`}
                 >

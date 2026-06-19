@@ -32,20 +32,20 @@ export function ListCalendar({
   }
 
   return (
-    <section className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-[#fffdf9]">
-      <header className="flex shrink-0 items-center justify-between border-b border-[#e7e1d6] bg-[#f8f6f1] px-5 py-3">
+    <section className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-paper">
+      <header className="flex shrink-0 items-center justify-between border-b border-line bg-card px-5 py-3">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#898278]">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">
             Content Agenda
           </p>
-          <p className="mt-1 text-sm font-medium text-[#28241d]">
+          <p className="mt-1 text-sm font-medium text-ink">
             {reference.toLocaleDateString("en-US", {
               month: "long",
               year: "numeric",
             })}
           </p>
         </div>
-        <span className="text-[11px] text-[#817a70]">
+        <span className="text-[11px] text-muted">
           {events.length} item{events.length === 1 ? "" : "s"}
         </span>
       </header>
@@ -53,7 +53,7 @@ export function ListCalendar({
       <div className="min-h-0 flex-1 overflow-y-auto px-5 py-2">
         {!loading && sortedEvents.length === 0 ? (
           <div className="flex h-full items-center justify-center">
-            <p className="rounded-lg border border-[#eee9df] bg-paper px-4 py-3 text-sm text-[#817a70]">
+            <p className="rounded-lg border border-line bg-card px-4 py-3 text-sm text-muted">
               No scheduled content for this month.
             </p>
           </div>
@@ -65,23 +65,23 @@ export function ListCalendar({
             <div
               key={dateKey}
               {...getDateDropProps(dragController, dateKey)}
-              className={`grid grid-cols-[118px_minmax(0,1fr)] border-b border-[#eee9df] py-4 transition-colors last:border-b-0 ${
+              className={`grid grid-cols-[118px_minmax(0,1fr)] border-b border-line py-4 transition-colors last:border-b-0 ${
                 isDropTarget
-                  ? "bg-[#eef2ff] ring-2 ring-inset ring-[#607ffc]"
+                  ? "bg-cta/10 ring-2 ring-inset ring-cta"
                   : ""
               }`}
             >
               <div className="pr-5">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#898278]">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted">
                   {date.toLocaleDateString("en-US", { weekday: "short" })}
                 </p>
-                <p className="mt-1 text-sm font-medium text-[#302b23]">
+                <p className="mt-1 text-sm font-medium text-ink">
                   {date.toLocaleDateString("en-US", {
                     month: "short",
                     day: "numeric",
                   })}
                 </p>
-                <p className="mt-1 text-[10px] text-[#817a70]">
+                <p className="mt-1 text-[10px] text-muted">
                   {dayEvents.length} item{dayEvents.length === 1 ? "" : "s"}
                 </p>
               </div>

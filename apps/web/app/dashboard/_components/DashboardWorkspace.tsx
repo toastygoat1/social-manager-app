@@ -3,10 +3,7 @@ import { CalendarCard, CALENDAR_CARD_HEIGHT } from "./CalendarCard";
 import { ContentTable } from "./ContentTable";
 import { LiveActivityPanel } from "./LiveActivityPanel";
 import { MyAccountsCarousel } from "./MyAccountsCarousel";
-import {
-  PublishedChart,
-  type PublishedBar,
-} from "./PublishedChart";
+import { PublishedChart } from "./PublishedChart";
 import { RecentPostsPanel } from "./RecentPostsPanel";
 import { StatusStatCard } from "./StatusStatCard";
 import { emptyBreakdown, normalizePostFormat } from "./post-formats";
@@ -83,43 +80,6 @@ function buildStatusBreakdown(
   return { breakdown, total };
 }
 
-function buildPublishedBars(data: DashboardData): {
-  bars: PublishedBar[];
-  total: number;
-} {
-  const map = new Map<string, PublishedBar>();
-  let total = 0;
-
-  for (const account of data.accounts) {
-    map.set(account.id, {
-      accountId: account.id,
-      account,
-      total: 0,
-      breakdown: emptyBreakdown(),
-    });
-  }
-
-  for (const row of data.contentRows) {
-    if (classifyStatus(row.status) !== "published") continue;
-    const format = normalizePostFormat(row.type);
-    total += 1;
-    const existing =
-      map.get(row.account.id) ??
-      {
-        accountId: row.account.id,
-        account: row.account,
-        total: 0,
-        breakdown: emptyBreakdown(),
-      };
-    existing.total += 1;
-    existing.breakdown[format] += 1;
-    map.set(row.account.id, existing);
-  }
-
-  const bars = [...map.values()].sort((a, b) => b.total - a.total);
-  return { bars, total };
-}
-
 function getGreetingName(profile: UserProfile) {
   if (profile.name) return profile.name;
   if (profile.email) {
@@ -148,8 +108,6 @@ export function DashboardWorkspace({
   const pending = buildStatusBreakdown(data.contentRows, "pending");
   const draft = buildStatusBreakdown(data.contentRows, "draft");
   const ready = buildStatusBreakdown(data.contentRows, "ready");
-  const { bars: publishedBars, total: publishedTotal } =
-    buildPublishedBars(data);
 
   return (
     <div className="app-shell-fill dashboard-type bg-paper font-inter text-ink transition-colors duration-500">
@@ -219,8 +177,8 @@ export function DashboardWorkspace({
             </div>
 
             <PublishedChart
-              total={publishedTotal}
-              bars={publishedBars}
+              accounts={data.accounts}
+              rows={data.publishedChartRows}
               cardWidth={FIXED_DASHBOARD_LAYOUT.publishedCardWidth}
               cardHeight={FIXED_DASHBOARD_LAYOUT.publishedCardHeight}
             />
