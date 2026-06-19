@@ -12,6 +12,7 @@ import {
   List,
   Plus,
   PlusSquare,
+  Search,
   SlidersHorizontal,
   Users,
   X,
@@ -135,6 +136,7 @@ export function SchedulerHeader({
   const [createOpen, setCreateOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [accountsOpen, setAccountsOpen] = useState(false);
+  const [accountSearch, setAccountSearch] = useState("");
   const [modalType, setModalType] = useState<CreatePostType | null>(null);
   const filterRef = useRef<HTMLDivElement>(null);
   const accountsRef = useRef<HTMLDivElement>(null);
@@ -147,6 +149,16 @@ export function SchedulerHeader({
   );
   const accountButtonPreviewAccounts = selectedFilterAccounts.slice(0, 2);
   const hiddenAccountCount = Math.max(activeAccountCount - 2, 0);
+  const normalizedAccountSearch = accountSearch.trim().toLowerCase();
+  const visibleFilterAccounts = normalizedAccountSearch
+    ? filterAccounts.filter((account) => {
+        const label = account.label.toLowerCase();
+        return (
+          label.includes(normalizedAccountSearch) ||
+          label.replace(/^@/, "").includes(normalizedAccountSearch)
+        );
+      })
+    : filterAccounts;
 
   useEffect(() => {
     if (!createOpen && !filterOpen && !accountsOpen) return;
@@ -155,6 +167,7 @@ export function SchedulerHeader({
       setCreateOpen(false);
       setFilterOpen(false);
       setAccountsOpen(false);
+      setAccountSearch("");
     }
 
     function handlePointerDown(event: PointerEvent) {
@@ -222,6 +235,7 @@ export function SchedulerHeader({
               onClick={() => {
                 setFilterOpen((open) => !open);
                 setAccountsOpen(false);
+                setAccountSearch("");
                 setCreateOpen(false);
               }}
               className={`flex h-8 items-center gap-1.5 rounded-md border px-3 text-[11px] font-semibold ${HEADER_ACTION_BUTTON_MOTION} ${
@@ -304,19 +318,20 @@ export function SchedulerHeader({
                   : "Filter accounts"
               }
               onClick={() => {
-                setAccountsOpen((open) => !open);
+                setAccountsOpen(!accountsOpen);
+                if (accountsOpen) setAccountSearch("");
                 setFilterOpen(false);
                 setCreateOpen(false);
               }}
               className={`flex h-8 items-center rounded-md border border-line bg-card text-[11px] font-semibold text-ink hover:bg-page ${HEADER_ACTION_BUTTON_MOTION} ${
                 activeAccountCount > 0
-                  ? "w-[122px] justify-start gap-1.5 px-2"
+                  ? "w-[124px] justify-start gap-2 px-2.5"
                   : "justify-center gap-1.5 px-3"
               }`}
             >
               {activeAccountCount > 0 ? (
                 <>
-                  <span className="flex w-[48px] shrink-0 items-center -space-x-1.5">
+                  <span className="flex shrink-0 items-center">
                     {accountButtonPreviewAccounts.map((account) => (
                       <AvatarImage
                         key={account.id}
@@ -324,13 +339,13 @@ export function SchedulerHeader({
                         alt={account.label}
                         width={20}
                         height={20}
-                        className="size-5 rounded-full border border-paper object-cover"
+                        className="-ml-1 first:ml-0 size-5 rounded-full border border-paper object-cover shadow-[0_1px_2px_rgba(0,0,0,0.12)]"
                         fallback={account.label}
                         fallbackSeed={account.id}
                       />
                     ))}
                     {hiddenAccountCount > 0 ? (
-                      <span className="flex size-5 items-center justify-center rounded-full border border-paper bg-paper text-[9px] font-semibold text-ink shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+                      <span className="-ml-1 flex size-5 items-center justify-center rounded-full border border-paper bg-paper text-[9px] font-semibold text-ink shadow-[0_1px_3px_rgba(0,0,0,0.12)] first:ml-0">
                         {hiddenAccountCount}+
                       </span>
                     ) : null}
@@ -367,9 +382,20 @@ export function SchedulerHeader({
                   </button>
                 </div>
 
+                <label className="mb-3 flex h-8 items-center gap-2 rounded-md border border-line bg-card px-2.5 text-muted focus-within:border-ink focus-within:bg-paper">
+                  <Search className="size-3.5 shrink-0" strokeWidth={1.8} />
+                  <input
+                    type="search"
+                    value={accountSearch}
+                    onChange={(event) => setAccountSearch(event.target.value)}
+                    placeholder="Search accounts"
+                    className="min-w-0 flex-1 bg-transparent text-[11px] text-ink outline-none placeholder:text-muted"
+                  />
+                </label>
+
                 <div className="flex flex-wrap gap-1.5">
-                  {filterAccounts.length > 0 ? (
-                    filterAccounts.map((account) => (
+                  {visibleFilterAccounts.length > 0 ? (
+                    visibleFilterAccounts.map((account) => (
                       <AccountFilterChip
                         key={account.id}
                         account={account}
@@ -379,7 +405,9 @@ export function SchedulerHeader({
                     ))
                   ) : (
                     <span className="text-[11px] text-muted">
-                      No accounts in this period
+                      {filterAccounts.length > 0
+                        ? "No matching accounts"
+                        : "No accounts in this period"}
                     </span>
                   )}
                 </div>
@@ -407,6 +435,7 @@ export function SchedulerHeader({
                 setCreateOpen((open) => !open);
                 setFilterOpen(false);
                 setAccountsOpen(false);
+                setAccountSearch("");
               }}
               className={`flex h-8 items-center gap-1.5 rounded-md bg-ink px-3 text-[11px] font-semibold text-page ${HEADER_ACTION_BUTTON_MOTION}`}
             >
