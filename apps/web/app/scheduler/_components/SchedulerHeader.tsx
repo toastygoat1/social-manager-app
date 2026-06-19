@@ -311,7 +311,7 @@ export function SchedulerHeader({
               className={`flex h-8 items-center rounded-md border border-line bg-card text-[11px] font-semibold text-ink hover:bg-page ${HEADER_ACTION_BUTTON_MOTION} ${
                 activeAccountCount > 0
                   ? "w-[122px] justify-start gap-1.5 px-2"
-                  : "size-8 justify-center"
+                  : "justify-center gap-1.5 px-3"
               }`}
             >
               {activeAccountCount > 0 ? (
@@ -338,7 +338,10 @@ export function SchedulerHeader({
                   <span>Accounts</span>
                 </>
               ) : (
-                <Users className="size-3.5" strokeWidth={2} />
+                <>
+                  <Users className="size-3.5" strokeWidth={2} />
+                  <span>Accounts</span>
+                </>
               )}
             </button>
 
