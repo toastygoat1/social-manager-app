@@ -147,7 +147,7 @@ export function SchedulerHeader({
   const selectedFilterAccounts = filterAccounts.filter((account) =>
     filters.accountIds.includes(account.id),
   );
-  const accountButtonPreviewAccounts = selectedFilterAccounts.slice(0, 1);
+  const accountButtonPreviewAccounts = selectedFilterAccounts.slice(0, 2);
   const hiddenAccountCount = Math.max(
     activeAccountCount - accountButtonPreviewAccounts.length,
     0,
@@ -328,7 +328,7 @@ export function SchedulerHeader({
               }}
               className={`flex h-8 items-center rounded-md border border-line bg-card text-[11px] font-semibold text-ink hover:bg-page ${HEADER_ACTION_BUTTON_MOTION} ${
                 activeAccountCount > 0
-                  ? "w-[124px] justify-start gap-2 px-2.5"
+                  ? "w-[148px] justify-start gap-2 px-2"
                   : "justify-center gap-1.5 px-3"
               }`}
             >
@@ -514,22 +514,27 @@ function AccountButtonPreview({
   accounts: SchedulerFilterAccountOption[];
   hiddenCount: number;
 }) {
+  const previewWidth =
+    hiddenCount > 0 ? "w-[58px]" : accounts.length > 1 ? "w-[34px]" : "w-5";
+
   return (
-    <span className="inline-flex h-5 shrink-0 items-center gap-1">
-      {accounts.slice(0, 1).map((account) => (
+    <span className={`relative h-5 shrink-0 ${previewWidth}`}>
+      {accounts.map((account, index) => (
         <AvatarImage
           key={account.id}
           src={account.avatarUrl}
           alt={account.label}
           width={20}
           height={20}
-          className="size-5 rounded-full border border-paper object-cover shadow-[0_1px_2px_rgba(0,0,0,0.16)]"
+          className={`absolute top-0 size-5 rounded-full border border-paper object-cover shadow-[0_1px_2px_rgba(0,0,0,0.16)] ${
+            index === 0 ? "left-0 z-10" : "left-3 z-20"
+          }`}
           fallback={account.label}
           fallbackSeed={account.id}
         />
       ))}
       {hiddenCount > 0 ? (
-        <span className="flex h-5 min-w-[22px] items-center justify-center rounded-full border border-line bg-paper px-1 text-[9px] font-semibold leading-none text-ink shadow-[0_1px_3px_rgba(0,0,0,0.16)]">
+        <span className="absolute left-[28px] top-0 z-30 flex h-5 min-w-[26px] items-center justify-center rounded-full border border-paper bg-paper px-1.5 text-[9px] font-semibold leading-none text-ink shadow-[0_1px_3px_rgba(0,0,0,0.16)]">
           {hiddenCount}+
         </span>
       ) : null}
