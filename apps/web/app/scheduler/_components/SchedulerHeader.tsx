@@ -331,25 +331,10 @@ export function SchedulerHeader({
             >
               {activeAccountCount > 0 ? (
                 <>
-                  <span className="flex shrink-0 items-center">
-                    {accountButtonPreviewAccounts.map((account) => (
-                      <AvatarImage
-                        key={account.id}
-                        src={account.avatarUrl}
-                        alt={account.label}
-                        width={20}
-                        height={20}
-                        className="-ml-1 first:ml-0 size-5 rounded-full border border-paper object-cover shadow-[0_1px_2px_rgba(0,0,0,0.12)]"
-                        fallback={account.label}
-                        fallbackSeed={account.id}
-                      />
-                    ))}
-                    {hiddenAccountCount > 0 ? (
-                      <span className="-ml-1 flex size-5 items-center justify-center rounded-full border border-paper bg-paper text-[9px] font-semibold text-ink shadow-[0_1px_3px_rgba(0,0,0,0.12)] first:ml-0">
-                        {hiddenAccountCount}+
-                      </span>
-                    ) : null}
-                  </span>
+                  <AccountButtonPreview
+                    accounts={accountButtonPreviewAccounts}
+                    hiddenCount={hiddenAccountCount}
+                  />
                   <span>Accounts</span>
                 </>
               ) : (
@@ -516,6 +501,41 @@ function DateHeader({ referenceIso }: { referenceIso: string }) {
         <p className="mt-0.5 truncate text-sm text-muted">{weekday}</p>
       </div>
     </div>
+  );
+}
+
+function AccountButtonPreview({
+  accounts,
+  hiddenCount,
+}: {
+  accounts: SchedulerFilterAccountOption[];
+  hiddenCount: number;
+}) {
+  const widthClass =
+    hiddenCount > 0 ? "w-[52px]" : accounts.length > 1 ? "w-8" : "w-5";
+
+  return (
+    <span className={`relative h-5 shrink-0 ${widthClass}`}>
+      {accounts.map((account, index) => (
+        <AvatarImage
+          key={account.id}
+          src={account.avatarUrl}
+          alt={account.label}
+          width={20}
+          height={20}
+          className={`absolute top-0 size-5 rounded-full border border-paper object-cover shadow-[0_1px_2px_rgba(0,0,0,0.16)] ${
+            index === 0 ? "left-0 z-10" : "left-3 z-20"
+          }`}
+          fallback={account.label}
+          fallbackSeed={account.id}
+        />
+      ))}
+      {hiddenCount > 0 ? (
+        <span className="absolute left-[26px] top-0 z-30 flex h-5 min-w-5 items-center justify-center rounded-full border border-paper bg-paper px-1 text-[9px] font-semibold leading-none text-ink shadow-[0_1px_3px_rgba(0,0,0,0.16)]">
+          {hiddenCount}+
+        </span>
+      ) : null}
+    </span>
   );
 }
 
