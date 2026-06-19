@@ -364,6 +364,7 @@ function validateSelectedMediaForPublish(
 function buildSelectedMediaIssues(type: ComposePostType, items: SelectedMedia[]) {
   return buildInstagramMediaIssues(type, selectedMediaToRuleItems(items), {
     autoCarouselPost: true,
+    convertsFeedImages: true,
   });
 }
 
@@ -443,6 +444,8 @@ function MediaTile({
   isCover: boolean;
   onRemove: () => void;
 }) {
+  const mediaLabel = media.kind === "video" ? "MP4" : imageFileLabel(media.file);
+
   return (
     <div className="group relative h-[188px] min-w-0 overflow-hidden rounded-lg bg-[#495057]">
       {media.kind === "image" ? (
@@ -471,7 +474,7 @@ function MediaTile({
         </span>
       ) : null}
       <span className="absolute bottom-2 left-2 rounded bg-[#181610]/80 px-1.5 py-1 text-[8px] font-semibold uppercase text-white">
-        {media.kind === "video" ? "MP4" : "JPG"}
+        {mediaLabel}
       </span>
       <button
         type="button"
@@ -483,6 +486,13 @@ function MediaTile({
       </button>
     </div>
   );
+}
+
+function imageFileLabel(file: File) {
+  if (file.type === "image/jpeg" || file.type === "image/jpg") return "JPG";
+  if (file.type === "image/png") return "PNG";
+  if (file.type === "image/webp") return "WEBP";
+  return "IMG";
 }
 
 function MediaIssueList({
@@ -708,7 +718,11 @@ export function CreatePostModal({
     setError(null);
     const nextFiles = [...files];
     const combinedFiles = [...media.map((item) => item.file), ...nextFiles];
-    const validationError = validateMediaFiles(composeType, combinedFiles);
+    const nextComposeType =
+      composeType !== "carousel" && combinedFiles.length > 1
+        ? "carousel"
+        : composeType;
+    const validationError = validateMediaFiles(nextComposeType, combinedFiles);
     if (validationError) {
       setError(validationError);
       return;
@@ -716,9 +730,12 @@ export function CreatePostModal({
 
     const nextMedia = nextFiles.map(buildSelectedMedia);
     try {
-      const preparedMedia = await prepareMediaForType(composeType, nextMedia);
+      const preparedMedia = await prepareMediaForType(nextComposeType, nextMedia);
       const allMedia = [...media, ...preparedMedia];
       setMedia(allMedia);
+      if (nextComposeType !== composeType) {
+        setComposeType(nextComposeType);
+      }
     } catch (mediaError) {
       revokePreviewUrls(nextMedia);
       setError(

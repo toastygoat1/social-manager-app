@@ -13,6 +13,10 @@ import {
 } from "./data";
 import { SCHEDULER_STATUS_STYLE } from "./scheduler-styles";
 
+const MONTH_ROW_BASE_HEIGHT = 108;
+const MONTH_CELL_FIXED_HEIGHT = 36;
+const MONTH_EVENT_ROW_HEIGHT = 24;
+
 function formatTime(event: SchedulerEvent): string {
   if (event.allDay) return "ALL";
   return new Date(event.start).toLocaleTimeString("en-US", {
@@ -142,6 +146,20 @@ function DayCell({
   );
 }
 
+function getWeekRowMinHeight(
+  week: MonthCell[],
+  eventsByIso: Map<string, SchedulerEvent[]>,
+) {
+  const maxEventCount = Math.max(
+    0,
+    ...week.map((cell) => eventsByIso.get(cell.iso)?.length ?? 0),
+  );
+  return Math.max(
+    MONTH_ROW_BASE_HEIGHT,
+    MONTH_CELL_FIXED_HEIGHT + maxEventCount * MONTH_EVENT_ROW_HEIGHT,
+  );
+}
+
 type Props = {
   reference: Date;
   todayIso: string;
@@ -166,6 +184,9 @@ export function MonthlyCalendar({
     list.push(event);
     eventsByIso.set(iso, list);
   }
+  const weekRowHeights = grid.map((week) =>
+    getWeekRowMinHeight(week, eventsByIso),
+  );
 
   return (
     <div className="relative flex min-h-0 w-full flex-1 flex-col overflow-hidden bg-paper">
@@ -185,20 +206,26 @@ export function MonthlyCalendar({
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div
-          className="grid min-h-full grid-cols-7"
+          className="grid min-h-full"
           style={{
-            gridAutoRows: "minmax(max(92px, calc(100% / 6)), max-content)",
+            gridTemplateRows: weekRowHeights
+              .map((height) => `minmax(${height}px, 1fr)`)
+              .join(" "),
           }}
         >
-          {grid.flat().map((cell) => (
-            <DayCell
-              key={cell.iso}
-              cell={cell}
-              todayIso={todayIso}
-              events={eventsByIso.get(cell.iso) ?? []}
-              onOpenPost={onOpenPost}
-              dragController={dragController}
-            />
+          {grid.map((week) => (
+            <div key={week[0]?.iso} className="grid min-h-0 grid-cols-7">
+              {week.map((cell) => (
+                <DayCell
+                  key={cell.iso}
+                  cell={cell}
+                  todayIso={todayIso}
+                  events={eventsByIso.get(cell.iso) ?? []}
+                  onOpenPost={onOpenPost}
+                  dragController={dragController}
+                />
+              ))}
+            </div>
           ))}
         </div>
       </div>

@@ -24,6 +24,12 @@ export type InstagramMediaIssue = {
   message: string;
 };
 
+type InstagramMediaIssueOptions = {
+  forPublish?: boolean;
+  autoCarouselPost?: boolean;
+  convertsFeedImages?: boolean;
+};
+
 export const INSTAGRAM_IMAGE_MAX_SIZE = 8 * 1024 * 1024;
 export const INSTAGRAM_VIDEO_MAX_SIZE = 300 * 1024 * 1024;
 export const INSTAGRAM_STORY_VIDEO_MAX_SIZE = 100 * 1024 * 1024;
@@ -51,7 +57,7 @@ export function normalizeRulePostType(
 export function buildInstagramMediaIssues(
   postType: InstagramRulePostType,
   mediaItems: InstagramRuleMediaItem[],
-  options: { forPublish?: boolean; autoCarouselPost?: boolean } = {},
+  options: InstagramMediaIssueOptions = {},
 ): InstagramMediaIssue[] {
   const normalizedType = normalizeRulePostType(postType);
   const postWillAutoCarousel =
@@ -109,7 +115,7 @@ export function buildInstagramMediaIssues(
     }
 
     if (item.fileType === "IMAGE") {
-      issues.push(...buildImageIssues(effectiveType, item));
+      issues.push(...buildImageIssues(effectiveType, item, options));
       continue;
     }
     issues.push(...buildVideoIssues(effectiveType, item));
@@ -121,7 +127,7 @@ export function buildInstagramMediaIssues(
 export function firstBlockingInstagramIssue(
   postType: InstagramRulePostType,
   mediaItems: InstagramRuleMediaItem[],
-  options: { forPublish?: boolean; autoCarouselPost?: boolean } = {},
+  options: InstagramMediaIssueOptions = {},
 ) {
   return buildInstagramMediaIssues(postType, mediaItems, options).find(
     (issue) => issue.severity === "error",
@@ -135,9 +141,13 @@ export function formatInstagramFileSize(bytes: number) {
 function buildImageIssues(
   postType: "FEED" | "STORY" | "REEL" | "CAROUSEL",
   item: InstagramRuleMediaItem,
+  options: InstagramMediaIssueOptions,
 ) {
   const issues: InstagramMediaIssue[] = [];
-  if (!isJpeg(item.mimeType)) {
+  const willConvertToJpeg =
+    options.convertsFeedImages &&
+    (postType === "FEED" || postType === "CAROUSEL");
+  if (!isJpeg(item.mimeType) && !willConvertToJpeg) {
     issues.push(
       error(
         `${item.id}-image-format`,

@@ -1139,7 +1139,7 @@ function AccountSelect({
   const title =
     selectedAccounts.length > 0
       ? selectedAccounts.map((account) => getAccountLabel(account)).join(", ")
-      : "No account";
+      : "";
   const normalizedQuery = query.trim().toLowerCase();
   const filteredAccounts = accounts.filter((account) =>
     getAccountLabel(account).toLowerCase().includes(normalizedQuery),
@@ -1148,10 +1148,6 @@ function AccountSelect({
   function closeMenu() {
     setMenuAnchorRect(null);
     setQuery("");
-  }
-
-  function clearAccounts() {
-    onChange([]);
   }
 
   function toggleAccount(accountId: string) {
@@ -1223,19 +1219,6 @@ function AccountSelect({
                   <p className="px-4 pb-2 text-xs font-medium text-muted">
                     Accounts
                   </p>
-                  <button
-                    type="button"
-                    role="option"
-                    aria-selected={selectedAccounts.length === 0}
-                    onClick={clearAccounts}
-                    className="flex w-full items-center gap-3 px-3 py-1.5 text-left text-sm text-ink transition hover:bg-card"
-                  >
-                    <AccountAvatar account={null} />
-                    <span className="min-w-0 flex-1 truncate">No account</span>
-                    {selectedAccounts.length === 0 ? (
-                      <Check className="size-3.5" strokeWidth={2} />
-                    ) : null}
-                  </button>
                   {filteredAccounts.map((account) => {
                     const selected = selectedAccountIds.has(account.id);
 
