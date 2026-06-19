@@ -116,6 +116,9 @@ const STATUS_OPTIONS: EventStatus[] = [
   "removed",
 ];
 
+const HEADER_ACTION_BUTTON_MOTION =
+  "transition-[color,background-color,border-color,transform] duration-150 active:scale-[0.97]";
+
 export function SchedulerHeader({
   view,
   onViewChange,
@@ -221,7 +224,7 @@ export function SchedulerHeader({
                 setAccountsOpen(false);
                 setCreateOpen(false);
               }}
-              className={`flex h-8 items-center gap-1.5 rounded-md border px-3 text-[11px] font-semibold transition-colors ${
+              className={`flex h-8 items-center gap-1.5 rounded-md border px-3 text-[11px] font-semibold ${HEADER_ACTION_BUTTON_MOTION} ${
                 activeFilterCount > 0
                   ? "border-ink bg-ink text-page"
                   : "border-line bg-card text-ink hover:bg-page"
@@ -305,37 +308,37 @@ export function SchedulerHeader({
                 setFilterOpen(false);
                 setCreateOpen(false);
               }}
-              className={`flex h-8 items-center rounded-md border border-line bg-card text-[11px] font-semibold text-ink transition-colors hover:bg-page ${
+              className={`flex h-8 items-center rounded-md border border-line bg-card text-[11px] font-semibold text-ink hover:bg-page ${HEADER_ACTION_BUTTON_MOTION} ${
                 activeAccountCount > 0
-                  ? "w-[82px] justify-center px-2"
-                  : "gap-1.5 px-3"
+                  ? "w-[122px] justify-start gap-1.5 px-2"
+                  : "size-8 justify-center"
               }`}
             >
               {activeAccountCount > 0 ? (
-                <span className="flex items-center -space-x-2">
-                  {accountButtonPreviewAccounts.map((account) => (
-                    <AvatarImage
-                      key={account.id}
-                      src={account.avatarUrl}
-                      alt={account.label}
-                      width={24}
-                      height={24}
-                      className="size-6 rounded-full border border-paper object-cover"
-                      fallback={account.label}
-                      fallbackSeed={account.id}
-                    />
-                  ))}
-                  {hiddenAccountCount > 0 ? (
-                    <span className="flex size-6 items-center justify-center rounded-full border border-paper bg-paper text-[11px] font-semibold text-ink shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
-                      {hiddenAccountCount}+
-                    </span>
-                  ) : null}
-                </span>
-              ) : (
                 <>
-                  <Users className="size-3.5" strokeWidth={2} />
-                  Accounts
+                  <span className="flex w-[48px] shrink-0 items-center -space-x-1.5">
+                    {accountButtonPreviewAccounts.map((account) => (
+                      <AvatarImage
+                        key={account.id}
+                        src={account.avatarUrl}
+                        alt={account.label}
+                        width={20}
+                        height={20}
+                        className="size-5 rounded-full border border-paper object-cover"
+                        fallback={account.label}
+                        fallbackSeed={account.id}
+                      />
+                    ))}
+                    {hiddenAccountCount > 0 ? (
+                      <span className="flex size-5 items-center justify-center rounded-full border border-paper bg-paper text-[9px] font-semibold text-ink shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+                        {hiddenAccountCount}+
+                      </span>
+                    ) : null}
+                  </span>
+                  <span>Accounts</span>
                 </>
+              ) : (
+                <Users className="size-3.5" strokeWidth={2} />
               )}
             </button>
 
@@ -402,7 +405,7 @@ export function SchedulerHeader({
                 setFilterOpen(false);
                 setAccountsOpen(false);
               }}
-              className="flex h-8 items-center gap-1.5 rounded-md bg-ink px-3 text-[11px] font-semibold text-page transition-transform duration-150 active:scale-[0.97]"
+              className={`flex h-8 items-center gap-1.5 rounded-md bg-ink px-3 text-[11px] font-semibold text-page ${HEADER_ACTION_BUTTON_MOTION}`}
             >
               <Plus className="size-3" strokeWidth={2.5} />
               Create

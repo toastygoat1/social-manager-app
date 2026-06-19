@@ -190,43 +190,45 @@ export function MonthlyCalendar({
 
   return (
     <div className="relative flex min-h-0 w-full flex-1 flex-col overflow-hidden bg-paper">
-      <div className="grid h-8 shrink-0 grid-cols-7 border-b border-line bg-card">
-        {MONTH_DAYS.map((day, index) => (
-          <div
-            key={day}
-            className={`flex items-center border-r border-line px-2 text-[9px] font-semibold tracking-[0.12em] last:border-r-0 ${
-              index === 0 || index === 6
-                ? "bg-card/80 text-muted"
-                : "text-muted"
-            }`}
-          >
-            {day}
-          </div>
-        ))}
-      </div>
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div
-          className="grid min-h-full"
-          style={{
-            gridTemplateRows: weekRowHeights
-              .map((height) => `minmax(${height}px, 1fr)`)
-              .join(" "),
-          }}
-        >
-          {grid.map((week) => (
-            <div key={week[0]?.iso} className="grid min-h-0 grid-cols-7">
-              {week.map((cell) => (
-                <DayCell
-                  key={cell.iso}
-                  cell={cell}
-                  todayIso={todayIso}
-                  events={eventsByIso.get(cell.iso) ?? []}
-                  onOpenPost={onOpenPost}
-                  dragController={dragController}
-                />
-              ))}
-            </div>
-          ))}
+        <div className="flex min-h-full flex-col">
+          <div className="sticky top-0 z-10 grid h-8 shrink-0 grid-cols-7 border-b border-line bg-card">
+            {MONTH_DAYS.map((day, index) => (
+              <div
+                key={day}
+                className={`flex items-center border-r border-line px-2 text-[9px] font-semibold tracking-[0.12em] last:border-r-0 ${
+                  index === 0 || index === 6
+                    ? "bg-card/80 text-muted"
+                    : "text-muted"
+                }`}
+              >
+                {day}
+              </div>
+            ))}
+          </div>
+          <div
+            className="grid min-h-0 flex-1"
+            style={{
+              gridTemplateRows: weekRowHeights
+                .map((height) => `minmax(${height}px, 1fr)`)
+                .join(" "),
+            }}
+          >
+            {grid.map((week) => (
+              <div key={week[0]?.iso} className="grid min-h-0 grid-cols-7">
+                {week.map((cell) => (
+                  <DayCell
+                    key={cell.iso}
+                    cell={cell}
+                    todayIso={todayIso}
+                    events={eventsByIso.get(cell.iso) ?? []}
+                    onOpenPost={onOpenPost}
+                    dragController={dragController}
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
