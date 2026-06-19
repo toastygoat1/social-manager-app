@@ -144,12 +144,6 @@ export function SchedulerHeader({
   const periodLabel = formatPeriodLabel(view, new Date(referenceIso));
   const activeFilterCount = filters.postTypes.length + filters.statuses.length;
   const activeAccountCount = filters.accountIds.length;
-  const soleSelectedAccount =
-    activeAccountCount === 1
-      ? (filterAccounts.find(
-          (account) => account.id === filters.accountIds[0],
-        ) ?? null)
-      : null;
   const normalizedAccountSearch = accountSearch.trim().toLowerCase();
   const visibleFilterAccounts = normalizedAccountSearch
     ? filterAccounts.filter((account) => {
@@ -324,31 +318,16 @@ export function SchedulerHeader({
                 setFilterOpen(false);
                 setCreateOpen(false);
               }}
-              className={`flex h-8 items-center gap-1.5 rounded-md border px-3 text-[11px] font-semibold ${HEADER_ACTION_BUTTON_MOTION} ${
-                activeAccountCount > 0
-                  ? "border-ink bg-ink text-page"
-                  : "border-line bg-card text-ink hover:bg-page"
-              }`}
+              className={`flex h-8 w-[116px] items-center justify-center gap-1.5 rounded-md border border-line bg-card px-3 text-[11px] font-semibold text-ink hover:bg-page ${HEADER_ACTION_BUTTON_MOTION}`}
             >
-              {soleSelectedAccount ? (
-                <AvatarImage
-                  src={soleSelectedAccount.avatarUrl}
-                  alt={soleSelectedAccount.label}
-                  width={18}
-                  height={18}
-                  className="size-[18px] rounded-full border border-page/25 object-cover"
-                  fallback={soleSelectedAccount.label}
-                  fallbackSeed={soleSelectedAccount.id}
-                />
+              {activeAccountCount > 0 ? (
+                <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-ink px-1 text-[9px] font-bold text-page">
+                  {activeAccountCount}
+                </span>
               ) : (
                 <Users className="size-3.5" strokeWidth={2} />
               )}
               Accounts
-              {activeAccountCount > 1 ? (
-                <span className="flex min-w-4 items-center justify-center rounded-full bg-page px-1 text-[9px] font-bold text-ink">
-                  {activeAccountCount}
-                </span>
-              ) : null}
             </button>
 
             {accountsOpen ? (
