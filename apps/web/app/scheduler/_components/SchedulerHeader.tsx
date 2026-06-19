@@ -326,10 +326,8 @@ export function SchedulerHeader({
                 setFilterOpen(false);
                 setCreateOpen(false);
               }}
-              className={`flex h-8 items-center rounded-md border border-line bg-card text-[11px] font-semibold text-ink hover:bg-page ${HEADER_ACTION_BUTTON_MOTION} ${
-                activeAccountCount > 0
-                  ? "w-[148px] justify-start gap-2 px-2"
-                  : "justify-center gap-1.5 px-3"
+              className={`flex h-8 items-center justify-center rounded-md border border-line bg-card text-[11px] font-semibold text-ink hover:bg-page ${HEADER_ACTION_BUTTON_MOTION} ${
+                activeAccountCount > 0 ? "gap-2 pl-2 pr-3" : "gap-1.5 px-3"
               }`}
             >
               {activeAccountCount > 0 ? (
@@ -515,7 +513,7 @@ function AccountButtonPreview({
   hiddenCount: number;
 }) {
   const previewWidth =
-    hiddenCount > 0 ? "w-[58px]" : accounts.length > 1 ? "w-[34px]" : "w-5";
+    hiddenCount > 0 ? "w-[60px]" : accounts.length > 1 ? "w-[34px]" : "w-5";
 
   return (
     <span className={`relative h-5 shrink-0 ${previewWidth}`}>
