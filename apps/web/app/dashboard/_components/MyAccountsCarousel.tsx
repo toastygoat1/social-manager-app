@@ -24,6 +24,9 @@ function getInitials(label: string) {
   );
 }
 
+const MY_ACCOUNTS_ADD_BUTTON_CLASS =
+  "inline-flex h-8 items-center gap-1.5 rounded-lg bg-ink px-3 text-xs font-semibold text-paper transition hover:opacity-85";
+
 export function MyAccountsCarousel({
   accounts,
 }: MyAccountsCarouselProps) {
@@ -42,14 +45,17 @@ export function MyAccountsCarousel({
             {accountCountLabel}
           </span>
         </div>
-        <ConnectAccountsButton />
+        <ConnectAccountsButton buttonClassName={MY_ACCOUNTS_ADD_BUTTON_CLASS} />
       </div>
       {accounts.length === 0 ? (
         <div className="flex min-h-[178px] flex-col items-center justify-center gap-3 border-y border-dashed border-line py-8 text-center">
           <p className="dashboard-ui-label text-muted">
             No accounts connected yet.
           </p>
-          <ConnectAccountsButton label="Add account" />
+          <ConnectAccountsButton
+            label="Add account"
+            buttonClassName={MY_ACCOUNTS_ADD_BUTTON_CLASS}
+          />
         </div>
       ) : (
         <div className="-mx-1 -mt-2 flex gap-4 overflow-x-auto px-1 pb-2 pt-2">
@@ -85,11 +91,11 @@ export function MyAccountsCarousel({
           })}
           <ConnectInstagramButton
             containerClassName="flex shrink-0"
-            buttonClassName="group flex h-[176px] w-[156px] shrink-0 flex-col items-center justify-center gap-3 rounded-[12px] border border-dashed border-line bg-paper px-4 py-5 text-center text-muted transition-colors duration-200 hover:border-cta hover:bg-card hover:text-ink"
+            buttonClassName="group flex h-[176px] w-[156px] shrink-0 flex-col items-center justify-center gap-3 rounded-[12px] border border-dashed border-line bg-paper px-4 py-5 text-center text-muted transition-colors duration-200 hover:border-ink hover:bg-card hover:text-ink"
             showSuccessMessage={false}
             title="Add Instagram account"
           >
-            <span className="grid size-[52px] place-items-center rounded-full border border-line bg-card text-ink transition-colors duration-200 group-hover:border-cta group-hover:text-cta">
+            <span className="grid size-[52px] place-items-center rounded-full border border-line bg-card text-ink transition-colors duration-200 group-hover:border-ink group-hover:text-ink">
               <Plus className="size-5" strokeWidth={2} />
             </span>
             <span className="dashboard-ui-label max-w-full truncate">
