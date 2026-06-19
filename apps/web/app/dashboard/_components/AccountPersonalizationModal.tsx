@@ -5,6 +5,7 @@ import { Link2Off, LoaderCircle, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { AvatarImage } from "@/app/_components/AvatarImage";
 import { ApiError, apiFetchBrowser } from "@/lib/api/browser-client";
+import { POST_FORMAT_COLORS } from "./post-formats";
 import type { Account } from "./data";
 
 type AccountPersonalizationModalProps = {
@@ -12,7 +13,14 @@ type AccountPersonalizationModalProps = {
   onClose: () => void;
 };
 
-const ACCOUNT_ACCENT_COLOR = "#000000";
+const PRESET_COLORS = [
+  POST_FORMAT_COLORS.Post,
+  POST_FORMAT_COLORS.Carousel,
+  POST_FORMAT_COLORS.Reel,
+  POST_FORMAT_COLORS.Story,
+  "#4318FF",
+  "#1f2937",
+];
 
 function getInitials(label: string) {
   return (
@@ -60,6 +68,7 @@ function AccountPersonalizationDialog({
   onClose: () => void;
 }) {
   const router = useRouter();
+  const [accentColor, setAccentColor] = useState(account.accentColor ?? "");
   const [nickname, setNickname] = useState(account.nickname ?? "");
   const [note, setNote] = useState(account.note ?? "");
   const [isSaving, setIsSaving] = useState(false);
@@ -83,7 +92,7 @@ function AccountPersonalizationDialog({
         {
           method: "PATCH",
           body: {
-            accentColor: ACCOUNT_ACCENT_COLOR,
+            accentColor: accentColor.trim() || null,
             nickname: nickname.trim() || null,
             note: note.trim() || null,
           },
@@ -116,6 +125,9 @@ function AccountPersonalizationDialog({
       setError(getApiMessage(err, "Disconnect failed"));
     }
   }
+
+  const previewAccent = accentColor || "#5e6ad2";
+
   return (
     <div
       role="presentation"
@@ -141,7 +153,7 @@ function AccountPersonalizationDialog({
         <div className="flex flex-col items-center gap-1 px-5 pb-2 pt-8">
           <span
             className="flex size-20 items-center justify-center overflow-hidden rounded-full border-4 bg-card"
-            style={{ borderColor: ACCOUNT_ACCENT_COLOR }}
+            style={{ borderColor: previewAccent }}
           >
             <AvatarImage
               src={account.avatarUrl}
@@ -165,6 +177,34 @@ function AccountPersonalizationDialog({
               {error}
             </p>
           ) : null}
+
+          <Field label="Accent color">
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={accentColor || "#5e6ad2"}
+                onChange={(event) => setAccentColor(event.target.value)}
+                className="h-9 w-9 cursor-pointer rounded-[8px] border border-line bg-paper"
+                aria-label="Pick accent color"
+              />
+              <div className="flex flex-wrap gap-1.5">
+                {PRESET_COLORS.map((color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    onClick={() => setAccentColor(color)}
+                    aria-label={`Use ${color}`}
+                    className={`size-6 rounded-full border-2 transition ${
+                      accentColor.toLowerCase() === color.toLowerCase()
+                        ? "border-ink"
+                        : "border-transparent"
+                    }`}
+                    style={{ backgroundColor: color }}
+                  />
+                ))}
+              </div>
+            </div>
+          </Field>
 
           <Field label="Display name (override)">
             <input
