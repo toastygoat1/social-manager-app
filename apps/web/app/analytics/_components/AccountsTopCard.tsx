@@ -229,6 +229,7 @@ export function AccountsTopCard({
   });
   const [datePicker, setDatePicker] = useState<DatePickerState>(null);
   const [accountSearch, setAccountSearch] = useState("");
+  const [accountPanelPinnedOpen, setAccountPanelPinnedOpen] = useState(false);
   const customPanelRootRef = useRef<HTMLDivElement | null>(null);
   const customPanelCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(
     null,
@@ -277,6 +278,18 @@ export function AccountsTopCard({
       .some((value) => value!.toLowerCase().includes(needle));
   });
   const selectedAccountCount = effectiveSelectedAccountIds.length;
+  const accountPanelOpenClass = accountPanelPinnedOpen
+    ? "grid-rows-[1fr]"
+    : "grid-rows-[0fr] group-hover/accounts:grid-rows-[1fr] group-focus-within/accounts:grid-rows-[1fr]";
+  const accountPanelContentOpenClass = accountPanelPinnedOpen
+    ? "translate-y-0 opacity-100"
+    : "-translate-y-2 opacity-0 group-hover/accounts:translate-y-0 group-hover/accounts:opacity-100 group-focus-within/accounts:translate-y-0 group-focus-within/accounts:opacity-100";
+  const accountPreviewOpenClass = accountPanelPinnedOpen
+    ? "pointer-events-none -translate-y-1 opacity-0"
+    : "group-hover/accounts:pointer-events-none group-hover/accounts:-translate-y-1 group-hover/accounts:opacity-0 group-focus-within/accounts:pointer-events-none group-focus-within/accounts:-translate-y-1 group-focus-within/accounts:opacity-0";
+  const accountSearchOpenClass = accountPanelPinnedOpen
+    ? "translate-y-0 opacity-100"
+    : "group-hover/accounts:translate-y-0 group-hover/accounts:opacity-100 group-focus-within/accounts:translate-y-0 group-focus-within/accounts:opacity-100";
 
   useEffect(() => {
     router.prefetch(accountsHref);
@@ -387,6 +400,8 @@ export function AccountsTopCard({
   }
 
   function toggleAccount(accountId: string) {
+    setAccountPanelPinnedOpen(true);
+
     if (selectedAccountSet.has(accountId)) {
       navigateToAccountSelection(
         effectiveSelectedAccountIds.filter(
@@ -435,13 +450,18 @@ export function AccountsTopCard({
   }
 
   return (
-    <section className="group/accounts flex w-full flex-col rounded-[10px] border border-line bg-paper p-3.5 font-inter">
+    <section
+      className="group/accounts flex w-full flex-col rounded-[10px] border border-line bg-paper p-3.5 font-inter"
+      onPointerLeave={() => setAccountPanelPinnedOpen(false)}
+    >
       <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
         <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
           <div className="flex shrink-0 overflow-hidden rounded-lg border border-line bg-paper">
             <Link
               href={accountsHref}
-              className={modeClass(isAccountsMode)}
+              className={`flex h-9 w-[8.75rem] cursor-pointer items-center gap-1.5 border-r border-line px-3 text-sm font-medium transition ${
+                isAccountsMode ? "bg-card text-ink" : "text-muted hover:text-ink"
+              }`}
               onClick={(event) =>
                 handleLinkNavigation(
                   event,
@@ -456,13 +476,16 @@ export function AccountsTopCard({
                 )
               }
             >
-              <UsersRound className="size-3.5" strokeWidth={1.7} />
+              <span className="flex size-5 shrink-0 items-center justify-center">
+                {selectedAccountCount > 0 ? (
+                  <span className="flex size-5 items-center justify-center rounded-full border border-line bg-paper text-[11px] leading-none text-muted">
+                    {selectedAccountCount}
+                  </span>
+                ) : (
+                  <UsersRound className="size-3.5" strokeWidth={1.7} />
+                )}
+              </span>
               <span>Accounts</span>
-              {selectedAccountCount > 0 ? (
-                <span className="ml-0.5 rounded-full border border-line bg-paper px-1.5 py-0.5 text-[10px] leading-none text-muted">
-                  {selectedAccountCount}
-                </span>
-              ) : null}
             </Link>
             {accounts.length < 2 ? (
               <span className={`${modeClass(false, false, false)} opacity-50`}>
@@ -496,8 +519,10 @@ export function AccountsTopCard({
               </Link>
             )}
           </div>
-          <div className="relative h-9 min-w-0 overflow-hidden transition-[width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] sm:ml-3 sm:w-[19rem]">
-            <div className="absolute inset-0 flex items-center transition-[opacity,transform] duration-200 ease-out group-hover/accounts:pointer-events-none group-hover/accounts:-translate-y-1 group-hover/accounts:opacity-0 group-focus-within/accounts:pointer-events-none group-focus-within/accounts:-translate-y-1 group-focus-within/accounts:opacity-0">
+          <div className="relative h-9 min-w-0 overflow-hidden transition-[width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] sm:ml-3 sm:w-[13.5rem]">
+            <div
+              className={`absolute inset-0 flex items-center transition-[opacity,transform] duration-200 ease-out ${accountPreviewOpenClass}`}
+            >
               {selectedAccounts.length > 0 ? (
                 <div className="flex min-w-0 items-center">
                   <div className="flex h-9 items-center -space-x-2">
@@ -519,12 +544,13 @@ export function AccountsTopCard({
                 </div>
               ) : (
                 <span className="flex min-w-0 items-center gap-2 text-sm font-medium text-muted">
-                  <UsersRound className="size-3.5 shrink-0" strokeWidth={1.7} />
                   <span className="truncate">No accounts selected</span>
                 </span>
               )}
             </div>
-            <label className="absolute inset-0 flex translate-y-1 items-center gap-2 rounded-lg border border-line bg-page px-3 opacity-0 transition-[opacity,transform] duration-200 ease-out group-hover/accounts:translate-y-0 group-hover/accounts:opacity-100 group-focus-within/accounts:translate-y-0 group-focus-within/accounts:opacity-100">
+            <label
+              className={`absolute inset-0 flex translate-y-1 items-center gap-2 rounded-lg border border-line bg-page px-3 opacity-0 transition-[opacity,transform] duration-200 ease-out ${accountSearchOpenClass}`}
+            >
               <Search className="size-3.5 shrink-0 text-muted" strokeWidth={1.8} />
               <input
                 value={accountSearch}
@@ -742,11 +768,15 @@ export function AccountsTopCard({
           />
         </div>
       </div>
-      <div className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover/accounts:grid-rows-[1fr] group-focus-within/accounts:grid-rows-[1fr]">
+      <div
+        className={`grid transition-[grid-template-rows] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${accountPanelOpenClass}`}
+      >
         <div className="min-h-0 overflow-hidden">
-          <div className="mt-3 -translate-y-2 border-t border-line pt-3 opacity-0 transition-[opacity,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover/accounts:translate-y-0 group-hover/accounts:opacity-100 group-focus-within/accounts:translate-y-0 group-focus-within/accounts:opacity-100">
+          <div
+            className={`mt-3 border-t border-line pt-3 transition-[opacity,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${accountPanelContentOpenClass}`}
+          >
             {filteredAccounts.length > 0 ? (
-              <div className="flex items-center gap-2 overflow-x-auto pb-0.5">
+              <div className="flex flex-wrap items-center gap-2">
                 {filteredAccounts.map((account) => {
                   const isSelected = selectedAccountSet.has(account.id);
 
@@ -756,29 +786,24 @@ export function AccountsTopCard({
                       type="button"
                       aria-pressed={isSelected}
                       onClick={() => toggleAccount(account.id)}
-                      className={`flex h-12 min-w-[12rem] shrink-0 cursor-pointer items-center gap-2 rounded-lg border px-2.5 text-left transition ${
+                      className={`flex h-8 max-w-[12rem] cursor-pointer items-center gap-1.5 rounded-full border py-0.5 pl-1 pr-2.5 text-left transition ${
                         isSelected
                           ? "border-ink bg-card text-ink"
                           : "border-line bg-paper text-ink hover:border-ink/25 hover:bg-card"
                       }`}
                     >
-                      <Avatar account={account} size={32} />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-medium">
-                          {account.name}
-                        </span>
-                        <span className="block truncate text-xs text-muted">
-                          {account.platform}
-                        </span>
+                      <Avatar account={account} size={24} />
+                      <span className="min-w-0 truncate text-sm font-medium">
+                        {account.name}
                       </span>
                       <span
-                        className={`flex size-5 shrink-0 items-center justify-center rounded-full border transition ${
+                        className={`flex size-4 shrink-0 items-center justify-center rounded-full border transition ${
                           isSelected
                             ? "border-ink bg-ink text-page"
                             : "border-line text-transparent"
                         }`}
                       >
-                        <Check className="size-3" strokeWidth={2.2} />
+                        <Check className="size-2.5" strokeWidth={2.3} />
                       </span>
                     </button>
                   );

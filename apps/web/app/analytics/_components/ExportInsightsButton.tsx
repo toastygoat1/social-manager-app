@@ -550,14 +550,16 @@ export function ExportInsightsButton({
       disabled={disabled || datasets.length === 0 || isExporting}
       title="Export insights as PDF"
       aria-label="Export insights as PDF"
-      className="flex h-9 items-center gap-2 rounded-lg border border-line bg-paper px-3 text-sm font-medium text-ink transition hover:bg-card disabled:pointer-events-none disabled:opacity-60"
+      className="flex h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-lg border border-line bg-paper px-3 text-sm font-medium text-ink transition hover:bg-card disabled:pointer-events-none disabled:opacity-60"
     >
       {isExporting ? (
         <LoaderCircle className="size-3.5 animate-spin" strokeWidth={2} />
       ) : (
         <Download className="size-3.5" strokeWidth={2} />
       )}
-      <span>{isExporting ? "Exporting" : "Export PDF"}</span>
+      <span className="whitespace-nowrap">
+        {isExporting ? "Exporting" : "Export PDF"}
+      </span>
     </button>
   );
 }
