@@ -70,6 +70,7 @@ type DatePickerState = {
 } | null;
 
 const POPUP_TRANSITION_MS = 200;
+const SELECTED_ACCOUNT_PREVIEW_LIMIT = 5;
 let lastAccountCardPointer: { x: number; y: number } | null = null;
 
 function analyticsHref({
@@ -278,6 +279,12 @@ export function AccountsTopCard({
   const selectedAccounts = effectiveSelectedAccountIds
     .map((accountId) => accountById.get(accountId))
     .filter((account): account is Account => Boolean(account));
+  const previewSelectedAccounts = selectedAccounts.slice(
+    0,
+    SELECTED_ACCOUNT_PREVIEW_LIMIT,
+  );
+  const hiddenSelectedAccountCount =
+    selectedAccounts.length - previewSelectedAccounts.length;
   const filteredAccounts = accounts.filter((account) => {
     const needle = accountSearch.trim().toLowerCase();
     if (!needle) return true;
@@ -500,9 +507,7 @@ export function AccountsTopCard({
           <div className="flex shrink-0 overflow-hidden rounded-lg border border-line bg-paper">
             <Link
               href={accountsHref}
-              className={`flex h-9 w-[7.5rem] cursor-pointer items-center gap-1.5 border-r border-line px-3 text-sm font-medium transition ${
-                isAccountsMode ? "bg-card text-ink" : "text-muted hover:text-ink"
-              }`}
+              className={`${modeClass(isAccountsMode)} min-w-[7.5rem]`}
               onClick={(event) =>
                 handleLinkNavigation(
                   event,
@@ -567,7 +572,7 @@ export function AccountsTopCard({
               {selectedAccounts.length > 0 ? (
                 <div className="flex min-w-0 items-center">
                   <div className="flex h-9 items-center -space-x-2">
-                    {selectedAccounts.map((account, index) => (
+                    {previewSelectedAccounts.map((account, index) => (
                       <span
                         key={account.id}
                         className="flex size-8 shrink-0 items-center justify-center rounded-full"
@@ -577,12 +582,18 @@ export function AccountsTopCard({
                         <Avatar account={account} size={32} />
                       </span>
                     ))}
+                    {hiddenSelectedAccountCount > 0 ? (
+                      <span
+                        className="flex size-8 shrink-0 items-center justify-center rounded-full border border-line bg-card text-xs font-semibold text-muted ring-2 ring-paper"
+                        style={{
+                          zIndex: previewSelectedAccounts.length + 1,
+                        }}
+                        title={`${hiddenSelectedAccountCount} more selected`}
+                      >
+                        +{hiddenSelectedAccountCount}
+                      </span>
+                    ) : null}
                   </div>
-                  <span className="ml-3 min-w-0 truncate text-sm font-medium text-muted">
-                    {selectedAccountCount === 1
-                      ? selectedAccounts[0]?.name
-                      : `${selectedAccountCount} accounts`}
-                  </span>
                 </div>
               ) : (
                 <span aria-hidden="true" />
