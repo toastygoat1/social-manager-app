@@ -70,6 +70,7 @@ type DatePickerState = {
 } | null;
 
 const POPUP_TRANSITION_MS = 200;
+let lastAccountCardPointer: { x: number; y: number } | null = null;
 
 function analyticsHref({
   accountId,
@@ -230,6 +231,8 @@ export function AccountsTopCard({
   const [datePicker, setDatePicker] = useState<DatePickerState>(null);
   const [accountSearch, setAccountSearch] = useState("");
   const [accountPanelPinnedOpen, setAccountPanelPinnedOpen] = useState(false);
+  const [accountPanelHovered, setAccountPanelHovered] = useState(false);
+  const accountCardRef = useRef<HTMLElement | null>(null);
   const customPanelRootRef = useRef<HTMLDivElement | null>(null);
   const customPanelCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(
     null,
@@ -278,18 +281,19 @@ export function AccountsTopCard({
       .some((value) => value!.toLowerCase().includes(needle));
   });
   const selectedAccountCount = effectiveSelectedAccountIds.length;
-  const accountPanelOpenClass = accountPanelPinnedOpen
+  const isAccountPanelOpen = accountPanelPinnedOpen || accountPanelHovered;
+  const accountPanelOpenClass = isAccountPanelOpen
     ? "grid-rows-[1fr]"
-    : "grid-rows-[0fr] group-hover/accounts:grid-rows-[1fr] group-focus-within/accounts:grid-rows-[1fr]";
-  const accountPanelContentOpenClass = accountPanelPinnedOpen
+    : "grid-rows-[0fr]";
+  const accountPanelContentOpenClass = isAccountPanelOpen
     ? "translate-y-0 opacity-100"
-    : "-translate-y-2 opacity-0 group-hover/accounts:translate-y-0 group-hover/accounts:opacity-100 group-focus-within/accounts:translate-y-0 group-focus-within/accounts:opacity-100";
-  const accountPreviewOpenClass = accountPanelPinnedOpen
+    : "-translate-y-2 opacity-0";
+  const accountPreviewOpenClass = isAccountPanelOpen
     ? "pointer-events-none -translate-y-1 opacity-0"
-    : "group-hover/accounts:pointer-events-none group-hover/accounts:-translate-y-1 group-hover/accounts:opacity-0 group-focus-within/accounts:pointer-events-none group-focus-within/accounts:-translate-y-1 group-focus-within/accounts:opacity-0";
-  const accountSearchOpenClass = accountPanelPinnedOpen
+    : "";
+  const accountSearchOpenClass = isAccountPanelOpen
     ? "translate-y-0 opacity-100"
-    : "group-hover/accounts:translate-y-0 group-hover/accounts:opacity-100 group-focus-within/accounts:translate-y-0 group-focus-within/accounts:opacity-100";
+    : "";
 
   useEffect(() => {
     router.prefetch(accountsHref);
@@ -449,17 +453,50 @@ export function AccountsTopCard({
     setDatePicker({ kind, anchorRect: getFloatingAnchorRect(element) });
   }
 
+  const setAccountCardNode = useCallback((node: HTMLElement | null) => {
+    accountCardRef.current = node;
+    if (!node || !lastAccountCardPointer) return;
+
+    const rect = node.getBoundingClientRect();
+    const expandedHoverBottom = rect.bottom + 180;
+    const pointerIsInside =
+      lastAccountCardPointer.x >= rect.left &&
+      lastAccountCardPointer.x <= rect.right &&
+      lastAccountCardPointer.y >= rect.top &&
+      lastAccountCardPointer.y <= expandedHoverBottom;
+
+    if (pointerIsInside) {
+      setAccountPanelHovered(true);
+    }
+  }, []);
+
+  function updateAccountPointerState(clientX: number, clientY: number) {
+    lastAccountCardPointer = { x: clientX, y: clientY };
+    setAccountPanelHovered(true);
+  }
+
   return (
     <section
+      ref={setAccountCardNode}
       className="group/accounts flex w-full flex-col rounded-[10px] border border-line bg-paper p-3.5 font-inter"
-      onPointerLeave={() => setAccountPanelPinnedOpen(false)}
+      onPointerEnter={(event) =>
+        updateAccountPointerState(event.clientX, event.clientY)
+      }
+      onPointerMove={(event) => {
+        lastAccountCardPointer = { x: event.clientX, y: event.clientY };
+      }}
+      onPointerLeave={() => {
+        lastAccountCardPointer = null;
+        setAccountPanelHovered(false);
+        setAccountPanelPinnedOpen(false);
+      }}
     >
       <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
         <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
           <div className="flex shrink-0 overflow-hidden rounded-lg border border-line bg-paper">
             <Link
               href={accountsHref}
-              className={`flex h-9 w-[8.75rem] cursor-pointer items-center gap-1.5 border-r border-line px-3 text-sm font-medium transition ${
+              className={`flex h-9 w-[7.5rem] cursor-pointer items-center gap-1.5 border-r border-line px-3 text-sm font-medium transition ${
                 isAccountsMode ? "bg-card text-ink" : "text-muted hover:text-ink"
               }`}
               onClick={(event) =>
@@ -543,9 +580,7 @@ export function AccountsTopCard({
                   </span>
                 </div>
               ) : (
-                <span className="flex min-w-0 items-center gap-2 text-sm font-medium text-muted">
-                  <span className="truncate">No accounts selected</span>
-                </span>
+                <span aria-hidden="true" />
               )}
             </div>
             <label
