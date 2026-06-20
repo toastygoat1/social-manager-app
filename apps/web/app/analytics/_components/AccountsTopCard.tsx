@@ -232,7 +232,9 @@ export function AccountsTopCard({
   const [datePicker, setDatePicker] = useState<DatePickerState>(null);
   const [accountSearch, setAccountSearch] = useState("");
   const [accountPanelPinnedOpen, setAccountPanelPinnedOpen] = useState(false);
-  const [accountPanelHovered, setAccountPanelHovered] = useState(false);
+  const [accountPanelHovered, setAccountPanelHovered] = useState(
+    () => Boolean(lastAccountCardPointer),
+  );
   const accountCardRef = useRef<HTMLElement | null>(null);
   const customPanelRootRef = useRef<HTMLDivElement | null>(null);
   const customPanelCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(
@@ -310,7 +312,7 @@ export function AccountsTopCard({
         clearTimeout(customPanelCloseTimer.current);
       }
     };
-  }, [setAccountPanelHovered]);
+  }, []);
 
   const closeCustomPanel = useCallback(() => {
     if (customPanelCloseTimer.current) {
@@ -469,9 +471,7 @@ export function AccountsTopCard({
       lastAccountCardPointer.y >= rect.top &&
       lastAccountCardPointer.y <= expandedHoverBottom;
 
-    if (pointerIsInside) {
-      setAccountPanelHovered(true);
-    }
+    setAccountPanelHovered(pointerIsInside);
   }, [setAccountPanelHovered]);
 
   function updateAccountPointerState(clientX: number, clientY: number) {
