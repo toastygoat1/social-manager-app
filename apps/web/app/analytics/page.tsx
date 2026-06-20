@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { getAnalyticsData } from "@/lib/analytics-data";
 import { getUserProfile } from "@/lib/supabase/user-profile";
@@ -17,6 +18,11 @@ import { AnalyticsContentTable } from "./_components/AnalyticsContentTable";
 import { AnalyticsCompareView } from "./_components/AnalyticsCompareView";
 import { NotesBoard } from "./_components/NotesBoard";
 import { Recommendations } from "./_components/Recommendations";
+import {
+  ANALYTICS_COMPARE_ACCOUNTS_COOKIE,
+  decodeCompareAccountIds,
+  type CompareAccountIds,
+} from "./_components/compare-account-memory";
 import {
   AnalyticsContentShell,
   AnalyticsNavigationProvider,
@@ -54,14 +60,13 @@ function paramList(value: string | string[] | undefined) {
 
 function getOwnedAccountId(
   accounts: { id: string }[],
-  accountId: string | undefined,
+  accountId: string | null | undefined,
 ) {
   return accounts.some((account) => account.id === accountId)
     ? accountId
     : null;
 }
 
-type CompareAccountIds = [string | null, string | null, string | null];
 const REQUIRED_COMPARE_SLOT_COUNT = 2;
 
 type ExportAccount = {
@@ -103,7 +108,7 @@ function getAccountsExportLabel(data: AnalyticsData) {
 
 function getCompareAccountIds(
   accounts: { id: string }[],
-  requestedAccountIds: (string | undefined)[],
+  requestedAccountIds: (string | null | undefined)[],
   selectedAccountId: string | undefined,
 ) {
   const resolved: CompareAccountIds = [null, null, null];
@@ -180,13 +185,15 @@ export default async function AnalyticsPage({
   const requestedCompareLeftId = firstParam(params.compareLeft);
   const requestedCompareRightId = firstParam(params.compareRight);
   const requestedCompareThirdId = firstParam(params.compareThird);
+  const requestedCompareAccountIds = [
+    requestedCompareLeftId,
+    requestedCompareRightId,
+    requestedCompareThirdId,
+  ];
+  const hasRequestedCompareAccountIds = requestedCompareAccountIds.some(Boolean);
   const isCompareMode =
     firstParam(params.view) === "compare" ||
-    Boolean(
-      requestedCompareLeftId ||
-        requestedCompareRightId ||
-        requestedCompareThirdId,
-    );
+    hasRequestedCompareAccountIds;
   const selectedTimeFilter = resolveAnalyticsTimeFilter(
     firstParam(params.range),
     firstParam(params.startDate),
@@ -217,17 +224,17 @@ export default async function AnalyticsPage({
     accountIds: isCompareMode ? undefined : selectedAccountIds,
     timeFilter: selectedTimeFilter,
   });
-  const compareAccountIds = isCompareMode
-    ? getCompareAccountIds(
-        data.accounts,
-        [
-          requestedCompareLeftId,
-          requestedCompareRightId,
-          requestedCompareThirdId,
-        ],
-        selectedAccountId,
-      )
-    : ([null, null, null] satisfies CompareAccountIds);
+  const cookieStore = await cookies();
+  const rememberedCompareAccountIds = decodeCompareAccountIds(
+    cookieStore.get(ANALYTICS_COMPARE_ACCOUNTS_COOKIE)?.value,
+  );
+  const compareAccountIds = getCompareAccountIds(
+    data.accounts,
+    isCompareMode && hasRequestedCompareAccountIds
+      ? requestedCompareAccountIds
+      : rememberedCompareAccountIds,
+    selectedAccountId,
+  );
   const [compareLeftAccountId, compareRightAccountId, compareThirdAccountId] =
     compareAccountIds;
   const [compareLeftData, compareRightData, compareThirdData] = isCompareMode
