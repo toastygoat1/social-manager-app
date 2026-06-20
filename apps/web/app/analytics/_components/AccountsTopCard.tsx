@@ -214,8 +214,9 @@ export function AccountsTopCard({
     () => new Set(effectiveSelectedAccountIds),
     [effectiveSelectedAccountIds],
   );
-  const selectedAccounts = accounts.filter((account) =>
-    selectedAccountSet.has(account.id),
+  const accountById = useMemo(
+    () => new Map(accounts.map((account) => [account.id, account])),
+    [accounts],
   );
   const [customPanelState, setCustomPanelState] = useState({
     open: timeFilter.range === "custom",
@@ -272,6 +273,9 @@ export function AccountsTopCard({
       : timeFilter.range === "custom"
         ? (timeFilter.endDate ?? "")
         : "";
+  const selectedAccounts = effectiveSelectedAccountIds
+    .map((accountId) => accountById.get(accountId))
+    .filter((account): account is Account => Boolean(account));
   const filteredAccounts = accounts.filter((account) => {
     const needle = accountSearch.trim().toLowerCase();
     if (!needle) return true;
@@ -280,7 +284,7 @@ export function AccountsTopCard({
       .filter(Boolean)
       .some((value) => value!.toLowerCase().includes(needle));
   });
-  const selectedAccountCount = effectiveSelectedAccountIds.length;
+  const selectedAccountCount = selectedAccounts.length;
   const isAccountPanelOpen = accountPanelPinnedOpen || accountPanelHovered;
   const accountPanelOpenClass = isAccountPanelOpen
     ? "grid-rows-[1fr]"
@@ -293,7 +297,7 @@ export function AccountsTopCard({
     : "";
   const accountSearchOpenClass = isAccountPanelOpen
     ? "translate-y-0 opacity-100"
-    : "";
+    : "translate-y-1 opacity-0";
 
   useEffect(() => {
     router.prefetch(accountsHref);
@@ -306,7 +310,7 @@ export function AccountsTopCard({
         clearTimeout(customPanelCloseTimer.current);
       }
     };
-  }, []);
+  }, [setAccountPanelHovered]);
 
   const closeCustomPanel = useCallback(() => {
     if (customPanelCloseTimer.current) {
@@ -468,7 +472,7 @@ export function AccountsTopCard({
     if (pointerIsInside) {
       setAccountPanelHovered(true);
     }
-  }, []);
+  }, [setAccountPanelHovered]);
 
   function updateAccountPointerState(clientX: number, clientY: number) {
     lastAccountCardPointer = { x: clientX, y: clientY };
@@ -563,10 +567,11 @@ export function AccountsTopCard({
               {selectedAccounts.length > 0 ? (
                 <div className="flex min-w-0 items-center">
                   <div className="flex h-9 items-center -space-x-2">
-                    {selectedAccounts.map((account) => (
+                    {selectedAccounts.map((account, index) => (
                       <span
                         key={account.id}
                         className="flex size-8 shrink-0 items-center justify-center rounded-full"
+                        style={{ zIndex: index + 1 }}
                         title={account.name}
                       >
                         <Avatar account={account} size={32} />
@@ -584,7 +589,7 @@ export function AccountsTopCard({
               )}
             </div>
             <label
-              className={`absolute inset-0 flex translate-y-1 items-center gap-2 rounded-lg border border-line bg-page px-3 opacity-0 transition-[opacity,transform] duration-200 ease-out ${accountSearchOpenClass}`}
+              className={`absolute inset-0 flex items-center gap-2 rounded-lg border border-line bg-page px-3 transition-[opacity,transform] duration-200 ease-out ${accountSearchOpenClass}`}
             >
               <Search className="size-3.5 shrink-0 text-muted" strokeWidth={1.8} />
               <input
