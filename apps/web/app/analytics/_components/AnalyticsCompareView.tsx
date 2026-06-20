@@ -1,17 +1,15 @@
 import type { Account } from "@/app/dashboard/_components/data";
 import { BannerHero } from "./BannerHero";
 import { ChannelDistribution } from "./ChannelDistribution";
-import { CompareAccountPicker } from "./CompareAccountPicker";
 import { PerformanceTrend } from "./PerformanceTrend";
 import { RecentPosts } from "./RecentPosts";
 import { StatGrid } from "./StatGrid";
-import type { AnalyticsData, AnalyticsTimeFilter } from "./data";
+import type { AnalyticsData } from "./data";
 
 type AnalyticsCompareViewProps = {
   accounts: Account[];
   leftAccountId: string | null;
   leftData: AnalyticsData | null;
-  timeFilter: AnalyticsTimeFilter;
   rangeLabel: string;
   rightAccountId: string | null;
   rightData: AnalyticsData | null;
@@ -83,7 +81,6 @@ export function AnalyticsCompareView({
   accounts,
   leftAccountId,
   leftData,
-  timeFilter,
   rangeLabel,
   rightAccountId,
   rightData,
@@ -94,13 +91,6 @@ export function AnalyticsCompareView({
 
   return (
     <div className="flex w-full flex-col gap-4">
-      <CompareAccountPicker
-        accounts={accounts}
-        leftAccountId={leftAccountId}
-        timeFilter={timeFilter}
-        rightAccountId={rightAccountId}
-        thirdAccountId={thirdAccountId}
-      />
       {accounts.length < 2 ? (
         <div className="flex min-h-[260px] items-center justify-center rounded-[10px] border border-line bg-paper px-6 text-center text-sm text-muted">
           Connect at least two Instagram accounts to compare analytics.

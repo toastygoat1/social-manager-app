@@ -6,6 +6,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type DragEvent,
   type MouseEvent,
 } from "react";
 import Link from "next/link";
@@ -236,6 +237,9 @@ export function AccountsTopCard({
   const [accountPanelHovered, setAccountPanelHovered] = useState(
     () => Boolean(lastAccountCardPointer),
   );
+  const [draggedCompareAccountId, setDraggedCompareAccountId] = useState<
+    string | null
+  >(null);
   const accountCardRef = useRef<HTMLElement | null>(null);
   const customPanelRootRef = useRef<HTMLDivElement | null>(null);
   const customPanelCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(
@@ -246,6 +250,15 @@ export function AccountsTopCard({
     effectiveSelectedAccountId,
     effectiveCompareAccountIds,
   );
+  const maxCompareAccountCount = accounts.length >= 3 ? 3 : 2;
+  const compareSelectedAccountIds = [
+    compareLeft,
+    compareRight,
+    compareThird,
+  ]
+    .slice(0, maxCompareAccountCount)
+    .filter((accountId): accountId is string => Boolean(accountId));
+  const compareSelectedAccountSet = new Set(compareSelectedAccountIds);
   const isAccountsMode = !effectiveIsCompareMode;
   const compareModeHref = analyticsHref({
     compareLeft,
@@ -279,12 +292,18 @@ export function AccountsTopCard({
   const selectedAccounts = effectiveSelectedAccountIds
     .map((accountId) => accountById.get(accountId))
     .filter((account): account is Account => Boolean(account));
-  const previewSelectedAccounts = selectedAccounts.slice(
+  const compareSelectedAccounts = compareSelectedAccountIds
+    .map((accountId) => accountById.get(accountId))
+    .filter((account): account is Account => Boolean(account));
+  const previewAccounts = effectiveIsCompareMode
+    ? compareSelectedAccounts
+    : selectedAccounts;
+  const previewSelectedAccounts = previewAccounts.slice(
     0,
     SELECTED_ACCOUNT_PREVIEW_LIMIT,
   );
   const hiddenSelectedAccountCount =
-    selectedAccounts.length - previewSelectedAccounts.length;
+    previewAccounts.length - previewSelectedAccounts.length;
   const filteredAccounts = accounts.filter((account) => {
     const needle = accountSearch.trim().toLowerCase();
     if (!needle) return true;
@@ -293,6 +312,9 @@ export function AccountsTopCard({
       .filter(Boolean)
       .some((value) => value!.toLowerCase().includes(needle));
   });
+  const compareAvailableAccounts = filteredAccounts.filter(
+    (account) => !compareSelectedAccountSet.has(account.id),
+  );
   const selectedAccountCount = selectedAccounts.length;
   const isAccountPanelOpen = accountPanelPinnedOpen || accountPanelHovered;
   const accountPanelOpenClass = isAccountPanelOpen
@@ -429,6 +451,108 @@ export function AccountsTopCard({
     }
 
     navigateToAccountSelection([...effectiveSelectedAccountIds, accountId]);
+  }
+
+  function compareIdsFromSelectedIds(accountIds: string[]): CompareAccountIds {
+    return [
+      accountIds[0] ?? null,
+      accountIds[1] ?? null,
+      maxCompareAccountCount >= 3 ? (accountIds[2] ?? null) : null,
+    ];
+  }
+
+  function navigateToCompareSelection(nextAccountIds: CompareAccountIds) {
+    const href = analyticsHref({
+      compareLeft: nextAccountIds[0],
+      compareRight: nextAccountIds[1],
+      compareThird: nextAccountIds[2],
+      timeFilter,
+      view: "compare",
+    });
+
+    beginRouteNavigation({
+      key: href,
+      label: "compare",
+      view: "compare",
+      selectedAccountIds: [],
+      compareAccountIds: nextAccountIds,
+    });
+    router.push(href);
+  }
+
+  function selectCompareAccount(accountId: string) {
+    setAccountPanelPinnedOpen(true);
+
+    if (compareSelectedAccountSet.has(accountId)) return;
+
+    const nextSelectedAccountIds =
+      compareSelectedAccountIds.length >= maxCompareAccountCount
+        ? [
+            ...compareSelectedAccountIds.slice(0, maxCompareAccountCount - 1),
+            accountId,
+          ]
+        : [...compareSelectedAccountIds, accountId];
+
+    navigateToCompareSelection(compareIdsFromSelectedIds(nextSelectedAccountIds));
+  }
+
+  function removeCompareAccount(accountId: string) {
+    setAccountPanelPinnedOpen(true);
+
+    if (!compareSelectedAccountSet.has(accountId)) return;
+
+    const nextSelectedAccountIds = compareSelectedAccountIds.filter(
+      (selectedAccountId) => selectedAccountId !== accountId,
+    );
+
+    while (
+      nextSelectedAccountIds.length < Math.min(2, accounts.length) &&
+      nextSelectedAccountIds.length < maxCompareAccountCount
+    ) {
+      const fallbackAccountId =
+        accounts.find(
+          (account) =>
+            account.id !== accountId &&
+            !nextSelectedAccountIds.includes(account.id),
+        )?.id ?? null;
+
+      if (!fallbackAccountId) break;
+      nextSelectedAccountIds.push(fallbackAccountId);
+    }
+
+    navigateToCompareSelection(compareIdsFromSelectedIds(nextSelectedAccountIds));
+  }
+
+  function handleCompareDragStart(
+    event: DragEvent<HTMLButtonElement>,
+    accountId: string,
+  ) {
+    setDraggedCompareAccountId(accountId);
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", accountId);
+  }
+
+  function handleCompareDragOver(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+  }
+
+  function getDroppedCompareAccountId(event: DragEvent<HTMLDivElement>) {
+    return event.dataTransfer.getData("text/plain") || draggedCompareAccountId;
+  }
+
+  function handleCompareSelectedDrop(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    const accountId = getDroppedCompareAccountId(event);
+    if (accountId) selectCompareAccount(accountId);
+    setDraggedCompareAccountId(null);
+  }
+
+  function handleCompareAvailableDrop(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    const accountId = getDroppedCompareAccountId(event);
+    if (accountId) removeCompareAccount(accountId);
+    setDraggedCompareAccountId(null);
   }
 
   function openCustomPanel() {
@@ -826,7 +950,102 @@ export function AccountsTopCard({
           <div
             className={`mt-3 border-t border-line pt-3 transition-[opacity,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${accountPanelContentOpenClass}`}
           >
-            {filteredAccounts.length > 0 ? (
+            {effectiveIsCompareMode ? (
+              <div className="flex flex-col gap-3">
+                <section className="flex flex-col gap-1.5">
+                  <span className="font-mono text-[10px] font-medium uppercase tracking-[0.1em] text-muted">
+                    Comparing
+                  </span>
+                  <div
+                    onDragOver={handleCompareDragOver}
+                    onDrop={handleCompareSelectedDrop}
+                    className={`flex min-h-10 flex-wrap items-center gap-2 transition ${
+                      draggedCompareAccountId &&
+                      !compareSelectedAccountSet.has(draggedCompareAccountId)
+                        ? "rounded-lg bg-card/70"
+                        : ""
+                    }`}
+                  >
+                    {compareSelectedAccounts.map((account, index) => (
+                      <button
+                        key={account.id}
+                        type="button"
+                        draggable
+                        aria-pressed
+                        onClick={() => removeCompareAccount(account.id)}
+                        onDragStart={(event) =>
+                          handleCompareDragStart(event, account.id)
+                        }
+                        onDragEnd={() => setDraggedCompareAccountId(null)}
+                        className={`flex h-8 max-w-[12rem] cursor-pointer items-center gap-1.5 rounded-full border border-ink bg-card py-0.5 pl-1 pr-2.5 text-left text-ink transition ${
+                          draggedCompareAccountId === account.id
+                            ? "opacity-50"
+                            : ""
+                        }`}
+                      >
+                        <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-ink font-mono text-[10px] text-page">
+                          {["A", "B", "C"][index]}
+                        </span>
+                        <Avatar account={account} size={24} />
+                        <span className="min-w-0 truncate text-sm font-medium">
+                          {account.name}
+                        </span>
+                        <span className="flex size-4 shrink-0 items-center justify-center rounded-full border border-ink bg-ink text-page transition">
+                          <Check className="size-2.5" strokeWidth={2.3} />
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+                <section className="flex flex-col gap-1.5">
+                  <span className="font-mono text-[10px] font-medium uppercase tracking-[0.1em] text-muted">
+                    Accounts
+                  </span>
+                  <div
+                    onDragOver={handleCompareDragOver}
+                    onDrop={handleCompareAvailableDrop}
+                    className={`flex min-h-10 flex-wrap items-center gap-2 transition ${
+                      draggedCompareAccountId &&
+                      compareSelectedAccountSet.has(draggedCompareAccountId)
+                        ? "rounded-lg bg-card/70"
+                        : ""
+                    }`}
+                  >
+                    {compareAvailableAccounts.length > 0 ? (
+                      compareAvailableAccounts.map((account) => (
+                        <button
+                          key={account.id}
+                          type="button"
+                          draggable
+                          aria-pressed={false}
+                          onClick={() => selectCompareAccount(account.id)}
+                          onDragStart={(event) =>
+                            handleCompareDragStart(event, account.id)
+                          }
+                          onDragEnd={() => setDraggedCompareAccountId(null)}
+                          className={`flex h-8 max-w-[12rem] cursor-pointer items-center gap-1.5 rounded-full border border-line bg-paper py-0.5 pl-1 pr-2.5 text-left text-ink transition hover:border-ink/25 hover:bg-card ${
+                            draggedCompareAccountId === account.id
+                              ? "opacity-50"
+                              : ""
+                          }`}
+                        >
+                          <Avatar account={account} size={24} />
+                          <span className="min-w-0 truncate text-sm font-medium">
+                            {account.name}
+                          </span>
+                        </button>
+                      ))
+                    ) : (
+                      <p className="py-1 text-sm font-medium text-muted">
+                        {accounts.length === 0
+                          ? "No accounts connected."
+                          : "All available accounts are comparing."}
+                      </p>
+                    )}
+                  </div>
+                </section>
+              </div>
+            ) : filteredAccounts.length > 0 ? (
               <div className="flex flex-wrap items-center gap-2">
                 {filteredAccounts.map((account) => {
                   const isSelected = selectedAccountSet.has(account.id);
