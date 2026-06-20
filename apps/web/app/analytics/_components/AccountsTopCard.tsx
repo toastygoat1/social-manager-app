@@ -617,10 +617,77 @@ export function AccountsTopCard({
     return event.dataTransfer.getData("text/plain") || draggedCompareAccountId;
   }
 
+  function getCompareDropSlotIndex(event: DragEvent<HTMLElement>) {
+    const candidates: Element[] = [];
+
+    if (event.target instanceof Element) {
+      candidates.push(event.target);
+    }
+
+    const pointedElement =
+      typeof document === "undefined"
+        ? null
+        : document.elementFromPoint(event.clientX, event.clientY);
+
+    if (pointedElement) {
+      candidates.push(pointedElement);
+    }
+
+    for (const candidate of candidates) {
+      const slotElement = candidate.closest("[data-compare-slot-index]");
+      if (!(slotElement instanceof HTMLElement)) continue;
+
+      const slotIndex = Number(slotElement.dataset.compareSlotIndex);
+      if (
+        Number.isInteger(slotIndex) &&
+        slotIndex >= 0 &&
+        slotIndex < maxCompareAccountCount
+      ) {
+        return slotIndex;
+      }
+    }
+
+    const slotElements = event.currentTarget.querySelectorAll<HTMLElement>(
+      "[data-compare-slot-index]",
+    );
+
+    for (const slotElement of slotElements) {
+      const rect = slotElement.getBoundingClientRect();
+      const isInsideSlot =
+        event.clientX >= rect.left &&
+        event.clientX <= rect.right &&
+        event.clientY >= rect.top &&
+        event.clientY <= rect.bottom;
+
+      if (!isInsideSlot) continue;
+
+      const slotIndex = Number(slotElement.dataset.compareSlotIndex);
+      if (
+        Number.isInteger(slotIndex) &&
+        slotIndex >= 0 &&
+        slotIndex < maxCompareAccountCount
+      ) {
+        return slotIndex;
+      }
+    }
+
+    return null;
+  }
+
   function handleCompareSelectedDrop(event: DragEvent<HTMLElement>) {
     event.preventDefault();
     const accountId = getDroppedCompareAccountId(event);
-    if (accountId) selectCompareAccount(accountId);
+
+    if (accountId) {
+      const slotIndex = getCompareDropSlotIndex(event);
+
+      if (slotIndex === null) {
+        selectCompareAccount(accountId);
+      } else {
+        replaceCompareAccount(slotIndex, accountId);
+      }
+    }
+
     endCompareDrag(event.clientX, event.clientY);
   }
 
@@ -1061,6 +1128,7 @@ export function AccountsTopCard({
                       type="button"
                       draggable
                       aria-pressed
+                      data-compare-slot-index={index}
                       onClick={() => removeCompareAccount(account.id)}
                       onDragStart={(event) =>
                         handleCompareDragStart(event, account.id)
