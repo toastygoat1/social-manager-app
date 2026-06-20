@@ -324,7 +324,7 @@ export function SchedulerHeader({
                 setFilterOpen(false);
                 setCreateOpen(false);
               }}
-              className={`flex h-8 w-[106px] items-center justify-start gap-1.5 rounded-md border border-line bg-card px-3 text-[11px] font-semibold text-ink hover:bg-page ${HEADER_ACTION_BUTTON_MOTION}`}
+              className={`flex h-8 shrink-0 items-center justify-start gap-1.5 rounded-md border border-line bg-card px-3 text-[11px] font-semibold text-ink hover:bg-page ${HEADER_ACTION_BUTTON_MOTION}`}
             >
               <span className="flex w-6 shrink-0 items-center justify-center">
                 {activeAccountCount === 0 ? (
@@ -345,7 +345,7 @@ export function SchedulerHeader({
                   </span>
                 )}
               </span>
-              <span>Accounts</span>
+              <span className="whitespace-nowrap">Accounts</span>
             </button>
 
             {accountsOpen ? (
