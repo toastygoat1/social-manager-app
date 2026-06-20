@@ -239,15 +239,11 @@ export function SchedulerHeader({
                 setAccountSearch("");
                 setCreateOpen(false);
               }}
-              className={`flex h-8 shrink-0 items-center justify-start gap-1.5 rounded-md border px-3 text-[11px] font-semibold ${HEADER_ACTION_BUTTON_MOTION} ${
-                activeFilterCount > 0
-                  ? "border-ink bg-ink text-page"
-                  : "border-line bg-card text-ink hover:bg-page"
-              }`}
+              className={`flex h-8 shrink-0 items-center justify-start gap-1.5 rounded-md border border-line bg-card px-3 text-[11px] font-semibold text-ink hover:bg-page ${HEADER_ACTION_BUTTON_MOTION}`}
             >
               <span className="flex w-6 shrink-0 items-center justify-center">
                 {activeFilterCount > 0 ? (
-                  <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-page px-1 text-[9px] font-bold text-ink">
+                  <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-ink px-1 text-[9px] font-bold text-page">
                     {activeFilterCount}
                   </span>
                 ) : (
