@@ -213,6 +213,9 @@ export function AccountsTopCard({
     () => new Set(effectiveSelectedAccountIds),
     [effectiveSelectedAccountIds],
   );
+  const selectedAccounts = accounts.filter((account) =>
+    selectedAccountSet.has(account.id),
+  );
   const [customPanelState, setCustomPanelState] = useState({
     open: timeFilter.range === "custom",
     mounted: timeFilter.range === "custom",
@@ -436,33 +439,31 @@ export function AccountsTopCard({
       <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
         <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
           <div className="flex shrink-0 overflow-hidden rounded-lg border border-line bg-paper">
-            <div
-              className={`relative h-9 shrink-0 overflow-hidden border-r border-line transition-[width,background-color,color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-                isAccountsMode ? "bg-card text-ink" : "text-muted hover:text-ink"
-              } w-[8.5rem] group-hover/accounts:w-[19rem] group-focus-within/accounts:w-[19rem]`}
+            <Link
+              href={accountsHref}
+              className={modeClass(isAccountsMode)}
+              onClick={(event) =>
+                handleLinkNavigation(
+                  event,
+                  {
+                    key: accountsHref,
+                    label: "accounts",
+                    view: "overview",
+                    selectedAccountIds: [],
+                    compareAccountIds: [null, null, null],
+                  },
+                  isAccountsMode && selectedAccountCount === 0,
+                )
+              }
             >
-              <span
-                className="absolute inset-0 flex items-center gap-1.5 px-3 text-sm font-medium transition-[opacity,transform] duration-200 ease-out group-hover/accounts:pointer-events-none group-hover/accounts:-translate-y-1 group-hover/accounts:opacity-0 group-focus-within/accounts:pointer-events-none group-focus-within/accounts:-translate-y-1 group-focus-within/accounts:opacity-0"
-              >
-                <UsersRound className="size-3.5" strokeWidth={1.7} />
-                <span>Accounts</span>
-                {selectedAccountCount > 0 ? (
-                  <span className="ml-0.5 rounded-full border border-line bg-paper px-1.5 py-0.5 text-[10px] leading-none text-muted">
-                    {selectedAccountCount}
-                  </span>
-                ) : null}
-              </span>
-              <label className="absolute inset-0 flex translate-y-1 items-center gap-2 px-3 opacity-0 transition-[opacity,transform] duration-200 ease-out group-hover/accounts:translate-y-0 group-hover/accounts:opacity-100 group-focus-within/accounts:translate-y-0 group-focus-within/accounts:opacity-100">
-                <Search className="size-3.5 shrink-0 text-muted" strokeWidth={1.8} />
-                <input
-                  value={accountSearch}
-                  onChange={(event) => setAccountSearch(event.target.value)}
-                  disabled={accounts.length === 0}
-                  placeholder="Search accounts"
-                  className="min-w-0 flex-1 bg-transparent text-sm font-medium text-ink outline-none placeholder:text-muted disabled:cursor-not-allowed"
-                />
-              </label>
-            </div>
+              <UsersRound className="size-3.5" strokeWidth={1.7} />
+              <span>Accounts</span>
+              {selectedAccountCount > 0 ? (
+                <span className="ml-0.5 rounded-full border border-line bg-paper px-1.5 py-0.5 text-[10px] leading-none text-muted">
+                  {selectedAccountCount}
+                </span>
+              ) : null}
+            </Link>
             {accounts.length < 2 ? (
               <span className={`${modeClass(false, false, false)} opacity-50`}>
                 <Columns2 className="size-3.5" strokeWidth={1.7} />
@@ -494,6 +495,45 @@ export function AccountsTopCard({
                 Compare
               </Link>
             )}
+          </div>
+          <div className="relative h-9 min-w-0 overflow-hidden transition-[width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] sm:ml-3 sm:w-[19rem]">
+            <div className="absolute inset-0 flex items-center transition-[opacity,transform] duration-200 ease-out group-hover/accounts:pointer-events-none group-hover/accounts:-translate-y-1 group-hover/accounts:opacity-0 group-focus-within/accounts:pointer-events-none group-focus-within/accounts:-translate-y-1 group-focus-within/accounts:opacity-0">
+              {selectedAccounts.length > 0 ? (
+                <div className="flex min-w-0 items-center">
+                  <div className="flex h-9 items-center -space-x-2">
+                    {selectedAccounts.map((account) => (
+                      <span
+                        key={account.id}
+                        className="flex size-8 shrink-0 items-center justify-center rounded-full"
+                        title={account.name}
+                      >
+                        <Avatar account={account} size={32} />
+                      </span>
+                    ))}
+                  </div>
+                  <span className="ml-3 min-w-0 truncate text-sm font-medium text-muted">
+                    {selectedAccountCount === 1
+                      ? selectedAccounts[0]?.name
+                      : `${selectedAccountCount} accounts`}
+                  </span>
+                </div>
+              ) : (
+                <span className="flex min-w-0 items-center gap-2 text-sm font-medium text-muted">
+                  <UsersRound className="size-3.5 shrink-0" strokeWidth={1.7} />
+                  <span className="truncate">No accounts selected</span>
+                </span>
+              )}
+            </div>
+            <label className="absolute inset-0 flex translate-y-1 items-center gap-2 rounded-lg border border-line bg-page px-3 opacity-0 transition-[opacity,transform] duration-200 ease-out group-hover/accounts:translate-y-0 group-hover/accounts:opacity-100 group-focus-within/accounts:translate-y-0 group-focus-within/accounts:opacity-100">
+              <Search className="size-3.5 shrink-0 text-muted" strokeWidth={1.8} />
+              <input
+                value={accountSearch}
+                onChange={(event) => setAccountSearch(event.target.value)}
+                disabled={accounts.length === 0}
+                placeholder="Search accounts"
+                className="min-w-0 flex-1 bg-transparent text-sm font-medium text-ink outline-none placeholder:text-muted disabled:cursor-not-allowed"
+              />
+            </label>
           </div>
         </div>
         <div className="ml-auto flex w-full min-w-0 flex-1 flex-nowrap items-center justify-end gap-2.5 overflow-x-auto xl:w-auto xl:overflow-visible">
