@@ -526,6 +526,27 @@ export function AccountsTopCard({
     navigateToCompareSelection(compareIdsFromSelectedIds(nextSelectedAccountIds));
   }
 
+  function replaceCompareAccount(targetIndex: number, accountId: string) {
+    setAccountPanelPinnedOpen(true);
+
+    if (!accountById.has(accountId)) return;
+
+    const nextSelectedAccountIds = [...compareSelectedAccountIds];
+    const existingIndex = nextSelectedAccountIds.indexOf(accountId);
+
+    if (existingIndex === targetIndex) return;
+
+    if (existingIndex >= 0) {
+      const targetAccountId = nextSelectedAccountIds[targetIndex];
+      nextSelectedAccountIds[targetIndex] = accountId;
+      nextSelectedAccountIds[existingIndex] = targetAccountId;
+    } else {
+      nextSelectedAccountIds[targetIndex] = accountId;
+    }
+
+    navigateToCompareSelection(compareIdsFromSelectedIds(nextSelectedAccountIds));
+  }
+
   function removeCompareAccount(accountId: string) {
     setAccountPanelPinnedOpen(true);
 
@@ -587,23 +608,35 @@ export function AccountsTopCard({
     }
   }
 
-  function handleCompareDragOver(event: DragEvent<HTMLDivElement>) {
+  function handleCompareDragOver(event: DragEvent<HTMLElement>) {
     event.preventDefault();
     event.dataTransfer.dropEffect = "move";
   }
 
-  function getDroppedCompareAccountId(event: DragEvent<HTMLDivElement>) {
+  function getDroppedCompareAccountId(event: DragEvent<HTMLElement>) {
     return event.dataTransfer.getData("text/plain") || draggedCompareAccountId;
   }
 
-  function handleCompareSelectedDrop(event: DragEvent<HTMLDivElement>) {
+  function handleCompareSelectedDrop(event: DragEvent<HTMLElement>) {
     event.preventDefault();
     const accountId = getDroppedCompareAccountId(event);
     if (accountId) selectCompareAccount(accountId);
     endCompareDrag(event.clientX, event.clientY);
   }
 
-  function handleCompareAvailableDrop(event: DragEvent<HTMLDivElement>) {
+  function handleCompareSlotDrop(
+    event: DragEvent<HTMLButtonElement>,
+    targetIndex: number,
+  ) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const accountId = getDroppedCompareAccountId(event);
+    if (accountId) replaceCompareAccount(targetIndex, accountId);
+    endCompareDrag(event.clientX, event.clientY);
+  }
+
+  function handleCompareAvailableDrop(event: DragEvent<HTMLElement>) {
     event.preventDefault();
     const accountId = getDroppedCompareAccountId(event);
     if (accountId) removeCompareAccount(accountId);
@@ -1032,6 +1065,8 @@ export function AccountsTopCard({
                       onDragStart={(event) =>
                         handleCompareDragStart(event, account.id)
                       }
+                      onDragOver={handleCompareDragOver}
+                      onDrop={(event) => handleCompareSlotDrop(event, index)}
                       onDragEnd={(event) =>
                         endCompareDrag(event.clientX, event.clientY)
                       }
