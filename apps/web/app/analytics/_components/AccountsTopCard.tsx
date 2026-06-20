@@ -6,7 +6,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type DragEvent,
   type MouseEvent,
 } from "react";
 import Link from "next/link";
@@ -237,7 +236,6 @@ export function AccountsTopCard({
   const [accountPanelHovered, setAccountPanelHovered] = useState(
     () => Boolean(lastAccountCardPointer),
   );
-  const [draggedAccountId, setDraggedAccountId] = useState<string | null>(null);
   const accountCardRef = useRef<HTMLElement | null>(null);
   const customPanelRootRef = useRef<HTMLDivElement | null>(null);
   const customPanelCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(
@@ -287,19 +285,8 @@ export function AccountsTopCard({
   );
   const hiddenSelectedAccountCount =
     selectedAccounts.length - previewSelectedAccounts.length;
-  const accountSearchNeedle = accountSearch.trim().toLowerCase();
-  function matchesAccountSearch(account: Account) {
-    if (!accountSearchNeedle) return true;
-
-    return [account.name, account.username, account.displayName]
-      .filter(Boolean)
-      .some((value) => value!.toLowerCase().includes(accountSearchNeedle));
-  }
-
-  const filteredSelectedAccounts = selectedAccounts.filter(matchesAccountSearch);
-  const availableAccounts = accounts.filter((account) => {
-    if (selectedAccountSet.has(account.id)) return false;
-    const needle = accountSearchNeedle;
+  const filteredAccounts = accounts.filter((account) => {
+    const needle = accountSearch.trim().toLowerCase();
     if (!needle) return true;
 
     return [account.name, account.username, account.displayName]
@@ -429,65 +416,19 @@ export function AccountsTopCard({
     router.push(href);
   }
 
-  function selectAccount(accountId: string) {
-    setAccountPanelPinnedOpen(true);
-
-    if (selectedAccountSet.has(accountId)) return;
-
-    navigateToAccountSelection([...effectiveSelectedAccountIds, accountId]);
-  }
-
-  function deselectAccount(accountId: string) {
-    setAccountPanelPinnedOpen(true);
-
-    if (!selectedAccountSet.has(accountId)) return;
-
-    navigateToAccountSelection(
-      effectiveSelectedAccountIds.filter(
-        (selectedId) => selectedId !== accountId,
-      ),
-    );
-  }
-
   function toggleAccount(accountId: string) {
+    setAccountPanelPinnedOpen(true);
+
     if (selectedAccountSet.has(accountId)) {
-      deselectAccount(accountId);
+      navigateToAccountSelection(
+        effectiveSelectedAccountIds.filter(
+          (selectedId) => selectedId !== accountId,
+        ),
+      );
       return;
     }
 
-    selectAccount(accountId);
-  }
-
-  function handleAccountDragStart(
-    event: DragEvent<HTMLButtonElement>,
-    accountId: string,
-  ) {
-    setDraggedAccountId(accountId);
-    event.dataTransfer.effectAllowed = "move";
-    event.dataTransfer.setData("text/plain", accountId);
-  }
-
-  function handleAccountDragOver(event: DragEvent<HTMLDivElement>) {
-    event.preventDefault();
-    event.dataTransfer.dropEffect = "move";
-  }
-
-  function getDroppedAccountId(event: DragEvent<HTMLDivElement>) {
-    return event.dataTransfer.getData("text/plain") || draggedAccountId;
-  }
-
-  function handleSelectedDrop(event: DragEvent<HTMLDivElement>) {
-    event.preventDefault();
-    const accountId = getDroppedAccountId(event);
-    if (accountId) selectAccount(accountId);
-    setDraggedAccountId(null);
-  }
-
-  function handleAvailableDrop(event: DragEvent<HTMLDivElement>) {
-    event.preventDefault();
-    const accountId = getDroppedAccountId(event);
-    if (accountId) deselectAccount(accountId);
-    setDraggedAccountId(null);
+    navigateToAccountSelection([...effectiveSelectedAccountIds, accountId]);
   }
 
   function openCustomPanel() {
@@ -885,96 +826,47 @@ export function AccountsTopCard({
           <div
             className={`mt-3 border-t border-line pt-3 transition-[opacity,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${accountPanelContentOpenClass}`}
           >
-            <div className="flex flex-col gap-3">
-              <section className="flex flex-col gap-1.5">
-                <div className="flex items-center justify-between">
-                  <span className="font-mono text-[10px] font-medium uppercase tracking-[0.1em] text-muted">
-                    Selected
-                  </span>
-                </div>
-                <div
-                  onDragOver={handleAccountDragOver}
-                  onDrop={handleSelectedDrop}
-                  className={`flex min-h-10 flex-wrap items-center gap-2 rounded-lg border border-dashed px-2 py-1.5 transition ${
-                    draggedAccountId
-                      ? "border-ink/35 bg-card"
-                      : "border-line bg-page/35"
-                  }`}
-                >
-                  {filteredSelectedAccounts.map((account) => (
+            {filteredAccounts.length > 0 ? (
+              <div className="flex flex-wrap items-center gap-2">
+                {filteredAccounts.map((account) => {
+                  const isSelected = selectedAccountSet.has(account.id);
+
+                  return (
                     <button
                       key={account.id}
                       type="button"
-                      draggable
-                      aria-pressed
+                      aria-pressed={isSelected}
                       onClick={() => toggleAccount(account.id)}
-                      onDragStart={(event) =>
-                        handleAccountDragStart(event, account.id)
-                      }
-                      onDragEnd={() => setDraggedAccountId(null)}
-                      className={`flex h-8 max-w-[12rem] cursor-pointer items-center gap-1.5 rounded-full border border-ink bg-card py-0.5 pl-1 pr-2.5 text-left text-ink transition ${
-                        draggedAccountId === account.id ? "opacity-50" : ""
+                      className={`flex h-8 max-w-[12rem] cursor-pointer items-center gap-1.5 rounded-full border py-0.5 pl-1 pr-2.5 text-left transition ${
+                        isSelected
+                          ? "border-ink bg-card text-ink"
+                          : "border-line bg-paper text-ink hover:border-ink/25 hover:bg-card"
                       }`}
                     >
                       <Avatar account={account} size={24} />
                       <span className="min-w-0 truncate text-sm font-medium">
                         {account.name}
                       </span>
-                      <span className="flex size-4 shrink-0 items-center justify-center rounded-full border border-ink bg-ink text-page transition">
+                      <span
+                        className={`flex size-4 shrink-0 items-center justify-center rounded-full border transition ${
+                          isSelected
+                            ? "border-ink bg-ink text-page"
+                            : "border-line text-transparent"
+                        }`}
+                      >
                         <Check className="size-2.5" strokeWidth={2.3} />
                       </span>
                     </button>
-                  ))}
-                </div>
-              </section>
-
-              <section className="flex flex-col gap-1.5">
-                <span className="font-mono text-[10px] font-medium uppercase tracking-[0.1em] text-muted">
-                  Accounts
-                </span>
-                <div
-                  onDragOver={handleAccountDragOver}
-                  onDrop={handleAvailableDrop}
-                  className={`flex min-h-10 flex-wrap items-center gap-2 rounded-lg transition ${
-                    draggedAccountId && selectedAccountSet.has(draggedAccountId)
-                      ? "bg-card/70"
-                      : ""
-                  }`}
-                >
-                  {availableAccounts.length > 0 ? (
-                    availableAccounts.map((account) => (
-                      <button
-                        key={account.id}
-                        type="button"
-                        draggable
-                        aria-pressed={false}
-                        onClick={() => toggleAccount(account.id)}
-                        onDragStart={(event) =>
-                          handleAccountDragStart(event, account.id)
-                        }
-                        onDragEnd={() => setDraggedAccountId(null)}
-                        className={`flex h-8 max-w-[12rem] cursor-pointer items-center gap-1.5 rounded-full border border-line bg-paper py-0.5 pl-1 pr-2.5 text-left text-ink transition hover:border-ink/25 hover:bg-card ${
-                          draggedAccountId === account.id ? "opacity-50" : ""
-                        }`}
-                      >
-                        <Avatar account={account} size={24} />
-                        <span className="min-w-0 truncate text-sm font-medium">
-                          {account.name}
-                        </span>
-                      </button>
-                    ))
-                  ) : (
-                    <p className="py-1 text-sm font-medium text-muted">
-                      {accounts.length === 0
-                        ? "No accounts connected."
-                        : accountSearchNeedle
-                          ? "No accounts match."
-                          : "All accounts selected."}
-                    </p>
-                  )}
-                </div>
-              </section>
-            </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="py-2 text-sm font-medium text-muted">
+                {accounts.length === 0
+                  ? "No accounts connected."
+                  : "No accounts match."}
+              </p>
+            )}
           </div>
         </div>
       </div>
