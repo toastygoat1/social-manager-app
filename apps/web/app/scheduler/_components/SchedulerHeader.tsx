@@ -239,19 +239,22 @@ export function SchedulerHeader({
                 setAccountSearch("");
                 setCreateOpen(false);
               }}
-              className={`flex h-8 items-center gap-1.5 rounded-md border px-3 text-[11px] font-semibold ${HEADER_ACTION_BUTTON_MOTION} ${
+              className={`flex h-8 shrink-0 items-center justify-start gap-1.5 rounded-md border px-3 text-[11px] font-semibold ${HEADER_ACTION_BUTTON_MOTION} ${
                 activeFilterCount > 0
                   ? "border-ink bg-ink text-page"
                   : "border-line bg-card text-ink hover:bg-page"
               }`}
             >
-              <SlidersHorizontal className="size-3.5" strokeWidth={2} />
-              Filter
-              {activeFilterCount > 0 ? (
-                <span className="flex min-w-4 items-center justify-center rounded-full bg-page px-1 text-[9px] font-bold text-ink">
-                  {activeFilterCount}
-                </span>
-              ) : null}
+              <span className="flex w-6 shrink-0 items-center justify-center">
+                {activeFilterCount > 0 ? (
+                  <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-page px-1 text-[9px] font-bold text-ink">
+                    {activeFilterCount}
+                  </span>
+                ) : (
+                  <SlidersHorizontal className="size-3.5" strokeWidth={2} />
+                )}
+              </span>
+              <span className="whitespace-nowrap">Filter</span>
             </button>
 
             {filterOpen ? (
