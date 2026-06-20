@@ -144,6 +144,12 @@ export function SchedulerHeader({
   const periodLabel = formatPeriodLabel(view, new Date(referenceIso));
   const activeFilterCount = filters.postTypes.length + filters.statuses.length;
   const activeAccountCount = filters.accountIds.length;
+  const selectedAccountForButton =
+    activeAccountCount === 1
+      ? (filterAccounts.find(
+          (account) => account.id === filters.accountIds[0],
+        ) ?? null)
+      : null;
   const normalizedAccountSearch = accountSearch.trim().toLowerCase();
   const visibleFilterAccounts = normalizedAccountSearch
     ? filterAccounts.filter((account) => {
@@ -318,16 +324,28 @@ export function SchedulerHeader({
                 setFilterOpen(false);
                 setCreateOpen(false);
               }}
-              className={`flex h-8 w-[116px] items-center justify-center gap-1.5 rounded-md border border-line bg-card px-3 text-[11px] font-semibold text-ink hover:bg-page ${HEADER_ACTION_BUTTON_MOTION}`}
+              className={`flex h-8 w-[116px] items-center justify-start gap-1.5 rounded-md border border-line bg-card px-3 text-[11px] font-semibold text-ink hover:bg-page ${HEADER_ACTION_BUTTON_MOTION}`}
             >
-              {activeAccountCount > 0 ? (
-                <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-ink px-1 text-[9px] font-bold text-page">
-                  {activeAccountCount}
-                </span>
-              ) : (
-                <Users className="size-3.5" strokeWidth={2} />
-              )}
-              Accounts
+              <span className="flex w-6 shrink-0 items-center justify-center">
+                {activeAccountCount === 0 ? (
+                  <Users className="size-3.5" strokeWidth={2} />
+                ) : selectedAccountForButton ? (
+                  <AvatarImage
+                    src={selectedAccountForButton.avatarUrl}
+                    alt={selectedAccountForButton.label}
+                    width={20}
+                    height={20}
+                    className="size-5 rounded-full object-cover"
+                    fallback={selectedAccountForButton.label}
+                    fallbackSeed={selectedAccountForButton.id}
+                  />
+                ) : (
+                  <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-ink px-1 text-[9px] font-bold text-page">
+                    {activeAccountCount}
+                  </span>
+                )}
+              </span>
+              <span>Accounts</span>
             </button>
 
             {accountsOpen ? (
