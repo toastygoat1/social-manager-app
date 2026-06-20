@@ -91,8 +91,8 @@ function getAccountExportName(
     fallback;
 }
 
-function getOverviewExportLabel(data: AnalyticsData) {
-  if (data.selectedAccountIds.length === 0) return "Overview";
+function getAccountsExportLabel(data: AnalyticsData) {
+  if (data.selectedAccountIds.length === 0) return "Accounts";
 
   const names = data.selectedAccountIds
     .map((accountId) => getAccountExportName(data.accounts, accountId, "Account"))
@@ -271,7 +271,7 @@ export default async function AnalyticsPage({
       ].filter(
         (dataset): dataset is AnalyticsExportDataset => dataset.data !== null,
       )
-    : [{ label: getOverviewExportLabel(data), data }];
+    : [{ label: getAccountsExportLabel(data), data }];
   const navigationKey = getNavigationKey({
     compareAccountIds,
     isCompareMode,

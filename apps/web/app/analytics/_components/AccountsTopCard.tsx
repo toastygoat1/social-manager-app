@@ -11,13 +11,11 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  BadgeCheck,
   CalendarDays,
+  Check,
   Columns2,
-  LayoutDashboard,
-  Minus,
-  Plus,
   Search,
+  UsersRound,
 } from "lucide-react";
 import {
   DateTimePickerPopover,
@@ -40,8 +38,6 @@ import {
   ANALYTICS_RANGE_PRESETS,
   createAnalyticsSearchParams,
 } from "./time-filter";
-
-const SELECTED_ACCOUNTS_STORAGE_KEY = "analytics:selectedAccountIds";
 
 type CompareAccountIds = [string | null, string | null, string | null];
 const REQUIRED_COMPARE_SLOT_COUNT = 2;
@@ -217,9 +213,6 @@ export function AccountsTopCard({
     () => new Set(effectiveSelectedAccountIds),
     [effectiveSelectedAccountIds],
   );
-  const selectedAccounts = accounts.filter((account) =>
-    selectedAccountSet.has(account.id),
-  );
   const [customPanelState, setCustomPanelState] = useState({
     open: timeFilter.range === "custom",
     mounted: timeFilter.range === "custom",
@@ -232,14 +225,8 @@ export function AccountsTopCard({
     endDate: timeFilter.range === "custom" ? (timeFilter.endDate ?? "") : "",
   });
   const [datePicker, setDatePicker] = useState<DatePickerState>(null);
-  const [addPopupState, setAddPopupState] = useState({
-    open: false,
-    mounted: false,
-  });
   const [accountSearch, setAccountSearch] = useState("");
-  const addPopupRootRef = useRef<HTMLDivElement | null>(null);
   const customPanelRootRef = useRef<HTMLDivElement | null>(null);
-  const addPopupCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const customPanelCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
@@ -248,10 +235,7 @@ export function AccountsTopCard({
     effectiveSelectedAccountId,
     effectiveCompareAccountIds,
   );
-  const isOverviewMode =
-    !effectiveIsCompareMode && effectiveSelectedAccountIds.length === 0;
-  const isSelectMode =
-    !effectiveIsCompareMode && effectiveSelectedAccountIds.length > 0;
+  const isAccountsMode = !effectiveIsCompareMode;
   const compareModeHref = analyticsHref({
     compareLeft,
     compareRight,
@@ -259,17 +243,7 @@ export function AccountsTopCard({
     timeFilter,
     view: "compare",
   });
-  const overviewHref = analyticsHref({ accountIds: [], timeFilter });
-  const selectPreviewAccountIds =
-    effectiveSelectedAccountIds.length > 0
-      ? effectiveSelectedAccountIds
-      : accounts[0]
-        ? [accounts[0].id]
-        : [];
-  const selectPreviewHref =
-    selectPreviewAccountIds.length > 0
-      ? analyticsHref({ accountIds: selectPreviewAccountIds, timeFilter })
-      : null;
+  const accountsHref = analyticsHref({ accountIds: [], timeFilter });
   const customIsActive = timeFilter.range === "custom";
   const isCustomOpen =
     customPanelState.range === timeFilter.range
@@ -279,7 +253,6 @@ export function AccountsTopCard({
     customPanelState.range === timeFilter.range
       ? customPanelState.mounted
       : customIsActive;
-  const isAddOpen = addPopupState.open;
   const customStartDate =
     customDateState.rangeKey === rangeKey
       ? customDateState.startDate
@@ -292,10 +265,7 @@ export function AccountsTopCard({
       : timeFilter.range === "custom"
         ? (timeFilter.endDate ?? "")
         : "";
-  const availableAccounts = accounts.filter(
-    (account) => !selectedAccountSet.has(account.id),
-  );
-  const filteredAccounts = availableAccounts.filter((account) => {
+  const filteredAccounts = accounts.filter((account) => {
     const needle = accountSearch.trim().toLowerCase();
     if (!needle) return true;
 
@@ -303,26 +273,15 @@ export function AccountsTopCard({
       .filter(Boolean)
       .some((value) => value!.toLowerCase().includes(needle));
   });
+  const selectedAccountCount = effectiveSelectedAccountIds.length;
 
   useEffect(() => {
-    if (isCompareMode || selectedAccountIds.length === 0) return;
-    window.localStorage.setItem(
-      SELECTED_ACCOUNTS_STORAGE_KEY,
-      JSON.stringify(selectedAccountIds),
-    );
-  }, [isCompareMode, selectedAccountIds]);
-
-  useEffect(() => {
-    router.prefetch(overviewHref);
-    if (selectPreviewHref) router.prefetch(selectPreviewHref);
+    router.prefetch(accountsHref);
     if (accounts.length >= 2) router.prefetch(compareModeHref);
-  }, [accounts.length, compareModeHref, overviewHref, router, selectPreviewHref]);
+  }, [accounts.length, accountsHref, compareModeHref, router]);
 
   useEffect(() => {
     return () => {
-      if (addPopupCloseTimer.current) {
-        clearTimeout(addPopupCloseTimer.current);
-      }
       if (customPanelCloseTimer.current) {
         clearTimeout(customPanelCloseTimer.current);
       }
@@ -345,36 +304,20 @@ export function AccountsTopCard({
         range: timeFilter.range,
       });
     }, POPUP_TRANSITION_MS);
-  }, [timeFilter.range]);
-
-  const closeAddPopup = useCallback(() => {
-    if (addPopupCloseTimer.current) {
-      clearTimeout(addPopupCloseTimer.current);
-    }
-    setAddPopupState({ open: false, mounted: true });
-    addPopupCloseTimer.current = setTimeout(() => {
-      setAddPopupState({ open: false, mounted: false });
-    }, POPUP_TRANSITION_MS);
-  }, []);
+  }, [setCustomPanelState, timeFilter.range]);
 
   useEffect(() => {
-    if (!isAddOpen && !isCustomOpen) return;
+    if (!isCustomOpen) return;
 
     function handleDocumentPointerDown(event: PointerEvent) {
       const target = event.target;
       if (!(target instanceof Node)) return;
 
-      const isInsideAddPopup =
-        addPopupRootRef.current?.contains(target) ?? false;
       const isInsideCustomPanel =
         customPanelRootRef.current?.contains(target) ?? false;
       const isInsideDatePicker =
         target instanceof Element &&
         target.closest("[data-date-time-picker-popover]");
-
-      if (isAddOpen && !isInsideAddPopup) {
-        closeAddPopup();
-      }
 
       if (isCustomOpen && !isInsideCustomPanel && !isInsideDatePicker) {
         closeCustomPanel();
@@ -384,14 +327,17 @@ export function AccountsTopCard({
     document.addEventListener("pointerdown", handleDocumentPointerDown);
     return () =>
       document.removeEventListener("pointerdown", handleDocumentPointerDown);
-  }, [closeAddPopup, closeCustomPanel, isAddOpen, isCustomOpen]);
+  }, [closeCustomPanel, isCustomOpen]);
 
   function selectedHref(nextAccountIds: string[]) {
     return analyticsHref({ accountIds: nextAccountIds, timeFilter });
   }
 
   function sameAccountIds(left: string[], right: string[]) {
-    return left.length === right.length && left.every((id, index) => id === right[index]);
+    return (
+      left.length === right.length &&
+      left.every((id, index) => id === right[index])
+    );
   }
 
   function beginRouteNavigation(target: AnalyticsNavigationTarget) {
@@ -426,19 +372,10 @@ export function AccountsTopCard({
       return;
     }
 
-    if (nextAccountIds.length === 0) {
-      window.localStorage.removeItem(SELECTED_ACCOUNTS_STORAGE_KEY);
-    } else {
-      window.localStorage.setItem(
-        SELECTED_ACCOUNTS_STORAGE_KEY,
-        JSON.stringify(nextAccountIds),
-      );
-    }
-
     const href = selectedHref(nextAccountIds);
     beginRouteNavigation({
       key: href,
-      label: nextAccountIds.length > 0 ? "selected accounts" : "overview",
+      label: "accounts",
       view: nextAccountIds.length > 0 ? "select" : "overview",
       selectedAccountIds: nextAccountIds,
       compareAccountIds: [null, null, null],
@@ -446,51 +383,17 @@ export function AccountsTopCard({
     router.push(href);
   }
 
-  function readRememberedAccountIds() {
-    if (typeof window === "undefined") {
-      return accounts[0] ? [accounts[0].id] : [];
-    }
-
-    try {
-      const parsed = JSON.parse(
-        window.localStorage.getItem(SELECTED_ACCOUNTS_STORAGE_KEY) ?? "[]",
+  function toggleAccount(accountId: string) {
+    if (selectedAccountSet.has(accountId)) {
+      navigateToAccountSelection(
+        effectiveSelectedAccountIds.filter(
+          (selectedId) => selectedId !== accountId,
+        ),
       );
-      const rememberedIds = Array.isArray(parsed) ? parsed : [];
-      const validIds = rememberedIds.filter((accountId) =>
-        accounts.some((account) => account.id === accountId),
-      );
-
-      return validIds.length > 0
-        ? [...new Set(validIds)]
-        : accounts[0]
-          ? [accounts[0].id]
-          : [];
-    } catch {
-      return accounts[0] ? [accounts[0].id] : [];
+      return;
     }
-  }
 
-  function selectRememberedAccounts() {
-    const nextAccountIds =
-      effectiveSelectedAccountIds.length > 0
-        ? effectiveSelectedAccountIds
-        : readRememberedAccountIds();
-
-    if (nextAccountIds.length > 0) {
-      navigateToAccountSelection(nextAccountIds);
-    }
-  }
-
-  function addAccount(accountId: string) {
     navigateToAccountSelection([...effectiveSelectedAccountIds, accountId]);
-    setAccountSearch("");
-    closeAddPopup();
-  }
-
-  function removeAccount(accountId: string) {
-    navigateToAccountSelection(
-      effectiveSelectedAccountIds.filter((selectedId) => selectedId !== accountId),
-    );
   }
 
   function openCustomPanel() {
@@ -513,22 +416,6 @@ export function AccountsTopCard({
     openCustomPanel();
   }
 
-  function openAddPopup() {
-    if (addPopupCloseTimer.current) {
-      clearTimeout(addPopupCloseTimer.current);
-    }
-    setAddPopupState({ open: true, mounted: true });
-  }
-
-  function toggleAddPopup() {
-    if (isAddOpen) {
-      closeAddPopup();
-      return;
-    }
-
-    openAddPopup();
-  }
-
   function updateCustomDate(kind: "start" | "end", value: string) {
     setCustomDateState({
       rangeKey,
@@ -545,45 +432,37 @@ export function AccountsTopCard({
   }
 
   return (
-    <section className="flex w-full flex-col rounded-[10px] border border-line bg-paper p-3.5 font-inter">
+    <section className="group/accounts flex w-full flex-col rounded-[10px] border border-line bg-paper p-3.5 font-inter">
       <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
         <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
           <div className="flex shrink-0 overflow-hidden rounded-lg border border-line bg-paper">
-            <Link
-              href={overviewHref}
-              className={modeClass(isOverviewMode)}
-              onClick={(event) =>
-                handleLinkNavigation(
-                  event,
-                  {
-                    key: overviewHref,
-                    label: "overview",
-                    view: "overview",
-                    selectedAccountIds: [],
-                    compareAccountIds: [null, null, null],
-                  },
-                  isOverviewMode,
-                )
-              }
+            <div
+              className={`relative h-9 shrink-0 overflow-hidden border-r border-line transition-[width,background-color,color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                isAccountsMode ? "bg-card text-ink" : "text-muted hover:text-ink"
+              } w-[8.5rem] group-hover/accounts:w-[19rem] group-focus-within/accounts:w-[19rem]`}
             >
-              <LayoutDashboard className="size-3.5" strokeWidth={1.7} />
-              Overview
-            </Link>
-            {accounts.length > 0 ? (
-              <button
-                type="button"
-                onClick={selectRememberedAccounts}
-                className={modeClass(isSelectMode)}
+              <span
+                className="absolute inset-0 flex items-center gap-1.5 px-3 text-sm font-medium transition-[opacity,transform] duration-200 ease-out group-hover/accounts:pointer-events-none group-hover/accounts:-translate-y-1 group-hover/accounts:opacity-0 group-focus-within/accounts:pointer-events-none group-focus-within/accounts:-translate-y-1 group-focus-within/accounts:opacity-0"
               >
-                <BadgeCheck className="size-3.5" strokeWidth={1.7} />
-                Select
-              </button>
-            ) : (
-              <span className={`${modeClass(false, true, false)} opacity-50`}>
-                <BadgeCheck className="size-3.5" strokeWidth={1.7} />
-                Select
+                <UsersRound className="size-3.5" strokeWidth={1.7} />
+                <span>Accounts</span>
+                {selectedAccountCount > 0 ? (
+                  <span className="ml-0.5 rounded-full border border-line bg-paper px-1.5 py-0.5 text-[10px] leading-none text-muted">
+                    {selectedAccountCount}
+                  </span>
+                ) : null}
               </span>
-            )}
+              <label className="absolute inset-0 flex translate-y-1 items-center gap-2 px-3 opacity-0 transition-[opacity,transform] duration-200 ease-out group-hover/accounts:translate-y-0 group-hover/accounts:opacity-100 group-focus-within/accounts:translate-y-0 group-focus-within/accounts:opacity-100">
+                <Search className="size-3.5 shrink-0 text-muted" strokeWidth={1.8} />
+                <input
+                  value={accountSearch}
+                  onChange={(event) => setAccountSearch(event.target.value)}
+                  disabled={accounts.length === 0}
+                  placeholder="Search accounts"
+                  className="min-w-0 flex-1 bg-transparent text-sm font-medium text-ink outline-none placeholder:text-muted disabled:cursor-not-allowed"
+                />
+              </label>
+            </div>
             {accounts.length < 2 ? (
               <span className={`${modeClass(false, false, false)} opacity-50`}>
                 <Columns2 className="size-3.5" strokeWidth={1.7} />
@@ -616,101 +495,8 @@ export function AccountsTopCard({
               </Link>
             )}
           </div>
-          <div
-            className={`min-w-0 transition-all duration-200 ease-out sm:ml-5 ${
-              isSelectMode
-                ? "max-w-[32rem] translate-x-0 overflow-visible opacity-100"
-                : "max-w-0 -translate-x-3 overflow-hidden opacity-0"
-            }`}
-          >
-            <div className="flex h-9 min-w-max items-center">
-              <div className="flex h-9 items-center -space-x-2">
-                {selectedAccounts.map((account) => (
-                  <div
-                    key={account.id}
-                    className="group relative flex size-8 shrink-0 items-center justify-center rounded-full transition-[opacity,transform] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]"
-                    title={account.name}
-                  >
-                    <Avatar account={account} size={32} />
-                    <button
-                      type="button"
-                      aria-label={`Remove ${account.name}`}
-                      onClick={() => removeAccount(account.id)}
-                      className="absolute -left-0.5 -top-0.5 flex size-4 cursor-pointer items-center justify-center rounded-full bg-ink text-page opacity-0 shadow-sm transition group-hover:opacity-100"
-                    >
-                      <Minus className="size-3" strokeWidth={2.2} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-              <div
-                ref={addPopupRootRef}
-                className="relative -ml-1.5 flex size-9 items-center justify-center"
-              >
-                <button
-                  type="button"
-                  aria-expanded={isAddOpen}
-                  aria-label="Add account to selection"
-                  onClick={toggleAddPopup}
-                  className="flex size-9 cursor-pointer items-center justify-center rounded-full border border-line bg-paper text-muted shadow-[0_3px_10px_rgba(24,22,18,0.1)] ring-2 ring-page transition hover:border-ink hover:bg-ink hover:text-page"
-                >
-                  <Plus className="size-[19px]" strokeWidth={1.8} />
-                </button>
-                {addPopupState.mounted ? (
-                  <div
-                    className={`absolute left-1/2 top-11 z-50 w-72 -translate-x-1/2 rounded-lg border border-line bg-paper p-2 shadow-[0_18px_45px_rgba(24,22,18,0.14)] transition-[opacity,transform] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-                      isAddOpen
-                        ? "translate-y-1 scale-100 opacity-100"
-                        : "pointer-events-none -translate-y-1 scale-[0.98] opacity-0"
-                    }`}
-                  >
-                    <label className="flex h-9 items-center gap-2 rounded-md border border-line bg-page px-3">
-                      <Search className="size-3.5 text-muted" strokeWidth={1.8} />
-                      <input
-                        value={accountSearch}
-                        onChange={(event) => setAccountSearch(event.target.value)}
-                        placeholder="Search accounts"
-                        className="min-w-0 flex-1 bg-transparent text-sm font-medium text-ink outline-none placeholder:text-muted"
-                      />
-                    </label>
-                    <div className="mt-2 max-h-56 overflow-y-auto">
-                      {filteredAccounts.length > 0 ? (
-                        filteredAccounts.map((account) => (
-                          <button
-                            key={account.id}
-                            type="button"
-                            onClick={() => addAccount(account.id)}
-                            className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-left transition hover:bg-card"
-                          >
-                            <Avatar account={account} size={28} />
-                            <span className="min-w-0">
-                              <span className="block truncate text-sm font-medium text-ink">
-                                {account.name}
-                              </span>
-                              <span className="block truncate text-xs text-muted">
-                                {account.platform}
-                              </span>
-                            </span>
-                          </button>
-                        ))
-                      ) : (
-                        <p className="px-2 py-4 text-center text-xs text-muted">
-                          No accounts to add.
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          </div>
         </div>
         <div className="ml-auto flex w-full min-w-0 flex-1 flex-nowrap items-center justify-end gap-2.5 overflow-x-auto xl:w-auto xl:overflow-visible">
-          <ExportInsightsButton
-            datasets={exportDatasets}
-            rangeLabel={exportRangeLabel}
-            disabled={accounts.length === 0}
-          />
           <RefreshInsightsButton
             selectedAccountId={selectedAccountId}
             selectedAccountIds={selectedAccountIds}
@@ -908,6 +694,63 @@ export function AccountsTopCard({
                 </button>
               </form>
             ) : null}
+          </div>
+          <ExportInsightsButton
+            datasets={exportDatasets}
+            rangeLabel={exportRangeLabel}
+            disabled={accounts.length === 0}
+          />
+        </div>
+      </div>
+      <div className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover/accounts:grid-rows-[1fr] group-focus-within/accounts:grid-rows-[1fr]">
+        <div className="min-h-0 overflow-hidden">
+          <div className="mt-3 -translate-y-2 border-t border-line pt-3 opacity-0 transition-[opacity,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover/accounts:translate-y-0 group-hover/accounts:opacity-100 group-focus-within/accounts:translate-y-0 group-focus-within/accounts:opacity-100">
+            {filteredAccounts.length > 0 ? (
+              <div className="flex items-center gap-2 overflow-x-auto pb-0.5">
+                {filteredAccounts.map((account) => {
+                  const isSelected = selectedAccountSet.has(account.id);
+
+                  return (
+                    <button
+                      key={account.id}
+                      type="button"
+                      aria-pressed={isSelected}
+                      onClick={() => toggleAccount(account.id)}
+                      className={`flex h-12 min-w-[12rem] shrink-0 cursor-pointer items-center gap-2 rounded-lg border px-2.5 text-left transition ${
+                        isSelected
+                          ? "border-ink bg-card text-ink"
+                          : "border-line bg-paper text-ink hover:border-ink/25 hover:bg-card"
+                      }`}
+                    >
+                      <Avatar account={account} size={32} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium">
+                          {account.name}
+                        </span>
+                        <span className="block truncate text-xs text-muted">
+                          {account.platform}
+                        </span>
+                      </span>
+                      <span
+                        className={`flex size-5 shrink-0 items-center justify-center rounded-full border transition ${
+                          isSelected
+                            ? "border-ink bg-ink text-page"
+                            : "border-line text-transparent"
+                        }`}
+                      >
+                        <Check className="size-3" strokeWidth={2.2} />
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="py-2 text-sm font-medium text-muted">
+                {accounts.length === 0
+                  ? "No accounts connected."
+                  : "No accounts match."}
+              </p>
+            )}
           </div>
         </div>
       </div>
