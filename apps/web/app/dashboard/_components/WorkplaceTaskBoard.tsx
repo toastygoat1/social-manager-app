@@ -1541,9 +1541,15 @@ type FolderTileProps = {
   selected: boolean;
   onSelect: () => void;
   onColorChange: (color: string) => void;
+  interactive?: boolean;
 };
 
-function FolderMiniTile({ workspace, selected, onSelect }: FolderTileProps) {
+function FolderMiniTile({
+  workspace,
+  selected,
+  onSelect,
+  interactive = true,
+}: FolderTileProps) {
   const title = workspace.name.trim() || "Folder";
   const folderColor = getFolderColor(workspace);
   const textColor = getReadableTextColor(folderColor);
@@ -1557,15 +1563,22 @@ function FolderMiniTile({ workspace, selected, onSelect }: FolderTileProps) {
       aria-label={`${title} folder, ${workspace.tasks.length} rows`}
       title={title}
       onClick={onSelect}
-      className={`group/folder relative flex size-12 items-center justify-center overflow-hidden rounded-lg border p-1 outline-none transition focus-visible:ring-2 focus-visible:ring-ink/70 ${
+      tabIndex={interactive ? undefined : -1}
+      className={`group/folder relative flex size-11 items-center justify-center overflow-hidden rounded-xl border p-1 outline-none transition-[background-color,border-color,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-ink/70 ${
         selected
-          ? "border-ink/70 bg-card ring-2 ring-ink/20"
-          : "border-line bg-paper hover:border-ink/35 hover:bg-card"
+          ? "border-cta/60 bg-cta/10"
+          : "border-transparent bg-transparent hover:border-line hover:bg-card"
       }`}
     >
       <span
         aria-hidden="true"
-        className="relative flex size-full items-center justify-center overflow-hidden rounded-md text-sm font-semibold leading-none"
+        className={`absolute right-0 top-1/2 h-6 w-0.5 -translate-y-1/2 rounded-l-full bg-cta transition-opacity duration-300 ${
+          selected ? "opacity-100" : "opacity-0"
+        }`}
+      />
+      <span
+        aria-hidden="true"
+        className="relative flex size-full items-center justify-center overflow-hidden rounded-lg text-sm font-semibold leading-none"
         style={{ backgroundColor: folderColor, color: textColor }}
       >
         {workspace.bannerImageUrl ? (
@@ -1590,6 +1603,7 @@ function FolderTile({
   selected,
   onSelect,
   onColorChange,
+  interactive = true,
 }: FolderTileProps) {
   const folderColor = getFolderColor(workspace);
   const [colorMenuOpen, setColorMenuOpen] = useState(false);
@@ -1608,6 +1622,7 @@ function FolderTile({
         aria-selected={selected}
         aria-label={`${workspace.name} folder, ${workspace.tasks.length} rows`}
         onClick={onSelect}
+        tabIndex={interactive ? undefined : -1}
         className="block w-full overflow-hidden rounded-md text-left outline-none transition focus-visible:ring-2 focus-visible:ring-ink/70"
       >
         <FolderCover workspace={workspace} />
@@ -1627,6 +1642,7 @@ function FolderTile({
         aria-label="Folder options"
         aria-expanded={colorMenuOpen}
         onClick={() => setColorMenuOpen((current) => !current)}
+        tabIndex={interactive ? undefined : -1}
         className={`absolute right-2 top-2 z-30 flex size-7 items-center justify-center rounded-full border border-line bg-paper/95 text-ink shadow-sm transition hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 ${
           colorMenuOpen
             ? "opacity-100"
@@ -1654,6 +1670,7 @@ function FolderTile({
               type="button"
               aria-label={`Set folder color ${color}`}
               aria-pressed={folderColor.toLowerCase() === color.toLowerCase()}
+              tabIndex={interactive ? undefined : -1}
               onClick={() => {
                 onColorChange(color);
                 setColorMenuOpen(false);
@@ -1668,6 +1685,54 @@ function FolderTile({
           ))}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function FolderSidebarItem({
+  collapsed,
+  workspace,
+  selected,
+  onSelect,
+  onColorChange,
+}: FolderTileProps & { collapsed: boolean }) {
+  return (
+    <div
+      className={`relative overflow-visible transition-[height] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
+        collapsed ? "h-12" : "h-[130px]"
+      }`}
+    >
+      <div
+        aria-hidden={collapsed}
+        className={`absolute left-0 top-0 w-[236px] transition-[opacity,transform,filter] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
+          collapsed
+            ? "pointer-events-none -translate-x-3 scale-[0.96] opacity-0 blur-[1px]"
+            : "pointer-events-auto translate-x-0 scale-100 opacity-100 blur-0"
+        }`}
+      >
+        <FolderTile
+          workspace={workspace}
+          selected={selected}
+          onSelect={onSelect}
+          onColorChange={onColorChange}
+          interactive={!collapsed}
+        />
+      </div>
+      <div
+        className={`absolute left-1/2 top-1/2 transition-[opacity,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
+          collapsed
+            ? "pointer-events-auto -translate-x-1/2 -translate-y-1/2 scale-100 opacity-100"
+            : "pointer-events-none -translate-x-1/2 -translate-y-[42%] scale-90 opacity-0"
+        }`}
+      >
+        <FolderMiniTile
+          workspace={workspace}
+          selected={selected}
+          onSelect={onSelect}
+          onColorChange={onColorChange}
+          interactive={collapsed}
+        />
+      </div>
     </div>
   );
 }
@@ -1689,12 +1754,14 @@ function WorkspaceFolderSidebarHeader({
 
   return (
     <div
-      className={`flex min-h-[73px] items-center border-b border-line transition-[gap,padding] duration-300 ${
-        collapsed ? "justify-center px-2 py-4" : "justify-between gap-3 px-4 py-4"
+      className={`flex min-h-[73px] items-center border-b border-line transition-[gap,padding] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
+        collapsed
+          ? "justify-center px-2 py-4"
+          : "justify-between gap-3 px-4 py-4"
       }`}
     >
       <div
-        className={`min-w-0 overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-300 ${
+        className={`min-w-0 overflow-hidden whitespace-nowrap transition-[max-width,opacity,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
           collapsed ? "max-w-0 opacity-0" : "max-w-[164px] opacity-100"
         }`}
       >
@@ -1706,10 +1773,14 @@ function WorkspaceFolderSidebarHeader({
       <button
         type="button"
         aria-expanded={!collapsed}
-        aria-label={collapsed ? "Expand folders sidebar" : "Collapse folders sidebar"}
+        aria-label={
+          collapsed ? "Expand folders sidebar" : "Collapse folders sidebar"
+        }
         title={collapsed ? "Expand folders" : "Collapse folders"}
         onClick={onToggleCollapsed}
-        className="flex size-9 shrink-0 items-center justify-center rounded-md border border-line bg-paper text-muted transition hover:bg-card hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70"
+        className={`flex size-9 shrink-0 items-center justify-center rounded-lg border text-muted transition-[background-color,border-color,color,transform] duration-300 hover:-translate-y-0.5 hover:bg-card hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 ${
+          collapsed ? "border-transparent bg-card" : "border-line bg-paper"
+        }`}
       >
         {collapsed ? (
           <PanelLeftOpen className="size-4" strokeWidth={1.8} />
@@ -2953,7 +3024,7 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
     selectedTasks.length > 0 && selectedTaskCount === selectedTasks.length;
   const hasPartialTaskSelection =
     selectedTaskCount > 0 && selectedTaskCount < selectedTasks.length;
-  const folderSidebarClassName = `flex shrink-0 flex-col border-r border-line bg-paper transition-[width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+  const folderSidebarClassName = `flex shrink-0 flex-col overflow-hidden border-r border-line bg-paper transition-[width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
     isFolderSidebarCollapsed ? "w-[72px]" : "w-[252px]"
   }`;
 
@@ -3475,55 +3546,46 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
         />
 
         <div
-          className={`min-h-0 flex-1 overflow-y-auto py-2 ${
-            isFolderSidebarCollapsed ? "space-y-2 px-2" : "space-y-1 px-2"
+          className={`flex min-h-0 flex-1 flex-col overflow-y-auto py-2 transition-[gap,padding] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
+            isFolderSidebarCollapsed ? "gap-2 px-2" : "gap-1 px-2"
           }`}
           role="tablist"
           aria-label="Folders"
         >
-          {workspaces.map((workspace) =>
-            isFolderSidebarCollapsed ? (
-              <FolderMiniTile
-                key={workspace.id}
-                workspace={workspace}
-                selected={workspace.id === selectedWorkspace?.id}
-                onSelect={() => setSelectedWorkspaceId(workspace.id)}
-                onColorChange={(color) => {
-                  void updateFolderColor(workspace.id, color);
-                }}
-              />
-            ) : (
-              <FolderTile
-                key={workspace.id}
-                workspace={workspace}
-                selected={workspace.id === selectedWorkspace?.id}
-                onSelect={() => setSelectedWorkspaceId(workspace.id)}
-                onColorChange={(color) => {
-                  void updateFolderColor(workspace.id, color);
-                }}
-              />
-            ),
-          )}
-          {isFolderSidebarCollapsed ? (
-            <button
-              type="button"
-              aria-label="New folder"
-              title="New folder"
-              onClick={createFolder}
-              className="mt-2 flex size-12 items-center justify-center rounded-lg border border-dashed border-line text-muted transition hover:border-cta hover:bg-card hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70"
+          {workspaces.map((workspace) => (
+            <FolderSidebarItem
+              key={workspace.id}
+              collapsed={isFolderSidebarCollapsed}
+              workspace={workspace}
+              selected={workspace.id === selectedWorkspace?.id}
+              onSelect={() => setSelectedWorkspaceId(workspace.id)}
+              onColorChange={(color) => {
+                void updateFolderColor(workspace.id, color);
+              }}
+            />
+          ))}
+          <button
+            type="button"
+            aria-label="New folder"
+            title={isFolderSidebarCollapsed ? "New folder" : undefined}
+            onClick={createFolder}
+            className={`mt-2 flex shrink-0 items-center justify-center border border-dashed border-line text-xs font-semibold text-muted transition-[width,height,gap,padding,border-color,background-color,color,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:border-cta hover:bg-card hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 motion-reduce:transition-none ${
+              isFolderSidebarCollapsed
+                ? "mx-auto size-11 gap-0 rounded-xl px-0"
+                : "h-9 w-full gap-2 rounded-md px-2.5"
+            }`}
+          >
+            <Plus className="size-4 shrink-0" strokeWidth={1.8} />
+            <span
+              className={`overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
+                isFolderSidebarCollapsed
+                  ? "max-w-0 opacity-0"
+                  : "max-w-[96px] opacity-100"
+              }`}
             >
-              <Plus className="size-4" strokeWidth={1.8} />
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={createFolder}
-              className="mt-2 flex h-9 w-full items-center gap-2 rounded-md border border-dashed border-line px-2.5 text-left text-xs font-semibold text-muted transition hover:border-cta hover:bg-card hover:text-ink"
-            >
-              <Plus className="size-4" strokeWidth={1.8} />
               New folder
-            </button>
-          )}
+            </span>
+          </button>
         </div>
       </aside>
 

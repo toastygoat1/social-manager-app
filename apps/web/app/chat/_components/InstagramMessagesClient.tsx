@@ -28,6 +28,7 @@ import {
   Send,
   Smile,
   Sparkles,
+  X,
 } from "lucide-react";
 import { ApiError, apiFetchBrowser } from "@/lib/api/browser-client";
 import type {
@@ -760,21 +761,21 @@ export function InstagramMessagesClient({
   ];
 
   return (
-    <div className="grid h-full min-h-0 w-full grid-cols-1 overflow-hidden rounded-[14px] border border-[#e6e1da] bg-[#fbfaf7] shadow-[0_18px_60px_rgba(44,39,31,0.08)] md:grid-cols-[minmax(300px,350px)_minmax(0,1fr)] lg:grid-cols-[232px_minmax(320px,360px)_minmax(0,1fr)]">
-      <aside className="hidden min-h-0 flex-col border-r border-[#e7e3db] bg-[#f7f5ef] lg:flex">
+    <div className="grid h-full min-h-0 w-full grid-cols-1 overflow-hidden bg-paper md:grid-cols-[minmax(300px,350px)_minmax(0,1fr)] lg:grid-cols-[232px_minmax(320px,360px)_minmax(0,1fr)]">
+      <aside className="hidden min-h-0 flex-col border-r border-line bg-card lg:flex">
         <div className="flex items-start justify-between gap-3 px-4 pb-3 pt-4">
           <div className="min-w-0">
-            <h1 className="text-[18px] font-semibold leading-6 text-[#1d1b18]">
+            <h1 className="dashboard-card-title text-ink">
               Inbox
             </h1>
-            <p className="mt-0.5 truncate text-[12px] leading-4 text-[#817b70]">
+            <p className="dashboard-ui-meta mt-0.5 truncate text-muted">
               {filteredConversations.length} threads / {totalUnread} unread
             </p>
           </div>
           <button
             type="button"
             onClick={() => void refreshCurrentAccount()}
-            className="flex size-8 shrink-0 items-center justify-center rounded-md text-[#756f66] transition hover:bg-[#ece8df] hover:text-[#1d1b18] disabled:opacity-50"
+            className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted transition hover:bg-paper hover:text-ink disabled:opacity-50"
             disabled={isLoadingConversations}
             aria-label="Refresh inbox"
             title="Refresh inbox"
@@ -787,17 +788,17 @@ export function InstagramMessagesClient({
           </button>
         </div>
 
-        <label className="mx-4 mb-3 flex h-9 items-center gap-2 rounded-md border border-[#e0dacf] bg-[#fbfaf7] px-3 text-[#817b70] transition focus-within:border-[#5e6ad2] focus-within:ring-2 focus-within:ring-[#5e6ad2]/15">
+        <label className="dashboard-ui-label mx-4 mb-3 flex h-9 items-center gap-2 rounded-lg border border-line bg-paper px-3 text-muted transition focus-within:border-cta">
           <Search className="size-3.5 shrink-0" strokeWidth={1.8} />
           <input
             value={searchQuery}
             onChange={handleSearchChange}
             placeholder="Search messages"
-            className="min-w-0 flex-1 bg-transparent text-[12px] leading-5 text-[#1d1b18] outline-none placeholder:text-[#9b958b]"
+            className="min-w-0 flex-1 bg-transparent text-ink outline-none placeholder:text-muted"
           />
         </label>
 
-        <div className="mx-4 mb-4 grid grid-cols-3 rounded-md bg-[#ece8df] p-0.5">
+        <div className="dashboard-ui-label mx-4 mb-4 grid grid-cols-3 rounded-lg border border-line bg-paper p-1 text-muted">
           {(
             [
               ["open", "Open", conversations.length],
@@ -809,20 +810,20 @@ export function InstagramMessagesClient({
               key={key}
               type="button"
               onClick={() => handleTabChange(key)}
-              className={`flex h-7 items-center justify-center gap-1 rounded-[5px] px-2 text-[11px] transition ${
+              className={`flex h-7 items-center justify-center gap-1 rounded-md px-2 transition ${
                 activeTab === key
-                  ? "bg-[#fbfaf7] font-medium text-[#1d1b18] shadow-sm"
-                  : "text-[#756f66] hover:text-[#1d1b18]"
+                  ? "bg-ink font-medium text-paper"
+                  : "hover:bg-card hover:text-ink"
               }`}
             >
               <span>{label}</span>
-              <span className="font-mono text-[10px] text-[#918a80]">{count}</span>
+              <span className="font-mono text-muted">{count}</span>
             </button>
           ))}
         </div>
 
         <div className="px-2">
-          <p className="px-2 pb-2 text-[10px] font-semibold uppercase leading-4 text-[#9a948a]">
+          <p className="dashboard-ui-meta px-2 pb-2 font-semibold uppercase text-muted">
             Channels
           </p>
           <div className="flex flex-col gap-0.5">
@@ -831,15 +832,15 @@ export function InstagramMessagesClient({
                 key={key}
                 type="button"
                 onClick={() => handleChannelChange(key)}
-                className={`grid h-8 grid-cols-[16px_1fr_auto] items-center gap-2 rounded-md px-2 text-left text-[12px] transition ${
+                className={`dashboard-ui-label grid h-8 grid-cols-[16px_1fr_auto] items-center gap-2 rounded-md px-2 text-left transition ${
                   activeChannel === key
-                    ? "bg-[#ece8df] font-medium text-[#1d1b18]"
-                    : "text-[#676158] hover:bg-[#f0ece4] hover:text-[#1d1b18]"
+                    ? "bg-paper font-medium text-ink"
+                    : "text-muted hover:bg-paper hover:text-ink"
                 }`}
               >
                 <Icon className="size-3.5" strokeWidth={1.7} />
                 <span className="truncate">{label}</span>
-                <span className="rounded-full border border-[#ded8ce] bg-[#fbfaf7] px-1.5 font-mono text-[10px] text-[#817b70]">
+                <span className="rounded-full border border-line bg-paper px-1.5 font-mono text-muted">
                   {count}
                 </span>
               </button>
@@ -849,14 +850,14 @@ export function InstagramMessagesClient({
 
         <div className="mt-5 flex min-h-0 flex-1 flex-col px-2 pb-3">
           <div className="flex items-center justify-between px-2 pb-2">
-            <p className="text-[10px] font-semibold uppercase leading-4 text-[#9a948a]">
+            <p className="dashboard-ui-meta font-semibold uppercase text-muted">
               Accounts {selectedAccountIds.size}/{accountIds.length}
             </p>
-            <div className="flex items-center gap-1 text-[11px] text-[#817b70]">
+            <div className="dashboard-ui-meta flex items-center gap-1 text-muted">
               <button
                 type="button"
                 onClick={selectAllAccounts}
-                className="rounded px-1.5 py-0.5 hover:bg-[#ece8df] hover:text-[#1d1b18]"
+                className="rounded px-1.5 py-0.5 hover:bg-paper hover:text-ink"
               >
                 all
               </button>
@@ -864,7 +865,7 @@ export function InstagramMessagesClient({
               <button
                 type="button"
                 onClick={selectNoAccounts}
-                className="rounded px-1.5 py-0.5 hover:bg-[#ece8df] hover:text-[#1d1b18]"
+                className="rounded px-1.5 py-0.5 hover:bg-paper hover:text-ink"
               >
                 none
               </button>
@@ -886,10 +887,10 @@ export function InstagramMessagesClient({
                   return (
                     <label
                       key={account.id}
-                      className={`grid h-9 cursor-pointer grid-cols-[14px_24px_1fr_auto] items-center gap-2 rounded-md px-2 transition ${
+                      className={`dashboard-ui-label grid h-9 cursor-pointer grid-cols-[14px_24px_1fr_auto] items-center gap-2 rounded-md px-2 transition ${
                         isSelected
-                          ? "bg-[#f0ece4] text-[#1d1b18]"
-                          : "text-[#676158] hover:bg-[#f0ece4] hover:text-[#1d1b18]"
+                          ? "bg-paper text-ink"
+                          : "text-muted hover:bg-paper hover:text-ink"
                       }`}
                     >
                       <input
@@ -901,8 +902,8 @@ export function InstagramMessagesClient({
                       <span
                         className={`flex size-3.5 items-center justify-center rounded-[3px] border ${
                           isSelected
-                            ? "border-[#5e6ad2] bg-[#5e6ad2] text-white"
-                            : "border-[#d3cec3] bg-[#fbfaf7] text-transparent"
+                            ? "border-cta bg-cta text-white"
+                            : "border-line bg-paper text-transparent"
                         }`}
                         aria-hidden
                       >
@@ -921,8 +922,8 @@ export function InstagramMessagesClient({
                       <span
                         className={`font-mono text-[10px] ${
                           accountUnread
-                            ? "rounded-full bg-[#5e6ad2] px-1.5 text-white"
-                            : "text-[#9b958b]"
+                            ? "rounded-full bg-cta px-1.5 text-white"
+                            : "text-muted"
                         }`}
                       >
                         {accountUnread || accountThreads.length}
@@ -932,7 +933,7 @@ export function InstagramMessagesClient({
                 })}
               </div>
             ) : (
-              <div className="px-3 py-8 text-center text-[12px] leading-5 text-[#817b70]">
+              <div className="dashboard-ui-label px-3 py-8 text-center text-muted">
                 No connected Instagram accounts.
               </div>
             )}
@@ -940,38 +941,38 @@ export function InstagramMessagesClient({
         </div>
       </aside>
 
-      <section className="flex min-h-0 flex-col border-r border-[#e7e3db] bg-[#fbfaf7]">
-        <div className="border-b border-[#e7e3db] px-4 py-3">
+      <section className="flex min-h-0 flex-col border-r border-line bg-paper">
+        <div className="border-b border-line bg-paper px-4 py-3">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-[13px] font-semibold leading-5 text-[#1d1b18]">
+              <p className="dashboard-ui-label font-semibold text-ink">
                 All conversations
               </p>
-              <p className="truncate text-[11px] leading-4 text-[#817b70]">
+              <p className="dashboard-ui-meta truncate text-muted">
                 {visibleAccountLabel}
               </p>
             </div>
             <button
               type="button"
-              className="flex h-8 shrink-0 items-center gap-1 rounded-md border border-[#ded8ce] bg-[#fbfaf7] px-2 text-[11px] text-[#5f594f] transition hover:bg-[#f0ece4] hover:text-[#1d1b18]"
+              className="dashboard-ui-label flex h-8 shrink-0 items-center gap-1 rounded-lg border border-line bg-paper px-2 text-muted transition hover:bg-card hover:text-ink"
             >
               Newest
               <ChevronDown className="size-3" strokeWidth={1.8} />
             </button>
           </div>
 
-          <label className="mt-3 flex h-9 items-center gap-2 rounded-md border border-[#e0dacf] bg-[#f7f5ef] px-3 text-[#817b70] transition focus-within:border-[#5e6ad2] focus-within:ring-2 focus-within:ring-[#5e6ad2]/15 lg:hidden">
+          <label className="dashboard-ui-label mt-3 flex h-9 items-center gap-2 rounded-lg border border-line bg-card px-3 text-muted transition focus-within:border-cta lg:hidden">
             <Search className="size-3.5 shrink-0" strokeWidth={1.8} />
             <input
               value={searchQuery}
               onChange={handleSearchChange}
               placeholder="Search messages"
-              className="min-w-0 flex-1 bg-transparent text-[12px] leading-5 text-[#1d1b18] outline-none placeholder:text-[#9b958b]"
+              className="min-w-0 flex-1 bg-transparent text-ink outline-none placeholder:text-muted"
             />
           </label>
 
           <div className="mt-3 flex items-center justify-between gap-3">
-            <span className="font-mono text-[11px] text-[#817b70]">
+            <span className="dashboard-ui-meta font-mono text-muted">
               {filteredConversations.length} shown
             </span>
             <button
@@ -981,17 +982,17 @@ export function InstagramMessagesClient({
                   activeChannel === "unread" ? "all" : "unread",
                 )
               }
-              className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] transition ${
+              className={`dashboard-ui-label inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 transition ${
                 activeChannel === "unread"
-                  ? "bg-[#5e6ad2] text-white"
-                  : "bg-[#f0ece4] text-[#5f594f] hover:text-[#1d1b18]"
+                  ? "border-ink bg-ink text-paper"
+                  : "border-line bg-paper text-muted hover:bg-card hover:text-ink"
               }`}
             >
               <span
                 className={`size-3 rounded-full ${
                   activeChannel === "unread"
                     ? "bg-white/30"
-                    : "bg-[#d3cec3]"
+                    : "bg-line"
                 }`}
                 aria-hidden
               />
@@ -1002,7 +1003,7 @@ export function InstagramMessagesClient({
 
         <div className="min-h-0 flex-1 overflow-y-auto">
           {isLoadingConversations ? (
-            <div className="flex items-center gap-2 px-4 py-6 text-[13px] text-[#817b70]">
+            <div className="dashboard-ui-label flex items-center gap-2 px-4 py-6 text-muted">
               <Loader2 className="size-4 animate-spin" strokeWidth={1.8} />
               Loading conversations
             </div>
@@ -1019,11 +1020,11 @@ export function InstagramMessagesClient({
                     key={item.id}
                     type="button"
                     onClick={() => void loadConversation(item.id)}
-                    className={`grid w-full grid-cols-[42px_1fr_auto] items-start gap-3 border-b border-[#eeeae4] px-4 py-3 text-left transition ${
+                    className={`grid w-full grid-cols-[42px_1fr_auto] items-start gap-3 border-b border-l-4 border-b-line px-4 py-3 text-left transition ${
                       isSelected
-                        ? "bg-[#f0eee9] shadow-[inset_3px_0_0_#5e6ad2]"
-                        : "hover:bg-[#f7f5ef]"
-                    } ${unreadCount ? "text-[#1d1b18]" : "text-[#5f594f]"}`}
+                        ? "border-l-cta bg-card"
+                        : "border-l-transparent hover:bg-card"
+                    } ${unreadCount ? "text-ink" : "text-muted"}`}
                   >
                     <span className="relative mt-0.5">
                       <span
@@ -1033,7 +1034,7 @@ export function InstagramMessagesClient({
                       >
                         {initialsFrom(participantName)}
                       </span>
-                      <span className="absolute -bottom-1 -right-1 rounded-[4px] border border-[#fbfaf7] bg-[#e1306c] px-1 py-0.5 text-[7px] font-bold leading-none text-white">
+                      <span className="absolute -bottom-1 -right-1 rounded-[4px] border border-paper bg-[#e1306c] px-1 py-0.5 text-[7px] font-bold leading-none text-white">
                         IG
                       </span>
                     </span>
@@ -1047,14 +1048,14 @@ export function InstagramMessagesClient({
                         >
                           {participantName}
                         </span>
-                        <span className="shrink-0 font-mono text-[10px] text-[#9b958b]">
+                        <span className="dashboard-ui-meta shrink-0 font-mono text-muted">
                           {formatRelativeTime(item.lastMessageAt)}
                         </span>
                       </span>
 
-                      <span className="mt-0.5 flex min-w-0 items-center gap-1 text-[11px] leading-4 text-[#817b70]">
+                      <span className="dashboard-ui-meta mt-0.5 flex min-w-0 items-center gap-1 text-muted">
                         <span className="truncate">{participantHandle(item)}</span>
-                        <span className="text-[#c4beb3]">/</span>
+                        <span className="text-line">/</span>
                         <span className="inline-flex min-w-0 items-center gap-1 truncate">
                           <span
                             className="size-1.5 shrink-0 rounded-[2px]"
@@ -1071,7 +1072,7 @@ export function InstagramMessagesClient({
                         </span>
                       </span>
 
-                      <span className="mt-1 line-clamp-2 text-[12px] leading-5 text-[#5f594f]">
+                      <span className="dashboard-ui-label mt-1 line-clamp-2 text-muted">
                         {lastFromUser ? "You: " : ""}
                         {item.lastMessage?.messageText ??
                           "Attachment or empty message"}
@@ -1079,12 +1080,12 @@ export function InstagramMessagesClient({
                     </span>
 
                     {unreadCount ? (
-                      <span className="mt-5 rounded-full bg-[#5e6ad2] px-1.5 py-0.5 font-mono text-[10px] font-semibold text-white">
+                      <span className="dashboard-ui-meta mt-5 rounded-full bg-cta px-1.5 py-0.5 font-mono font-semibold text-white">
                         {unreadCount}
                       </span>
                     ) : (
                       <CheckCircle2
-                        className="mt-5 size-3.5 text-[#b5aea3]"
+                        className="mt-5 size-3.5 text-muted"
                         strokeWidth={1.7}
                       />
                     )}
@@ -1094,11 +1095,11 @@ export function InstagramMessagesClient({
             </div>
           ) : (
             <div className="flex h-full min-h-[280px] flex-col items-center justify-center gap-2 px-8 text-center">
-              <Inbox className="size-8 text-[#b5aea3]" strokeWidth={1.5} />
-              <p className="text-[13px] font-medium text-[#1d1b18]">
+              <Inbox className="size-8 text-muted" strokeWidth={1.5} />
+              <p className="dashboard-ui-label font-medium text-ink">
                 No conversations here
               </p>
-              <p className="max-w-[240px] text-[12px] leading-5 text-[#817b70]">
+              <p className="dashboard-ui-label max-w-[240px] text-muted">
                 Try a different account, search term, or inbox filter.
               </p>
             </div>
@@ -1106,10 +1107,10 @@ export function InstagramMessagesClient({
         </div>
       </section>
 
-      <section className="flex min-h-0 min-w-0 flex-col bg-[#fbfaf7]">
+      <section className="flex min-h-0 min-w-0 flex-col bg-paper">
         {conversation ? (
           <>
-            <header className="flex min-h-[74px] items-center justify-between gap-4 border-b border-[#e7e3db] px-5 py-3">
+            <header className="flex min-h-[74px] items-center justify-between gap-4 border-b border-line bg-paper px-5 py-3">
               <div className="flex min-w-0 items-center gap-3">
                 <div
                   className="flex size-11 shrink-0 items-center justify-center rounded-full text-[14px] font-semibold text-white"
@@ -1120,14 +1121,14 @@ export function InstagramMessagesClient({
                 </div>
                 <div className="min-w-0">
                   <div className="flex min-w-0 flex-wrap items-center gap-2">
-                    <h2 className="truncate text-[16px] font-semibold leading-6 text-[#1d1b18]">
+                    <h2 className="dashboard-card-title truncate text-ink">
                       {participantDisplayName(conversation)}
                     </h2>
                     <span
-                      className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase leading-4 ${
+                      className={`dashboard-ui-meta rounded-full px-2 py-0.5 font-semibold uppercase ${
                         conversationUnreadCount(conversation)
-                          ? "bg-[#eee8ff] text-[#4e45a5]"
-                          : "bg-[#e7f2ec] text-[#2c6848]"
+                          ? "bg-cta/10 text-cta-edge"
+                          : "bg-success/10 text-success"
                       }`}
                     >
                       {conversationUnreadCount(conversation)
@@ -1135,17 +1136,17 @@ export function InstagramMessagesClient({
                         : "handled"}
                     </span>
                   </div>
-                  <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-1.5 text-[12px] leading-4 text-[#817b70]">
+                  <div className="dashboard-ui-meta mt-0.5 flex min-w-0 flex-wrap items-center gap-1.5 text-muted">
                     <span className="truncate">
                       {participantHandle(conversation)}
                     </span>
-                    <span className="text-[#c4beb3]">/</span>
+                    <span className="text-line">/</span>
                     {selectedThreadAccount ? (
                       <span className="truncate">
                         {accountName(selectedThreadAccount)}
                       </span>
                     ) : null}
-                    <span className="text-[#c4beb3]">/</span>
+                    <span className="text-line">/</span>
                     <span>Instagram DM</span>
                   </div>
                 </div>
@@ -1154,22 +1155,22 @@ export function InstagramMessagesClient({
               <div className="hidden shrink-0 items-center gap-2 xl:flex">
                 <button
                   type="button"
-                  className="inline-flex h-8 items-center gap-1.5 rounded-md border border-[#ded8ce] bg-[#fbfaf7] px-2.5 text-[12px] text-[#5f594f] transition hover:bg-[#f0ece4] hover:text-[#1d1b18]"
+                  className="dashboard-ui-label inline-flex h-8 items-center gap-1.5 rounded-lg border border-line bg-paper px-2.5 text-muted transition hover:bg-card hover:text-ink"
                 >
                   <Sparkles className="size-3.5" strokeWidth={1.7} />
                   Flag
                 </button>
                 <button
                   type="button"
-                  className="inline-flex h-8 items-center gap-1.5 rounded-md border border-[#ded8ce] bg-[#fbfaf7] px-2.5 text-[12px] text-[#5f594f] transition hover:bg-[#f0ece4] hover:text-[#1d1b18]"
+                  className="dashboard-ui-label inline-flex h-8 items-center gap-1.5 rounded-lg border border-line bg-paper px-2.5 text-muted transition hover:bg-card hover:text-ink"
                 >
                   Assign
                   <ChevronDown className="size-3" strokeWidth={1.8} />
                 </button>
-                <div className="flex overflow-hidden rounded-md border border-[#ded8ce]">
+                <div className="flex overflow-hidden rounded-lg border border-line">
                   <button
                     type="button"
-                    className="flex size-8 items-center justify-center text-[#756f66] transition hover:bg-[#f0ece4] hover:text-[#1d1b18]"
+                    className="flex size-8 items-center justify-center text-muted transition hover:bg-card hover:text-ink"
                     aria-label="Snooze conversation"
                     title="Snooze conversation"
                   >
@@ -1177,7 +1178,7 @@ export function InstagramMessagesClient({
                   </button>
                   <button
                     type="button"
-                    className="flex size-8 items-center justify-center border-l border-[#ded8ce] text-[#756f66] transition hover:bg-[#f0ece4] hover:text-[#1d1b18]"
+                    className="flex size-8 items-center justify-center border-l border-line text-muted transition hover:bg-card hover:text-ink"
                     aria-label="Archive conversation"
                     title="Archive conversation"
                   >
@@ -1185,7 +1186,7 @@ export function InstagramMessagesClient({
                   </button>
                   <button
                     type="button"
-                    className="flex size-8 items-center justify-center border-l border-[#ded8ce] text-[#756f66] transition hover:bg-[#f0ece4] hover:text-[#1d1b18]"
+                    className="flex size-8 items-center justify-center border-l border-line text-muted transition hover:bg-card hover:text-ink"
                     aria-label="Close conversation"
                     title="Close conversation"
                   >
@@ -1194,7 +1195,7 @@ export function InstagramMessagesClient({
                 </div>
                 <button
                   type="button"
-                  className="flex size-8 items-center justify-center rounded-md text-[#756f66] transition hover:bg-[#f0ece4] hover:text-[#1d1b18]"
+                  className="flex size-8 items-center justify-center rounded-md text-muted transition hover:bg-card hover:text-ink"
                   aria-label="More actions"
                   title="More actions"
                 >
@@ -1204,14 +1205,14 @@ export function InstagramMessagesClient({
             </header>
 
             {error ? (
-              <div className="border-b border-[#f0d4d4] bg-[#fff7f7] px-5 py-3 text-[13px] text-danger">
+              <div className="dashboard-ui-label border-b border-danger/30 bg-danger/10 px-5 py-3 text-danger">
                 {error}
               </div>
             ) : null}
 
-            <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto bg-[#f4f2ed] px-5 py-5">
+            <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto bg-card px-5 py-5">
               {isLoadingThread ? (
-                <div className="flex items-center gap-2 text-[13px] text-[#817b70]">
+                <div className="dashboard-ui-label flex items-center gap-2 text-muted">
                   <Loader2 className="size-4 animate-spin" strokeWidth={1.8} />
                   Loading thread
                 </div>
@@ -1225,11 +1226,11 @@ export function InstagramMessagesClient({
                     <Fragment key={message.id}>
                       {showDivider ? (
                         <div className="my-1 flex items-center gap-3 text-center">
-                          <span className="h-px flex-1 bg-[#ded8ce]" />
-                          <span className="text-[10px] font-semibold uppercase leading-4 text-[#9b958b]">
+                          <span className="h-px flex-1 bg-line" />
+                          <span className="dashboard-ui-meta font-semibold uppercase text-muted">
                             {dayLabel}
                           </span>
-                          <span className="h-px flex-1 bg-[#ded8ce]" />
+                          <span className="h-px flex-1 bg-line" />
                         </div>
                       ) : null}
 
@@ -1263,7 +1264,7 @@ export function InstagramMessagesClient({
                         >
                           {showAuthor ? (
                             <div
-                              className={`flex gap-2 px-1 text-[11px] leading-4 text-[#817b70] ${
+                              className={`dashboard-ui-meta flex gap-2 px-1 text-muted ${
                                 isUser ? "justify-end" : ""
                               }`}
                             >
@@ -1279,10 +1280,10 @@ export function InstagramMessagesClient({
                           ) : null}
 
                           <div
-                            className={`w-fit whitespace-pre-wrap break-words rounded-[15px] px-3.5 py-2 text-[13px] leading-5 ${
+                            className={`dashboard-ui-label w-fit whitespace-pre-wrap break-words rounded-lg px-3.5 py-2 ${
                               isUser
-                                ? "rounded-br-[5px] bg-[#1d1b18] text-white"
-                                : "rounded-bl-[5px] border border-[#ded8ce] bg-[#fbfaf7] text-[#1d1b18]"
+                                ? "bg-ink text-paper"
+                                : "border border-line bg-paper text-ink"
                             }`}
                           >
                             {message.messageText ? (
@@ -1300,7 +1301,7 @@ export function InstagramMessagesClient({
                   );
                 })
               ) : (
-                <div className="flex flex-1 items-center justify-center text-[13px] text-[#817b70]">
+                <div className="dashboard-ui-label flex flex-1 items-center justify-center text-muted">
                   No messages yet.
                 </div>
               )}
@@ -1308,39 +1309,39 @@ export function InstagramMessagesClient({
             </div>
 
             {isSuggestionOpen ? (
-              <div className="border-t border-[#e7e3db] bg-[#eee8ff] px-5 py-3">
+              <div className="border-t border-line bg-cta/10 px-5 py-3">
                 <div className="flex items-start gap-3">
-                  <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-[#fbfaf7] text-[#4e45a5]">
+                  <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-paper text-cta-edge">
                     <Bot className="size-4" strokeWidth={1.8} />
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <p className="text-[12px] font-semibold uppercase leading-4 text-[#4e45a5]">
+                      <p className="dashboard-ui-meta font-semibold uppercase text-cta-edge">
                         Suggested reply
                       </p>
-                      <p className="hidden text-[12px] leading-4 text-[#7068bc] sm:block">
+                      <p className="dashboard-ui-meta hidden text-cta-edge sm:block">
                         Warm, concise, brand-safe
                       </p>
                     </div>
-                    <p className="mt-1 text-[13px] leading-5 text-[#292642]">
+                    <p className="dashboard-ui-label mt-1 text-ink">
                       {suggestedReply}
                     </p>
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       <button
                         type="button"
                         onClick={() => setDraft(suggestedReply)}
-                        className="rounded-md bg-[#1d1b18] px-3 py-1.5 text-[12px] font-medium text-white transition hover:opacity-90"
+                        className="dashboard-ui-label rounded-lg bg-ink px-3 py-1.5 font-medium text-paper transition hover:opacity-90"
                       >
                         Insert
                       </button>
                       <button
                         type="button"
-                        className="inline-flex items-center gap-1 rounded-md border border-[#cfc8f6] bg-[#fbfaf7]/70 px-2.5 py-1.5 text-[12px] text-[#4e45a5]"
+                        className="dashboard-ui-label inline-flex items-center gap-1 rounded-lg border border-cta/30 bg-paper px-2.5 py-1.5 text-cta-edge"
                       >
                         <RefreshCw className="size-3" strokeWidth={1.8} />
                         Regenerate
                       </button>
-                      <span className="ml-auto hidden font-mono text-[10px] text-[#7068bc] sm:inline">
+                      <span className="dashboard-ui-meta ml-auto hidden font-mono text-cta-edge sm:inline">
                         ~25 words
                       </span>
                     </div>
@@ -1348,11 +1349,11 @@ export function InstagramMessagesClient({
                   <button
                     type="button"
                     onClick={() => setIsSuggestionOpen(false)}
-                    className="flex size-6 shrink-0 items-center justify-center rounded-md text-[#7068bc] transition hover:bg-[#dcd4ff]"
+                    className="flex size-6 shrink-0 items-center justify-center rounded-md text-cta-edge transition hover:bg-cta/15"
                     aria-label="Dismiss suggested reply"
                     title="Dismiss suggested reply"
                   >
-                    x
+                    <X className="size-3.5" strokeWidth={1.8} />
                   </button>
                 </div>
               </div>
@@ -1360,23 +1361,23 @@ export function InstagramMessagesClient({
 
             <form
               onSubmit={(event) => void handleSend(event)}
-              className="relative mx-5 mb-5 mt-0 flex shrink-0 flex-col overflow-visible rounded-b-[12px] border border-[#ded8ce] bg-[#fbfaf7]"
+              className="relative m-5 mt-0 flex shrink-0 flex-col overflow-visible rounded-lg border border-line bg-paper"
             >
-              <div className="flex items-center gap-2 border-b border-[#eeeae4] px-3 py-2">
+              <div className="flex items-center gap-2 border-b border-line px-3 py-2">
                 <button
                   type="button"
-                  className="rounded-full bg-[#f0ece4] px-3 py-1 text-[12px] font-medium text-[#1d1b18]"
+                  className="dashboard-ui-label rounded-md bg-ink px-3 py-1 font-medium text-paper"
                 >
                   Reply
                 </button>
                 <button
                   type="button"
-                  className="rounded-full px-3 py-1 text-[12px] text-[#756f66] transition hover:bg-[#f0ece4] hover:text-[#1d1b18]"
+                  className="dashboard-ui-label rounded-md px-3 py-1 text-muted transition hover:bg-card hover:text-ink"
                 >
                   Internal note
                 </button>
                 {selectedThreadAccount ? (
-                  <span className="ml-auto hidden min-w-0 items-center gap-1.5 truncate text-[11px] text-[#817b70] sm:inline-flex">
+                  <span className="dashboard-ui-meta ml-auto hidden min-w-0 items-center gap-1.5 truncate text-muted sm:inline-flex">
                     <span
                       className="size-1.5 shrink-0 rounded-[2px]"
                       style={{
@@ -1385,7 +1386,7 @@ export function InstagramMessagesClient({
                       aria-hidden
                     />
                     As{" "}
-                    <span className="truncate font-medium text-[#1d1b18]">
+                    <span className="truncate font-medium text-ink">
                       {accountDisplayName(selectedThreadAccount)}
                     </span>
                     <span>/ IG</span>
@@ -1399,23 +1400,23 @@ export function InstagramMessagesClient({
                 onKeyDown={handleComposerKeyDown}
                 maxLength={2000}
                 rows={3}
-                className="min-h-20 resize-none bg-transparent px-4 py-3 text-[14px] leading-6 text-[#1d1b18] outline-none placeholder:text-[#9b958b]"
+                className="dashboard-ui-label min-h-20 resize-none bg-transparent px-4 py-3 text-ink outline-none placeholder:text-muted"
                 placeholder="Type a reply. Use Enter to send, Shift+Enter for a new line."
               />
 
-              <div className="flex items-center justify-between gap-3 border-t border-[#eeeae4] px-3 py-2">
+              <div className="flex items-center justify-between gap-3 border-t border-line px-3 py-2">
                 <div className="relative flex items-center gap-1">
                   <button
                     type="button"
                     onClick={() => setIsSavedRepliesOpen((open) => !open)}
-                    className="inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-[12px] text-[#756f66] transition hover:bg-[#f0ece4] hover:text-[#1d1b18]"
+                    className="dashboard-ui-label inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-muted transition hover:bg-card hover:text-ink"
                   >
                     <Bookmark className="size-3.5" strokeWidth={1.7} />
                     Saved
                   </button>
                   <button
                     type="button"
-                    className="flex size-8 items-center justify-center rounded-md text-[#756f66] transition hover:bg-[#f0ece4] hover:text-[#1d1b18]"
+                    className="flex size-8 items-center justify-center rounded-md text-muted transition hover:bg-card hover:text-ink"
                     aria-label="Add media"
                     title="Add media"
                   >
@@ -1423,7 +1424,7 @@ export function InstagramMessagesClient({
                   </button>
                   <button
                     type="button"
-                    className="flex size-8 items-center justify-center rounded-md text-[#756f66] transition hover:bg-[#f0ece4] hover:text-[#1d1b18]"
+                    className="flex size-8 items-center justify-center rounded-md text-muted transition hover:bg-card hover:text-ink"
                     aria-label="Add emoji"
                     title="Add emoji"
                   >
@@ -1432,7 +1433,7 @@ export function InstagramMessagesClient({
                   <button
                     type="button"
                     onClick={() => setIsSuggestionOpen(true)}
-                    className="flex size-8 items-center justify-center rounded-md text-[#756f66] transition hover:bg-[#f0ece4] hover:text-[#1d1b18]"
+                    className="flex size-8 items-center justify-center rounded-md text-muted transition hover:bg-card hover:text-ink"
                     aria-label="Show suggested reply"
                     title="Show suggested reply"
                   >
@@ -1440,8 +1441,8 @@ export function InstagramMessagesClient({
                   </button>
 
                   {isSavedRepliesOpen ? (
-                    <div className="absolute bottom-[calc(100%+8px)] left-0 z-20 w-[320px] rounded-[10px] border border-[#ded8ce] bg-[#fbfaf7] p-1.5 shadow-[0_18px_50px_rgba(44,39,31,0.18)]">
-                      <p className="px-2 py-1.5 text-[10px] font-semibold uppercase leading-4 text-[#9b958b]">
+                    <div className="absolute bottom-[calc(100%+8px)] left-0 z-20 w-[320px] rounded-lg border border-line bg-paper p-1.5">
+                      <p className="dashboard-ui-meta px-2 py-1.5 font-semibold uppercase text-muted">
                         Saved replies
                       </p>
                       {SAVED_REPLIES.map((reply) => (
@@ -1452,12 +1453,12 @@ export function InstagramMessagesClient({
                             setDraft(reply.preview);
                             setIsSavedRepliesOpen(false);
                           }}
-                          className="block w-full rounded-md px-2 py-2 text-left transition hover:bg-[#f0ece4]"
+                          className="block w-full rounded-md px-2 py-2 text-left transition hover:bg-card"
                         >
-                          <span className="block text-[12px] font-medium text-[#1d1b18]">
+                          <span className="dashboard-ui-label block font-medium text-ink">
                             {reply.label}
                           </span>
-                          <span className="mt-0.5 block truncate text-[11px] text-[#817b70]">
+                          <span className="dashboard-ui-meta mt-0.5 block truncate text-muted">
                             {reply.preview}
                           </span>
                         </button>
@@ -1469,14 +1470,14 @@ export function InstagramMessagesClient({
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    className="hidden rounded-md border border-[#ded8ce] px-2.5 py-1.5 text-[12px] text-[#5f594f] transition hover:bg-[#f0ece4] hover:text-[#1d1b18] sm:inline-flex"
+                    className="dashboard-ui-label hidden rounded-lg border border-line px-2.5 py-1.5 text-muted transition hover:bg-card hover:text-ink sm:inline-flex"
                   >
                     Send later
                   </button>
                   <button
                     type="submit"
                     disabled={!draft.trim() || isSending}
-                    className="inline-flex h-9 items-center gap-2 rounded-md bg-[#1d1b18] px-3 text-[13px] font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:bg-[#ded8ce] disabled:text-[#817b70]"
+                    className="dashboard-ui-label inline-flex h-9 items-center gap-2 rounded-lg bg-ink px-3 font-medium text-paper transition hover:opacity-90 disabled:cursor-not-allowed disabled:bg-line disabled:text-muted"
                   >
                     {isSending ? (
                       <Loader2 className="size-4 animate-spin" strokeWidth={1.8} />
@@ -1491,13 +1492,13 @@ export function InstagramMessagesClient({
           </>
         ) : (
           <div className="flex min-h-0 flex-1 items-center justify-center p-6 text-center">
-            <div className="flex max-w-sm flex-col items-center gap-3 text-[#817b70]">
-              <Inbox className="size-10 text-[#b5aea3]" strokeWidth={1.5} />
+            <div className="flex max-w-sm flex-col items-center gap-3 text-muted">
+              <Inbox className="size-10 text-muted" strokeWidth={1.5} />
               <div>
-                <p className="text-[14px] font-semibold text-[#1d1b18]">
+                <p className="dashboard-ui-label font-semibold text-ink">
                   No conversation selected
                 </p>
-                <p className="mt-1 text-[13px] leading-5">
+                <p className="dashboard-ui-label mt-1 text-muted">
                   {accounts.length
                     ? "Choose a conversation from the inbox."
                     : "Connect an Instagram account first."}
