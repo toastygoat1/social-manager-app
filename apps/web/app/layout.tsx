@@ -21,7 +21,7 @@ const copse = Copse({
 });
 
 export const metadata: Metadata = {
-  title: "Social Manager",
+  title: "Snowflake",
   description: "Social media management dashboard",
 };
 
