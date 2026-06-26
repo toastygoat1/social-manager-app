@@ -1,6 +1,8 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { WorkspaceService } from '../workspace/workspace.service.js';
+import type { AnalyticsService } from '../analytics/analytics.service.js';
+import type { PrismaService } from '../prisma/prisma.service.js';
 import {
   WORKSPACE_TASK_STATUSES,
   WORKSPACE_TASK_URGENCIES,
@@ -9,6 +11,19 @@ import {
 export interface McpUserContext {
   userId: string;
   email: string;
+}
+
+export interface McpDeps {
+  workspace: WorkspaceService;
+  analytics: AnalyticsService;
+  prisma: PrismaService;
+}
+
+const POST_STATUSES = ['DRAFT', 'PENDING', 'READY', 'PUBLISHED', 'REMOVED'] as const;
+
+function truncate(value: string | null | undefined, max = 140): string {
+  if (!value) return '';
+  return value.length > max ? `${value.slice(0, max)}…` : value;
 }
 
 const deadlineSchema = z
@@ -30,9 +45,10 @@ function jsonResult(value: unknown) {
  * wrappers over WorkspaceService, so all validation/ownership rules are reused.
  */
 export function buildMcpServer(
-  workspace: WorkspaceService,
+  deps: McpDeps,
   user: McpUserContext,
 ): McpServer {
+  const { workspace, analytics, prisma } = deps;
   const server = new McpServer({
     name: 'social-manager-workspace',
     version: '1.0.0',
@@ -41,7 +57,7 @@ export function buildMcpServer(
   server.registerTool(
     'list_folders',
     {
-      title: 'List workspace folders',
+      title: 'List Folders',
       description:
         'List all workspace folders for the current user, including their tasks. ' +
         'Use this first to discover the folderId you need before creating a task.',
@@ -70,7 +86,7 @@ export function buildMcpServer(
   server.registerTool(
     'create_folder',
     {
-      title: 'Create a workspace folder',
+      title: 'Create Folder',
       description:
         'Create a new workspace folder (a column / table) for tasks.',
       inputSchema: {
@@ -88,7 +104,7 @@ export function buildMcpServer(
   server.registerTool(
     'create_task',
     {
-      title: 'Create a workspace task',
+      title: 'Create Task',
       description:
         'Add a new task to a workspace folder. Call list_folders first to get a valid folderId.',
       inputSchema: {
@@ -150,7 +166,7 @@ export function buildMcpServer(
   server.registerTool(
     'update_task',
     {
-      title: 'Update a workspace task',
+      title: 'Update Task',
       description:
         'Update fields on an existing task. Only provided fields are changed.',
       inputSchema: {
@@ -170,6 +186,142 @@ export function buildMcpServer(
     async ({ taskId, ...body }) => {
       const task = await workspace.updateTask(user.userId, taskId, body);
       return jsonResult({ task });
+    },
+  );
+
+  // ---- Read tools (concise projections to keep token usage low) -----------
+
+  server.registerTool(
+    'list_instagram_accounts',
+    {
+      title: 'List Instagram Accounts',
+      description:
+        "List the user's connected Instagram accounts. Use the returned id " +
+        'to filter content posts or analytics.',
+      inputSchema: {},
+    },
+    async () => {
+      const accounts = await prisma.instagramAccount.findMany({
+        where: { userId: user.userId, isActive: true },
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          username: true,
+          displayName: true,
+          accountType: true,
+        },
+      });
+      return jsonResult({ accounts });
+    },
+  );
+
+  server.registerTool(
+    'list_content_posts',
+    {
+      title: 'List Content Posts',
+      description:
+        'List the content calendar posts (captions, status, schedule). ' +
+        'Filter by account or status, and keep limit small to save tokens.',
+      inputSchema: {
+        accountId: z
+          .string()
+          .uuid()
+          .optional()
+          .describe('Only posts for this Instagram account id'),
+        status: z
+          .enum(POST_STATUSES)
+          .optional()
+          .describe('Filter by post status'),
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(100)
+          .optional()
+          .describe('Max posts to return (default 20)'),
+      },
+    },
+    async ({ accountId, status, limit }) => {
+      const posts = await prisma.contentPost.findMany({
+        where: {
+          status,
+          instagramAccount: { userId: user.userId },
+          ...(accountId ? { instagramAccountId: accountId } : {}),
+        },
+        orderBy: [{ scheduledFor: 'desc' }, { createdAt: 'desc' }],
+        take: limit ?? 20,
+        select: {
+          id: true,
+          instagramAccountId: true,
+          postType: true,
+          status: true,
+          caption: true,
+          scheduledFor: true,
+          publishedAt: true,
+          igPermalink: true,
+          instagramAccount: { select: { username: true } },
+        },
+      });
+
+      return jsonResult({
+        posts: posts.map((post) => ({
+          id: post.id,
+          accountId: post.instagramAccountId,
+          username: post.instagramAccount.username,
+          postType: post.postType,
+          status: post.status,
+          caption: truncate(post.caption),
+          scheduledFor: post.scheduledFor,
+          publishedAt: post.publishedAt,
+          permalink: post.igPermalink,
+        })),
+      });
+    },
+  );
+
+  server.registerTool(
+    'get_analytics_overview',
+    {
+      title: 'Get Analytics Overview',
+      description:
+        'Headline performance metrics and per-account summary for a time ' +
+        'range. Returns only summary stats (not full series) to save tokens.',
+      inputSchema: {
+        accountId: z
+          .string()
+          .uuid()
+          .optional()
+          .describe('Scope to one account (defaults to all)'),
+        range: z
+          .string()
+          .optional()
+          .describe('Range like "7d", "30d", "90d" (defaults to app default)'),
+      },
+    },
+    async ({ accountId, range }) => {
+      const overview = await analytics.getOverview(user.userId, {
+        accountId,
+        range,
+      });
+      return jsonResult({
+        rangeDays: overview.rangeDays,
+        lastUpdatedAt: overview.lastUpdatedAt,
+        stats: overview.statGrid.map((stat) => ({
+          title: stat.title,
+          value: stat.value,
+          delta: stat.delta,
+          trend: stat.trend,
+        })),
+        accounts: overview.leaderboard.map((entry) => ({
+          username: entry.account.username,
+          postCount: entry.postCount,
+          followers: entry.followers,
+          views: entry.views,
+          reach: entry.reach,
+          interactions: entry.interactions,
+          engagementRate: entry.engagementRate,
+        })),
+      });
     },
   );
 

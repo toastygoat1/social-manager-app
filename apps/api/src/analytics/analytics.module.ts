@@ -8,5 +8,6 @@ import { AnalyticsService } from './analytics.service.js';
   imports: [MediaModule, AiModule],
   controllers: [AnalyticsController],
   providers: [AnalyticsService],
+  exports: [AnalyticsService],
 })
 export class AnalyticsModule {}

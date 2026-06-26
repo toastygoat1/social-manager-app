@@ -18,6 +18,8 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { WorkspaceService } from '../workspace/workspace.service.js';
+import { AnalyticsService } from '../analytics/analytics.service.js';
+import { PrismaService } from '../prisma/prisma.service.js';
 import { buildMcpServer } from './mcp-tools.js';
 import { OAuthStore } from './oauth-store.js';
 import { SupabaseTokenVerifier } from './supabase-token.verifier.js';
@@ -40,6 +42,8 @@ export class McpController {
 
   constructor(
     private readonly workspace: WorkspaceService,
+    private readonly analytics: AnalyticsService,
+    private readonly prisma: PrismaService,
     private readonly store: OAuthStore,
     private readonly verifier: SupabaseTokenVerifier,
     private readonly config: ConfigService,
@@ -334,10 +338,17 @@ export class McpController {
         return;
       }
 
-      const server = buildMcpServer(this.workspace, {
-        userId: tokenRecord.userId,
-        email: tokenRecord.email,
-      });
+      const server = buildMcpServer(
+        {
+          workspace: this.workspace,
+          analytics: this.analytics,
+          prisma: this.prisma,
+        },
+        {
+          userId: tokenRecord.userId,
+          email: tokenRecord.email,
+        },
+      );
       const transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: () => randomUUID(),
         onsessioninitialized: (sid) => {

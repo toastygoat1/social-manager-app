@@ -29,6 +29,19 @@ infra/
   docker/    # Docker-related files
 ```
 
+## MCP connector
+
+A remote MCP server lets Claude (via a Claude.ai custom connector) read/write the
+user's workspace folders, tasks, and Instagram data. It lives in
+[apps/api/src/mcp](apps/api/src/mcp) and authenticates users through Supabase via an
+embedded OAuth 2.1 bridge. Tools are thin wrappers over existing services.
+
+**Full docs:** [apps/api/src/mcp/README.md](apps/api/src/mcp/README.md) — read this
+before changing anything MCP-related. Add/edit tools only in
+[apps/api/src/mcp/mcp-tools.ts](apps/api/src/mcp/mcp-tools.ts) (`buildMcpServer`).
+Needs `MCP_PUBLIC_URL` (public HTTPS API URL) and `WEB_ORIGIN` (web app origin) set
+for production.
+
 ## Dev auth bypass
 
 Skips Supabase auth on `/dashboard` and authorizes API requests as a fixed user.
