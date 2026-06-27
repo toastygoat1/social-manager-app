@@ -1522,8 +1522,8 @@ function FolderCover({
     <span
       className={`relative block overflow-hidden bg-card transition-[width,height,border-radius,border-color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
         compact
-          ? "size-full rounded-lg"
-          : "h-[86px] w-full rounded-t-md border-b border-line"
+          ? "h-9 w-9 rounded-lg"
+          : "h-[86px] w-[226px] rounded-t-md border-b border-line"
       }`}
     >
       {workspace.bannerImageUrl ? (
@@ -1531,7 +1531,7 @@ function FolderCover({
           src={workspace.bannerImageUrl}
           alt=""
           fill
-          sizes={compact ? "44px" : "230px"}
+          sizes={compact ? "36px" : "226px"}
           unoptimized
           className="absolute inset-0 h-full w-full object-cover"
         />
@@ -1578,18 +1578,18 @@ function FolderSidebarItem({
         className={`relative overflow-visible transition-[width,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
           collapsed
             ? "mx-auto w-11 translate-y-0"
-            : "w-full translate-y-0"
+            : "w-[236px] translate-y-0"
         }`}
       >
         <div
-          className={`relative overflow-visible border bg-paper transition-[background-color,border-color,border-radius,padding,box-shadow,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 motion-reduce:transition-none ${
+          className={`relative overflow-visible border bg-paper transition-[width,height,background-color,border-color,border-radius,padding,box-shadow,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 motion-reduce:transition-none ${
             collapsed
-              ? `size-11 rounded-xl p-1 ${
+              ? `h-11 w-11 rounded-xl p-1 ${
                   selected
                     ? "border-cta/60 bg-cta/10"
                     : "border-transparent hover:border-line hover:bg-card"
                 }`
-              : `w-full rounded-lg p-1 ${
+              : `h-[126px] w-[236px] rounded-lg p-1 ${
                   selected
                     ? "border-ink/70 ring-2 ring-ink/20"
                     : "border-line hover:border-ink/35 hover:bg-card/60"
@@ -1603,14 +1603,14 @@ function FolderSidebarItem({
             aria-label={`${title} folder, ${workspace.tasks.length} rows`}
             title={collapsed ? title : undefined}
             onClick={onSelect}
-            className={`block w-full overflow-hidden text-left outline-none transition-[border-radius] duration-500 focus-visible:ring-2 focus-visible:ring-ink/70 ${
-              collapsed ? "h-full rounded-lg" : "rounded-md"
+            className={`block overflow-hidden text-left outline-none transition-[width,height,border-radius] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] focus-visible:ring-2 focus-visible:ring-ink/70 ${
+              collapsed ? "h-9 w-9 rounded-lg" : "h-[118px] w-[226px] rounded-md"
             }`}
           >
             <FolderCover workspace={workspace} compact={collapsed} />
             <span
               className={`flex items-center gap-2 overflow-hidden bg-paper px-2 transition-[height,opacity] duration-300 ease-out ${
-                collapsed ? "h-0 opacity-0" : "h-8 opacity-100"
+                collapsed ? "h-0 opacity-0 delay-0" : "h-8 opacity-100 delay-150"
               }`}
             >
               <FileText
@@ -2974,7 +2974,7 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
   const hasPartialTaskSelection =
     selectedTaskCount > 0 && selectedTaskCount < selectedTasks.length;
   const folderSidebarClassName = `flex shrink-0 flex-col overflow-hidden border-r border-line bg-paper transition-[width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
-    isFolderSidebarCollapsed ? "w-[72px]" : "w-[252px]"
+    isFolderSidebarCollapsed ? "w-16" : "w-[252px]"
   }`;
 
   const applyLoadedWorkspaces = useCallback(
