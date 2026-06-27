@@ -158,12 +158,18 @@ const EMPTY_TASKS: WorkplaceTask[] = [];
 const CALENDAR_WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const WORKPLACE_ACCENT_DEFAULT = "#ffffff";
 const WORKPLACE_COLOR_OPTIONS = [
-  WORKPLACE_ACCENT_DEFAULT,
-  "#fb858b",
-  "#89a7ff",
-  "#7fc8b8",
-  "#c393e8",
-  "#d4a547",
+  "#5b5ce2",
+  "#5f6eea",
+  "#2f8de4",
+  "#2a9d8f",
+  "#2f9d6d",
+  "#c99a14",
+  "#ff5a1f",
+  "#e34d5a",
+  "#d94f91",
+  "#9b63c8",
+  "#8c7468",
+  "#858b8f",
 ];
 const WORKPLACE_ICON_OPTIONS = [
   { id: "workplace", label: "Workplace", Icon: Building2 },
@@ -226,10 +232,12 @@ const WORKPLACE_ICON_OPTIONS = [
   Icon: LucideIcon;
 }[];
 const WORKPLACE_OPTIONS_MENU_WIDTH = 244;
-const WORKPLACE_OPTIONS_MENU_HEIGHT = 76;
+const WORKPLACE_OPTIONS_MENU_HEIGHT = 108;
 const WORKPLACE_PICKER_WIDTH = 316;
 const WORKPLACE_PICKER_HEIGHT = 284;
-const WORKPLACE_MENU_ARROW_RIGHT_INSET = 12;
+const WORKPLACE_COLOR_MENU_WIDTH = 194;
+const WORKPLACE_COLOR_MENU_HEIGHT = 78;
+const WORKPLACE_MENU_ARROW_RIGHT_INSET = 0;
 const WORKPLACE_POPOVER_GAP = 8;
 const VIEWPORT_PADDING = 8;
 const ROW_NUMBER_COLUMN_WIDTH = 44;
@@ -895,6 +903,35 @@ function getWorkplacePickerPosition(menuPosition: { left: number; top: number })
   );
 
   return { left, top };
+}
+
+function getWorkplaceColorMenuPosition(anchorRect: FloatingAnchorRect) {
+  if (typeof window === "undefined") {
+    return {
+      left: anchorRect.right + WORKPLACE_POPOVER_GAP,
+      top: anchorRect.top,
+    };
+  }
+
+  const rightSideLeft = anchorRect.right + WORKPLACE_POPOVER_GAP;
+  const leftSideLeft =
+    anchorRect.left - WORKPLACE_COLOR_MENU_WIDTH - WORKPLACE_POPOVER_GAP;
+  const fitsRight =
+    rightSideLeft + WORKPLACE_COLOR_MENU_WIDTH <=
+    window.innerWidth - VIEWPORT_PADDING;
+  const left = fitsRight
+    ? rightSideLeft
+    : Math.max(VIEWPORT_PADDING, leftSideLeft);
+  const maxTop =
+    window.innerHeight - WORKPLACE_COLOR_MENU_HEIGHT - VIEWPORT_PADDING;
+
+  return {
+    left,
+    top: Math.min(
+      Math.max(anchorRect.top, VIEWPORT_PADDING),
+      Math.max(maxTop, VIEWPORT_PADDING),
+    ),
+  };
 }
 
 function getErrorMessage(error: unknown) {
@@ -1700,6 +1737,7 @@ type WorkplaceTabProps = {
   selected: boolean;
   onSelect: () => void;
   onRename: () => void;
+  onDelete: () => void;
   onColorChange: (color: string) => void;
   onIconChange: (icon: string) => void;
 };
@@ -1710,6 +1748,7 @@ function WorkplaceSidebarItem({
   selected,
   onSelect,
   onRename,
+  onDelete,
   onColorChange,
   onIconChange,
 }: WorkplaceTabProps & { collapsed: boolean }) {
@@ -1720,11 +1759,14 @@ function WorkplaceSidebarItem({
   const title = workspace.name.trim() || "Workplace";
   const menuRef = useRef<HTMLDivElement | null>(null);
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
+  const colorButtonRef = useRef<HTMLButtonElement | null>(null);
   const popoverRef = useRef<HTMLDivElement | null>(null);
   const [workplaceMenuOpen, setWorkplaceMenuOpen] = useState(false);
   const [pickerMenuOpen, setPickerMenuOpen] = useState(false);
   const [colorPaletteOpen, setColorPaletteOpen] = useState(false);
   const [menuAnchorRect, setMenuAnchorRect] =
+    useState<FloatingAnchorRect | null>(null);
+  const [colorAnchorRect, setColorAnchorRect] =
     useState<FloatingAnchorRect | null>(null);
   const [iconSearch, setIconSearch] = useState("");
   const menuOpen = workplaceMenuOpen || pickerMenuOpen;
@@ -1734,6 +1776,10 @@ function WorkplaceSidebarItem({
   const workplacePickerPosition = workplaceMenuPosition
     ? getWorkplacePickerPosition(workplaceMenuPosition)
     : null;
+  const workplaceColorMenuPosition =
+    colorPaletteOpen && colorAnchorRect
+      ? getWorkplaceColorMenuPosition(colorAnchorRect)
+      : null;
   const filteredIconOptions = useMemo(() => {
     const query = iconSearch.trim().toLowerCase();
     if (!query) return WORKPLACE_ICON_OPTIONS;
@@ -1748,6 +1794,7 @@ function WorkplaceSidebarItem({
     setPickerMenuOpen(false);
     setColorPaletteOpen(false);
     setMenuAnchorRect(null);
+    setColorAnchorRect(null);
     setIconSearch("");
   }, []);
 
@@ -1755,6 +1802,12 @@ function WorkplaceSidebarItem({
     const button = menuButtonRef.current;
     if (!button) return;
     setMenuAnchorRect(getFloatingAnchorRect(button));
+  }, []);
+
+  const updateColorAnchor = useCallback(() => {
+    const button = colorButtonRef.current;
+    if (!button) return;
+    setColorAnchorRect(getFloatingAnchorRect(button));
   }, []);
 
   useEffect(() => {
@@ -1790,6 +1843,7 @@ function WorkplaceSidebarItem({
 
     function handleReposition() {
       updateMenuAnchor();
+      updateColorAnchor();
     }
 
     window.addEventListener("resize", handleReposition);
@@ -1799,7 +1853,7 @@ function WorkplaceSidebarItem({
       window.removeEventListener("resize", handleReposition);
       window.removeEventListener("scroll", handleReposition, true);
     };
-  }, [menuOpen, updateMenuAnchor]);
+  }, [menuOpen, updateColorAnchor, updateMenuAnchor]);
 
   return (
     <div
@@ -1902,7 +1956,7 @@ function WorkplaceSidebarItem({
                       <button
                         type="button"
                         role="menuitem"
-                        onMouseEnter={() => {
+                        onMouseMove={() => {
                           updateMenuAnchor();
                           setPickerMenuOpen(true);
                           setColorPaletteOpen(false);
@@ -1939,6 +1993,18 @@ function WorkplaceSidebarItem({
                       >
                         <Pencil className="size-4 text-muted" strokeWidth={1.8} />
                         <span className="min-w-0 flex-1 text-left">Rename</span>
+                      </button>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          closeMenus();
+                          onDelete();
+                        }}
+                        className="flex h-8 w-full items-center gap-2 px-3 text-sm text-danger transition hover:bg-danger/10 focus:bg-danger/10 focus:outline-none"
+                      >
+                        <Trash2 className="size-4" strokeWidth={1.8} />
+                        <span className="min-w-0 flex-1 text-left">Delete</span>
                       </button>
                     </div>
                   ) : null}
@@ -1978,12 +2044,15 @@ function WorkplaceSidebarItem({
                         </label>
 
                         <button
+                          ref={colorButtonRef}
                           type="button"
                           aria-label="Show workplace colors"
                           aria-expanded={colorPaletteOpen}
-                          onClick={() =>
-                            setColorPaletteOpen((current) => !current)
-                          }
+                          onClick={() => {
+                            const nextOpen = !colorPaletteOpen;
+                            if (nextOpen) updateColorAnchor();
+                            setColorPaletteOpen(nextOpen);
+                          }}
                           className="grid size-8 shrink-0 place-items-center rounded-md border border-line bg-paper transition hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70"
                         >
                           <span
@@ -1992,41 +2061,6 @@ function WorkplaceSidebarItem({
                           />
                         </button>
                       </div>
-
-                      {colorPaletteOpen ? (
-                        <div
-                          className="mt-2 flex items-center gap-1 rounded-md border border-line bg-paper p-1"
-                          role="group"
-                          aria-label="Workplace accent colors"
-                        >
-                          {WORKPLACE_COLOR_OPTIONS.map((color) => (
-                            <button
-                              key={color}
-                              type="button"
-                              aria-label={`Set workplace color ${color}`}
-                              aria-pressed={
-                                workplaceColor.toLowerCase() ===
-                                color.toLowerCase()
-                              }
-                              onClick={() => {
-                                onColorChange(color);
-                                closeMenus();
-                              }}
-                              className={`grid size-8 place-items-center rounded-md border transition hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 ${
-                                workplaceColor.toLowerCase() ===
-                                color.toLowerCase()
-                                  ? "border-ink"
-                                  : "border-line"
-                              }`}
-                            >
-                              <span
-                                className="size-4 rounded-full border border-line"
-                                style={{ backgroundColor: color }}
-                              />
-                            </button>
-                          ))}
-                        </div>
-                      ) : null}
 
                       <div
                         className="scrollbar-none mt-2 grid max-h-[196px] grid-cols-5 gap-1 overflow-y-auto"
@@ -2063,6 +2097,48 @@ function WorkplaceSidebarItem({
                             No icons found
                           </div>
                         ) : null}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {colorPaletteOpen && workplaceColorMenuPosition ? (
+                    <div
+                      className="workspace-popover-enter pointer-events-auto fixed rounded-lg border border-line bg-paper p-2 shadow-xl"
+                      role="group"
+                      aria-label="Workplace accent colors"
+                      style={{
+                        left: workplaceColorMenuPosition.left,
+                        top: workplaceColorMenuPosition.top,
+                        width: WORKPLACE_COLOR_MENU_WIDTH,
+                      }}
+                    >
+                      <div className="grid grid-cols-8 gap-1">
+                        {WORKPLACE_COLOR_OPTIONS.map((color) => (
+                          <button
+                            key={color}
+                            type="button"
+                            aria-label={`Set workplace color ${color}`}
+                            aria-pressed={
+                              workplaceColor.toLowerCase() ===
+                              color.toLowerCase()
+                            }
+                            onClick={() => {
+                              onColorChange(color);
+                              closeMenus();
+                            }}
+                            className={`grid size-5 place-items-center rounded-full transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 ${
+                              workplaceColor.toLowerCase() ===
+                              color.toLowerCase()
+                                ? "ring-2 ring-ink ring-offset-2"
+                                : ""
+                            }`}
+                          >
+                            <span
+                              className="size-4 rounded-full"
+                              style={{ backgroundColor: color }}
+                            />
+                          </button>
+                        ))}
                       </div>
                     </div>
                   ) : null}
@@ -3759,6 +3835,38 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
     }
   }
 
+  async function deleteWorkplace(workspace: Workplace) {
+    const title = workspace.name.trim() || "Workplace";
+    if (!window.confirm(`Delete ${title}?`)) return;
+
+    const remainingWorkplaces = workspaces.filter(
+      (currentWorkspace) => currentWorkspace.id !== workspace.id,
+    );
+
+    setSyncError(null);
+    setSelectedTaskIds(new Set());
+    setWorkspaces(remainingWorkplaces);
+    setSelectedWorkspaceId((currentSelectedId) =>
+      currentSelectedId === workspace.id
+        ? remainingWorkplaces[0]?.id ?? EMPTY_SELECTED_WORKSPACE_ID
+        : currentSelectedId,
+    );
+
+    try {
+      setIsSyncing(true);
+      await apiFetchBrowser(`/workspace/workplaces/${workspace.id}`, {
+        method: "DELETE",
+      });
+    } catch (error) {
+      setSyncError(getErrorMessage(error));
+      void loadWorkplaces(selectedWorkspaceId).catch((reloadError) =>
+        setSyncError(getErrorMessage(reloadError)),
+      );
+    } finally {
+      setIsSyncing(false);
+    }
+  }
+
   async function deleteSelectedTasks() {
     if (!selectedWorkspace || selectedVisibleTaskIds.length === 0) return;
 
@@ -3977,6 +4085,9 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
               onSelect={() => setSelectedWorkspaceId(workspace.id)}
               onRename={() => {
                 void renameWorkplace(workspace);
+              }}
+              onDelete={() => {
+                void deleteWorkplace(workspace);
               }}
               onColorChange={(color) => {
                 void updateWorkplaceColor(workspace.id, color);
