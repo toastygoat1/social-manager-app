@@ -1506,26 +1506,40 @@ function AssigneeSelect({
   );
 }
 
-function FolderCover({ workspace }: { workspace: Workspace }) {
+function FolderCover({
+  workspace,
+  compact = false,
+}: {
+  workspace: Workspace;
+  compact?: boolean;
+}) {
   const title = workspace.name.trim() || "Folder";
   const folderColor = getFolderColor(workspace);
   const textColor = getReadableTextColor(folderColor);
   const abbreviation = getFolderAbbreviation(title);
 
   return (
-    <span className="relative block h-[86px] w-full overflow-hidden rounded-t-md border-b border-line bg-card">
+    <span
+      className={`relative block overflow-hidden bg-card transition-[width,height,border-radius,border-color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
+        compact
+          ? "size-full rounded-lg"
+          : "h-[86px] w-full rounded-t-md border-b border-line"
+      }`}
+    >
       {workspace.bannerImageUrl ? (
         <Image
           src={workspace.bannerImageUrl}
           alt=""
           fill
-          sizes="230px"
+          sizes={compact ? "44px" : "230px"}
           unoptimized
           className="absolute inset-0 h-full w-full object-cover"
         />
       ) : (
         <span
-          className="absolute inset-0 flex items-center justify-center font-inter text-3xl font-semibold leading-none"
+          className={`absolute inset-0 flex items-center justify-center font-inter font-semibold leading-none transition-[font-size] duration-500 ${
+            compact ? "text-sm" : "text-3xl"
+          }`}
           style={{ backgroundColor: folderColor, color: textColor }}
           title={title}
         >
@@ -1541,153 +1555,7 @@ type FolderTileProps = {
   selected: boolean;
   onSelect: () => void;
   onColorChange: (color: string) => void;
-  interactive?: boolean;
 };
-
-function FolderMiniTile({
-  workspace,
-  selected,
-  onSelect,
-  interactive = true,
-}: FolderTileProps) {
-  const title = workspace.name.trim() || "Folder";
-  const folderColor = getFolderColor(workspace);
-  const textColor = getReadableTextColor(folderColor);
-  const abbreviation = getFolderAbbreviation(title);
-
-  return (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={selected}
-      aria-label={`${title} folder, ${workspace.tasks.length} rows`}
-      title={title}
-      onClick={onSelect}
-      tabIndex={interactive ? undefined : -1}
-      className={`group/folder relative flex size-11 items-center justify-center overflow-hidden rounded-xl border p-1 outline-none transition-[background-color,border-color,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-ink/70 ${
-        selected
-          ? "border-cta/60 bg-cta/10"
-          : "border-transparent bg-transparent hover:border-line hover:bg-card"
-      }`}
-    >
-      <span
-        aria-hidden="true"
-        className={`absolute right-0 top-1/2 h-6 w-0.5 -translate-y-1/2 rounded-l-full bg-cta transition-opacity duration-300 ${
-          selected ? "opacity-100" : "opacity-0"
-        }`}
-      />
-      <span
-        aria-hidden="true"
-        className="relative flex size-full items-center justify-center overflow-hidden rounded-lg text-sm font-semibold leading-none"
-        style={{ backgroundColor: folderColor, color: textColor }}
-      >
-        {workspace.bannerImageUrl ? (
-          <Image
-            src={workspace.bannerImageUrl}
-            alt=""
-            fill
-            sizes="48px"
-            unoptimized
-            className="absolute inset-0 h-full w-full object-cover"
-          />
-        ) : (
-          abbreviation
-        )}
-      </span>
-    </button>
-  );
-}
-
-function FolderTile({
-  workspace,
-  selected,
-  onSelect,
-  onColorChange,
-  interactive = true,
-}: FolderTileProps) {
-  const folderColor = getFolderColor(workspace);
-  const [colorMenuOpen, setColorMenuOpen] = useState(false);
-
-  return (
-    <div
-      className={`group/folder relative rounded-lg border bg-paper p-1 shadow-sm transition ${
-        selected
-          ? "border-ink/70 ring-2 ring-ink/20"
-          : "border-line hover:border-ink/35 hover:bg-card/60"
-      }`}
-    >
-      <button
-        type="button"
-        role="tab"
-        aria-selected={selected}
-        aria-label={`${workspace.name} folder, ${workspace.tasks.length} rows`}
-        onClick={onSelect}
-        tabIndex={interactive ? undefined : -1}
-        className="block w-full overflow-hidden rounded-md text-left outline-none transition focus-visible:ring-2 focus-visible:ring-ink/70"
-      >
-        <FolderCover workspace={workspace} />
-        <span className="flex h-8 items-center gap-2 bg-paper px-2">
-          <FileText
-            className="size-3.5 shrink-0 text-muted"
-            strokeWidth={1.8}
-          />
-          <span className="min-w-0 flex-1 truncate text-[11px] font-semibold uppercase text-ink">
-            {workspace.name || "Folder"}
-          </span>
-        </span>
-      </button>
-
-      <button
-        type="button"
-        aria-label="Folder options"
-        aria-expanded={colorMenuOpen}
-        onClick={() => setColorMenuOpen((current) => !current)}
-        tabIndex={interactive ? undefined : -1}
-        className={`absolute right-2 top-2 z-30 flex size-7 items-center justify-center rounded-full border border-line bg-paper/95 text-ink shadow-sm transition hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 ${
-          colorMenuOpen
-            ? "opacity-100"
-            : "opacity-0 group-hover/folder:opacity-100 group-focus-within/folder:opacity-100"
-        }`}
-      >
-        <Ellipsis className="size-4" strokeWidth={1.8} />
-      </button>
-
-      {colorMenuOpen ? (
-        <div
-          className="absolute right-2 top-10 z-30 flex items-center gap-1 rounded-full border border-line bg-paper/95 p-1 shadow-sm"
-          onMouseLeave={() => setColorMenuOpen(false)}
-          onBlur={(event) => {
-            if (!event.currentTarget.contains(event.relatedTarget)) {
-              setColorMenuOpen(false);
-            }
-          }}
-          role="group"
-          aria-label="Folder colors"
-        >
-          {FOLDER_COLOR_OPTIONS.map((color) => (
-            <button
-              key={color}
-              type="button"
-              aria-label={`Set folder color ${color}`}
-              aria-pressed={folderColor.toLowerCase() === color.toLowerCase()}
-              tabIndex={interactive ? undefined : -1}
-              onClick={() => {
-                onColorChange(color);
-                setColorMenuOpen(false);
-              }}
-              className={`size-4 rounded-full border transition hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 ${
-                folderColor.toLowerCase() === color.toLowerCase()
-                  ? "border-ink"
-                  : "border-white"
-              }`}
-              style={{ backgroundColor: color }}
-            />
-          ))}
-        </div>
-      ) : null}
-    </div>
-  );
-}
 
 function FolderSidebarItem({
   collapsed,
@@ -1696,42 +1564,123 @@ function FolderSidebarItem({
   onSelect,
   onColorChange,
 }: FolderTileProps & { collapsed: boolean }) {
+  const folderColor = getFolderColor(workspace);
+  const title = workspace.name.trim() || "Folder";
+  const [colorMenuOpen, setColorMenuOpen] = useState(false);
+
   return (
     <div
-      className={`relative overflow-visible transition-[height] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
-        collapsed ? "h-12" : "h-[130px]"
+      className={`group/folder relative shrink-0 transition-[height] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
+        collapsed ? "h-11" : "h-[126px]"
       }`}
     >
       <div
-        aria-hidden={collapsed}
-        className={`absolute left-0 top-0 w-[236px] transition-[opacity,transform,filter] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
+        className={`relative overflow-visible transition-[width,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
           collapsed
-            ? "pointer-events-none -translate-x-3 scale-[0.96] opacity-0 blur-[1px]"
-            : "pointer-events-auto translate-x-0 scale-100 opacity-100 blur-0"
+            ? "mx-auto w-11 translate-y-0"
+            : "w-full translate-y-0"
         }`}
       >
-        <FolderTile
-          workspace={workspace}
-          selected={selected}
-          onSelect={onSelect}
-          onColorChange={onColorChange}
-          interactive={!collapsed}
-        />
-      </div>
-      <div
-        className={`absolute left-1/2 top-1/2 transition-[opacity,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
-          collapsed
-            ? "pointer-events-auto -translate-x-1/2 -translate-y-1/2 scale-100 opacity-100"
-            : "pointer-events-none -translate-x-1/2 -translate-y-[42%] scale-90 opacity-0"
-        }`}
-      >
-        <FolderMiniTile
-          workspace={workspace}
-          selected={selected}
-          onSelect={onSelect}
-          onColorChange={onColorChange}
-          interactive={collapsed}
-        />
+        <div
+          className={`relative overflow-visible border bg-paper transition-[background-color,border-color,border-radius,padding,box-shadow,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 motion-reduce:transition-none ${
+            collapsed
+              ? `size-11 rounded-xl p-1 ${
+                  selected
+                    ? "border-cta/60 bg-cta/10"
+                    : "border-transparent hover:border-line hover:bg-card"
+                }`
+              : `w-full rounded-lg p-1 ${
+                  selected
+                    ? "border-ink/70 ring-2 ring-ink/20"
+                    : "border-line hover:border-ink/35 hover:bg-card/60"
+                }`
+          }`}
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={selected}
+            aria-label={`${title} folder, ${workspace.tasks.length} rows`}
+            title={collapsed ? title : undefined}
+            onClick={onSelect}
+            className={`block w-full overflow-hidden text-left outline-none transition-[border-radius] duration-500 focus-visible:ring-2 focus-visible:ring-ink/70 ${
+              collapsed ? "h-full rounded-lg" : "rounded-md"
+            }`}
+          >
+            <FolderCover workspace={workspace} compact={collapsed} />
+            <span
+              className={`flex items-center gap-2 overflow-hidden bg-paper px-2 transition-[height,opacity] duration-300 ease-out ${
+                collapsed ? "h-0 opacity-0" : "h-8 opacity-100"
+              }`}
+            >
+              <FileText
+                className="size-3.5 shrink-0 text-muted"
+                strokeWidth={1.8}
+              />
+              <span className="min-w-0 flex-1 truncate text-[11px] font-semibold uppercase text-ink">
+                {title}
+              </span>
+            </span>
+          </button>
+
+          <span
+            aria-hidden="true"
+            className={`absolute right-0 top-1/2 h-6 w-0.5 -translate-y-1/2 rounded-l-full bg-cta transition-opacity duration-300 ${
+              collapsed && selected ? "opacity-100" : "opacity-0"
+            }`}
+          />
+
+          {!collapsed ? (
+            <button
+              type="button"
+              aria-label="Folder options"
+              aria-expanded={colorMenuOpen}
+              onClick={() => setColorMenuOpen((current) => !current)}
+              className={`absolute right-2 top-2 z-30 flex size-7 items-center justify-center rounded-full border border-line bg-paper/95 text-ink shadow-sm transition hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 ${
+                colorMenuOpen
+                  ? "opacity-100"
+                  : "opacity-0 group-hover/folder:opacity-100 group-focus-within/folder:opacity-100"
+              }`}
+            >
+              <Ellipsis className="size-4" strokeWidth={1.8} />
+            </button>
+          ) : null}
+
+          {!collapsed && colorMenuOpen ? (
+            <div
+              className="absolute right-2 top-10 z-30 flex items-center gap-1 rounded-full border border-line bg-paper/95 p-1 shadow-sm"
+              onMouseLeave={() => setColorMenuOpen(false)}
+              onBlur={(event) => {
+                if (!event.currentTarget.contains(event.relatedTarget)) {
+                  setColorMenuOpen(false);
+                }
+              }}
+              role="group"
+              aria-label="Folder colors"
+            >
+              {FOLDER_COLOR_OPTIONS.map((color) => (
+                <button
+                  key={color}
+                  type="button"
+                  aria-label={`Set folder color ${color}`}
+                  aria-pressed={
+                    folderColor.toLowerCase() === color.toLowerCase()
+                  }
+                  onClick={() => {
+                    onColorChange(color);
+                    setColorMenuOpen(false);
+                  }}
+                  className={`size-4 rounded-full border transition hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 ${
+                    folderColor.toLowerCase() === color.toLowerCase()
+                      ? "border-ink"
+                      : "border-white"
+                  }`}
+                  style={{ backgroundColor: color }}
+                />
+              ))}
+            </div>
+          ) : null}
+        </div>
       </div>
     </div>
   );
