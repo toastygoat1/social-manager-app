@@ -39,6 +39,7 @@ import {
   Users,
 } from "lucide-react";
 import {
+  getFloatingPopoverPosition,
   getFloatingAnchorRect,
   type FloatingAnchorRect,
 } from "@/app/_components/DateTimePickerPopover";
@@ -137,6 +138,12 @@ const WORKPLACE_ICON_OPTIONS = [
   label: string;
   Icon: LucideIcon;
 }[];
+const WORKPLACE_OPTIONS_MENU_WIDTH = 244;
+const WORKPLACE_OPTIONS_MENU_HEIGHT = 76;
+const WORKPLACE_PICKER_WIDTH = 316;
+const WORKPLACE_PICKER_HEIGHT = 284;
+const WORKPLACE_POPOVER_GAP = 8;
+const VIEWPORT_PADDING = 8;
 const ROW_NUMBER_COLUMN_WIDTH = 44;
 const ASSIGNEE_COLORS = [
   "#5e6ad2",
@@ -741,6 +748,38 @@ function getTaskAccountIds(task: WorkplaceTask) {
 function getCellAnchorRect(trigger: HTMLElement) {
   const cell = trigger.closest("[data-task-cell]") as HTMLElement | null;
   return getFloatingAnchorRect(cell ?? trigger);
+}
+
+function getWorkplacePickerPosition(menuPosition: { left: number; top: number }) {
+  if (typeof window === "undefined") {
+    return {
+      left:
+        menuPosition.left +
+        WORKPLACE_OPTIONS_MENU_WIDTH +
+        WORKPLACE_POPOVER_GAP,
+      top: menuPosition.top,
+    };
+  }
+
+  const rightSideLeft =
+    menuPosition.left + WORKPLACE_OPTIONS_MENU_WIDTH + WORKPLACE_POPOVER_GAP;
+  const leftSideLeft =
+    menuPosition.left - WORKPLACE_PICKER_WIDTH - WORKPLACE_POPOVER_GAP;
+  const fitsRight =
+    rightSideLeft + WORKPLACE_PICKER_WIDTH <=
+    window.innerWidth - VIEWPORT_PADDING;
+  const left = fitsRight
+    ? rightSideLeft
+    : Math.max(VIEWPORT_PADDING, leftSideLeft);
+  const top = Math.min(
+    Math.max(menuPosition.top, VIEWPORT_PADDING),
+    Math.max(
+      VIEWPORT_PADDING,
+      window.innerHeight - WORKPLACE_PICKER_HEIGHT - VIEWPORT_PADDING,
+    ),
+  );
+
+  return { left, top };
 }
 
 function getErrorMessage(error: unknown) {
@@ -1565,10 +1604,24 @@ function WorkplaceSidebarItem({
   const Icon = iconOption.Icon;
   const title = workspace.name.trim() || "Workplace";
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const menuButtonRef = useRef<HTMLButtonElement | null>(null);
+  const popoverRef = useRef<HTMLDivElement | null>(null);
   const [workplaceMenuOpen, setWorkplaceMenuOpen] = useState(false);
   const [pickerMenuOpen, setPickerMenuOpen] = useState(false);
+  const [menuAnchorRect, setMenuAnchorRect] =
+    useState<FloatingAnchorRect | null>(null);
   const [iconSearch, setIconSearch] = useState("");
   const menuOpen = workplaceMenuOpen || pickerMenuOpen;
+  const workplaceMenuPosition = menuAnchorRect
+    ? getFloatingPopoverPosition(
+        menuAnchorRect,
+        WORKPLACE_OPTIONS_MENU_WIDTH,
+        WORKPLACE_OPTIONS_MENU_HEIGHT,
+      )
+    : null;
+  const workplacePickerPosition = workplaceMenuPosition
+    ? getWorkplacePickerPosition(workplaceMenuPosition)
+    : null;
   const filteredIconOptions = useMemo(() => {
     const query = iconSearch.trim().toLowerCase();
     if (!query) return WORKPLACE_ICON_OPTIONS;
@@ -1581,15 +1634,28 @@ function WorkplaceSidebarItem({
   const closeMenus = useCallback(() => {
     setWorkplaceMenuOpen(false);
     setPickerMenuOpen(false);
+    setMenuAnchorRect(null);
     setIconSearch("");
+  }, []);
+
+  const updateMenuAnchor = useCallback(() => {
+    const button = menuButtonRef.current;
+    if (!button) return;
+    setMenuAnchorRect(getFloatingAnchorRect(button));
   }, []);
 
   useEffect(() => {
     if (!menuOpen) return;
 
     function handlePointerDown(event: PointerEvent) {
-      const target = event.target;
-      if (target && menuRef.current?.contains(target as Node)) return;
+      const target = event.target as Node | null;
+      if (
+        target &&
+        (menuRef.current?.contains(target) ||
+          popoverRef.current?.contains(target))
+      ) {
+        return;
+      }
       closeMenus();
     }
 
@@ -1605,6 +1671,22 @@ function WorkplaceSidebarItem({
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [closeMenus, menuOpen]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    function handleReposition() {
+      updateMenuAnchor();
+    }
+
+    window.addEventListener("resize", handleReposition);
+    window.addEventListener("scroll", handleReposition, true);
+
+    return () => {
+      window.removeEventListener("resize", handleReposition);
+      window.removeEventListener("scroll", handleReposition, true);
+    };
+  }, [menuOpen, updateMenuAnchor]);
 
   return (
     <div
@@ -1634,22 +1716,14 @@ function WorkplaceSidebarItem({
         }`}
       >
         <span
-          className={`grid size-6 shrink-0 place-items-center rounded-[5px] transition-[background-color,color] duration-300 ${
-            selected
-              ? "bg-white/75 text-ink"
-              : "text-muted group-hover/workplace:bg-white"
-          }`}
-          style={
-            selected
-              ? undefined
-              : {
-                  color: workplaceTextColor,
-                  backgroundColor:
-                    workplaceColor.toLowerCase() === WORKPLACE_ACCENT_DEFAULT
-                      ? undefined
-                      : `${workplaceColor}24`,
-                }
-          }
+          className="grid size-6 shrink-0 place-items-center rounded-[5px] transition-[background-color,color] duration-300"
+          style={{
+            color: workplaceTextColor,
+            backgroundColor:
+              workplaceColor.toLowerCase() === WORKPLACE_ACCENT_DEFAULT
+                ? "#ffffff"
+                : `${workplaceColor}24`,
+          }}
         >
           <Icon className="size-4" strokeWidth={1.8} />
         </span>
@@ -1672,11 +1746,18 @@ function WorkplaceSidebarItem({
       {!collapsed ? (
         <>
           <button
+            ref={menuButtonRef}
             type="button"
             aria-label={`${title} workplace options`}
             aria-expanded={workplaceMenuOpen}
             onClick={() => {
-              setWorkplaceMenuOpen((current) => !current);
+              const nextOpen = !workplaceMenuOpen;
+              if (!nextOpen) {
+                closeMenus();
+                return;
+              }
+              updateMenuAnchor();
+              setWorkplaceMenuOpen(true);
               setPickerMenuOpen(false);
               setIconSearch("");
             }}
@@ -1689,126 +1770,168 @@ function WorkplaceSidebarItem({
             <Ellipsis className="size-4" strokeWidth={1.8} />
           </button>
 
-          {workplaceMenuOpen ? (
-            <div
-              className="workspace-popover-enter absolute right-0 top-9 z-40 w-[244px] rounded-lg border border-line bg-paper py-1.5 shadow-xl"
-              role="menu"
-            >
-              <button
-                type="button"
-                role="menuitem"
-                onMouseEnter={() => setPickerMenuOpen(true)}
-                onFocus={() => setPickerMenuOpen(true)}
-                onClick={() => setPickerMenuOpen((current) => !current)}
-                className="flex h-8 w-full items-center gap-2 px-3 text-sm text-ink transition hover:bg-card focus:bg-card focus:outline-none"
-              >
-                <Palette className="size-4 text-muted" strokeWidth={1.8} />
-                <span className="min-w-0 flex-1 text-left">Color and icon</span>
-                <ChevronRight className="size-4 text-muted" strokeWidth={1.8} />
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  closeMenus();
-                  onRename();
-                }}
-                className="flex h-8 w-full items-center gap-2 px-3 text-sm text-ink transition hover:bg-card focus:bg-card focus:outline-none"
-              >
-                <Pencil className="size-4 text-muted" strokeWidth={1.8} />
-                <span className="min-w-0 flex-1 text-left">Rename</span>
-              </button>
-            </div>
-          ) : null}
-
-          {pickerMenuOpen ? (
-            <div className="workspace-subpopover-enter absolute left-[calc(100%+8px)] top-0 z-50 w-[316px] rounded-lg border border-line bg-paper p-2 shadow-xl">
-              <div className="border-b border-line px-1">
-                <button
-                  type="button"
-                  className="-mb-px h-8 border-b-2 border-ink px-1 text-xs font-medium text-ink"
-                >
-                  Icon
-                </button>
-              </div>
-
-              <div className="mt-2 flex items-center gap-2">
-                <label className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-md border border-line bg-paper px-2 text-muted">
-                  <Search className="size-3.5 shrink-0" strokeWidth={1.8} />
-                  <input
-                    value={iconSearch}
-                    onChange={(event) => setIconSearch(event.target.value)}
-                    placeholder="Search..."
-                    className="min-w-0 flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-muted"
-                  />
-                </label>
-
-                <div className="flex shrink-0 items-center gap-1">
-                  {WORKPLACE_COLOR_OPTIONS.map((color) => (
-                    <button
-                      key={color}
-                      type="button"
-                      aria-label={`Set workplace color ${color}`}
-                      aria-pressed={
-                        workplaceColor.toLowerCase() === color.toLowerCase()
-                      }
-                      onClick={() => {
-                        onColorChange(color);
-                        closeMenus();
+          {menuOpen &&
+          workplaceMenuPosition &&
+          typeof document !== "undefined"
+            ? createPortal(
+                <div ref={popoverRef} className="fixed inset-0 z-50 pointer-events-none">
+                  {workplaceMenuOpen ? (
+                    <div
+                      className="workspace-popover-enter pointer-events-auto fixed rounded-lg border border-line bg-paper py-1.5 shadow-xl"
+                      role="menu"
+                      style={{
+                        left: workplaceMenuPosition.left,
+                        top: workplaceMenuPosition.top,
+                        width: WORKPLACE_OPTIONS_MENU_WIDTH,
                       }}
-                      className={`grid size-8 place-items-center rounded-md border transition hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 ${
-                        workplaceColor.toLowerCase() === color.toLowerCase()
-                          ? "border-ink"
-                          : "border-line"
-                      }`}
                     >
-                      <span
-                        className="size-4 rounded-full border border-line"
-                        style={{ backgroundColor: color }}
-                      />
-                    </button>
-                  ))}
-                </div>
-              </div>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onMouseEnter={() => {
+                          updateMenuAnchor();
+                          setPickerMenuOpen(true);
+                        }}
+                        onFocus={() => {
+                          updateMenuAnchor();
+                          setPickerMenuOpen(true);
+                        }}
+                        onClick={() => {
+                          updateMenuAnchor();
+                          setPickerMenuOpen(true);
+                        }}
+                        className="flex h-8 w-full items-center gap-2 px-3 text-sm text-ink transition hover:bg-card focus:bg-card focus:outline-none"
+                      >
+                        <Palette className="size-4 text-muted" strokeWidth={1.8} />
+                        <span className="min-w-0 flex-1 text-left">
+                          Color and icon
+                        </span>
+                        <ChevronRight
+                          className="size-4 text-muted"
+                          strokeWidth={1.8}
+                        />
+                      </button>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          closeMenus();
+                          onRename();
+                        }}
+                        className="flex h-8 w-full items-center gap-2 px-3 text-sm text-ink transition hover:bg-card focus:bg-card focus:outline-none"
+                      >
+                        <Pencil className="size-4 text-muted" strokeWidth={1.8} />
+                        <span className="min-w-0 flex-1 text-left">Rename</span>
+                      </button>
+                    </div>
+                  ) : null}
 
-              <div
-                className="scrollbar-none mt-2 grid max-h-[196px] grid-cols-5 gap-1 overflow-y-auto"
-                role="group"
-                aria-label="Workplace icons"
-              >
-                {filteredIconOptions.map((option) => {
-                  const OptionIcon = option.Icon;
-                  const active = option.id === iconOption.id;
-
-                  return (
-                    <button
-                      key={option.id}
-                      type="button"
-                      title={option.label}
-                      aria-label={`Use ${option.label} icon`}
-                      aria-pressed={active}
-                      onClick={() => {
-                        onIconChange(option.id);
-                        closeMenus();
+                  {pickerMenuOpen && workplacePickerPosition ? (
+                    <div
+                      className="workspace-subpopover-enter pointer-events-auto fixed rounded-lg border border-line bg-paper p-2 shadow-xl"
+                      style={{
+                        left: workplacePickerPosition.left,
+                        top: workplacePickerPosition.top,
+                        width: WORKPLACE_PICKER_WIDTH,
                       }}
-                      className={`flex size-8 items-center justify-center rounded-md border transition hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 ${
-                        active
-                          ? "border-ink bg-ink text-paper"
-                          : "border-line text-muted"
-                      }`}
                     >
-                      <OptionIcon className="size-4" strokeWidth={1.8} />
-                    </button>
-                  );
-                })}
-                {filteredIconOptions.length === 0 ? (
-                  <div className="col-span-5 px-2 py-5 text-center text-sm text-muted">
-                    No icons found
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          ) : null}
+                      <div className="border-b border-line px-1">
+                        <button
+                          type="button"
+                          className="-mb-px h-8 border-b-2 border-ink px-1 text-xs font-medium text-ink"
+                        >
+                          Icon
+                        </button>
+                      </div>
+
+                      <div className="mt-2 flex items-center gap-2">
+                        <label className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-md border border-line bg-paper px-2 text-muted">
+                          <Search
+                            className="size-3.5 shrink-0"
+                            strokeWidth={1.8}
+                          />
+                          <input
+                            value={iconSearch}
+                            onChange={(event) =>
+                              setIconSearch(event.target.value)
+                            }
+                            placeholder="Search..."
+                            className="min-w-0 flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-muted"
+                          />
+                        </label>
+
+                        <div className="flex shrink-0 items-center gap-1">
+                          {WORKPLACE_COLOR_OPTIONS.map((color) => (
+                            <button
+                              key={color}
+                              type="button"
+                              aria-label={`Set workplace color ${color}`}
+                              aria-pressed={
+                                workplaceColor.toLowerCase() ===
+                                color.toLowerCase()
+                              }
+                              onClick={() => {
+                                onColorChange(color);
+                                closeMenus();
+                              }}
+                              className={`grid size-8 place-items-center rounded-md border transition hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 ${
+                                workplaceColor.toLowerCase() ===
+                                color.toLowerCase()
+                                  ? "border-ink"
+                                  : "border-line"
+                              }`}
+                            >
+                              <span
+                                className="size-4 rounded-full border border-line"
+                                style={{ backgroundColor: color }}
+                              />
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div
+                        className="scrollbar-none mt-2 grid max-h-[196px] grid-cols-5 gap-1 overflow-y-auto"
+                        role="group"
+                        aria-label="Workplace icons"
+                      >
+                        {filteredIconOptions.map((option) => {
+                          const OptionIcon = option.Icon;
+                          const active = option.id === iconOption.id;
+
+                          return (
+                            <button
+                              key={option.id}
+                              type="button"
+                              title={option.label}
+                              aria-label={`Use ${option.label} icon`}
+                              aria-pressed={active}
+                              onClick={() => {
+                                onIconChange(option.id);
+                                closeMenus();
+                              }}
+                              className={`flex size-8 items-center justify-center rounded-md border transition hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 ${
+                                active
+                                  ? "border-ink bg-ink text-paper"
+                                  : "border-line text-muted"
+                              }`}
+                            >
+                              <OptionIcon className="size-4" strokeWidth={1.8} />
+                            </button>
+                          );
+                        })}
+                        {filteredIconOptions.length === 0 ? (
+                          <div className="col-span-5 px-2 py-5 text-center text-sm text-muted">
+                            No icons found
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>,
+                document.body,
+              )
+            : null}
         </>
       ) : null}
     </div>
@@ -3102,7 +3225,7 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
     selectedTasks.length > 0 && selectedTaskCount === selectedTasks.length;
   const hasPartialTaskSelection =
     selectedTaskCount > 0 && selectedTaskCount < selectedTasks.length;
-  const workplaceSidebarClassName = `flex shrink-0 flex-col overflow-hidden border-r border-line bg-[rgb(253_253_253)] transition-[width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
+  const workplaceSidebarClassName = `flex shrink-0 flex-col overflow-hidden border-r border-line bg-[rgb(250_250_250)] transition-[width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
     isWorkplaceSidebarCollapsed ? "w-16" : "w-[252px]"
   }`;
 
@@ -3727,10 +3850,10 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
           ))}
           <button
             type="button"
-            aria-label="New workplace"
-            title={isWorkplaceSidebarCollapsed ? "New workplace" : undefined}
+            aria-label="Add workplace"
+            title={isWorkplaceSidebarCollapsed ? "Add workplace" : undefined}
             onClick={createWorkplace}
-            className={`mt-2 flex shrink-0 items-center justify-center border border-dashed border-line text-xs font-semibold text-muted transition-[width,height,gap,padding,border-color,background-color,color,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:border-cta hover:bg-card hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 motion-reduce:transition-none ${
+            className={`mt-2 flex shrink-0 items-center justify-center border border-dashed border-line text-xs font-semibold text-muted transition-[width,height,gap,padding,border-color,background-color,color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:border-cta hover:bg-card hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 motion-reduce:transition-none ${
               isWorkplaceSidebarCollapsed
                 ? "mx-auto size-11 gap-0 rounded-xl px-0"
                 : "h-9 w-full gap-2 rounded-md px-2.5"
@@ -3744,7 +3867,7 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
                   : "max-w-[96px] opacity-100"
               }`}
             >
-              New workplace
+              Add workplace
             </span>
           </button>
         </div>
