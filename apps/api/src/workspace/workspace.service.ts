@@ -10,6 +10,7 @@ import type {
   CreateWorkspaceFolderDto,
   UpdateWorkspaceFolderDto,
 } from './dto/workspace-folder.dto.js';
+import { WORKPLACE_ICONS } from './dto/workspace-folder.dto.js';
 import {
   WORKSPACE_TASK_STATUSES,
   WORKSPACE_TASK_URGENCIES,
@@ -31,12 +32,14 @@ type DefaultTask = {
 
 type DefaultFolder = {
   name: string;
+  icon: (typeof WORKPLACE_ICONS)[number];
   tasks: DefaultTask[];
 };
 
 const DEFAULT_FOLDERS: DefaultFolder[] = [
   {
     name: 'Daily Ops',
+    icon: 'calendar',
     tasks: [
       {
         taskName: 'Recheck semua merch Cenklik Coffee',
@@ -62,7 +65,7 @@ const DEFAULT_FOLDERS: DefaultFolder[] = [
         inputFrom: 'Claude Intake',
       },
       {
-        taskName: 'Audit folder footage reels',
+        taskName: 'Audit raw footage reels',
         assignee: 'Bima',
         urgency: 'Low',
         status: 'Review',
@@ -76,6 +79,7 @@ const DEFAULT_FOLDERS: DefaultFolder[] = [
   },
   {
     name: 'Content Production',
+    icon: 'camera',
     tasks: [
       {
         taskName: 'Draft caption product bundling',
@@ -114,6 +118,7 @@ const DEFAULT_FOLDERS: DefaultFolder[] = [
   },
   {
     name: 'Client Requests',
+    icon: 'briefcase',
     tasks: [
       {
         taskName: 'Update menu seasonal di brief Juni',
@@ -208,6 +213,15 @@ function trimOrNull(value: string | null | undefined) {
   return trimmed ? trimmed : null;
 }
 
+function normalizeWorkplaceIcon(value: string | null | undefined) {
+  const icon = trimOrNull(value);
+  if (!icon) return null;
+
+  return WORKPLACE_ICONS.includes(icon as (typeof WORKPLACE_ICONS)[number])
+    ? icon
+    : null;
+}
+
 function normalizeUserStoragePath(
   userId: string,
   value: string | null | undefined,
@@ -243,9 +257,14 @@ export class WorkspaceService {
   ) {}
 
   async listFolders(userId: string, email: string) {
+    const { workplaces } = await this.listWorkplaces(userId, email);
+    return { folders: workplaces };
+  }
+
+  async listWorkplaces(userId: string, email: string) {
     await this.ensureUser(userId, email);
     await this.ensureBoardInitialized(userId);
-    return { folders: await this.findFolders(userId, email) };
+    return { workplaces: await this.findFolders(userId, email) };
   }
 
   async createFolder(
@@ -253,21 +272,30 @@ export class WorkspaceService {
     email: string,
     body: CreateWorkspaceFolderDto,
   ) {
+    return this.createWorkplace(userId, email, body);
+  }
+
+  async createWorkplace(
+    userId: string,
+    email: string,
+    body: CreateWorkspaceFolderDto,
+  ) {
     await this.ensureUser(userId, email);
     await this.ensureBoardState(userId);
 
-    const folderCount = await this.prisma.workspaceFolder.count({
+    const workplaceCount = await this.prisma.workspaceFolder.count({
       where: { userId },
     });
     const folder = await this.prisma.workspaceFolder.create({
       data: {
         userId,
-        name: trimOrFallback(body.name, `Folder ${folderCount + 1}`),
+        name: trimOrFallback(body.name, `Workplace ${workplaceCount + 1}`),
+        icon: normalizeWorkplaceIcon(body.icon),
         bannerTitle: trimOrNull(body.bannerTitle),
         bannerDescription: trimOrNull(body.bannerDescription),
         bannerColor: trimOrNull(body.bannerColor),
         bannerImagePath: normalizeUserStoragePath(userId, body.bannerImagePath),
-        sortOrder: folderCount,
+        sortOrder: workplaceCount,
       },
       include: WORKSPACE_FOLDER_INCLUDE,
     });
@@ -281,11 +309,23 @@ export class WorkspaceService {
     folderId: string,
     body: UpdateWorkspaceFolderDto,
   ) {
-    await this.assertFolder(userId, folderId);
+    return this.updateWorkplace(userId, email, folderId, body);
+  }
+
+  async updateWorkplace(
+    userId: string,
+    email: string,
+    workplaceId: string,
+    body: UpdateWorkspaceFolderDto,
+  ) {
+    await this.assertFolder(userId, workplaceId);
 
     const data: Prisma.WorkspaceFolderUpdateInput = {};
     if (body.name !== undefined) {
-      data.name = trimOrFallback(body.name, 'Folder');
+      data.name = trimOrFallback(body.name, 'Workplace');
+    }
+    if (hasOwnField(body, 'icon')) {
+      data.icon = normalizeWorkplaceIcon(body.icon);
     }
     if (hasOwnField(body, 'bannerTitle')) {
       data.bannerTitle = trimOrNull(body.bannerTitle);
@@ -304,7 +344,7 @@ export class WorkspaceService {
     }
 
     const folder = await this.prisma.workspaceFolder.update({
-      where: { id: folderId },
+      where: { id: workplaceId },
       data,
       include: WORKSPACE_FOLDER_INCLUDE,
     });
@@ -313,12 +353,16 @@ export class WorkspaceService {
   }
 
   async deleteFolder(userId: string, folderId: string) {
+    return this.deleteWorkplace(userId, folderId);
+  }
+
+  async deleteWorkplace(userId: string, workplaceId: string) {
     const result = await this.prisma.workspaceFolder.deleteMany({
-      where: { id: folderId, userId },
+      where: { id: workplaceId, userId },
     });
 
     if (result.count === 0) {
-      throw new NotFoundException('Workspace folder not found');
+      throw new NotFoundException('Workspace workplace not found');
     }
   }
 
@@ -467,6 +511,7 @@ export class WorkspaceService {
             data: {
               userId,
               name: folder.name,
+              icon: folder.icon,
               sortOrder: folderIndex,
               tasks: {
                 create: folder.tasks.map((task, taskIndex) => ({
@@ -506,7 +551,7 @@ export class WorkspaceService {
       select: { id: true },
     });
     if (!folder) {
-      throw new NotFoundException('Workspace folder not found');
+      throw new NotFoundException('Workspace workplace not found');
     }
   }
 
@@ -551,6 +596,7 @@ export class WorkspaceService {
     return {
       id: folder.id,
       name: folder.name,
+      icon: folder.icon,
       owner: email,
       bannerTitle: folder.bannerTitle,
       bannerDescription: folder.bannerDescription,

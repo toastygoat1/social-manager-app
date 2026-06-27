@@ -29,6 +29,58 @@ import { WorkspaceService } from './workspace.service.js';
 export class WorkspaceController {
   constructor(private readonly workspaceService: WorkspaceService) {}
 
+  @Get('workplaces')
+  listWorkplaces(@Request() req: AuthedRequest) {
+    return this.workspaceService.listWorkplaces(
+      req.user.userId,
+      req.user.email,
+    );
+  }
+
+  @Post('workplaces')
+  createWorkplace(
+    @Request() req: AuthedRequest,
+    @Body() body: CreateWorkspaceFolderDto,
+  ) {
+    return this.workspaceService.createWorkplace(
+      req.user.userId,
+      req.user.email,
+      body,
+    );
+  }
+
+  @Patch('workplaces/:workplaceId')
+  updateWorkplace(
+    @Request() req: AuthedRequest,
+    @Param('workplaceId', new ParseUUIDPipe()) workplaceId: string,
+    @Body() body: UpdateWorkspaceFolderDto,
+  ) {
+    return this.workspaceService.updateWorkplace(
+      req.user.userId,
+      req.user.email,
+      workplaceId,
+      body,
+    );
+  }
+
+  @Delete('workplaces/:workplaceId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  deleteWorkplace(
+    @Request() req: AuthedRequest,
+    @Param('workplaceId', new ParseUUIDPipe()) workplaceId: string,
+  ) {
+    return this.workspaceService.deleteWorkplace(req.user.userId, workplaceId);
+  }
+
+  @Post('workplaces/:workplaceId/tasks')
+  createWorkplaceTask(
+    @Request() req: AuthedRequest,
+    @Param('workplaceId', new ParseUUIDPipe()) workplaceId: string,
+    @Body() body: CreateWorkspaceTaskDto,
+  ) {
+    return this.workspaceService.createTask(req.user.userId, workplaceId, body);
+  }
+
   @Get('folders')
   listFolders(@Request() req: AuthedRequest) {
     return this.workspaceService.listFolders(req.user.userId, req.user.email);

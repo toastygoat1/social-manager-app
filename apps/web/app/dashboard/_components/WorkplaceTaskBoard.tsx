@@ -1,32 +1,42 @@
 "use client";
 
 import {
+  type ComponentType,
   useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
   type ReactNode,
+  type SVGProps,
 } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import {
+  Archive,
+  BriefcaseBusiness,
+  Building2,
   CalendarDays,
+  Camera,
   Check,
   ChevronLeft,
   ChevronRight,
+  ClipboardList,
   Ellipsis,
   FileText,
   Flag,
+  Megaphone,
   PanelLeft,
   PanelLeftClose,
   PanelLeftOpen,
+  Palette,
   Pencil,
   Plus,
   Search,
   Trash2,
   X,
   UserPlus,
+  Users,
 } from "lucide-react";
 import {
   getFloatingAnchorRect,
@@ -55,13 +65,14 @@ type WorkplaceTask = {
   inputFrom: string;
 };
 
-type Workspace = {
+type Workplace = {
   id: string;
   name: string;
   owner: string;
   bannerTitle: string | null;
   bannerDescription: string | null;
   bannerColor: string | null;
+  icon: string | null;
   bannerImagePath: string | null;
   bannerImageUrl: string | null;
   tasks: WorkplaceTask[];
@@ -78,8 +89,8 @@ type AssigneeOption = {
   color: string;
 };
 
-type WorkspaceFoldersResponse = {
-  folders: Workspace[];
+type WorkspaceWorkplacesResponse = {
+  workplaces: Workplace[];
 };
 
 type MediaUploadUrlResponse = {
@@ -91,24 +102,41 @@ type MediaUploadUrlResponse = {
   }[];
 };
 
-type WorkspaceViewMode = "table" | "calendar" | "gantt" | "kanban";
+type WorkplaceViewMode = "table" | "calendar" | "gantt" | "kanban";
 type GanttScale = "week" | "month" | "quarter";
+type LucideIcon = ComponentType<SVGProps<SVGSVGElement> & { strokeWidth?: number }>;
 
 type EditableTaskField = Exclude<keyof WorkplaceTask, "id" | "accountId">;
 
-const WORKSPACE_FOLDERS_ENDPOINT = "/workspace/folders";
+const WORKSPACE_WORKPLACES_ENDPOINT = "/workspace/workplaces";
 const EMPTY_SELECTED_WORKSPACE_ID = "";
 const EMPTY_TASKS: WorkplaceTask[] = [];
 const CALENDAR_WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const FOLDER_FACE_FILL = "#ffffff";
-const FOLDER_COLOR_OPTIONS = [
-  FOLDER_FACE_FILL,
+const WORKPLACE_ACCENT_DEFAULT = "#ffffff";
+const WORKPLACE_COLOR_OPTIONS = [
+  WORKPLACE_ACCENT_DEFAULT,
   "#fb858b",
   "#89a7ff",
   "#7fc8b8",
   "#c393e8",
   "#d4a547",
 ];
+const WORKPLACE_ICON_OPTIONS = [
+  { id: "workplace", label: "Workplace", Icon: Building2 },
+  { id: "briefcase", label: "Briefcase", Icon: BriefcaseBusiness },
+  { id: "clipboard", label: "Clipboard", Icon: ClipboardList },
+  { id: "calendar", label: "Calendar", Icon: CalendarDays },
+  { id: "camera", label: "Camera", Icon: Camera },
+  { id: "megaphone", label: "Campaign", Icon: Megaphone },
+  { id: "users", label: "Team", Icon: Users },
+  { id: "archive", label: "Archive", Icon: Archive },
+  { id: "palette", label: "Creative", Icon: Palette },
+  { id: "file", label: "File", Icon: FileText },
+] satisfies {
+  id: string;
+  label: string;
+  Icon: LucideIcon;
+}[];
 const ROW_NUMBER_COLUMN_WIDTH = 44;
 const ASSIGNEE_COLORS = [
   "#5e6ad2",
@@ -217,7 +245,7 @@ const STATUS_OPTIONS: TaskStatus[] = [
   "Review",
   "Done",
 ];
-const WORKSPACE_VIEW_MODES: { label: string; value: WorkspaceViewMode }[] = [
+const WORKSPACE_VIEW_MODES: { label: string; value: WorkplaceViewMode }[] = [
   { label: "Table", value: "table" },
   { label: "Calendar", value: "calendar" },
   { label: "Gantt", value: "gantt" },
@@ -593,11 +621,18 @@ function getValidBannerColor(
   return fallback;
 }
 
-function getFolderColor(workspace: Workspace) {
-  return getValidBannerColor(workspace.bannerColor, FOLDER_FACE_FILL);
+function getWorkplaceColor(workspace: Workplace) {
+  return getValidBannerColor(workspace.bannerColor, WORKPLACE_ACCENT_DEFAULT);
 }
 
-function getFolderAbbreviation(value: string) {
+function getWorkplaceIconOption(icon: string | null | undefined) {
+  return (
+    WORKPLACE_ICON_OPTIONS.find((option) => option.id === icon) ??
+    WORKPLACE_ICON_OPTIONS[0]
+  );
+}
+
+function getWorkplaceAbbreviation(value: string) {
   const words = value.trim().split(/\s+/).filter(Boolean);
 
   if (words.length === 0) return "FL";
@@ -621,7 +656,7 @@ function getStableIndex(value: string, modulo: number) {
 }
 
 function getReadableTextColor(color: string) {
-  const normalizedColor = getValidBannerColor(color, FOLDER_FACE_FILL);
+  const normalizedColor = getValidBannerColor(color, WORKPLACE_ACCENT_DEFAULT);
   const red = Number.parseInt(normalizedColor.slice(1, 3), 16);
   const green = Number.parseInt(normalizedColor.slice(3, 5), 16);
   const blue = Number.parseInt(normalizedColor.slice(5, 7), 16);
@@ -683,7 +718,7 @@ function makeAssigneeOption(name: string): AssigneeOption {
   };
 }
 
-function buildAssigneeOptions(workspaces: Workspace[]) {
+function buildAssigneeOptions(workspaces: Workplace[]) {
   const assigneeNames = new Map<string, string>();
 
   for (const workspace of workspaces) {
@@ -1506,200 +1541,187 @@ function AssigneeSelect({
   );
 }
 
-function FolderCover({
-  workspace,
-  compact = false,
-}: {
-  workspace: Workspace;
-  compact?: boolean;
-}) {
-  const title = workspace.name.trim() || "Folder";
-  const folderColor = getFolderColor(workspace);
-  const textColor = getReadableTextColor(folderColor);
-  const abbreviation = getFolderAbbreviation(title);
-
-  return (
-    <span
-      className={`relative block overflow-hidden bg-card transition-[width,height,border-radius,border-color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
-        compact
-          ? "h-9 w-9 rounded-lg"
-          : "h-[86px] w-[226px] rounded-t-md border-b border-line"
-      }`}
-    >
-      {workspace.bannerImageUrl ? (
-        <Image
-          src={workspace.bannerImageUrl}
-          alt=""
-          fill
-          sizes={compact ? "36px" : "226px"}
-          unoptimized
-          className="absolute inset-0 h-full w-full object-cover"
-        />
-      ) : (
-        <span
-          className={`absolute inset-0 flex items-center justify-center font-inter font-semibold leading-none transition-[font-size] duration-500 ${
-            compact ? "text-sm" : "text-3xl"
-          }`}
-          style={{ backgroundColor: folderColor, color: textColor }}
-          title={title}
-        >
-          {abbreviation}
-        </span>
-      )}
-    </span>
-  );
-}
-
-type FolderTileProps = {
-  workspace: Workspace;
+type WorkplaceTabProps = {
+  workspace: Workplace;
   selected: boolean;
   onSelect: () => void;
   onColorChange: (color: string) => void;
+  onIconChange: (icon: string) => void;
 };
 
-function FolderSidebarItem({
+function WorkplaceSidebarItem({
   collapsed,
   workspace,
   selected,
   onSelect,
   onColorChange,
-}: FolderTileProps & { collapsed: boolean }) {
-  const folderColor = getFolderColor(workspace);
-  const title = workspace.name.trim() || "Folder";
+  onIconChange,
+}: WorkplaceTabProps & { collapsed: boolean }) {
+  const workplaceColor = getWorkplaceColor(workspace);
+  const workplaceTextColor = getReadableTextColor(workplaceColor);
+  const iconOption = getWorkplaceIconOption(workspace.icon);
+  const Icon = iconOption.Icon;
+  const title = workspace.name.trim() || "Workplace";
   const [colorMenuOpen, setColorMenuOpen] = useState(false);
 
   return (
-    <div
-      className={`group/folder relative shrink-0 transition-[height] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
-        collapsed ? "h-11" : "h-[126px]"
-      }`}
-    >
-      <div
-        className={`relative overflow-visible transition-[width,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
-          collapsed
-            ? "mx-auto w-11 translate-y-0"
-            : "w-[236px] translate-y-0"
+    <div className="group/workplace relative">
+      <button
+        type="button"
+        role="tab"
+        aria-selected={selected}
+        aria-label={`${title} workplace, ${workspace.tasks.length} rows`}
+        title={collapsed ? title : undefined}
+        onClick={onSelect}
+        className={`relative flex h-9 w-full min-w-0 items-center rounded-md px-[3px] text-left transition-[background-color,color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 ${
+          collapsed ? "justify-center gap-0" : "gap-2 pr-9"
+        } ${
+          selected
+            ? "bg-ink font-medium text-paper"
+            : "text-muted hover:bg-card hover:text-ink"
         }`}
       >
-        <div
-          className={`relative overflow-visible border bg-paper transition-[width,height,background-color,border-color,border-radius,padding,box-shadow,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 motion-reduce:transition-none ${
-            collapsed
-              ? `h-11 w-11 rounded-xl p-1 ${
-                  selected
-                    ? "border-cta/60 bg-cta/10"
-                    : "border-transparent hover:border-line hover:bg-card"
-                }`
-              : `h-[126px] w-[236px] rounded-lg p-1 ${
-                  selected
-                    ? "border-ink/70 ring-2 ring-ink/20"
-                    : "border-line hover:border-ink/35 hover:bg-card/60"
-                }`
+        <span
+          className={`grid size-8 shrink-0 place-items-center rounded-[5px] transition-[background-color,color] duration-300 ${
+            selected
+              ? "bg-paper/15 text-paper"
+              : "text-muted group-hover/workplace:bg-card"
+          }`}
+          style={
+            selected
+              ? undefined
+              : {
+                  color: workplaceTextColor,
+                  backgroundColor:
+                    workplaceColor.toLowerCase() === WORKPLACE_ACCENT_DEFAULT
+                      ? undefined
+                      : `${workplaceColor}24`,
+                }
+          }
+        >
+          <Icon className="size-[17px]" strokeWidth={1.8} />
+        </span>
+        <span
+          className={`min-w-0 flex-1 overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-300 ease-out ${
+            collapsed ? "max-w-0 opacity-0" : "max-w-[138px] opacity-100"
           }`}
         >
+          <span className="block truncate text-sm">{title}</span>
+        </span>
+        <span
+          className={`shrink-0 overflow-hidden whitespace-nowrap text-xs transition-[max-width,opacity] duration-300 ease-out ${
+            collapsed ? "max-w-0 opacity-0" : "max-w-[28px] opacity-100"
+          } ${selected ? "text-paper/70" : "text-muted"}`}
+        >
+          {workspace.tasks.length}
+        </span>
+      </button>
+
+      {!collapsed ? (
+        <>
           <button
             type="button"
-            role="tab"
-            aria-selected={selected}
-            aria-label={`${title} folder, ${workspace.tasks.length} rows`}
-            title={collapsed ? title : undefined}
-            onClick={onSelect}
-            className={`block overflow-hidden text-left outline-none transition-[width,height,border-radius] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] focus-visible:ring-2 focus-visible:ring-ink/70 ${
-              collapsed ? "h-9 w-9 rounded-lg" : "h-[118px] w-[226px] rounded-md"
+            aria-label={`${title} workplace options`}
+            aria-expanded={colorMenuOpen}
+            onClick={() => setColorMenuOpen((current) => !current)}
+            className={`absolute right-[3px] top-1/2 z-30 flex size-8 -translate-y-1/2 items-center justify-center rounded-[5px] text-muted transition hover:bg-card hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 ${
+              colorMenuOpen
+                ? "opacity-100"
+                : "opacity-0 group-hover/workplace:opacity-100 group-focus-within/workplace:opacity-100"
             }`}
           >
-            <FolderCover workspace={workspace} compact={collapsed} />
-            <span
-              className={`flex items-center gap-2 overflow-hidden bg-paper px-2 transition-[height,opacity] duration-300 ease-out ${
-                collapsed ? "h-0 opacity-0 delay-0" : "h-8 opacity-100 delay-150"
-              }`}
-            >
-              <FileText
-                className="size-3.5 shrink-0 text-muted"
-                strokeWidth={1.8}
-              />
-              <span className="min-w-0 flex-1 truncate text-[11px] font-semibold uppercase text-ink">
-                {title}
-              </span>
-            </span>
+            <Ellipsis className="size-4" strokeWidth={1.8} />
           </button>
 
-          <span
-            aria-hidden="true"
-            className={`absolute right-0 top-1/2 h-6 w-0.5 -translate-y-1/2 rounded-l-full bg-cta transition-opacity duration-300 ${
-              collapsed && selected ? "opacity-100" : "opacity-0"
-            }`}
-          />
-
-          {!collapsed ? (
-            <button
-              type="button"
-              aria-label="Folder options"
-              aria-expanded={colorMenuOpen}
-              onClick={() => setColorMenuOpen((current) => !current)}
-              className={`absolute right-2 top-2 z-30 flex size-7 items-center justify-center rounded-full border border-line bg-paper/95 text-ink shadow-sm transition hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 ${
-                colorMenuOpen
-                  ? "opacity-100"
-                  : "opacity-0 group-hover/folder:opacity-100 group-focus-within/folder:opacity-100"
-              }`}
-            >
-              <Ellipsis className="size-4" strokeWidth={1.8} />
-            </button>
-          ) : null}
-
-          {!collapsed && colorMenuOpen ? (
+          {colorMenuOpen ? (
             <div
-              className="absolute right-2 top-10 z-30 flex items-center gap-1 rounded-full border border-line bg-paper/95 p-1 shadow-sm"
-              onMouseLeave={() => setColorMenuOpen(false)}
+              className="absolute right-0 top-10 z-40 w-[216px] rounded-lg border border-line bg-paper p-2"
               onBlur={(event) => {
                 if (!event.currentTarget.contains(event.relatedTarget)) {
                   setColorMenuOpen(false);
                 }
               }}
-              role="group"
-              aria-label="Folder colors"
             >
-              {FOLDER_COLOR_OPTIONS.map((color) => (
-                <button
-                  key={color}
-                  type="button"
-                  aria-label={`Set folder color ${color}`}
-                  aria-pressed={
-                    folderColor.toLowerCase() === color.toLowerCase()
-                  }
-                  onClick={() => {
-                    onColorChange(color);
-                    setColorMenuOpen(false);
-                  }}
-                  className={`size-4 rounded-full border transition hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 ${
-                    folderColor.toLowerCase() === color.toLowerCase()
-                      ? "border-ink"
-                      : "border-white"
-                  }`}
-                  style={{ backgroundColor: color }}
-                />
-              ))}
+              <div
+                className="grid grid-cols-5 gap-1"
+                role="group"
+                aria-label="Workplace icons"
+              >
+                {WORKPLACE_ICON_OPTIONS.map((option) => {
+                  const OptionIcon = option.Icon;
+                  const active = option.id === iconOption.id;
+
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      title={option.label}
+                      aria-label={`Use ${option.label} icon`}
+                      aria-pressed={active}
+                      onClick={() => {
+                        onIconChange(option.id);
+                        setColorMenuOpen(false);
+                      }}
+                      className={`flex size-8 items-center justify-center rounded-md border transition hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 ${
+                        active
+                          ? "border-ink bg-ink text-paper"
+                          : "border-line text-muted"
+                      }`}
+                    >
+                      <OptionIcon className="size-4" strokeWidth={1.8} />
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div
+                className="mt-2 flex items-center gap-1 border-t border-line pt-2"
+                role="group"
+                aria-label="Workplace accent colors"
+              >
+                {WORKPLACE_COLOR_OPTIONS.map((color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    aria-label={`Set workplace color ${color}`}
+                    aria-pressed={
+                      workplaceColor.toLowerCase() === color.toLowerCase()
+                    }
+                    onClick={() => {
+                      onColorChange(color);
+                      setColorMenuOpen(false);
+                    }}
+                    className={`size-5 rounded-full border transition hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 ${
+                      workplaceColor.toLowerCase() === color.toLowerCase()
+                        ? "border-ink"
+                        : "border-line"
+                    }`}
+                    style={{ backgroundColor: color }}
+                  />
+                ))}
+              </div>
             </div>
           ) : null}
-        </div>
-      </div>
+        </>
+      ) : null}
     </div>
   );
 }
 
-function WorkspaceFolderSidebarHeader({
+function WorkspaceWorkplaceSidebarHeader({
   collapsed,
-  folderCount,
+  workplaceCount,
   loading = false,
   onToggleCollapsed,
 }: {
   collapsed: boolean;
-  folderCount: number;
+  workplaceCount: number;
   loading?: boolean;
   onToggleCollapsed: () => void;
 }) {
   const countLabel = loading
-    ? "Loading folders..."
-    : `${folderCount} ${folderCount === 1 ? "folder" : "folders"}`;
+    ? "Loading workplaces..."
+    : `${workplaceCount} ${workplaceCount === 1 ? "workplace" : "workplaces"}`;
 
   return (
     <div
@@ -1723,9 +1745,9 @@ function WorkspaceFolderSidebarHeader({
         type="button"
         aria-expanded={!collapsed}
         aria-label={
-          collapsed ? "Expand folders sidebar" : "Collapse folders sidebar"
+          collapsed ? "Expand workplaces sidebar" : "Collapse workplaces sidebar"
         }
-        title={collapsed ? "Expand folders" : "Collapse folders"}
+        title={collapsed ? "Expand workplaces" : "Collapse workplaces"}
         onClick={onToggleCollapsed}
         className={`flex size-9 shrink-0 items-center justify-center rounded-lg border text-muted transition-[background-color,border-color,color,transform] duration-300 hover:-translate-y-0.5 hover:bg-card hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 ${
           collapsed ? "border-transparent bg-card" : "border-line bg-paper"
@@ -1858,7 +1880,7 @@ function DeadlineCalendar({
               Deadline calendar
             </h3>
             <p className="mt-0.5 text-xs text-muted">
-              {deadlineCount} deadlines from this folder
+              {deadlineCount} deadlines from this workplace
             </p>
           </div>
         </div>
@@ -1983,13 +2005,13 @@ function WorkspaceBanner({
   uploading,
   onUpload,
 }: {
-  workspace: Workspace;
+  workspace: Workplace;
   uploading: boolean;
   onUpload: (file: File) => void;
 }) {
-  const title = workspace.name.trim() || "Folder";
-  const abbreviation = getFolderAbbreviation(title);
-  const bannerColor = getFolderColor(workspace);
+  const title = workspace.name.trim() || "Workplace";
+  const abbreviation = getWorkplaceAbbreviation(title);
+  const bannerColor = getWorkplaceColor(workspace);
   const bannerTextColor = getReadableTextColor(bannerColor);
 
   return (
@@ -2313,7 +2335,7 @@ function GanttView({
           onToggleTaskList={() => setShowTaskList((current) => !current)}
         />
         <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center text-sm text-muted">
-          <span>This folder is empty. Add rows to build a Gantt timeline.</span>
+          <span>This workplace is empty. Add rows to build a Gantt timeline.</span>
           <button
             type="button"
             onClick={onAddTask}
@@ -2936,7 +2958,7 @@ function TaskRow({
 }
 
 export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [workspaces, setWorkspaces] = useState<Workplace[]>([]);
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState(
     EMPTY_SELECTED_WORKSPACE_ID,
   );
@@ -2944,10 +2966,10 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
     const reference = new Date();
     return new Date(reference.getFullYear(), reference.getMonth(), 1);
   });
-  const [viewMode, setViewMode] = useState<WorkspaceViewMode>("table");
-  const [isLoadingFolders, setIsLoadingFolders] = useState(true);
+  const [viewMode, setViewMode] = useState<WorkplaceViewMode>("table");
+  const [isLoadingWorkplaces, setIsLoadingWorkplaces] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [isFolderSidebarCollapsed, setIsFolderSidebarCollapsed] =
+  const [isWorkplaceSidebarCollapsed, setIsWorkplaceSidebarCollapsed] =
     useState(false);
   const [bannerUploadWorkspaceId, setBannerUploadWorkspaceId] = useState<
     string | null
@@ -2973,37 +2995,43 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
     selectedTasks.length > 0 && selectedTaskCount === selectedTasks.length;
   const hasPartialTaskSelection =
     selectedTaskCount > 0 && selectedTaskCount < selectedTasks.length;
-  const folderSidebarClassName = `flex shrink-0 flex-col overflow-hidden border-r border-line bg-paper transition-[width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
-    isFolderSidebarCollapsed ? "w-16" : "w-[252px]"
+  const workplaceSidebarClassName = `flex shrink-0 flex-col overflow-hidden border-r border-line bg-paper transition-[width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
+    isWorkplaceSidebarCollapsed ? "w-16" : "w-[252px]"
   }`;
 
   const applyLoadedWorkspaces = useCallback(
-    (folders: Workspace[], preferredWorkspaceId?: string) => {
-      setWorkspaces(folders);
+    (loadedWorkplaces: Workplace[], preferredWorkspaceId?: string) => {
+      setWorkspaces(loadedWorkplaces);
       setSelectedWorkspaceId((currentSelectedId) => {
         if (
           preferredWorkspaceId &&
-          folders.some((workspace) => workspace.id === preferredWorkspaceId)
+          loadedWorkplaces.some(
+            (workspace) => workspace.id === preferredWorkspaceId,
+          )
         ) {
           return preferredWorkspaceId;
         }
 
-        if (folders.some((workspace) => workspace.id === currentSelectedId)) {
+        if (
+          loadedWorkplaces.some(
+            (workspace) => workspace.id === currentSelectedId,
+          )
+        ) {
           return currentSelectedId;
         }
 
-        return folders[0]?.id ?? EMPTY_SELECTED_WORKSPACE_ID;
+        return loadedWorkplaces[0]?.id ?? EMPTY_SELECTED_WORKSPACE_ID;
       });
     },
     [],
   );
 
-  const loadFolders = useCallback(
+  const loadWorkplaces = useCallback(
     async (preferredWorkspaceId?: string) => {
-      const data = await apiFetchBrowser<WorkspaceFoldersResponse>(
-        WORKSPACE_FOLDERS_ENDPOINT,
+      const data = await apiFetchBrowser<WorkspaceWorkplacesResponse>(
+        WORKSPACE_WORKPLACES_ENDPOINT,
       );
-      applyLoadedWorkspaces(data.folders, preferredWorkspaceId);
+      applyLoadedWorkspaces(data.workplaces, preferredWorkspaceId);
     },
     [applyLoadedWorkspaces],
   );
@@ -3011,23 +3039,23 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
   useEffect(() => {
     let active = true;
 
-    async function loadInitialFolders() {
-      setIsLoadingFolders(true);
+    async function loadInitialWorkplaces() {
+      setIsLoadingWorkplaces(true);
       setSyncError(null);
 
       try {
-        const data = await apiFetchBrowser<WorkspaceFoldersResponse>(
-          WORKSPACE_FOLDERS_ENDPOINT,
+        const data = await apiFetchBrowser<WorkspaceWorkplacesResponse>(
+          WORKSPACE_WORKPLACES_ENDPOINT,
         );
-        if (active) applyLoadedWorkspaces(data.folders);
+        if (active) applyLoadedWorkspaces(data.workplaces);
       } catch (error) {
         if (active) setSyncError(getErrorMessage(error));
       } finally {
-        if (active) setIsLoadingFolders(false);
+        if (active) setIsLoadingWorkplaces(false);
       }
     }
 
-    void loadInitialFolders();
+    void loadInitialWorkplaces();
 
     return () => {
       active = false;
@@ -3062,11 +3090,11 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
   }, [selectedTasks]);
 
   useEffect(() => {
-    if (isLoadingFolders) return;
+    if (isLoadingWorkplaces) return;
 
     let refreshInFlight = false;
 
-    async function refreshSyncedFolders() {
+    async function refreshSyncedWorkplaces() {
       if (
         document.visibilityState === "hidden" ||
         refreshInFlight ||
@@ -3077,7 +3105,7 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
 
       refreshInFlight = true;
       try {
-        await loadFolders(selectedWorkspaceId);
+        await loadWorkplaces(selectedWorkspaceId);
       } catch (error) {
         setSyncError(getErrorMessage(error));
       } finally {
@@ -3086,19 +3114,19 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
     }
 
     function handleFocus() {
-      void refreshSyncedFolders();
+      void refreshSyncedWorkplaces();
     }
 
     function handleVisibilityChange() {
       if (document.visibilityState === "visible") {
-        void refreshSyncedFolders();
+        void refreshSyncedWorkplaces();
       }
     }
 
     window.addEventListener("focus", handleFocus);
     document.addEventListener("visibilitychange", handleVisibilityChange);
     const intervalId = window.setInterval(() => {
-      void refreshSyncedFolders();
+      void refreshSyncedWorkplaces();
     }, 30_000);
 
     return () => {
@@ -3106,7 +3134,7 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.clearInterval(intervalId);
     };
-  }, [isLoadingFolders, isSyncing, loadFolders, selectedWorkspaceId]);
+  }, [isLoadingWorkplaces, isSyncing, loadWorkplaces, selectedWorkspaceId]);
 
   async function updateTask<K extends EditableTaskField>(
     workspaceId: string,
@@ -3169,7 +3197,7 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
       );
     } catch (error) {
       setSyncError(getErrorMessage(error));
-      void loadFolders(workspaceId).catch((reloadError) =>
+      void loadWorkplaces(workspaceId).catch((reloadError) =>
         setSyncError(getErrorMessage(reloadError)),
       );
     } finally {
@@ -3248,7 +3276,7 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
       );
     } catch (error) {
       setSyncError(getErrorMessage(error));
-      void loadFolders(selectedWorkspaceId).catch((reloadError) =>
+      void loadWorkplaces(selectedWorkspaceId).catch((reloadError) =>
         setSyncError(getErrorMessage(reloadError)),
       );
     } finally {
@@ -3256,7 +3284,7 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
     }
   }
 
-  async function updateFolderColor(workspaceId: string, color: string) {
+  async function updateWorkplaceColor(workspaceId: string, color: string) {
     setSyncError(null);
     setWorkspaces((currentWorkspaces) =>
       currentWorkspaces.map((workspace) =>
@@ -3268,8 +3296,8 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
 
     try {
       setIsSyncing(true);
-      const savedWorkspace = await apiFetchBrowser<Workspace>(
-        `/workspace/folders/${workspaceId}`,
+      const savedWorkspace = await apiFetchBrowser<Workplace>(
+        `/workspace/workplaces/${workspaceId}`,
         {
           method: "PATCH",
           body: { bannerColor: color },
@@ -3282,7 +3310,39 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
       );
     } catch (error) {
       setSyncError(getErrorMessage(error));
-      void loadFolders(workspaceId).catch((reloadError) =>
+      void loadWorkplaces(workspaceId).catch((reloadError) =>
+        setSyncError(getErrorMessage(reloadError)),
+      );
+    } finally {
+      setIsSyncing(false);
+    }
+  }
+
+  async function updateWorkplaceIcon(workspaceId: string, icon: string) {
+    setSyncError(null);
+    setWorkspaces((currentWorkspaces) =>
+      currentWorkspaces.map((workspace) =>
+        workspace.id === workspaceId ? { ...workspace, icon } : workspace,
+      ),
+    );
+
+    try {
+      setIsSyncing(true);
+      const savedWorkspace = await apiFetchBrowser<Workplace>(
+        `/workspace/workplaces/${workspaceId}`,
+        {
+          method: "PATCH",
+          body: { icon },
+        },
+      );
+      setWorkspaces((currentWorkspaces) =>
+        currentWorkspaces.map((workspace) =>
+          workspace.id === savedWorkspace.id ? savedWorkspace : workspace,
+        ),
+      );
+    } catch (error) {
+      setSyncError(getErrorMessage(error));
+      void loadWorkplaces(workspaceId).catch((reloadError) =>
         setSyncError(getErrorMessage(reloadError)),
       );
     } finally {
@@ -3318,7 +3378,7 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
       );
     } catch (error) {
       setSyncError(getErrorMessage(error));
-      void loadFolders(selectedWorkspace.id).catch((reloadError) =>
+      void loadWorkplaces(selectedWorkspace.id).catch((reloadError) =>
         setSyncError(getErrorMessage(reloadError)),
       );
     } finally {
@@ -3326,7 +3386,7 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
     }
   }
 
-  async function uploadSelectedFolderBanner(file: File) {
+  async function uploadSelectedWorkplaceBanner(file: File) {
     if (!selectedWorkspace) return;
 
     if (file.type !== "image/png") {
@@ -3365,8 +3425,8 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
         });
       if (uploadError) throw uploadError;
 
-      const savedWorkspace = await apiFetchBrowser<Workspace>(
-        `/workspace/folders/${selectedWorkspace.id}`,
+      const savedWorkspace = await apiFetchBrowser<Workplace>(
+        `/workspace/workplaces/${selectedWorkspace.id}`,
         {
           method: "PATCH",
           body: { bannerImagePath: upload.storagePath },
@@ -3379,7 +3439,7 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
       );
     } catch (error) {
       setSyncError(getErrorMessage(error));
-      void loadFolders(selectedWorkspace.id).catch((reloadError) =>
+      void loadWorkplaces(selectedWorkspace.id).catch((reloadError) =>
         setSyncError(getErrorMessage(reloadError)),
       );
     } finally {
@@ -3388,19 +3448,19 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
     }
   }
 
-  async function createFolder() {
-    const fallbackName = `Folder ${workspaces.length + 1}`;
-    const folderName = window.prompt("Folder name", fallbackName)?.trim();
-    if (!folderName) return;
+  async function createWorkplace() {
+    const fallbackName = `Workplace ${workspaces.length + 1}`;
+    const workplaceName = window.prompt("Workplace name", fallbackName)?.trim();
+    if (!workplaceName) return;
 
     try {
       setIsSyncing(true);
       setSyncError(null);
-      const nextWorkspace = await apiFetchBrowser<Workspace>(
-        WORKSPACE_FOLDERS_ENDPOINT,
+      const nextWorkspace = await apiFetchBrowser<Workplace>(
+        WORKSPACE_WORKPLACES_ENDPOINT,
         {
           method: "POST",
-          body: { name: folderName },
+          body: { name: workplaceName },
         },
       );
       setWorkspaces((currentWorkspaces) => [
@@ -3419,14 +3479,14 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
     }
   }
 
-  async function addTaskToSelectedFolder() {
+  async function addTaskToSelectedWorkplace() {
     if (!selectedWorkspace) return;
 
     try {
       setIsSyncing(true);
       setSyncError(null);
       const nextTask = await apiFetchBrowser<WorkplaceTask>(
-        `/workspace/folders/${selectedWorkspace.id}/tasks`,
+        `/workspace/workplaces/${selectedWorkspace.id}/tasks`,
         {
           method: "POST",
           body: {},
@@ -3446,7 +3506,7 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
       );
     } catch (error) {
       setSyncError(getErrorMessage(error));
-      void loadFolders(selectedWorkspace.id).catch((reloadError) =>
+      void loadWorkplaces(selectedWorkspace.id).catch((reloadError) =>
         setSyncError(getErrorMessage(reloadError)),
       );
     } finally {
@@ -3454,19 +3514,19 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
     }
   }
 
-  if (isLoadingFolders) {
+  if (isLoadingWorkplaces) {
     return (
       <section className="flex min-h-0 min-w-0 flex-1 overflow-hidden bg-paper">
         <aside
-          aria-label="Workspace folders"
-          className={folderSidebarClassName}
+          aria-label="Workplaces sidebar"
+          className={workplaceSidebarClassName}
         >
-          <WorkspaceFolderSidebarHeader
-            collapsed={isFolderSidebarCollapsed}
-            folderCount={0}
+          <WorkspaceWorkplaceSidebarHeader
+            collapsed={isWorkplaceSidebarCollapsed}
+            workplaceCount={0}
             loading
             onToggleCollapsed={() =>
-              setIsFolderSidebarCollapsed((current) => !current)
+              setIsWorkplaceSidebarCollapsed((current) => !current)
             }
           />
         </aside>
@@ -3485,41 +3545,42 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
 
   return (
     <section className="flex min-h-0 min-w-0 flex-1 overflow-hidden bg-paper">
-      <aside aria-label="Workspace folders" className={folderSidebarClassName}>
-        <WorkspaceFolderSidebarHeader
-          collapsed={isFolderSidebarCollapsed}
-          folderCount={workspaces.length}
+      <aside aria-label="Workplaces sidebar" className={workplaceSidebarClassName}>
+        <WorkspaceWorkplaceSidebarHeader
+          collapsed={isWorkplaceSidebarCollapsed}
+          workplaceCount={workspaces.length}
           onToggleCollapsed={() =>
-            setIsFolderSidebarCollapsed((current) => !current)
+            setIsWorkplaceSidebarCollapsed((current) => !current)
           }
         />
 
         <div
-          className={`flex min-h-0 flex-1 flex-col overflow-y-auto py-2 transition-[gap,padding] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
-            isFolderSidebarCollapsed ? "gap-2 px-2" : "gap-1 px-2"
-          }`}
+          className="scrollbar-none flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden px-2 py-2"
           role="tablist"
-          aria-label="Folders"
+          aria-label="Workplaces"
         >
           {workspaces.map((workspace) => (
-            <FolderSidebarItem
+            <WorkplaceSidebarItem
               key={workspace.id}
-              collapsed={isFolderSidebarCollapsed}
+              collapsed={isWorkplaceSidebarCollapsed}
               workspace={workspace}
               selected={workspace.id === selectedWorkspace?.id}
               onSelect={() => setSelectedWorkspaceId(workspace.id)}
               onColorChange={(color) => {
-                void updateFolderColor(workspace.id, color);
+                void updateWorkplaceColor(workspace.id, color);
+              }}
+              onIconChange={(icon) => {
+                void updateWorkplaceIcon(workspace.id, icon);
               }}
             />
           ))}
           <button
             type="button"
-            aria-label="New folder"
-            title={isFolderSidebarCollapsed ? "New folder" : undefined}
-            onClick={createFolder}
+            aria-label="New workplace"
+            title={isWorkplaceSidebarCollapsed ? "New workplace" : undefined}
+            onClick={createWorkplace}
             className={`mt-2 flex shrink-0 items-center justify-center border border-dashed border-line text-xs font-semibold text-muted transition-[width,height,gap,padding,border-color,background-color,color,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:border-cta hover:bg-card hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 motion-reduce:transition-none ${
-              isFolderSidebarCollapsed
+              isWorkplaceSidebarCollapsed
                 ? "mx-auto size-11 gap-0 rounded-xl px-0"
                 : "h-9 w-full gap-2 rounded-md px-2.5"
             }`}
@@ -3527,12 +3588,12 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
             <Plus className="size-4 shrink-0" strokeWidth={1.8} />
             <span
               className={`overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
-                isFolderSidebarCollapsed
+                isWorkplaceSidebarCollapsed
                   ? "max-w-0 opacity-0"
                   : "max-w-[96px] opacity-100"
               }`}
             >
-              New folder
+              New workplace
             </span>
           </button>
         </div>
@@ -3544,7 +3605,7 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
             <WorkspaceBanner
               workspace={selectedWorkspace}
               uploading={bannerUploadWorkspaceId === selectedWorkspace.id}
-              onUpload={uploadSelectedFolderBanner}
+              onUpload={uploadSelectedWorkplaceBanner}
             />
 
             {syncStatus}
@@ -3649,14 +3710,14 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
                       className="flex min-h-[160px] items-center justify-center border-b border-line px-6 text-center text-sm text-muted"
                       style={{ width: TASK_TABLE_WIDTH }}
                     >
-                      This folder is empty. Add a row to start building its task
-                      table.
+                      This workplace is empty. Add a row to start building its
+                      task table.
                     </div>
                   )}
                   <button
                     type="button"
                     aria-label="Add row"
-                    onClick={addTaskToSelectedFolder}
+                    onClick={addTaskToSelectedWorkplace}
                     className="flex h-9 items-center border-b border-line bg-paper text-muted transition hover:bg-card hover:text-ink"
                     style={{ width: TASK_TABLE_WIDTH }}
                   >
@@ -3680,7 +3741,7 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
                   accounts={accounts}
                   workspaceId={selectedWorkspace.id}
                   onUpdate={updateTask}
-                  onAddTask={addTaskToSelectedFolder}
+                  onAddTask={addTaskToSelectedWorkplace}
                 />
               ) : (
                 <KanbanView
@@ -3699,19 +3760,21 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
               <Plus className="size-5" strokeWidth={1.8} />
             </span>
             <div>
-              <h2 className="text-xl font-semibold text-ink">No folders yet</h2>
+              <h2 className="text-xl font-semibold text-ink">
+                No workplaces yet
+              </h2>
               <p className="mt-1 text-sm text-muted">
-                Create a folder to show its task table and deadline calendar
+                Create a workplace to show its task table and deadline calendar
                 here.
               </p>
             </div>
             <button
               type="button"
-              onClick={createFolder}
+              onClick={createWorkplace}
               className="inline-flex h-10 items-center gap-2 rounded-md bg-ink px-4 text-sm font-semibold text-paper transition hover:opacity-90"
             >
               <Plus className="size-4" strokeWidth={1.8} />
-              Create folder
+              Create workplace
             </button>
           </div>
         )}

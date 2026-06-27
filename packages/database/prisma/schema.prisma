@@ -242,6 +242,7 @@ model WorkspaceFolder {
   id                String          @id @default(uuid())
   userId            String          @map("user_id")
   name              String
+  icon              String?
   bannerTitle       String?         @map("banner_title")
   bannerDescription String?         @map("banner_description") @db.Text
   bannerColor       String?         @map("banner_color")

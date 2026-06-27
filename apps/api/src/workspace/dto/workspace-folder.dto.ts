@@ -1,11 +1,33 @@
-import { IsOptional, IsString, Matches, MaxLength } from 'class-validator';
+import {
+  IsIn,
+  IsOptional,
+  IsString,
+  Matches,
+  MaxLength,
+} from 'class-validator';
 
 const BANNER_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
+export const WORKPLACE_ICONS = [
+  'workplace',
+  'briefcase',
+  'clipboard',
+  'calendar',
+  'camera',
+  'megaphone',
+  'users',
+  'archive',
+  'palette',
+  'file',
+] as const;
 
 export class CreateWorkspaceFolderDto {
   @IsString()
   @MaxLength(80)
   name!: string;
+
+  @IsOptional()
+  @IsIn(WORKPLACE_ICONS)
+  icon?: (typeof WORKPLACE_ICONS)[number] | null;
 
   @IsOptional()
   @IsString()
@@ -32,6 +54,10 @@ export class UpdateWorkspaceFolderDto {
   @IsString()
   @MaxLength(80)
   name?: string;
+
+  @IsOptional()
+  @IsIn(WORKPLACE_ICONS)
+  icon?: (typeof WORKPLACE_ICONS)[number] | null;
 
   @IsOptional()
   @IsString()
