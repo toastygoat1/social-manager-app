@@ -1883,13 +1883,14 @@ function WorkplaceSidebarItem({
         }`}
       >
         <span
-          className="grid size-6 shrink-0 place-items-center rounded-[5px] transition-[background-color,color] duration-300"
+          className="grid size-6 shrink-0 place-items-center rounded-[5px] border border-line/60 transition-[background-color,border-color,color] duration-300"
           style={{
             color: workplaceTextColor,
-            backgroundColor:
+            backgroundColor: workplaceColor,
+            borderColor:
               workplaceColor.toLowerCase() === WORKPLACE_ACCENT_DEFAULT
-                ? "#ffffff"
-                : `${workplaceColor}24`,
+                ? undefined
+                : workplaceColor,
           }}
         >
           <Icon className="size-4" strokeWidth={1.8} />
@@ -1945,7 +1946,7 @@ function WorkplaceSidebarItem({
                 <div ref={popoverRef} className="fixed inset-0 z-50 pointer-events-none">
                   {workplaceMenuOpen ? (
                     <div
-                      className="workspace-popover-enter pointer-events-auto fixed rounded-lg border border-line bg-paper py-1.5 shadow-xl"
+                      className="workspace-popover-enter pointer-events-auto fixed rounded-lg border border-line bg-paper p-1 shadow-xl"
                       role="menu"
                       style={{
                         left: workplaceMenuPosition.left,
@@ -1971,7 +1972,7 @@ function WorkplaceSidebarItem({
                           setPickerMenuOpen(true);
                           setColorPaletteOpen(false);
                         }}
-                        className="flex h-8 w-full items-center gap-2 px-3 text-sm text-ink transition hover:bg-card focus:bg-card focus:outline-none"
+                        className="flex h-8 w-full items-center gap-2 rounded-md px-2.5 text-sm text-ink transition hover:bg-card focus:bg-card focus:outline-none"
                       >
                         <Palette className="size-4 text-muted" strokeWidth={1.8} />
                         <span className="min-w-0 flex-1 text-left">
@@ -1989,7 +1990,7 @@ function WorkplaceSidebarItem({
                           closeMenus();
                           onRename();
                         }}
-                        className="flex h-8 w-full items-center gap-2 px-3 text-sm text-ink transition hover:bg-card focus:bg-card focus:outline-none"
+                        className="flex h-8 w-full items-center gap-2 rounded-md px-2.5 text-sm text-ink transition hover:bg-card focus:bg-card focus:outline-none"
                       >
                         <Pencil className="size-4 text-muted" strokeWidth={1.8} />
                         <span className="min-w-0 flex-1 text-left">Rename</span>
@@ -2001,7 +2002,7 @@ function WorkplaceSidebarItem({
                           closeMenus();
                           onDelete();
                         }}
-                        className="flex h-8 w-full items-center gap-2 px-3 text-sm text-danger transition hover:bg-danger/10 focus:bg-danger/10 focus:outline-none"
+                        className="flex h-8 w-full items-center gap-2 rounded-md px-2.5 text-sm text-danger transition hover:bg-danger/10 focus:bg-danger/10 focus:outline-none"
                       >
                         <Trash2 className="size-4" strokeWidth={1.8} />
                         <span className="min-w-0 flex-1 text-left">Delete</span>
@@ -2063,7 +2064,7 @@ function WorkplaceSidebarItem({
                       </div>
 
                       <div
-                        className="scrollbar-none mt-2 grid max-h-[196px] grid-cols-5 gap-1 overflow-y-auto"
+                        className="scrollbar-none mt-2 grid max-h-[196px] grid-cols-5 justify-items-center gap-1 overflow-y-auto"
                         role="group"
                         aria-label="Workplace icons"
                       >
@@ -2084,9 +2085,22 @@ function WorkplaceSidebarItem({
                               }}
                               className={`flex size-8 items-center justify-center rounded-md border transition hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 ${
                                 active
-                                  ? "border-ink bg-ink text-paper"
+                                  ? "border-ink ring-1 ring-ink"
                                   : "border-line text-muted"
                               }`}
+                              style={
+                                active
+                                  ? {
+                                      backgroundColor: workplaceColor,
+                                      color: workplaceTextColor,
+                                      borderColor:
+                                        workplaceColor.toLowerCase() ===
+                                        WORKPLACE_ACCENT_DEFAULT
+                                          ? undefined
+                                          : workplaceColor,
+                                    }
+                                  : undefined
+                              }
                             >
                               <OptionIcon className="size-4" strokeWidth={1.8} />
                             </button>
