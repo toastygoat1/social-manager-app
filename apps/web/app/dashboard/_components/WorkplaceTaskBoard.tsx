@@ -1573,19 +1573,19 @@ function WorkplaceSidebarItem({
         aria-label={`${title} workplace, ${workspace.tasks.length} rows`}
         title={collapsed ? title : undefined}
         onClick={onSelect}
-        className={`relative flex h-9 w-full min-w-0 items-center rounded-md px-[3px] text-left transition-[background-color,color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 ${
-          collapsed ? "justify-center gap-0" : "gap-2 pr-9"
+        className={`relative flex h-9 w-full min-w-0 items-center rounded-md px-[3px] text-left transition-[background-color,color] duration-200 ease-out hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 ${
+          collapsed ? "justify-center gap-0" : "gap-2 pr-16"
         } ${
           selected
-            ? "bg-ink font-medium text-paper"
-            : "text-muted hover:bg-card hover:text-ink"
+            ? "bg-neutral-200 font-medium text-ink hover:bg-neutral-200"
+            : "text-muted hover:text-ink"
         }`}
       >
         <span
           className={`grid size-8 shrink-0 place-items-center rounded-[5px] transition-[background-color,color] duration-300 ${
             selected
-              ? "bg-paper/15 text-paper"
-              : "text-muted group-hover/workplace:bg-card"
+              ? "bg-white/75 text-ink"
+              : "text-muted group-hover/workplace:bg-white"
           }`}
           style={
             selected
@@ -1609,9 +1609,9 @@ function WorkplaceSidebarItem({
           <span className="block truncate text-sm">{title}</span>
         </span>
         <span
-          className={`shrink-0 overflow-hidden whitespace-nowrap text-xs transition-[max-width,opacity] duration-300 ease-out ${
+          className={`absolute right-2 top-1/2 min-w-5 -translate-y-1/2 overflow-hidden whitespace-nowrap text-right text-xs transition-[max-width,opacity] duration-300 ease-out ${
             collapsed ? "max-w-0 opacity-0" : "max-w-[28px] opacity-100"
-          } ${selected ? "text-paper/70" : "text-muted"}`}
+          } ${selected ? "text-ink/70" : "text-muted"}`}
         >
           {workspace.tasks.length}
         </span>
@@ -1624,7 +1624,7 @@ function WorkplaceSidebarItem({
             aria-label={`${title} workplace options`}
             aria-expanded={colorMenuOpen}
             onClick={() => setColorMenuOpen((current) => !current)}
-            className={`absolute right-[3px] top-1/2 z-30 flex size-8 -translate-y-1/2 items-center justify-center rounded-[5px] text-muted transition hover:bg-card hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 ${
+            className={`absolute right-8 top-1/2 z-30 flex size-8 -translate-y-1/2 items-center justify-center rounded-[5px] text-muted transition hover:bg-neutral-200 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 ${
               colorMenuOpen
                 ? "opacity-100"
                 : "opacity-0 group-hover/workplace:opacity-100 group-focus-within/workplace:opacity-100"
@@ -2995,7 +2995,7 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
     selectedTasks.length > 0 && selectedTaskCount === selectedTasks.length;
   const hasPartialTaskSelection =
     selectedTaskCount > 0 && selectedTaskCount < selectedTasks.length;
-  const workplaceSidebarClassName = `flex shrink-0 flex-col overflow-hidden border-r border-line bg-paper transition-[width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
+  const workplaceSidebarClassName = `flex shrink-0 flex-col overflow-hidden border-r border-line bg-[rgb(253_253_253)] transition-[width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
     isWorkplaceSidebarCollapsed ? "w-16" : "w-[252px]"
   }`;
 
