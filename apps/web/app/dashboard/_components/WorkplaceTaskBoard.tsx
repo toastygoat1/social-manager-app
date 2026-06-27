@@ -1102,7 +1102,7 @@ function SelectInput<T extends string>({
         aria-expanded={Boolean(menuAnchorRect)}
         aria-haspopup="listbox"
         onClick={(event) => toggleMenu(event.currentTarget)}
-        className={`w-full border-0 bg-transparent px-2 py-1.5 text-center text-xs font-semibold outline-none transition hover:bg-card ${className}`}
+        className={`w-full border-0 bg-transparent px-1 py-1.5 text-left text-xs font-semibold outline-none transition hover:bg-card ${className}`}
       >
         {value}
       </button>
@@ -4090,10 +4090,10 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
                     {TASK_COLUMNS.map((column) => (
                       <div
                         key={column.label}
-                        className="flex h-full shrink-0 items-center border-r border-line/80 px-2.5 last:border-r-0"
+                        className="flex h-full shrink-0 items-center border-r border-line/80 px-3 last:border-r-0"
                         style={{ width: column.width }}
                       >
-                        <span className="px-2 text-xs font-semibold text-muted">
+                        <span className="text-xs font-semibold text-muted">
                           {column.label}
                         </span>
                       </div>
