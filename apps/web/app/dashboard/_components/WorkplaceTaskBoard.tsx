@@ -2,6 +2,7 @@
 
 import {
   type ComponentType,
+  type CSSProperties,
   useCallback,
   useEffect,
   useMemo,
@@ -1754,6 +1755,10 @@ function WorkplaceSidebarItem({
 }: WorkplaceTabProps & { collapsed: boolean }) {
   const workplaceColor = getWorkplaceColor(workspace);
   const workplaceTextColor = getReadableTextColor(workplaceColor);
+  const workplaceIconColor =
+    workplaceColor.toLowerCase() === WORKPLACE_ACCENT_DEFAULT
+      ? "#171717"
+      : workplaceColor;
   const iconOption = getWorkplaceIconOption(workspace.icon);
   const Icon = iconOption.Icon;
   const title = workspace.name.trim() || "Workplace";
@@ -1967,11 +1972,6 @@ function WorkplaceSidebarItem({
                           setPickerMenuOpen(true);
                           setColorPaletteOpen(false);
                         }}
-                        onClick={() => {
-                          updateMenuAnchor();
-                          setPickerMenuOpen(true);
-                          setColorPaletteOpen(false);
-                        }}
                         className="flex h-8 w-full items-center gap-2 rounded-md px-2.5 text-sm text-ink transition hover:bg-card focus:bg-card focus:outline-none"
                       >
                         <Palette className="size-4 text-muted" strokeWidth={1.8} />
@@ -2049,10 +2049,13 @@ function WorkplaceSidebarItem({
                           type="button"
                           aria-label="Show workplace colors"
                           aria-expanded={colorPaletteOpen}
-                          onClick={() => {
-                            const nextOpen = !colorPaletteOpen;
-                            if (nextOpen) updateColorAnchor();
-                            setColorPaletteOpen(nextOpen);
+                          onMouseEnter={() => {
+                            updateColorAnchor();
+                            setColorPaletteOpen(true);
+                          }}
+                          onFocus={() => {
+                            updateColorAnchor();
+                            setColorPaletteOpen(true);
                           }}
                           className="grid size-8 shrink-0 place-items-center rounded-md border border-line bg-paper transition hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70"
                         >
@@ -2064,7 +2067,7 @@ function WorkplaceSidebarItem({
                       </div>
 
                       <div
-                        className="scrollbar-none mt-2 grid max-h-[196px] grid-cols-5 justify-items-center gap-1 overflow-y-auto"
+                        className="scrollbar-none mt-2 grid max-h-[196px] grid-cols-[repeat(5,32px)] justify-center gap-2 overflow-y-auto"
                         role="group"
                         aria-label="Workplace icons"
                       >
@@ -2085,22 +2088,10 @@ function WorkplaceSidebarItem({
                               }}
                               className={`flex size-8 items-center justify-center rounded-md border transition hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 ${
                                 active
-                                  ? "border-ink ring-1 ring-ink"
-                                  : "border-line text-muted"
+                                  ? "border-current ring-1 ring-current"
+                                  : "border-line"
                               }`}
-                              style={
-                                active
-                                  ? {
-                                      backgroundColor: workplaceColor,
-                                      color: workplaceTextColor,
-                                      borderColor:
-                                        workplaceColor.toLowerCase() ===
-                                        WORKPLACE_ACCENT_DEFAULT
-                                          ? undefined
-                                          : workplaceColor,
-                                    }
-                                  : undefined
-                              }
+                              style={{ color: workplaceIconColor }}
                             >
                               <OptionIcon className="size-4" strokeWidth={1.8} />
                             </button>
@@ -2126,7 +2117,7 @@ function WorkplaceSidebarItem({
                         width: WORKPLACE_COLOR_MENU_WIDTH,
                       }}
                     >
-                      <div className="grid grid-cols-8 gap-1">
+                      <div className="grid grid-cols-8 gap-2">
                         {WORKPLACE_COLOR_OPTIONS.map((color) => (
                           <button
                             key={color}
@@ -2143,9 +2134,17 @@ function WorkplaceSidebarItem({
                             className={`grid size-5 place-items-center rounded-full transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 ${
                               workplaceColor.toLowerCase() ===
                               color.toLowerCase()
-                                ? "ring-2 ring-ink ring-offset-2"
+                                ? "ring-2 ring-offset-2"
                                 : ""
                             }`}
+                            style={
+                              workplaceColor.toLowerCase() ===
+                              color.toLowerCase()
+                                ? ({
+                                    "--tw-ring-color": color,
+                                  } as CSSProperties)
+                                : undefined
+                            }
                           >
                             <span
                               className="size-4 rounded-full"
