@@ -13,33 +13,76 @@ import {
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import {
+  Anchor,
   Archive,
+  AtSign,
+  BadgeDollarSign,
+  Bell,
+  Bike,
+  BookOpen,
+  Bot,
+  Box,
   BriefcaseBusiness,
+  Brush,
   Building2,
   CalendarDays,
   Camera,
+  ChartColumn,
   Check,
   ChevronLeft,
   ChevronRight,
   ClipboardList,
+  Cloud,
+  Coffee,
+  Command,
+  Compass,
+  Crown,
+  Database,
   Ellipsis,
   FileText,
   Flag,
+  Gem,
+  Gift,
+  Globe,
+  Handshake,
+  Heart,
+  Home,
+  Inbox,
+  Laptop,
+  Lightbulb,
+  MapPin,
   Megaphone,
+  MessageCircle,
+  Music,
+  Notebook,
+  Package,
   PanelLeft,
   PanelLeftClose,
   PanelLeftOpen,
   Palette,
   Pencil,
   Plus,
+  Receipt,
+  Rocket,
   Search,
+  Send,
+  Shapes,
+  Shield,
+  ShoppingBag,
+  Sparkles,
+  Star,
+  Store,
+  Target,
   Trash2,
+  Trophy,
+  Video,
+  Wallet,
   X,
+  Zap,
   UserPlus,
   Users,
 } from "lucide-react";
 import {
-  getFloatingPopoverPosition,
   getFloatingAnchorRect,
   type FloatingAnchorRect,
 } from "@/app/_components/DateTimePickerPopover";
@@ -133,6 +176,50 @@ const WORKPLACE_ICON_OPTIONS = [
   { id: "archive", label: "Archive", Icon: Archive },
   { id: "palette", label: "Creative", Icon: Palette },
   { id: "file", label: "File", Icon: FileText },
+  { id: "anchor", label: "Anchor", Icon: Anchor },
+  { id: "at-sign", label: "At sign", Icon: AtSign },
+  { id: "badge-dollar", label: "Revenue", Icon: BadgeDollarSign },
+  { id: "bell", label: "Bell", Icon: Bell },
+  { id: "bike", label: "Bike", Icon: Bike },
+  { id: "book", label: "Book", Icon: BookOpen },
+  { id: "bot", label: "Bot", Icon: Bot },
+  { id: "box", label: "Box", Icon: Box },
+  { id: "brush", label: "Brush", Icon: Brush },
+  { id: "chart", label: "Chart", Icon: ChartColumn },
+  { id: "cloud", label: "Cloud", Icon: Cloud },
+  { id: "coffee", label: "Coffee", Icon: Coffee },
+  { id: "command", label: "Command", Icon: Command },
+  { id: "compass", label: "Compass", Icon: Compass },
+  { id: "crown", label: "Crown", Icon: Crown },
+  { id: "database", label: "Database", Icon: Database },
+  { id: "gem", label: "Gem", Icon: Gem },
+  { id: "gift", label: "Gift", Icon: Gift },
+  { id: "globe", label: "Globe", Icon: Globe },
+  { id: "handshake", label: "Handshake", Icon: Handshake },
+  { id: "heart", label: "Heart", Icon: Heart },
+  { id: "home", label: "Home", Icon: Home },
+  { id: "inbox", label: "Inbox", Icon: Inbox },
+  { id: "laptop", label: "Laptop", Icon: Laptop },
+  { id: "lightbulb", label: "Lightbulb", Icon: Lightbulb },
+  { id: "map-pin", label: "Location", Icon: MapPin },
+  { id: "message", label: "Message", Icon: MessageCircle },
+  { id: "music", label: "Music", Icon: Music },
+  { id: "notebook", label: "Notebook", Icon: Notebook },
+  { id: "package", label: "Package", Icon: Package },
+  { id: "receipt", label: "Receipt", Icon: Receipt },
+  { id: "rocket", label: "Rocket", Icon: Rocket },
+  { id: "send", label: "Send", Icon: Send },
+  { id: "shapes", label: "Shapes", Icon: Shapes },
+  { id: "shield", label: "Shield", Icon: Shield },
+  { id: "shopping-bag", label: "Shopping", Icon: ShoppingBag },
+  { id: "sparkles", label: "Sparkles", Icon: Sparkles },
+  { id: "star", label: "Star", Icon: Star },
+  { id: "store", label: "Store", Icon: Store },
+  { id: "target", label: "Target", Icon: Target },
+  { id: "trophy", label: "Trophy", Icon: Trophy },
+  { id: "video", label: "Video", Icon: Video },
+  { id: "wallet", label: "Wallet", Icon: Wallet },
+  { id: "zap", label: "Zap", Icon: Zap },
 ] satisfies {
   id: string;
   label: string;
@@ -142,6 +229,7 @@ const WORKPLACE_OPTIONS_MENU_WIDTH = 244;
 const WORKPLACE_OPTIONS_MENU_HEIGHT = 76;
 const WORKPLACE_PICKER_WIDTH = 316;
 const WORKPLACE_PICKER_HEIGHT = 284;
+const WORKPLACE_MENU_ARROW_RIGHT_INSET = 12;
 const WORKPLACE_POPOVER_GAP = 8;
 const VIEWPORT_PADDING = 8;
 const ROW_NUMBER_COLUMN_WIDTH = 44;
@@ -750,19 +838,46 @@ function getCellAnchorRect(trigger: HTMLElement) {
   return getFloatingAnchorRect(cell ?? trigger);
 }
 
+function getWorkplaceMenuPosition(anchorRect: FloatingAnchorRect) {
+  if (typeof window === "undefined") {
+    return {
+      left: anchorRect.left,
+      top: anchorRect.top,
+    };
+  }
+
+  const maxLeft =
+    window.innerWidth - WORKPLACE_OPTIONS_MENU_WIDTH - VIEWPORT_PADDING;
+  const maxTop =
+    window.innerHeight - WORKPLACE_OPTIONS_MENU_HEIGHT - VIEWPORT_PADDING;
+
+  return {
+    left: Math.min(
+      Math.max(anchorRect.left, VIEWPORT_PADDING),
+      Math.max(maxLeft, VIEWPORT_PADDING),
+    ),
+    top: Math.min(
+      Math.max(anchorRect.top, VIEWPORT_PADDING),
+      Math.max(maxTop, VIEWPORT_PADDING),
+    ),
+  };
+}
+
 function getWorkplacePickerPosition(menuPosition: { left: number; top: number }) {
   if (typeof window === "undefined") {
     return {
       left:
         menuPosition.left +
-        WORKPLACE_OPTIONS_MENU_WIDTH +
-        WORKPLACE_POPOVER_GAP,
+        WORKPLACE_OPTIONS_MENU_WIDTH -
+        WORKPLACE_MENU_ARROW_RIGHT_INSET,
       top: menuPosition.top,
     };
   }
 
   const rightSideLeft =
-    menuPosition.left + WORKPLACE_OPTIONS_MENU_WIDTH + WORKPLACE_POPOVER_GAP;
+    menuPosition.left +
+    WORKPLACE_OPTIONS_MENU_WIDTH -
+    WORKPLACE_MENU_ARROW_RIGHT_INSET;
   const leftSideLeft =
     menuPosition.left - WORKPLACE_PICKER_WIDTH - WORKPLACE_POPOVER_GAP;
   const fitsRight =
@@ -1608,16 +1723,13 @@ function WorkplaceSidebarItem({
   const popoverRef = useRef<HTMLDivElement | null>(null);
   const [workplaceMenuOpen, setWorkplaceMenuOpen] = useState(false);
   const [pickerMenuOpen, setPickerMenuOpen] = useState(false);
+  const [colorPaletteOpen, setColorPaletteOpen] = useState(false);
   const [menuAnchorRect, setMenuAnchorRect] =
     useState<FloatingAnchorRect | null>(null);
   const [iconSearch, setIconSearch] = useState("");
   const menuOpen = workplaceMenuOpen || pickerMenuOpen;
   const workplaceMenuPosition = menuAnchorRect
-    ? getFloatingPopoverPosition(
-        menuAnchorRect,
-        WORKPLACE_OPTIONS_MENU_WIDTH,
-        WORKPLACE_OPTIONS_MENU_HEIGHT,
-      )
+    ? getWorkplaceMenuPosition(menuAnchorRect)
     : null;
   const workplacePickerPosition = workplaceMenuPosition
     ? getWorkplacePickerPosition(workplaceMenuPosition)
@@ -1634,6 +1746,7 @@ function WorkplaceSidebarItem({
   const closeMenus = useCallback(() => {
     setWorkplaceMenuOpen(false);
     setPickerMenuOpen(false);
+    setColorPaletteOpen(false);
     setMenuAnchorRect(null);
     setIconSearch("");
   }, []);
@@ -1759,6 +1872,7 @@ function WorkplaceSidebarItem({
               updateMenuAnchor();
               setWorkplaceMenuOpen(true);
               setPickerMenuOpen(false);
+              setColorPaletteOpen(false);
               setIconSearch("");
             }}
             className={`absolute right-8 top-1/2 z-30 flex size-8 -translate-y-1/2 items-center justify-center rounded-[5px] text-muted transition hover:bg-neutral-200 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 ${
@@ -1791,14 +1905,17 @@ function WorkplaceSidebarItem({
                         onMouseEnter={() => {
                           updateMenuAnchor();
                           setPickerMenuOpen(true);
+                          setColorPaletteOpen(false);
                         }}
                         onFocus={() => {
                           updateMenuAnchor();
                           setPickerMenuOpen(true);
+                          setColorPaletteOpen(false);
                         }}
                         onClick={() => {
                           updateMenuAnchor();
                           setPickerMenuOpen(true);
+                          setColorPaletteOpen(false);
                         }}
                         className="flex h-8 w-full items-center gap-2 px-3 text-sm text-ink transition hover:bg-card focus:bg-card focus:outline-none"
                       >
@@ -1860,7 +1977,28 @@ function WorkplaceSidebarItem({
                           />
                         </label>
 
-                        <div className="flex shrink-0 items-center gap-1">
+                        <button
+                          type="button"
+                          aria-label="Show workplace colors"
+                          aria-expanded={colorPaletteOpen}
+                          onClick={() =>
+                            setColorPaletteOpen((current) => !current)
+                          }
+                          className="grid size-8 shrink-0 place-items-center rounded-md border border-line bg-paper transition hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70"
+                        >
+                          <span
+                            className="size-4 rounded-full border border-line"
+                            style={{ backgroundColor: workplaceColor }}
+                          />
+                        </button>
+                      </div>
+
+                      {colorPaletteOpen ? (
+                        <div
+                          className="mt-2 flex items-center gap-1 rounded-md border border-line bg-paper p-1"
+                          role="group"
+                          aria-label="Workplace accent colors"
+                        >
                           {WORKPLACE_COLOR_OPTIONS.map((color) => (
                             <button
                               key={color}
@@ -1888,7 +2026,7 @@ function WorkplaceSidebarItem({
                             </button>
                           ))}
                         </div>
-                      </div>
+                      ) : null}
 
                       <div
                         className="scrollbar-none mt-2 grid max-h-[196px] grid-cols-5 gap-1 overflow-y-auto"
@@ -2245,7 +2383,7 @@ function WorkspaceBanner({
   const bannerTextColor = getReadableTextColor(bannerColor);
 
   return (
-    <section className="group/banner relative border-b border-line bg-paper">
+    <section className="group/banner relative border-b border-l border-line bg-paper">
       <div
         className="relative flex h-[236px] items-center justify-center overflow-hidden sm:h-[256px]"
         style={{ backgroundColor: bannerColor }}
@@ -3864,7 +4002,7 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
               className={`overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
                 isWorkplaceSidebarCollapsed
                   ? "max-w-0 opacity-0"
-                  : "max-w-[96px] opacity-100"
+                  : "max-w-[124px] opacity-100"
               }`}
             >
               Add workplace
