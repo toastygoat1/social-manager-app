@@ -1545,6 +1545,7 @@ type WorkplaceTabProps = {
   workspace: Workplace;
   selected: boolean;
   onSelect: () => void;
+  onRename: () => void;
   onColorChange: (color: string) => void;
   onIconChange: (icon: string) => void;
 };
@@ -1554,6 +1555,7 @@ function WorkplaceSidebarItem({
   workspace,
   selected,
   onSelect,
+  onRename,
   onColorChange,
   onIconChange,
 }: WorkplaceTabProps & { collapsed: boolean }) {
@@ -1562,27 +1564,77 @@ function WorkplaceSidebarItem({
   const iconOption = getWorkplaceIconOption(workspace.icon);
   const Icon = iconOption.Icon;
   const title = workspace.name.trim() || "Workplace";
-  const [colorMenuOpen, setColorMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const [workplaceMenuOpen, setWorkplaceMenuOpen] = useState(false);
+  const [pickerMenuOpen, setPickerMenuOpen] = useState(false);
+  const [iconSearch, setIconSearch] = useState("");
+  const menuOpen = workplaceMenuOpen || pickerMenuOpen;
+  const filteredIconOptions = useMemo(() => {
+    const query = iconSearch.trim().toLowerCase();
+    if (!query) return WORKPLACE_ICON_OPTIONS;
+
+    return WORKPLACE_ICON_OPTIONS.filter((option) =>
+      option.label.toLowerCase().includes(query),
+    );
+  }, [iconSearch]);
+
+  const closeMenus = useCallback(() => {
+    setWorkplaceMenuOpen(false);
+    setPickerMenuOpen(false);
+    setIconSearch("");
+  }, []);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    function handlePointerDown(event: PointerEvent) {
+      const target = event.target;
+      if (target && menuRef.current?.contains(target as Node)) return;
+      closeMenus();
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") closeMenus();
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [closeMenus, menuOpen]);
 
   return (
-    <div className="group/workplace relative">
+    <div
+      ref={menuRef}
+      className={`group/workplace relative rounded-md transition-colors duration-200 ${
+        selected
+          ? "bg-neutral-200"
+          : "bg-transparent hover:bg-neutral-100"
+      }`}
+    >
       <button
         type="button"
         role="tab"
         aria-selected={selected}
         aria-label={`${title} workplace, ${workspace.tasks.length} rows`}
         title={collapsed ? title : undefined}
-        onClick={onSelect}
-        className={`relative flex h-9 w-full min-w-0 items-center rounded-md px-[3px] text-left transition-[background-color,color] duration-200 ease-out hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 ${
+        onClick={() => {
+          closeMenus();
+          onSelect();
+        }}
+        className={`relative flex h-8 w-full min-w-0 items-center rounded-md p-1 text-left transition-colors duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 ${
           collapsed ? "justify-center gap-0" : "gap-2 pr-16"
         } ${
           selected
-            ? "bg-neutral-200 font-medium text-ink hover:bg-neutral-200"
+            ? "font-medium text-ink"
             : "text-muted hover:text-ink"
         }`}
       >
         <span
-          className={`grid size-8 shrink-0 place-items-center rounded-[5px] transition-[background-color,color] duration-300 ${
+          className={`grid size-6 shrink-0 place-items-center rounded-[5px] transition-[background-color,color] duration-300 ${
             selected
               ? "bg-white/75 text-ink"
               : "text-muted group-hover/workplace:bg-white"
@@ -1599,7 +1651,7 @@ function WorkplaceSidebarItem({
                 }
           }
         >
-          <Icon className="size-[17px]" strokeWidth={1.8} />
+          <Icon className="size-4" strokeWidth={1.8} />
         </span>
         <span
           className={`min-w-0 flex-1 overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-300 ease-out ${
@@ -1622,32 +1674,109 @@ function WorkplaceSidebarItem({
           <button
             type="button"
             aria-label={`${title} workplace options`}
-            aria-expanded={colorMenuOpen}
-            onClick={() => setColorMenuOpen((current) => !current)}
+            aria-expanded={workplaceMenuOpen}
+            onClick={() => {
+              setWorkplaceMenuOpen((current) => !current);
+              setPickerMenuOpen(false);
+              setIconSearch("");
+            }}
             className={`absolute right-8 top-1/2 z-30 flex size-8 -translate-y-1/2 items-center justify-center rounded-[5px] text-muted transition hover:bg-neutral-200 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 ${
-              colorMenuOpen
+              menuOpen
                 ? "opacity-100"
-                : "opacity-0 group-hover/workplace:opacity-100 group-focus-within/workplace:opacity-100"
+                : "opacity-0 group-hover/workplace:opacity-100"
             }`}
           >
             <Ellipsis className="size-4" strokeWidth={1.8} />
           </button>
 
-          {colorMenuOpen ? (
+          {workplaceMenuOpen ? (
             <div
-              className="absolute right-0 top-10 z-40 w-[216px] rounded-lg border border-line bg-paper p-2"
-              onBlur={(event) => {
-                if (!event.currentTarget.contains(event.relatedTarget)) {
-                  setColorMenuOpen(false);
-                }
-              }}
+              className="workspace-popover-enter absolute right-0 top-9 z-40 w-[244px] rounded-lg border border-line bg-paper py-1.5 shadow-xl"
+              role="menu"
             >
+              <button
+                type="button"
+                role="menuitem"
+                onMouseEnter={() => setPickerMenuOpen(true)}
+                onFocus={() => setPickerMenuOpen(true)}
+                onClick={() => setPickerMenuOpen((current) => !current)}
+                className="flex h-8 w-full items-center gap-2 px-3 text-sm text-ink transition hover:bg-card focus:bg-card focus:outline-none"
+              >
+                <Palette className="size-4 text-muted" strokeWidth={1.8} />
+                <span className="min-w-0 flex-1 text-left">Color and icon</span>
+                <ChevronRight className="size-4 text-muted" strokeWidth={1.8} />
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  closeMenus();
+                  onRename();
+                }}
+                className="flex h-8 w-full items-center gap-2 px-3 text-sm text-ink transition hover:bg-card focus:bg-card focus:outline-none"
+              >
+                <Pencil className="size-4 text-muted" strokeWidth={1.8} />
+                <span className="min-w-0 flex-1 text-left">Rename</span>
+              </button>
+            </div>
+          ) : null}
+
+          {pickerMenuOpen ? (
+            <div className="workspace-subpopover-enter absolute left-[calc(100%+8px)] top-0 z-50 w-[316px] rounded-lg border border-line bg-paper p-2 shadow-xl">
+              <div className="border-b border-line px-1">
+                <button
+                  type="button"
+                  className="-mb-px h-8 border-b-2 border-ink px-1 text-xs font-medium text-ink"
+                >
+                  Icon
+                </button>
+              </div>
+
+              <div className="mt-2 flex items-center gap-2">
+                <label className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-md border border-line bg-paper px-2 text-muted">
+                  <Search className="size-3.5 shrink-0" strokeWidth={1.8} />
+                  <input
+                    value={iconSearch}
+                    onChange={(event) => setIconSearch(event.target.value)}
+                    placeholder="Search..."
+                    className="min-w-0 flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-muted"
+                  />
+                </label>
+
+                <div className="flex shrink-0 items-center gap-1">
+                  {WORKPLACE_COLOR_OPTIONS.map((color) => (
+                    <button
+                      key={color}
+                      type="button"
+                      aria-label={`Set workplace color ${color}`}
+                      aria-pressed={
+                        workplaceColor.toLowerCase() === color.toLowerCase()
+                      }
+                      onClick={() => {
+                        onColorChange(color);
+                        closeMenus();
+                      }}
+                      className={`grid size-8 place-items-center rounded-md border transition hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 ${
+                        workplaceColor.toLowerCase() === color.toLowerCase()
+                          ? "border-ink"
+                          : "border-line"
+                      }`}
+                    >
+                      <span
+                        className="size-4 rounded-full border border-line"
+                        style={{ backgroundColor: color }}
+                      />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div
-                className="grid grid-cols-5 gap-1"
+                className="scrollbar-none mt-2 grid max-h-[196px] grid-cols-5 gap-1 overflow-y-auto"
                 role="group"
                 aria-label="Workplace icons"
               >
-                {WORKPLACE_ICON_OPTIONS.map((option) => {
+                {filteredIconOptions.map((option) => {
                   const OptionIcon = option.Icon;
                   const active = option.id === iconOption.id;
 
@@ -1660,7 +1789,7 @@ function WorkplaceSidebarItem({
                       aria-pressed={active}
                       onClick={() => {
                         onIconChange(option.id);
-                        setColorMenuOpen(false);
+                        closeMenus();
                       }}
                       className={`flex size-8 items-center justify-center rounded-md border transition hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 ${
                         active
@@ -1672,33 +1801,11 @@ function WorkplaceSidebarItem({
                     </button>
                   );
                 })}
-              </div>
-
-              <div
-                className="mt-2 flex items-center gap-1 border-t border-line pt-2"
-                role="group"
-                aria-label="Workplace accent colors"
-              >
-                {WORKPLACE_COLOR_OPTIONS.map((color) => (
-                  <button
-                    key={color}
-                    type="button"
-                    aria-label={`Set workplace color ${color}`}
-                    aria-pressed={
-                      workplaceColor.toLowerCase() === color.toLowerCase()
-                    }
-                    onClick={() => {
-                      onColorChange(color);
-                      setColorMenuOpen(false);
-                    }}
-                    className={`size-5 rounded-full border transition hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 ${
-                      workplaceColor.toLowerCase() === color.toLowerCase()
-                        ? "border-ink"
-                        : "border-line"
-                    }`}
-                    style={{ backgroundColor: color }}
-                  />
-                ))}
+                {filteredIconOptions.length === 0 ? (
+                  <div className="col-span-5 px-2 py-5 text-center text-sm text-muted">
+                    No icons found
+                  </div>
+                ) : null}
               </div>
             </div>
           ) : null}
@@ -3284,6 +3391,47 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
     }
   }
 
+  async function renameWorkplace(workspace: Workplace) {
+    const currentName = workspace.name.trim() || "Workplace";
+    const nextName = window.prompt("Workplace name", currentName)?.trim();
+
+    if (!nextName || nextName === currentName) return;
+
+    setSyncError(null);
+    setWorkspaces((currentWorkspaces) =>
+      currentWorkspaces.map((currentWorkspace) =>
+        currentWorkspace.id === workspace.id
+          ? { ...currentWorkspace, name: nextName }
+          : currentWorkspace,
+      ),
+    );
+
+    try {
+      setIsSyncing(true);
+      const savedWorkspace = await apiFetchBrowser<Workplace>(
+        `/workspace/workplaces/${workspace.id}`,
+        {
+          method: "PATCH",
+          body: { name: nextName },
+        },
+      );
+      setWorkspaces((currentWorkspaces) =>
+        currentWorkspaces.map((currentWorkspace) =>
+          currentWorkspace.id === savedWorkspace.id
+            ? savedWorkspace
+            : currentWorkspace,
+        ),
+      );
+    } catch (error) {
+      setSyncError(getErrorMessage(error));
+      void loadWorkplaces(workspace.id).catch((reloadError) =>
+        setSyncError(getErrorMessage(reloadError)),
+      );
+    } finally {
+      setIsSyncing(false);
+    }
+  }
+
   async function updateWorkplaceColor(workspaceId: string, color: string) {
     setSyncError(null);
     setWorkspaces((currentWorkspaces) =>
@@ -3566,6 +3714,9 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
               workspace={workspace}
               selected={workspace.id === selectedWorkspace?.id}
               onSelect={() => setSelectedWorkspaceId(workspace.id)}
+              onRename={() => {
+                void renameWorkplace(workspace);
+              }}
               onColorChange={(color) => {
                 void updateWorkplaceColor(workspace.id, color);
               }}
