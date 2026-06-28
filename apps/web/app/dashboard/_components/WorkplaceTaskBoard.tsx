@@ -234,11 +234,11 @@ const WORKPLACE_ICON_OPTIONS = [
 }[];
 const WORKPLACE_OPTIONS_MENU_WIDTH = 244;
 const WORKPLACE_OPTIONS_MENU_HEIGHT = 108;
-const WORKPLACE_PICKER_WIDTH = 316;
+const WORKPLACE_PICKER_WIDTH = 288;
 const WORKPLACE_PICKER_HEIGHT = 284;
 const WORKPLACE_COLOR_MENU_WIDTH = 194;
 const WORKPLACE_COLOR_MENU_HEIGHT = 78;
-const WORKPLACE_MENU_ARROW_RIGHT_INSET = 0;
+const WORKPLACE_MENU_ARROW_RIGHT_INSET = 12;
 const WORKPLACE_POPOVER_GAP = 8;
 const VIEWPORT_PADDING = 8;
 const ROW_NUMBER_COLUMN_WIDTH = 44;
@@ -1863,11 +1863,7 @@ function WorkplaceSidebarItem({
   return (
     <div
       ref={menuRef}
-      className={`group/workplace relative rounded-md transition-colors duration-200 ${
-        selected
-          ? "bg-neutral-200"
-          : "bg-transparent hover:bg-neutral-100"
-      }`}
+      className="group/workplace relative rounded-md transition-colors duration-200"
     >
       <button
         type="button"
@@ -1879,12 +1875,14 @@ function WorkplaceSidebarItem({
           closeMenus();
           onSelect();
         }}
-        className={`relative flex h-8 w-full min-w-0 items-center rounded-md p-1 text-left transition-colors duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 ${
-          collapsed ? "justify-center gap-0" : "gap-2 pr-16"
+        className={`relative flex min-w-0 items-center rounded-md text-left transition-[background-color,box-shadow,color] duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 ${
+          collapsed
+            ? "mx-auto size-8 justify-center gap-0 p-1"
+            : "h-8 w-full gap-2 p-1 pr-16"
         } ${
           selected
-            ? "font-medium text-ink"
-            : "text-muted hover:text-ink"
+            ? "bg-white font-medium text-ink shadow-[0_0_0_1px_rgba(17,17,17,0.06)]"
+            : "bg-transparent text-muted hover:bg-[rgb(253_253_253)] hover:text-ink"
         }`}
       >
         <span
@@ -2067,7 +2065,7 @@ function WorkplaceSidebarItem({
                       </div>
 
                       <div
-                        className="scrollbar-none mt-2 grid max-h-[196px] grid-cols-[repeat(5,32px)] justify-center gap-2 overflow-y-auto"
+                        className="scrollbar-none mt-2 grid max-h-[196px] grid-cols-[repeat(7,32px)] justify-center gap-2 overflow-y-auto"
                         role="group"
                         aria-label="Workplace icons"
                       >
@@ -2088,17 +2086,17 @@ function WorkplaceSidebarItem({
                               }}
                               className={`flex size-8 items-center justify-center rounded-md border transition hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 ${
                                 active
-                                  ? "border-current ring-1 ring-current"
-                                  : "border-line"
+                                  ? "border-current"
+                                  : "border-transparent"
                               }`}
                               style={{ color: workplaceIconColor }}
                             >
-                              <OptionIcon className="size-4" strokeWidth={1.8} />
+                              <OptionIcon className="size-4" strokeWidth={2.25} />
                             </button>
                           );
                         })}
                         {filteredIconOptions.length === 0 ? (
-                          <div className="col-span-5 px-2 py-5 text-center text-sm text-muted">
+                          <div className="col-span-7 px-2 py-5 text-center text-sm text-muted">
                             No icons found
                           </div>
                         ) : null}
