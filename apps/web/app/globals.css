@@ -545,6 +545,29 @@ html.theme-circle-transition::view-transition-new(root) {
   transform-origin: right top;
 }
 
+.app-button-motion-scope :where(button, [role="button"], a[href]) {
+  transition-property:
+    color,
+    background-color,
+    border-color,
+    opacity,
+    box-shadow,
+    filter,
+    transform;
+  transition-duration: 150ms;
+  transition-timing-function: ease;
+  transform-origin: center;
+  will-change: transform;
+}
+
+.app-button-motion-scope :where(
+  button:active:not(:disabled),
+  [role="button"]:active,
+  a[href]:active
+) {
+  transform: scale(0.97);
+}
+
 .analytics-stat-card {
   animation: analytics-stat-card-in 460ms cubic-bezier(0.22, 1, 0.36, 1) both;
   transition:
@@ -616,9 +639,18 @@ html.theme-circle-transition::view-transition-new(root) {
   .analytics-stat-card,
   .analytics-stat-value,
   .account-popup-panel,
-  .scheduler-create-menu {
+  .scheduler-create-menu,
+  .app-button-motion-scope :where(button, [role="button"], a[href]) {
     animation: none !important;
     transition: none !important;
+  }
+
+  .app-button-motion-scope :where(
+    button:active:not(:disabled),
+    [role="button"]:active,
+    a[href]:active
+  ) {
+    transform: none !important;
   }
 }
 

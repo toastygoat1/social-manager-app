@@ -41,7 +41,9 @@ export default async function RootLayout({
       suppressHydrationWarning
       className={`${inter.variable} ${geistMono.variable} ${copse.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="app-button-motion-scope min-h-full flex flex-col">
+        {children}
+      </body>
     </html>
   );
 }

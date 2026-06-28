@@ -1877,8 +1877,8 @@ function WorkplaceSidebarItem({
         }}
         className={`relative flex min-w-0 items-center rounded-md border text-left transition-[background-color,border-color,box-shadow,color] duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 ${
           collapsed
-            ? "ml-2 size-8 justify-center gap-0 p-1"
-            : "h-8 w-full gap-2 py-1 pl-3 pr-16"
+            ? "size-8 justify-center gap-0 p-1"
+            : "h-8 w-full gap-2 p-1 pr-16"
         } ${
           selected
             ? "border-line bg-white font-medium text-ink shadow-[0_0_0_1px_rgba(17,17,17,0.03)]"
@@ -1906,7 +1906,7 @@ function WorkplaceSidebarItem({
           <span className="block truncate text-sm">{title}</span>
         </span>
         <span
-          className={`absolute right-2 top-1/2 min-w-5 -translate-y-1/2 overflow-hidden whitespace-nowrap text-right text-xs transition-[max-width,opacity] duration-300 ease-out ${
+          className={`absolute right-1 top-1/2 min-w-5 -translate-y-1/2 overflow-hidden whitespace-nowrap text-right text-xs transition-[max-width,opacity] duration-300 ease-out ${
             collapsed ? "max-w-0 opacity-0" : "max-w-[28px] opacity-100"
           } ${selected ? "text-ink/70" : "text-muted"}`}
         >
@@ -2084,10 +2084,10 @@ function WorkplaceSidebarItem({
                                 onIconChange(option.id);
                                 closeMenus();
                               }}
-                              className={`flex size-8 items-center justify-center rounded-md border transition hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 ${
+                              className={`flex size-8 items-center justify-center rounded-md border border-transparent transition hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 ${
                                 active
-                                  ? "border-current"
-                                  : "border-transparent"
+                                  ? "shadow-[inset_0_0_0_1px_currentColor]"
+                                  : "shadow-none"
                               }`}
                               style={{ color: workplaceIconColor }}
                             >

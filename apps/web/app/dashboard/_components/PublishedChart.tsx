@@ -382,7 +382,7 @@ export function PublishedChart({
                   aria-pressed={active}
                   title={option.title}
                   onClick={() => selectRange(option.value)}
-                  className={`h-7 w-11 rounded-[6px] transition-colors duration-200 ${
+                  className={`h-7 w-11 rounded-[6px] !text-[12px] transition-colors duration-200 ${
                     active
                       ? "bg-ink text-paper"
                       : "hover:bg-paper hover:text-ink"
@@ -405,7 +405,7 @@ export function PublishedChart({
                   aria-label={`${PUBLISHED_FORMAT_LABELS[format]} ${count}`}
                   aria-pressed={active}
                   onClick={() => toggleFormat(format)}
-                  className="dashboard-ui-label inline-flex w-[84px] items-center justify-center gap-1 rounded-[6px] border bg-[var(--toggle-bg)] px-2 py-0.5 transition-colors duration-200 hover:bg-[var(--toggle-hover-bg)] focus-visible:bg-[var(--toggle-hover-bg)]"
+                  className="dashboard-ui-label inline-flex w-[84px] items-center justify-center gap-1 rounded-[6px] border bg-[var(--toggle-bg)] px-2 py-0.5 !text-[12px] transition-colors duration-200 hover:bg-[var(--toggle-hover-bg)] focus-visible:bg-[var(--toggle-hover-bg)]"
                   style={
                     {
                       "--toggle-bg": active
