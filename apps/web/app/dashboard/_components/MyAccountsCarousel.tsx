@@ -27,16 +27,20 @@ function getInitials(label: string) {
 const MY_ACCOUNTS_ADD_BUTTON_CLASS =
   "inline-flex h-8 items-center gap-1.5 rounded-lg bg-ink px-3 text-xs font-semibold text-paper transition hover:opacity-85";
 const COLLAPSED_ACCOUNTS_HEIGHT = 194;
+const ACCOUNTS_EXPAND_TRANSITION_MS = 650;
 
 export function MyAccountsCarousel({
   accounts,
 }: MyAccountsCarouselProps) {
   const [openAccount, setOpenAccount] = useState<Account | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [usesGridLayout, setUsesGridLayout] = useState(false);
   const [expandedHeight, setExpandedHeight] = useState(
     COLLAPSED_ACCOUNTS_HEIGHT,
   );
+  const sectionRef = useRef<HTMLElement | null>(null);
   const accountsListRef = useRef<HTMLDivElement | null>(null);
+  const scrollTimeoutRef = useRef<number | null>(null);
   const accountCountLabel =
     accounts.length === 1 ? "1 account" : `${accounts.length} accounts`;
   const canExpand = accounts.length > 7;
@@ -54,10 +58,75 @@ export function MyAccountsCarousel({
     const observer = new ResizeObserver(updateHeight);
     observer.observe(measuredNode);
     return () => observer.disconnect();
-  }, [accounts.length, isExpanded]);
+  }, [accounts.length, usesGridLayout]);
+
+  useEffect(() => {
+    return () => {
+      if (scrollTimeoutRef.current) {
+        window.clearTimeout(scrollTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  function scrollExpandedAccountsIntoView() {
+    const section = sectionRef.current;
+    if (!section) return;
+
+    const scrollContainer = section.closest<HTMLElement>(".app-shell-panel");
+    if (!scrollContainer) {
+      section.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      return;
+    }
+
+    const sectionRect = section.getBoundingClientRect();
+    const containerRect = scrollContainer.getBoundingClientRect();
+    const bottomOverflow = sectionRect.bottom + 24 - containerRect.bottom;
+
+    if (bottomOverflow > 0) {
+      scrollContainer.scrollBy({ top: bottomOverflow, behavior: "smooth" });
+      return;
+    }
+
+    const topOverflow = containerRect.top + 16 - sectionRect.top;
+    if (topOverflow > 0) {
+      scrollContainer.scrollBy({ top: -topOverflow, behavior: "smooth" });
+    }
+  }
+
+  function queueExpandedScroll() {
+    if (scrollTimeoutRef.current) {
+      window.clearTimeout(scrollTimeoutRef.current);
+    }
+
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(scrollExpandedAccountsIntoView);
+    });
+
+    scrollTimeoutRef.current = window.setTimeout(
+      scrollExpandedAccountsIntoView,
+      ACCOUNTS_EXPAND_TRANSITION_MS + 80,
+    );
+  }
+
+  function toggleExpanded() {
+    if (isExpanded) {
+      if (scrollTimeoutRef.current) {
+        window.clearTimeout(scrollTimeoutRef.current);
+      }
+      setIsExpanded(false);
+      return;
+    }
+
+    setUsesGridLayout(true);
+    setIsExpanded(true);
+    queueExpandedScroll();
+  }
 
   return (
-    <section className="flex flex-col gap-3 rounded-[16px] border border-line bg-paper p-6">
+    <section
+      ref={sectionRef}
+      className="flex flex-col gap-3 rounded-[16px] border border-line bg-paper p-6"
+    >
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
           <h2 className="dashboard-card-title shrink-0 text-ink">
@@ -75,7 +144,7 @@ export function MyAccountsCarousel({
               aria-expanded={isExpanded}
               aria-label={isExpanded ? "Collapse accounts" : "Expand accounts"}
               title={isExpanded ? "Collapse accounts" : "Expand accounts"}
-              onClick={() => setIsExpanded((current) => !current)}
+              onClick={toggleExpanded}
               className="dashboard-motion-card grid size-8 shrink-0 place-items-center rounded-lg border border-line bg-paper text-muted transition hover:bg-card hover:text-ink"
             >
               {isExpanded ? (
@@ -99,7 +168,22 @@ export function MyAccountsCarousel({
         </div>
       ) : (
         <div
-          className="-mx-1 -mt-2 overflow-hidden transition-[max-height] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
+          className="-mx-1 -mt-2 overflow-hidden transition-[max-height] duration-[650ms] ease-[cubic-bezier(0.16,1,0.3,1)]"
+          onTransitionEnd={(event) => {
+            if (
+              event.currentTarget !== event.target ||
+              event.propertyName !== "max-height"
+            ) {
+              return;
+            }
+
+            if (isExpanded) {
+              scrollExpandedAccountsIntoView();
+              return;
+            }
+
+            setUsesGridLayout(false);
+          }}
           style={{
             maxHeight: isExpanded
               ? `${expandedHeight}px`
@@ -109,12 +193,12 @@ export function MyAccountsCarousel({
           <div
             ref={accountsListRef}
             className={
-              isExpanded
+              usesGridLayout
                 ? "grid content-start gap-4 px-1 pb-2 pt-2"
                 : "scrollbar-none flex gap-4 overflow-x-auto overflow-y-hidden px-1 pb-2 pt-2"
             }
             style={
-              isExpanded
+              usesGridLayout
                 ? { gridTemplateColumns: "repeat(auto-fill, 156px)" }
                 : undefined
             }
