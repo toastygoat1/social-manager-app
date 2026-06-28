@@ -1875,14 +1875,14 @@ function WorkplaceSidebarItem({
           closeMenus();
           onSelect();
         }}
-        className={`relative flex min-w-0 items-center rounded-md text-left transition-[background-color,box-shadow,color] duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 ${
+        className={`relative flex min-w-0 items-center rounded-md border text-left transition-[background-color,border-color,box-shadow,color] duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 ${
           collapsed
             ? "mx-auto size-8 justify-center gap-0 p-1"
-            : "h-8 w-full gap-2 p-1 pr-16"
+            : "h-8 w-full gap-2 py-1 pl-3 pr-16"
         } ${
           selected
-            ? "bg-white font-medium text-ink shadow-[0_0_0_1px_rgba(17,17,17,0.06)]"
-            : "bg-transparent text-muted hover:bg-[rgb(253_253_253)] hover:text-ink"
+            ? "border-line bg-white font-medium text-ink shadow-[0_0_0_1px_rgba(17,17,17,0.03)]"
+            : "border-transparent bg-transparent text-muted hover:bg-neutral-100 hover:text-ink"
         }`}
       >
         <span
@@ -2180,22 +2180,8 @@ function WorkspaceWorkplaceSidebarHeader({
 
   return (
     <div
-      className={`flex min-h-[73px] items-center border-b border-line transition-[gap,padding] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
-        collapsed
-          ? "justify-center px-2 py-4"
-          : "justify-between gap-3 px-4 py-4"
-      }`}
+      className="grid min-h-[73px] grid-cols-[64px_minmax(0,1fr)] items-center border-b border-line motion-reduce:transition-none"
     >
-      <div
-        className={`min-w-0 overflow-hidden whitespace-nowrap transition-[max-width,opacity,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
-          collapsed ? "max-w-0 opacity-0" : "max-w-[164px] opacity-100"
-        }`}
-      >
-        <h1 className="text-xl font-semibold leading-tight text-ink">
-          Workspace
-        </h1>
-        <p className="mt-1 text-xs text-muted">{countLabel}</p>
-      </div>
       <button
         type="button"
         aria-expanded={!collapsed}
@@ -2204,7 +2190,7 @@ function WorkspaceWorkplaceSidebarHeader({
         }
         title={collapsed ? "Expand workplaces" : "Collapse workplaces"}
         onClick={onToggleCollapsed}
-        className={`flex size-9 shrink-0 items-center justify-center rounded-lg border text-muted transition-[background-color,border-color,color,transform] duration-300 hover:-translate-y-0.5 hover:bg-card hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 ${
+        className={`col-start-1 row-start-1 mx-auto flex size-9 shrink-0 items-center justify-center rounded-lg border text-muted transition-[background-color,border-color,color,transform] duration-300 hover:-translate-y-0.5 hover:bg-card hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 ${
           collapsed ? "border-transparent bg-card" : "border-line bg-paper"
         }`}
       >
@@ -2214,6 +2200,16 @@ function WorkspaceWorkplaceSidebarHeader({
           <PanelLeftClose className="size-4" strokeWidth={1.8} />
         )}
       </button>
+      <div
+        className={`col-start-2 row-start-1 min-w-0 overflow-hidden whitespace-nowrap pr-4 transition-[max-width,opacity] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
+          collapsed ? "max-w-0 opacity-0" : "max-w-[164px] opacity-100"
+        }`}
+      >
+        <h1 className="text-xl font-semibold leading-tight text-ink">
+          Workspace
+        </h1>
+        <p className="mt-1 text-xs text-muted">{countLabel}</p>
+      </div>
     </div>
   );
 }
@@ -4113,10 +4109,10 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
             aria-label="Add workplace"
             title={isWorkplaceSidebarCollapsed ? "Add workplace" : undefined}
             onClick={createWorkplace}
-            className={`mt-2 flex shrink-0 items-center justify-center border border-dashed border-line text-xs font-semibold text-muted transition-[width,height,gap,padding,border-color,background-color,color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:border-cta hover:bg-card hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 motion-reduce:transition-none ${
+            className={`mt-2 flex shrink-0 items-center border border-dashed border-line text-xs font-semibold text-muted transition-[width,height,gap,padding,border-color,background-color,color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:border-cta hover:bg-card hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 motion-reduce:transition-none ${
               isWorkplaceSidebarCollapsed
-                ? "mx-auto size-11 gap-0 rounded-xl px-0"
-                : "h-9 w-full gap-2 rounded-md px-2.5"
+                ? "mx-auto size-11 justify-center gap-0 rounded-xl px-0"
+                : "h-9 w-full justify-start gap-2 rounded-md pl-4 pr-2.5"
             }`}
           >
             <Plus className="size-4 shrink-0" strokeWidth={1.8} />

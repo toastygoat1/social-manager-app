@@ -110,7 +110,7 @@ export function DashboardWorkspace({
   const ready = buildStatusBreakdown(data.contentRows, "ready");
 
   return (
-    <div className="app-shell-fill dashboard-type bg-paper font-inter text-ink transition-colors duration-500">
+    <div className="app-shell-fill dashboard-type bg-background font-inter text-ink transition-colors duration-500">
       <main
         className="mx-auto flex max-w-none shrink-0 flex-col"
         style={{

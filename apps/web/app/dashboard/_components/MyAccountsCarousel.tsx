@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, Plus } from "lucide-react";
+import { Expand, Plus, Shrink } from "lucide-react";
 import { AvatarImage } from "@/app/_components/AvatarImage";
 import { AccountPersonalizationModal } from "./AccountPersonalizationModal";
 import { ConnectAccountsButton } from "./ConnectAccountsButton";
@@ -68,23 +68,23 @@ export function MyAccountsCarousel({
           </span>
         </div>
         <div className="flex items-center gap-2">
+          <ConnectAccountsButton buttonClassName={MY_ACCOUNTS_ADD_BUTTON_CLASS} />
           {canExpand ? (
             <button
               type="button"
               aria-expanded={isExpanded}
+              aria-label={isExpanded ? "Collapse accounts" : "Expand accounts"}
+              title={isExpanded ? "Collapse accounts" : "Expand accounts"}
               onClick={() => setIsExpanded((current) => !current)}
-              className="dashboard-ui-label inline-flex h-8 items-center gap-1.5 rounded-lg border border-line bg-paper px-3 font-semibold text-ink transition hover:bg-card"
+              className="dashboard-motion-card grid size-8 shrink-0 place-items-center rounded-lg border border-line bg-paper text-muted transition hover:bg-card hover:text-ink"
             >
-              <ChevronDown
-                className={`size-3.5 transition-transform duration-300 ${
-                  isExpanded ? "rotate-180" : ""
-                }`}
-                strokeWidth={2}
-              />
-              <span>{isExpanded ? "Collapse" : "Expand"}</span>
+              {isExpanded ? (
+                <Shrink className="size-4" strokeWidth={1.9} />
+              ) : (
+                <Expand className="size-4" strokeWidth={1.9} />
+              )}
             </button>
           ) : null}
-          <ConnectAccountsButton buttonClassName={MY_ACCOUNTS_ADD_BUTTON_CLASS} />
         </div>
       </div>
       {accounts.length === 0 ? (
@@ -111,7 +111,7 @@ export function MyAccountsCarousel({
             className={
               isExpanded
                 ? "grid content-start gap-4 px-1 pb-2 pt-2"
-                : "flex gap-4 overflow-x-auto overflow-y-hidden px-1 pb-2 pt-2"
+                : "scrollbar-none flex gap-4 overflow-x-auto overflow-y-hidden px-1 pb-2 pt-2"
             }
             style={
               isExpanded
