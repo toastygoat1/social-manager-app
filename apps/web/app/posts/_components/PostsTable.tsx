@@ -8,6 +8,8 @@ import {
   Clapperboard,
   ImageIcon,
   Images,
+  Plus,
+  RotateCcw,
   Search,
 } from "lucide-react";
 import Link from "next/link";
@@ -80,17 +82,16 @@ type ScrollMetrics = {
   clientHeight: number;
 };
 
-const METRIC_COLUMN_WIDTH = 120;
-const METADATA_COLUMN_WIDTH = 170;
-const FIRST_METADATA_EXTRA_SPACE = 28;
+const METRIC_COLUMN_WIDTH = 112;
+const METADATA_COLUMN_WIDTH = 150;
 const MIN_SCROLLBAR_THUMB_SIZE = 36;
 
 const STATIC_COLUMNS: ColumnDefinition[] = [
-  { key: "caption", label: "Caption", width: 360 },
-  { key: "account", label: "Account", width: 190 },
-  { key: "datePost", label: "Date published", width: 150 },
-  { key: "status", label: "Status", width: 130 },
-  { key: "type", label: "Type", width: 150 },
+  { key: "caption", label: "Caption", width: 330 },
+  { key: "account", label: "Account", width: 180 },
+  { key: "datePost", label: "Date published", width: 145 },
+  { key: "status", label: "Status", width: 128 },
+  { key: "type", label: "Type", width: 128 },
   { key: "views", label: "Views", width: METRIC_COLUMN_WIDTH, align: "right" },
   { key: "likes", label: "Likes", width: METRIC_COLUMN_WIDTH, align: "right" },
   {
@@ -156,9 +157,10 @@ function StatusPill({ status }: { status: string }) {
 
   return (
     <span
-      className={`dashboard-ui-meta inline-flex rounded-full px-2.5 py-1 ${tone}`}
+      className={`dashboard-ui-meta inline-flex max-w-full items-center rounded-full px-2 py-0.5 ${tone}`}
+      title={label}
     >
-      {label}
+      <span className="truncate">{label}</span>
     </span>
   );
 }
@@ -174,7 +176,7 @@ function TypePill({ type }: { type: string }) {
     >
       <Icon
         aria-hidden="true"
-        className="size-4 shrink-0"
+        className="size-3.5 shrink-0"
         style={{ color: POST_FORMAT_COLORS[format] }}
         strokeWidth={2}
       />
@@ -197,7 +199,7 @@ function Thumbnail({ row }: { row: ContentRow }) {
   const color = POST_FORMAT_COLORS[format];
 
   return (
-    <span className="block h-12 w-[72px] shrink-0 overflow-hidden rounded-md bg-card">
+    <span className="block size-7 shrink-0 overflow-hidden rounded border border-line bg-card">
       {preview ? (
         <span
           aria-hidden="true"
@@ -206,13 +208,13 @@ function Thumbnail({ row }: { row: ContentRow }) {
         />
       ) : (
         <span
-          className="dashboard-ui-meta flex size-full items-center justify-center font-semibold"
+          className="flex size-full items-center justify-center"
           style={{
             backgroundColor: `${color}18`,
             color,
           }}
         >
-          {format}
+          <ImageIcon aria-hidden="true" className="size-3.5" strokeWidth={2} />
         </span>
       )}
     </span>
@@ -225,13 +227,13 @@ function AccountCell({ row }: { row: ContentRow }) {
       className="dashboard-ui-label inline-flex min-w-0 max-w-full items-center gap-2 text-ink"
       title={row.account.name}
     >
-      <span className="flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-full">
+      <span className="flex size-5 shrink-0 items-center justify-center overflow-hidden rounded-full">
         <AvatarImage
           src={row.account.avatarUrl}
           alt={row.account.name}
-          width={24}
-          height={24}
-          className="size-6 rounded-full object-cover"
+          width={20}
+          height={20}
+          className="size-5 rounded-full object-cover"
           fallback={getInitials(row.account.name)}
           fallbackSeed={row.account.id}
         />
@@ -314,7 +316,7 @@ function getHeaderJustifyClass(align: ColumnAlign | undefined) {
 }
 
 function getHeaderPaddingClass(column: ColumnDefinition) {
-  return column.isFirstMetadata ? "py-3 pl-8 pr-4" : "px-4 py-3";
+  return column.isFirstMetadata ? "py-2 pl-4 pr-3" : "px-3 py-2";
 }
 
 function clamp(value: number, min: number, max: number) {
@@ -416,7 +418,7 @@ function SortableHeader({
   return (
     <th
       aria-sort={getAriaSort(column, sortState)}
-      className={`dashboard-ui-meta bg-card font-semibold text-ink ${getHeaderPaddingClass(
+      className={`dashboard-ui-meta border-r border-line bg-card font-semibold text-ink ${getHeaderPaddingClass(
         column,
       )} ${getCellAlignClass(column.align)}`}
       style={{ width: column.width }}
@@ -456,14 +458,14 @@ function MetadataCells({
     return (
       <td
         key={field.id}
-        className={`align-middle ${
-          index === 0 ? "py-3 pl-8 pr-4" : "px-4 py-3"
+        className={`border-r border-line align-middle ${
+          index === 0 ? "py-2 pl-4 pr-3" : "px-3 py-2"
         } ${
           isNumber ? "text-right" : "text-left"
         }`}
       >
         <span
-          className={`dashboard-ui-label block max-w-[160px] truncate text-muted ${
+          className={`dashboard-ui-label block max-w-[138px] truncate text-muted ${
             isNumber ? "ml-auto" : ""
           }`}
         >
@@ -609,8 +611,7 @@ export function PostsTable({
       ...metadataFields.map((field, index) => ({
         key: `metadata:${field.id}` as SortKey,
         label: field.label,
-        width:
-          METADATA_COLUMN_WIDTH + (index === 0 ? FIRST_METADATA_EXTRA_SPACE : 0),
+        width: METADATA_COLUMN_WIDTH,
         isFirstMetadata: index === 0,
       })),
     ],
@@ -689,47 +690,81 @@ export function PostsTable({
 
   return (
     <div className="adaptive-content-colors flex h-full min-h-0 w-full flex-col bg-paper">
-      <div className="mx-5 mt-4 flex flex-wrap items-center gap-3 bg-paper sm:mx-7 sm:mt-6">
-        <label className="relative flex min-w-[240px] flex-1 items-center sm:max-w-[360px]">
-          <Search
-            aria-hidden="true"
-            className="pointer-events-none absolute left-3 size-3.5 text-muted"
-            strokeWidth={1.8}
-          />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search posts, accounts, status, metadata..."
-            className="dashboard-ui-label h-9 w-full rounded-lg border border-line bg-paper pl-9 pr-3 text-ink outline-none transition placeholder:font-normal placeholder:text-muted focus:border-cta focus:bg-paper"
-            type="search"
-          />
-        </label>
-        <div
-          aria-label="Post status"
-          className="scrollbar-none flex max-w-full shrink-0 gap-1 overflow-x-auto"
-        >
-          {statusTabs.map((tab) => (
-            <Link
-              key={tab.id}
-              href={tab.href}
-              aria-current={tab.isActive ? "page" : undefined}
-              className={`dashboard-ui-label inline-flex h-9 shrink-0 items-center rounded-lg border px-3 transition ${
-                tab.isActive
-                  ? "border-ink bg-ink text-paper"
-                  : "border-line bg-paper text-muted hover:bg-card hover:text-ink"
-              }`}
-            >
-              {tab.label}
-            </Link>
-          ))}
+      <header className="shrink-0 px-5 pt-5 sm:px-7 sm:pt-6">
+        <h1 className="text-[22px] font-semibold leading-tight text-ink">
+          Posts Management
+        </h1>
+        <p className="dashboard-section-subtitle mt-1 text-muted">
+          Content tracking across accounts, formats, statuses, and performance.
+        </p>
+      </header>
+
+      <div className="mx-5 mt-8 flex flex-wrap items-center gap-3 bg-paper sm:mx-7">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <div
+            aria-label="Post status"
+            className="scrollbar-none flex max-w-full shrink overflow-x-auto rounded-md border border-line bg-card p-0.5"
+          >
+            {statusTabs.map((tab) => (
+              <Link
+                key={tab.id}
+                href={tab.href}
+                aria-current={tab.isActive ? "page" : undefined}
+                className={`dashboard-ui-label inline-flex h-7 shrink-0 items-center rounded px-2.5 transition ${
+                  tab.isActive
+                    ? "bg-paper text-ink"
+                    : "text-muted hover:bg-paper hover:text-ink"
+                }`}
+              >
+                {tab.label}
+              </Link>
+            ))}
+          </div>
         </div>
-        <span className="dashboard-ui-meta ml-auto text-muted">
-          {visibleRows.length} of {rows.length} posts
-        </span>
+
+        <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-1.5">
+          <button
+            type="button"
+            onClick={() => setSortState(null)}
+            disabled={!sortState}
+            aria-label="Clear sorting"
+            title="Clear sorting"
+            className="grid size-8 shrink-0 place-items-center rounded-md border border-transparent text-muted transition hover:border-line hover:bg-card hover:text-ink disabled:pointer-events-none disabled:opacity-35"
+          >
+            <RotateCcw aria-hidden="true" className="size-4" strokeWidth={1.8} />
+          </button>
+          <label className="relative flex min-w-[220px] flex-1 items-center sm:w-[300px] sm:flex-none">
+            <Search
+              aria-hidden="true"
+              className="pointer-events-none absolute left-3 size-3.5 text-muted"
+              strokeWidth={1.8}
+            />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search posts..."
+              className="dashboard-ui-label h-8 w-full rounded-md border border-line bg-paper pl-9 pr-3 text-ink outline-none transition placeholder:font-normal placeholder:text-muted focus:border-ink focus:bg-paper"
+              type="search"
+            />
+          </label>
+          <Link
+            href="/scheduler"
+            className="dashboard-ui-label inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md bg-ink px-2.5 text-paper transition hover:opacity-90"
+          >
+            Add
+            <Plus aria-hidden="true" className="size-3.5" strokeWidth={2} />
+          </Link>
+        </div>
       </div>
 
-      <div className="mx-5 mb-5 mt-3 flex min-h-0 min-w-0 flex-1 sm:mx-7 sm:mb-7">
-        <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-line bg-paper">
+      <div className="mx-5 mb-4 mt-2 flex min-h-0 min-w-0 flex-1 sm:mx-7 sm:mb-6">
+        <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-md border border-line bg-paper">
+          <div className="flex min-h-8 shrink-0 items-center justify-between gap-3 border-b border-line bg-paper px-3 py-1.5">
+            <span className="dashboard-ui-meta text-muted">
+              {visibleRows.length} of {rows.length} posts
+            </span>
+          </div>
+
           <div className="shrink-0 overflow-hidden border-b border-line bg-card">
             <table
               className="w-full table-fixed border-collapse text-left"
@@ -800,10 +835,10 @@ export function PostsTable({
                             setSelectedPostId(row.id);
                           }
                         }}
-                        className="group cursor-pointer border-b border-line transition-colors hover:bg-card focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-cta"
+                        className="group h-10 cursor-pointer border-b border-line transition-colors hover:bg-card focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-cta"
                       >
-                        <td className="px-5 py-3 align-middle">
-                          <div className="flex min-w-0 items-center gap-3">
+                        <td className="border-r border-line px-3 py-2 align-middle">
+                          <div className="flex min-w-0 items-center gap-2">
                             <Thumbnail row={row} />
                             <div className="min-w-0">
                               <p className="dashboard-ui-label truncate text-ink">
@@ -812,32 +847,32 @@ export function PostsTable({
                             </div>
                           </div>
                         </td>
-                        <td className="px-4 py-3 align-middle">
+                        <td className="border-r border-line px-3 py-2 align-middle">
                           <AccountCell row={row} />
                         </td>
-                        <td className="px-4 py-3 align-middle">
+                        <td className="border-r border-line px-3 py-2 align-middle">
                           <span className="dashboard-ui-label text-muted">
                             {displayText(row.datePost) ?? "-"}
                           </span>
                         </td>
-                        <td className="px-4 py-3 align-middle">
+                        <td className="border-r border-line px-3 py-2 align-middle">
                           <StatusPill status={row.status} />
                         </td>
-                        <td className="px-4 py-3 align-middle">
-                          <div className="flex min-w-[132px] items-center">
+                        <td className="border-r border-line px-3 py-2 align-middle">
+                          <div className="flex min-w-0 items-center">
                             <TypePill type={row.type} />
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-right align-middle">
+                        <td className="border-r border-line px-3 py-2 text-right align-middle">
                           <MetricValue value={row.views} />
                         </td>
-                        <td className="px-4 py-3 text-right align-middle">
+                        <td className="border-r border-line px-3 py-2 text-right align-middle">
                           <MetricValue value={row.likes} />
                         </td>
-                        <td className="px-4 py-3 text-right align-middle">
+                        <td className="border-r border-line px-3 py-2 text-right align-middle">
                           <MetricValue value={row.comments} />
                         </td>
-                        <td className="px-4 py-3 text-right align-middle">
+                        <td className="border-r border-line px-3 py-2 text-right align-middle">
                           <MetricValue value={row.shares} />
                         </td>
                         <MetadataCells row={row} fields={metadataFields} />

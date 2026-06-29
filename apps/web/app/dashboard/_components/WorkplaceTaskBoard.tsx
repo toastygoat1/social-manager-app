@@ -15,6 +15,7 @@ import { createPortal } from "react-dom";
 import Image from "next/image";
 import {
   Anchor,
+  ArrowDownUp,
   Archive,
   AtSign,
   BadgeDollarSign,
@@ -51,6 +52,7 @@ import {
   Inbox,
   Laptop,
   Lightbulb,
+  ListFilter,
   MapPin,
   Megaphone,
   MessageCircle,
@@ -70,6 +72,7 @@ import {
   Shapes,
   Shield,
   ShoppingBag,
+  SlidersHorizontal,
   Sparkles,
   Star,
   Store,
@@ -252,15 +255,15 @@ const ASSIGNEE_COLORS = [
 ];
 
 const TASK_COLUMNS = [
-  { label: "Task Name", width: 240 },
-  { label: "Assignee", width: 135 },
-  { label: "Urgency", width: 115 },
-  { label: "Account", width: 190 },
-  { label: "Status", width: 135 },
-  { label: "Date", width: 220 },
-  { label: "Brief Execution", width: 300 },
-  { label: "Notes", width: 260 },
-  { label: "Input From", width: 125 },
+  { label: "Task Name", width: 240, Icon: ClipboardList },
+  { label: "Assignee", width: 135, Icon: Users },
+  { label: "Urgency", width: 115, Icon: Flag },
+  { label: "Account", width: 190, Icon: AtSign },
+  { label: "Status", width: 135, Icon: Check },
+  { label: "Date", width: 220, Icon: CalendarDays },
+  { label: "Brief Execution", width: 300, Icon: FileText },
+  { label: "Notes", width: 260, Icon: Notebook },
+  { label: "Input From", width: 125, Icon: UserPlus },
 ];
 
 const TASK_TABLE_WIDTH = TASK_COLUMNS.reduce(
@@ -269,16 +272,16 @@ const TASK_TABLE_WIDTH = TASK_COLUMNS.reduce(
 );
 
 const URGENCY_STYLES: Record<TaskUrgency, string> = {
-  High: "text-danger",
-  Medium: "text-cta",
-  Low: "text-success",
+  High: "border-red-100 bg-red-50 text-danger",
+  Medium: "border-blue-100 bg-blue-50 text-blue-700",
+  Low: "border-green-100 bg-green-50 text-success",
 };
 
 const STATUS_STYLES: Record<TaskStatus, string> = {
-  "Not started": "text-muted",
-  "In progress": "text-cta",
-  Review: "text-neutral-700",
-  Done: "text-success",
+  "Not started": "border-neutral-200 bg-neutral-50 text-neutral-500",
+  "In progress": "border-blue-100 bg-blue-50 text-blue-700",
+  Review: "border-neutral-200 bg-neutral-50 text-neutral-700",
+  Done: "border-green-100 bg-green-50 text-success",
 };
 
 const KANBAN_STATUS_META: Record<
@@ -954,8 +957,8 @@ function TaskCell({
   return (
     <div
       data-task-cell
-      className={`flex min-h-9 shrink-0 items-center border-r border-line/80 last:border-r-0 ${
-        flush ? "p-0" : "px-2 py-1"
+      className={`flex min-h-8 shrink-0 items-center border-r border-line last:border-r-0 ${
+        flush ? "p-0" : "px-2 py-0.5"
       } ${className}`}
       style={{ width }}
     >
@@ -975,7 +978,7 @@ function RowSelectCell({
 }) {
   return (
     <div
-      className="flex min-h-9 shrink-0 items-center justify-center border-r border-line/80"
+      className="flex min-h-8 shrink-0 items-center justify-center border-r border-line"
       style={{ width: ROW_NUMBER_COLUMN_WIDTH }}
     >
       <button
@@ -985,16 +988,10 @@ function RowSelectCell({
         onClick={onToggle}
         className="group/select relative flex size-full items-center justify-center text-[11px] font-medium text-muted outline-none transition hover:text-ink focus-visible:text-ink"
       >
+        <span className="sr-only">{rowNumber}</span>
         <span
-          className={`transition ${
-            selected ? "opacity-0" : "opacity-100 group-hover/row:opacity-0"
-          }`}
-        >
-          {rowNumber}
-        </span>
-        <span
-          className={`absolute flex size-4 items-center justify-center rounded-[4px] border border-line bg-paper transition ${
-            selected ? "opacity-100" : "opacity-0 group-hover/row:opacity-100"
+          className={`absolute flex size-4 items-center justify-center rounded-[3px] border border-line bg-paper transition ${
+            selected ? "opacity-100" : "opacity-75 group-hover/row:opacity-100"
           }`}
         >
           {selected ? <Check className="size-3" strokeWidth={2.2} /> : null}
@@ -1079,7 +1076,7 @@ function EditableTextCell({
   }
 
   return (
-    <div className="group/cell relative flex h-8 w-full items-center px-1">
+    <div className="group/cell relative flex h-7 w-full items-center px-0.5">
       <span
         className={`min-w-0 flex-1 truncate pr-7 text-xs leading-5 ${
           strong ? "font-semibold text-ink" : muted ? "text-muted" : "text-ink"
@@ -1093,7 +1090,7 @@ function EditableTextCell({
         onClick={startEditing}
         aria-label={`Edit ${ariaLabel.toLowerCase()}`}
         title={`Edit ${ariaLabel.toLowerCase()}`}
-        className="absolute right-0.5 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-muted opacity-0 transition hover:bg-card hover:text-ink group-hover/cell:opacity-100 group-focus-within/cell:opacity-100"
+        className="absolute right-0 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-muted opacity-0 transition hover:bg-card hover:text-ink group-hover/cell:opacity-100 group-focus-within/cell:opacity-100"
       >
         <Pencil className="size-3.5" strokeWidth={1.8} />
       </button>
@@ -1140,9 +1137,9 @@ function SelectInput<T extends string>({
         aria-expanded={Boolean(menuAnchorRect)}
         aria-haspopup="listbox"
         onClick={(event) => toggleMenu(event.currentTarget)}
-        className={`w-full border-0 bg-transparent px-1 py-1.5 text-left text-xs font-semibold outline-none transition hover:bg-card ${className}`}
+        className={`inline-flex h-6 max-w-full items-center justify-start rounded-full border px-2 text-left text-[11px] font-semibold outline-none transition hover:brightness-[0.98] ${className}`}
       >
-        {value}
+        <span className="truncate">{value}</span>
       </button>
 
       {menuAnchorRect && typeof document !== "undefined"
@@ -1403,7 +1400,7 @@ function AccountSelect({
         aria-haspopup="listbox"
         disabled={accounts.length === 0}
         onClick={(event) => toggleAccountMenu(event.currentTarget)}
-        className="flex h-full min-h-9 w-full items-center gap-2 bg-transparent px-2.5 text-left text-xs text-ink outline-none transition hover:text-ink focus:text-ink disabled:text-muted"
+        className="flex h-full min-h-8 w-full items-center gap-2 bg-transparent px-2 text-left text-xs text-ink outline-none transition hover:text-ink focus:text-ink disabled:text-muted"
         title={title}
       >
         {selectedAccounts.length > 0 ? (
@@ -1583,7 +1580,7 @@ function AssigneeSelect({
         aria-expanded={Boolean(menuAnchorRect)}
         aria-haspopup="listbox"
         onClick={(event) => toggleAssigneeMenu(event.currentTarget)}
-        className="flex h-full min-h-9 w-full items-center gap-2 bg-transparent px-2.5 text-left text-xs text-ink outline-none transition hover:text-ink focus:text-ink"
+        className="flex h-full min-h-8 w-full items-center gap-2 bg-transparent px-2 text-left text-xs text-ink outline-none transition hover:text-ink focus:text-ink"
         title={selectedAssignee?.name}
       >
         {selectedAssignee ? (
@@ -1765,7 +1762,11 @@ function WorkplaceSidebarItem({
   const menuRef = useRef<HTMLDivElement | null>(null);
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
   const colorButtonRef = useRef<HTMLButtonElement | null>(null);
+  const pickerTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const pickerPopoverRef = useRef<HTMLDivElement | null>(null);
+  const colorPaletteRef = useRef<HTMLDivElement | null>(null);
   const popoverRef = useRef<HTMLDivElement | null>(null);
+  const pickerCloseTimeoutRef = useRef<number | null>(null);
   const [workplaceMenuOpen, setWorkplaceMenuOpen] = useState(false);
   const [pickerMenuOpen, setPickerMenuOpen] = useState(false);
   const [colorPaletteOpen, setColorPaletteOpen] = useState(false);
@@ -1794,14 +1795,38 @@ function WorkplaceSidebarItem({
     );
   }, [iconSearch]);
 
+  const clearPickerCloseTimeout = useCallback(() => {
+    if (pickerCloseTimeoutRef.current === null) return;
+    window.clearTimeout(pickerCloseTimeoutRef.current);
+    pickerCloseTimeoutRef.current = null;
+  }, []);
+
+  const closePickerMenus = useCallback(() => {
+    clearPickerCloseTimeout();
+    setPickerMenuOpen(false);
+    setColorPaletteOpen(false);
+    setColorAnchorRect(null);
+    setIconSearch("");
+  }, [clearPickerCloseTimeout]);
+
+  const schedulePickerClose = useCallback(() => {
+    clearPickerCloseTimeout();
+    pickerCloseTimeoutRef.current = window.setTimeout(() => {
+      closePickerMenus();
+    }, 120);
+  }, [clearPickerCloseTimeout, closePickerMenus]);
+
   const closeMenus = useCallback(() => {
+    clearPickerCloseTimeout();
     setWorkplaceMenuOpen(false);
     setPickerMenuOpen(false);
     setColorPaletteOpen(false);
     setMenuAnchorRect(null);
     setColorAnchorRect(null);
     setIconSearch("");
-  }, []);
+  }, [clearPickerCloseTimeout]);
+
+  useEffect(() => clearPickerCloseTimeout, [clearPickerCloseTimeout]);
 
   const updateMenuAnchor = useCallback(() => {
     const button = menuButtonRef.current;
@@ -1877,7 +1902,7 @@ function WorkplaceSidebarItem({
         }}
         className={`relative flex min-w-0 items-center rounded-md border text-left transition-[background-color,border-color,box-shadow,color] duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 ${
           collapsed
-            ? "size-8 justify-center gap-0 p-1"
+            ? "ml-2 size-8 justify-center gap-0 p-1"
             : "h-8 w-full gap-2 p-1 pr-16"
         } ${
           selected
@@ -1958,14 +1983,18 @@ function WorkplaceSidebarItem({
                       }}
                     >
                       <button
+                        ref={pickerTriggerRef}
                         type="button"
                         role="menuitem"
-                        onMouseMove={() => {
+                        onMouseEnter={() => {
+                          clearPickerCloseTimeout();
                           updateMenuAnchor();
                           setPickerMenuOpen(true);
                           setColorPaletteOpen(false);
                         }}
+                        onMouseLeave={schedulePickerClose}
                         onFocus={() => {
+                          clearPickerCloseTimeout();
                           updateMenuAnchor();
                           setPickerMenuOpen(true);
                           setColorPaletteOpen(false);
@@ -1984,6 +2013,8 @@ function WorkplaceSidebarItem({
                       <button
                         type="button"
                         role="menuitem"
+                        onMouseEnter={closePickerMenus}
+                        onFocus={closePickerMenus}
                         onClick={() => {
                           closeMenus();
                           onRename();
@@ -1996,6 +2027,8 @@ function WorkplaceSidebarItem({
                       <button
                         type="button"
                         role="menuitem"
+                        onMouseEnter={closePickerMenus}
+                        onFocus={closePickerMenus}
                         onClick={() => {
                           closeMenus();
                           onDelete();
@@ -2010,7 +2043,10 @@ function WorkplaceSidebarItem({
 
                   {pickerMenuOpen && workplacePickerPosition ? (
                     <div
+                      ref={pickerPopoverRef}
                       className="workspace-subpopover-enter pointer-events-auto fixed rounded-lg border border-line bg-paper p-2 shadow-xl"
+                      onMouseEnter={clearPickerCloseTimeout}
+                      onMouseLeave={schedulePickerClose}
                       style={{
                         left: workplacePickerPosition.left,
                         top: workplacePickerPosition.top,
@@ -2106,9 +2142,12 @@ function WorkplaceSidebarItem({
 
                   {colorPaletteOpen && workplaceColorMenuPosition ? (
                     <div
+                      ref={colorPaletteRef}
                       className="workspace-popover-enter pointer-events-auto fixed rounded-lg border border-line bg-paper p-2 shadow-xl"
                       role="group"
                       aria-label="Workplace accent colors"
+                      onMouseEnter={clearPickerCloseTimeout}
+                      onMouseLeave={schedulePickerClose}
                       style={{
                         left: workplaceColorMenuPosition.left,
                         top: workplaceColorMenuPosition.top,
@@ -3310,8 +3349,8 @@ function TaskRow({
 
   return (
     <div
-      className={`group/row flex border-b border-line/80 bg-paper transition last:border-b-0 odd:bg-card/25 hover:bg-cta/5 ${
-        selected ? "bg-cta/10 odd:bg-cta/10" : ""
+      className={`group/row flex border-b border-line bg-paper text-xs transition last:border-b-0 hover:bg-[rgb(250_250_250)] ${
+        selected ? "bg-blue-50/60" : ""
       }`}
       style={{ width: TASK_TABLE_WIDTH }}
     >
@@ -4144,9 +4183,9 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
 
             {syncStatus}
 
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-2">
+            <div className="flex h-10 shrink-0 items-center justify-between gap-3 border-b border-line bg-[rgb(250_250_250)] px-4">
               <div
-                className="inline-flex max-w-full flex-wrap rounded-md border border-line bg-card p-0.5"
+                className="inline-flex max-w-full items-center gap-0.5 rounded-md bg-[rgb(242_242_242)] p-0.5"
                 aria-label="Workspace view"
               >
                 {WORKSPACE_VIEW_MODES.map((mode) => (
@@ -4155,113 +4194,159 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
                     type="button"
                     aria-pressed={viewMode === mode.value}
                     onClick={() => setViewMode(mode.value)}
-                    className={`h-7 rounded px-3 text-xs font-semibold transition ${
+                    className={`h-6 rounded-[5px] px-3 text-[11px] font-semibold transition ${
                       viewMode === mode.value
-                        ? "bg-ink text-paper"
-                        : "text-muted hover:text-ink"
+                        ? "border border-line bg-paper text-ink"
+                        : "border border-transparent text-muted hover:text-ink"
                     }`}
                   >
                     {mode.label}
                   </button>
                 ))}
+                <span
+                  aria-hidden="true"
+                  className="ml-0.5 flex size-6 items-center justify-center rounded-[5px] text-muted"
+                >
+                  <Plus className="size-3.5" strokeWidth={1.8} />
+                </span>
               </div>
 
-              {selectedTaskCount > 0 ? (
-                <button
-                  type="button"
-                  onClick={deleteSelectedTasks}
-                  disabled={isSyncing}
-                  className="inline-flex h-8 items-center gap-2 rounded-md border border-danger/25 bg-danger/10 px-3 text-xs font-semibold text-danger transition hover:bg-danger/15 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <Trash2 className="size-4" strokeWidth={1.8} />
-                  {selectedTaskCount === 1 ? "Delete row" : "Delete rows"}
-                </button>
-              ) : null}
+              <div className="flex items-center gap-1">
+                {viewMode === "table" ? (
+                  <>
+                    {[
+                      { label: "Sort rows", Icon: ArrowDownUp },
+                      { label: "Filter rows", Icon: ListFilter },
+                      { label: "Search rows", Icon: Search },
+                      { label: "View options", Icon: SlidersHorizontal },
+                    ].map(({ label, Icon }) => (
+                      <span
+                        key={label}
+                        aria-hidden="true"
+                        title={label}
+                        className="flex size-7 items-center justify-center rounded-md text-muted"
+                      >
+                        <Icon className="size-4" strokeWidth={1.8} />
+                      </span>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={addTaskToSelectedWorkplace}
+                      className="ml-1 inline-flex h-7 items-center gap-1.5 rounded-md bg-ink px-2.5 text-[11px] font-semibold text-paper transition hover:bg-neutral-700"
+                    >
+                      Add
+                      <Plus className="size-3.5" strokeWidth={1.9} />
+                    </button>
+                  </>
+                ) : null}
+
+                {selectedTaskCount > 0 ? (
+                  <button
+                    type="button"
+                    onClick={deleteSelectedTasks}
+                    disabled={isSyncing}
+                    className="ml-1 inline-flex h-7 items-center gap-1.5 rounded-md border border-danger/20 bg-danger/10 px-2.5 text-[11px] font-semibold text-danger transition hover:bg-danger/15 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <Trash2 className="size-3.5" strokeWidth={1.8} />
+                    {selectedTaskCount === 1 ? "Delete row" : "Delete rows"}
+                  </button>
+                ) : null}
+              </div>
             </div>
 
             <div className="min-h-0 flex-1 overflow-hidden">
               {viewMode === "table" ? (
-                <div className="h-full max-w-full overflow-auto">
+                <div className="h-full max-w-full overflow-auto bg-[rgb(248_248_248)] p-3">
                   <div
-                    className="sticky top-0 z-10 flex h-9 items-center border-b border-line bg-paper/95 backdrop-blur"
+                    className="overflow-hidden rounded-lg border border-line bg-paper"
                     style={{ width: TASK_TABLE_WIDTH }}
                   >
-                    <div
-                      className="flex h-full shrink-0 items-center justify-center border-r border-line/80"
-                      style={{ width: ROW_NUMBER_COLUMN_WIDTH }}
-                    >
-                      <button
-                        type="button"
-                        aria-label={
-                          allSelectedTasks
-                            ? "Deselect all rows"
-                            : "Select all rows"
-                        }
-                        aria-pressed={allSelectedTasks}
-                        onClick={toggleAllSelectedTasks}
-                        disabled={selectedTasks.length === 0}
-                        className="flex size-4 items-center justify-center rounded-[4px] border border-line bg-paper text-ink transition hover:border-ink disabled:cursor-not-allowed disabled:opacity-40"
-                      >
-                        {allSelectedTasks ? (
-                          <Check className="size-3" strokeWidth={2.2} />
-                        ) : hasPartialTaskSelection ? (
-                          <span className="h-px w-2 rounded-full bg-ink" />
-                        ) : null}
-                      </button>
-                    </div>
-                    {TASK_COLUMNS.map((column) => (
+                    <div className="sticky top-0 z-10 flex h-8 items-center border-b border-line bg-[rgb(252_252_252)]">
                       <div
-                        key={column.label}
-                        className="flex h-full shrink-0 items-center border-r border-line/80 px-3 last:border-r-0"
-                        style={{ width: column.width }}
+                        className="flex h-full shrink-0 items-center justify-center border-r border-line"
+                        style={{ width: ROW_NUMBER_COLUMN_WIDTH }}
                       >
-                        <span className="text-xs font-semibold text-muted">
-                          {column.label}
-                        </span>
+                        <button
+                          type="button"
+                          aria-label={
+                            allSelectedTasks
+                              ? "Deselect all rows"
+                              : "Select all rows"
+                          }
+                          aria-pressed={allSelectedTasks}
+                          onClick={toggleAllSelectedTasks}
+                          disabled={selectedTasks.length === 0}
+                          className="flex size-4 items-center justify-center rounded-[3px] border border-line bg-paper text-ink transition hover:border-ink disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          {allSelectedTasks ? (
+                            <Check className="size-3" strokeWidth={2.2} />
+                          ) : hasPartialTaskSelection ? (
+                            <span className="h-px w-2 rounded-full bg-ink" />
+                          ) : null}
+                        </button>
                       </div>
-                    ))}
-                  </div>
+                      {TASK_COLUMNS.map((column) => {
+                        const ColumnIcon = column.Icon;
 
-                  {selectedTasks.length > 0 ? (
-                    selectedTasks.map((task, index) => (
-                      <TaskRow
-                        key={task.id}
-                        task={task}
-                        rowNumber={index + 1}
-                        selected={selectedTaskIds.has(task.id)}
-                        accounts={accounts}
-                        assignees={assigneeOptions}
-                        workspaceId={selectedWorkspace.id}
-                        onToggleSelected={() => toggleTaskSelection(task.id)}
-                        onRenameAssignee={(currentName, nextName) => {
-                          void renameAssigneeName(currentName, nextName);
-                        }}
-                        onUpdate={updateTask}
-                      />
-                    ))
-                  ) : (
-                    <div
-                      className="flex min-h-[160px] items-center justify-center border-b border-line px-6 text-center text-sm text-muted"
+                        return (
+                          <div
+                            key={column.label}
+                            className="flex h-full shrink-0 items-center gap-1.5 border-r border-line px-2.5 last:border-r-0"
+                            style={{ width: column.width }}
+                          >
+                            <ColumnIcon
+                              className="size-3.5 shrink-0 text-muted"
+                              strokeWidth={1.8}
+                            />
+                            <span className="min-w-0 truncate text-[11px] font-semibold text-ink">
+                              {column.label}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {selectedTasks.length > 0 ? (
+                      selectedTasks.map((task, index) => (
+                        <TaskRow
+                          key={task.id}
+                          task={task}
+                          rowNumber={index + 1}
+                          selected={selectedTaskIds.has(task.id)}
+                          accounts={accounts}
+                          assignees={assigneeOptions}
+                          workspaceId={selectedWorkspace.id}
+                          onToggleSelected={() => toggleTaskSelection(task.id)}
+                          onRenameAssignee={(currentName, nextName) => {
+                            void renameAssigneeName(currentName, nextName);
+                          }}
+                          onUpdate={updateTask}
+                        />
+                      ))
+                    ) : (
+                      <div
+                        className="flex min-h-[160px] items-center justify-center border-b border-line px-6 text-center text-sm text-muted"
+                        style={{ width: TASK_TABLE_WIDTH }}
+                      >
+                        This workplace is empty. Add a row to start building its
+                        task table.
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      aria-label="Add row"
+                      onClick={addTaskToSelectedWorkplace}
+                      className="flex h-8 items-center bg-paper text-muted transition hover:bg-[rgb(250_250_250)] hover:text-ink"
                       style={{ width: TASK_TABLE_WIDTH }}
                     >
-                      This workplace is empty. Add a row to start building its
-                      task table.
-                    </div>
-                  )}
-                  <button
-                    type="button"
-                    aria-label="Add row"
-                    onClick={addTaskToSelectedWorkplace}
-                    className="flex h-9 items-center border-b border-line bg-paper text-muted transition hover:bg-card hover:text-ink"
-                    style={{ width: TASK_TABLE_WIDTH }}
-                  >
-                    <span
-                      className="flex h-full shrink-0 items-center justify-center border-r border-line/80"
-                      style={{ width: ROW_NUMBER_COLUMN_WIDTH }}
-                    >
-                      <Plus className="size-4" strokeWidth={1.8} />
-                    </span>
-                  </button>
+                      <span
+                        className="flex h-full shrink-0 items-center justify-center border-r border-line"
+                        style={{ width: ROW_NUMBER_COLUMN_WIDTH }}
+                      >
+                        <Plus className="size-4" strokeWidth={1.8} />
+                      </span>
+                    </button>
+                  </div>
                 </div>
               ) : viewMode === "calendar" ? (
                 <DeadlineCalendar

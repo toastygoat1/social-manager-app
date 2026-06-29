@@ -297,7 +297,7 @@ export function WorkspaceDateRangePicker({
         aria-expanded={Boolean(pickerAnchorRect)}
         aria-haspopup="dialog"
         onClick={(event) => togglePicker(event.currentTarget)}
-        className={`flex h-full min-h-9 w-full items-center gap-1.5 px-2.5 text-left text-xs text-ink outline-none transition hover:text-cta focus:text-cta ${className}`}
+        className={`flex h-full min-h-8 w-full items-center gap-1.5 px-2 text-left text-xs text-ink outline-none transition hover:text-ink focus:text-ink ${className}`}
       >
         <TriggerIcon
           className="size-3.5 shrink-0 text-muted"
