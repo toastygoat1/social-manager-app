@@ -3,14 +3,23 @@
 import {
   ArrowDown,
   ArrowUp,
+  BadgeCheck,
+  Calendar,
   ChevronsUpDown,
   CirclePlay,
   Clapperboard,
+  Eye,
+  FileText,
+  Heart,
   ImageIcon,
   Images,
+  MessageCircle,
   Plus,
   RotateCcw,
   Search,
+  Send,
+  Shapes,
+  UserRound,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -71,6 +80,7 @@ type ColumnDefinition = {
   label: string;
   width: number;
   align?: ColumnAlign;
+  icon?: typeof ImageIcon;
   isFirstMetadata?: boolean;
 };
 type ScrollMetrics = {
@@ -87,20 +97,39 @@ const METADATA_COLUMN_WIDTH = 150;
 const MIN_SCROLLBAR_THUMB_SIZE = 36;
 
 const STATIC_COLUMNS: ColumnDefinition[] = [
-  { key: "caption", label: "Caption", width: 330 },
-  { key: "account", label: "Account", width: 180 },
-  { key: "datePost", label: "Date published", width: 145 },
-  { key: "status", label: "Status", width: 128 },
-  { key: "type", label: "Type", width: 128 },
-  { key: "views", label: "Views", width: METRIC_COLUMN_WIDTH, align: "right" },
-  { key: "likes", label: "Likes", width: METRIC_COLUMN_WIDTH, align: "right" },
+  { key: "caption", label: "Caption", width: 330, icon: FileText },
+  { key: "account", label: "Account", width: 180, icon: UserRound },
+  { key: "datePost", label: "Date published", width: 145, icon: Calendar },
+  { key: "status", label: "Status", width: 128, icon: BadgeCheck },
+  { key: "type", label: "Type", width: 128, icon: Shapes },
+  {
+    key: "views",
+    label: "Views",
+    width: METRIC_COLUMN_WIDTH,
+    align: "right",
+    icon: Eye,
+  },
+  {
+    key: "likes",
+    label: "Likes",
+    width: METRIC_COLUMN_WIDTH,
+    align: "right",
+    icon: Heart,
+  },
   {
     key: "comments",
     label: "Comments",
     width: METRIC_COLUMN_WIDTH,
     align: "right",
+    icon: MessageCircle,
   },
-  { key: "shares", label: "Shares", width: METRIC_COLUMN_WIDTH, align: "right" },
+  {
+    key: "shares",
+    label: "Shares",
+    width: METRIC_COLUMN_WIDTH,
+    align: "right",
+    icon: Send,
+  },
 ];
 
 const TYPE_ICONS: Record<PostFormat, typeof ImageIcon> = {
@@ -409,6 +438,7 @@ function SortableHeader({
     : sortState.direction === "asc"
       ? ArrowUp
       : ArrowDown;
+  const HeaderIcon = column.icon;
   const sortLabel = !isActive
     ? "not sorted"
     : sortState.direction === "asc"
@@ -431,6 +461,13 @@ function SortableHeader({
           column.align,
         )}`}
       >
+        {HeaderIcon ? (
+          <HeaderIcon
+            aria-hidden="true"
+            className="size-3.5 shrink-0 text-muted"
+            strokeWidth={1.8}
+          />
+        ) : null}
         <span className="truncate">{column.label}</span>
         <Icon
           aria-hidden="true"
@@ -757,14 +794,8 @@ export function PostsTable({
         </div>
       </div>
 
-      <div className="mx-5 mb-4 mt-2 flex min-h-0 min-w-0 flex-1 sm:mx-7 sm:mb-6">
-        <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-md border border-line bg-paper">
-          <div className="flex min-h-8 shrink-0 items-center justify-between gap-3 border-b border-line bg-paper px-3 py-1.5">
-            <span className="dashboard-ui-meta text-muted">
-              {visibleRows.length} of {rows.length} posts
-            </span>
-          </div>
-
+      <div className="mx-5 mt-2 flex min-h-0 min-w-0 flex-1 sm:mx-7">
+        <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-t-md border border-b-0 border-line bg-paper">
           <div className="shrink-0 overflow-hidden border-b border-line bg-card">
             <table
               className="w-full table-fixed border-collapse text-left"

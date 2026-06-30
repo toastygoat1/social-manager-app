@@ -4256,11 +4256,8 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
 
             <div className="min-h-0 flex-1 overflow-hidden">
               {viewMode === "table" ? (
-                <div className="h-full max-w-full overflow-auto bg-[rgb(248_248_248)] p-3">
-                  <div
-                    className="overflow-hidden rounded-lg border border-line bg-paper"
-                    style={{ width: TASK_TABLE_WIDTH }}
-                  >
+                <div className="h-full max-w-full overflow-auto bg-paper">
+                  <div style={{ width: TASK_TABLE_WIDTH }}>
                     <div className="sticky top-0 z-10 flex h-8 items-center border-b border-line bg-[rgb(252_252_252)]">
                       <div
                         className="flex h-full shrink-0 items-center justify-center border-r border-line"
