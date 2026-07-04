@@ -111,7 +111,7 @@ export function GoogleSignInButton() {
         type="button"
         onClick={handleClick}
         disabled={loading}
-        className="flex w-full items-center justify-center gap-2 rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60"
+        className="flex w-full items-center justify-center gap-2 rounded-lg border border-line bg-paper px-4 py-2 text-sm font-medium text-ink transition hover:bg-card disabled:cursor-not-allowed disabled:opacity-60"
       >
         <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4">
           <path
@@ -122,7 +122,7 @@ export function GoogleSignInButton() {
         {loading ? "Opening Google…" : "Continue with Google"}
       </button>
       {error ? (
-        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+        <p className="rounded-lg border border-danger/30 bg-[color-mix(in_srgb,var(--danger)_12%,var(--bg-light))] px-3 py-2 text-xs text-ink">
           {error}
         </p>
       ) : null}

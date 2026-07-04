@@ -25,8 +25,8 @@ export default function PopupCompletePage() {
   }, []);
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-zinc-100 px-4">
-      <p className="text-sm text-zinc-600">Completing sign-in…</p>
+    <main className="analytics-theme flex min-h-screen items-center justify-center bg-page px-4 text-muted">
+      <p className="text-sm">Completing sign-in…</p>
     </main>
   );
 }

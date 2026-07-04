@@ -295,12 +295,12 @@ body {
 }
 
 :root[data-theme="dark"] .posts-table-custom-scrollbar__thumb {
-  background: rgb(244 239 230 / 32%);
+  background: rgb(245 245 245 / 32%);
 }
 
 :root[data-theme="dark"] .posts-table-custom-scrollbar__thumb:hover,
 :root[data-theme="dark"] .posts-table-custom-scrollbar__thumb:active {
-  background: rgb(244 239 230 / 52%);
+  background: rgb(245 245 245 / 52%);
 }
 
 .posts-table-custom-scrollbar__thumb--horizontal {
@@ -684,12 +684,12 @@ html.theme-circle-transition::view-transition-new(root) {
 }
 
 :root[data-theme="dark"] .analytics-theme {
-  --bg: #171812;
-  --bg-light: #202018;
-  --bg-dark: #11120e;
-  --border: #36362b;
-  --text: #f4efe6;
-  --text-muted: #b0aa9d;
+  --bg: #151515;
+  --bg-light: #181818;
+  --bg-dark: #101010;
+  --border: #2a2a2a;
+  --text: #f5f5f5;
+  --text-muted: #b8b8b8;
   --cta: #55d4e6;
   --cta-border: #35adbf;
   --success: #6bd6ab;
@@ -715,13 +715,13 @@ html.theme-circle-transition::view-transition-new(root) {
 }
 
 :root[data-theme="dark"] .workspace-theme {
-  --bg: #181818;
-  --bg-light: #202020;
-  --bg-dark: #111111;
-  --border: #303030;
+  --bg: #151515;
+  --bg-light: #181818;
+  --bg-dark: #101010;
+  --border: #2a2a2a;
   --text: #f5f5f5;
-  --text-muted: #a3a3a3;
-  --chart-4: #a3a3a3;
+  --text-muted: #b8b8b8;
+  --chart-4: #b8b8b8;
 }
 
 .analytics-serif {

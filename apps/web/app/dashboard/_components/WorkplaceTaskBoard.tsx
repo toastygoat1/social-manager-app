@@ -1906,8 +1906,8 @@ function WorkplaceSidebarItem({
             : "h-8 w-full gap-2 p-1 pr-16"
         } ${
           selected
-            ? "border-line bg-white font-medium text-ink shadow-[0_0_0_1px_rgba(17,17,17,0.03)]"
-            : "border-transparent bg-transparent text-muted hover:bg-neutral-100 hover:text-ink"
+            ? "border-line bg-paper font-medium text-ink shadow-[0_0_0_1px_rgba(17,17,17,0.03)]"
+            : "border-transparent bg-transparent text-muted hover:bg-card hover:text-ink"
         }`}
       >
         <span
@@ -3349,8 +3349,10 @@ function TaskRow({
 
   return (
     <div
-      className={`group/row flex border-b border-line bg-paper text-xs transition last:border-b-0 hover:bg-[rgb(250_250_250)] ${
-        selected ? "bg-blue-50/60" : ""
+      className={`group/row flex border-b border-line bg-paper text-xs transition last:border-b-0 hover:bg-card ${
+        selected
+          ? "bg-[color-mix(in_srgb,var(--cta)_12%,var(--bg-light))]"
+          : ""
       }`}
       style={{ width: TASK_TABLE_WIDTH }}
     >
@@ -3489,7 +3491,7 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
     selectedTasks.length > 0 && selectedTaskCount === selectedTasks.length;
   const hasPartialTaskSelection =
     selectedTaskCount > 0 && selectedTaskCount < selectedTasks.length;
-  const workplaceSidebarClassName = `flex shrink-0 flex-col overflow-hidden border-r border-line bg-[rgb(250_250_250)] transition-[width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
+  const workplaceSidebarClassName = `flex shrink-0 flex-col overflow-hidden border-r border-line bg-card transition-[width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
     isWorkplaceSidebarCollapsed ? "w-16" : "w-[252px]"
   }`;
 
@@ -4183,9 +4185,9 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
 
             {syncStatus}
 
-            <div className="flex h-10 shrink-0 items-center justify-between gap-3 border-b border-line bg-[rgb(250_250_250)] px-4">
+            <div className="flex h-10 shrink-0 items-center justify-between gap-3 border-b border-line bg-card px-4">
               <div
-                className="inline-flex max-w-full items-center gap-0.5 rounded-md bg-[rgb(242_242_242)] p-0.5"
+                className="inline-flex max-w-full items-center gap-0.5 rounded-md bg-page p-0.5"
                 aria-label="Workspace view"
               >
                 {WORKSPACE_VIEW_MODES.map((mode) => (
@@ -4232,7 +4234,7 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
                     <button
                       type="button"
                       onClick={addTaskToSelectedWorkplace}
-                      className="ml-1 inline-flex h-7 items-center gap-1.5 rounded-md bg-ink px-2.5 text-[11px] font-semibold text-paper transition hover:bg-neutral-700"
+                      className="ml-1 inline-flex h-7 items-center gap-1.5 rounded-md bg-ink px-2.5 text-[11px] font-semibold text-paper transition hover:opacity-90"
                     >
                       Add
                       <Plus className="size-3.5" strokeWidth={1.9} />
@@ -4258,7 +4260,7 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
               {viewMode === "table" ? (
                 <div className="h-full max-w-full overflow-auto bg-paper">
                   <div style={{ width: TASK_TABLE_WIDTH }}>
-                    <div className="sticky top-0 z-10 flex h-8 items-center border-b border-line bg-[rgb(252_252_252)]">
+                    <div className="sticky top-0 z-10 flex h-8 items-center border-b border-line bg-card">
                       <div
                         className="flex h-full shrink-0 items-center justify-center border-r border-line"
                         style={{ width: ROW_NUMBER_COLUMN_WIDTH }}
@@ -4333,7 +4335,7 @@ export function WorkplaceTaskBoard({ accounts }: WorkplaceTaskBoardProps) {
                       type="button"
                       aria-label="Add row"
                       onClick={addTaskToSelectedWorkplace}
-                      className="flex h-8 items-center bg-paper text-muted transition hover:bg-[rgb(250_250_250)] hover:text-ink"
+                      className="flex h-8 items-center bg-paper text-muted transition hover:bg-card hover:text-ink"
                       style={{ width: TASK_TABLE_WIDTH }}
                     >
                       <span

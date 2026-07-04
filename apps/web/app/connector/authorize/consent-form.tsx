@@ -32,19 +32,19 @@ export function ConsentForm({ requestId, userEmail }: ConsentFormProps) {
 
   return (
     <div className="space-y-5">
-      <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-700">
-        <p className="font-medium text-zinc-900">Claude wants to connect</p>
+      <div className="rounded-lg border border-line bg-card p-4 text-sm text-ink">
+        <p className="font-medium text-ink">Claude wants to connect</p>
         <p className="mt-1">
           It will be able to <strong>view your workspace folders</strong> and{" "}
           <strong>create and update tasks</strong> on your behalf.
         </p>
-        <p className="mt-2 text-zinc-500">
+        <p className="mt-2 text-muted">
           Signed in as <span className="font-medium">{userEmail}</span>
         </p>
       </div>
 
       {error ? (
-        <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="rounded-md border border-danger/30 bg-[color-mix(in_srgb,var(--danger)_12%,var(--bg-light))] px-3 py-2 text-sm text-ink">
           {error}
         </p>
       ) : null}
@@ -54,7 +54,7 @@ export function ConsentForm({ requestId, userEmail }: ConsentFormProps) {
           type="button"
           onClick={() => run("approve")}
           disabled={isPending}
-          className="flex-1 rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-800 disabled:opacity-60"
+          className="flex-1 rounded-lg bg-ink px-4 py-2.5 text-sm font-medium text-paper transition hover:opacity-90 disabled:opacity-60"
         >
           {isPending && action === "approve" ? "Authorizing…" : "Allow"}
         </button>
@@ -62,7 +62,7 @@ export function ConsentForm({ requestId, userEmail }: ConsentFormProps) {
           type="button"
           onClick={() => run("deny")}
           disabled={isPending}
-          className="flex-1 rounded-lg border border-zinc-300 px-4 py-2.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-60"
+          className="flex-1 rounded-lg border border-line px-4 py-2.5 text-sm font-medium text-ink transition hover:bg-card disabled:opacity-60"
         >
           {isPending && action === "deny" ? "Cancelling…" : "Deny"}
         </button>

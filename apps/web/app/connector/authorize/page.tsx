@@ -39,24 +39,24 @@ export default async function ConnectorAuthorizePage({
   }
 
   return (
-    <main className="flex flex-1 items-center justify-center bg-[#fafafa] px-4 py-10">
-      <section className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm">
-        <p className="text-sm font-medium text-zinc-500">Social Manager App</p>
-        <h1 className="mt-2 text-2xl font-semibold text-zinc-900">
+    <main className="analytics-theme flex flex-1 items-center justify-center bg-page px-4 py-10 text-ink">
+      <section className="w-full max-w-md rounded-2xl border border-line bg-paper p-8">
+        <p className="text-sm font-medium text-muted">Social Manager App</p>
+        <h1 className="mt-2 text-2xl font-semibold text-ink">
           Authorize connector
         </h1>
 
         {!requestId ? (
-          <p className="mt-4 text-sm text-red-700">
+          <p className="mt-4 text-sm text-danger">
             Missing authorization request. Start the connection from Claude
             again.
           </p>
         ) : !userEmail ? (
-          <div className="mt-4 space-y-3 text-sm text-zinc-600">
+          <div className="mt-4 space-y-3 text-sm text-muted">
             <p>You need to sign in before authorizing the connector.</p>
             <Link
               href="/"
-              className="inline-block rounded-lg bg-zinc-900 px-4 py-2.5 font-medium text-white hover:bg-zinc-800"
+              className="inline-block rounded-lg bg-ink px-4 py-2.5 font-medium text-paper transition hover:opacity-90"
             >
               Sign in
             </Link>

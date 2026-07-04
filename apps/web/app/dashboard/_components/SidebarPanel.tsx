@@ -58,6 +58,8 @@ type NavItem = {
 type ViewTransitionDocument = Document & {
   startViewTransition?: (callback: () => void) => {
     finished: Promise<void>;
+    ready?: Promise<void>;
+    updateCallbackDone?: Promise<void>;
   };
 };
 
@@ -374,6 +376,10 @@ function commitDocumentTheme(theme: ThemeMode) {
   window.dispatchEvent(new Event(APP_THEME_EVENT));
 }
 
+function ignoreTransitionAbort(promise: Promise<void> | undefined) {
+  void promise?.catch(() => undefined);
+}
+
 function subscribeToAppThemePreference(onStoreChange: () => void) {
   window.addEventListener(APP_THEME_EVENT, onStoreChange);
 
@@ -459,17 +465,32 @@ export function SidebarPanel({
     root.style.setProperty("--theme-transition-y", `${top + height / 2}px`);
     root.classList.add("theme-circle-transition");
 
-    const transition = transitionDocument.startViewTransition(() => {
+    const cleanupThemeTransition = () => {
+      root.classList.remove("theme-circle-transition");
+      root.style.removeProperty("--theme-transition-x");
+      root.style.removeProperty("--theme-transition-y");
+    };
+
+    let transition: ReturnType<
+      NonNullable<ViewTransitionDocument["startViewTransition"]>
+    >;
+
+    try {
+      transition = transitionDocument.startViewTransition(() => {
+        commitDocumentTheme(nextTheme);
+      });
+    } catch {
       commitDocumentTheme(nextTheme);
-    });
+      cleanupThemeTransition();
+      return;
+    }
+
+    ignoreTransitionAbort(transition.ready);
+    ignoreTransitionAbort(transition.updateCallbackDone);
 
     void transition.finished
       .catch(() => undefined)
-      .finally(() => {
-        root.classList.remove("theme-circle-transition");
-        root.style.removeProperty("--theme-transition-x");
-        root.style.removeProperty("--theme-transition-y");
-      });
+      .finally(cleanupThemeTransition);
   }
 
   return (
