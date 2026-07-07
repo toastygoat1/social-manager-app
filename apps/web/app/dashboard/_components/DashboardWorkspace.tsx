@@ -25,22 +25,9 @@ type DashboardWorkspaceProps = {
 type StatusGroup = "pending" | "draft" | "ready" | "published";
 
 const GREETING_NAME_MAX_LENGTH = 18;
-const FIXED_DASHBOARD_LAYOUT = {
-  viewportWidth: 1920,
-  viewportHeight: 1080,
-  mainWidth: 1460,
-  mainPaddingX: 24,
-  mainPaddingY: 20,
-  cardGap: 24,
-  leftColumnWidth: 1008,
-  rightColumnWidth: 380,
-  statCardWidth: 320,
+const DASHBOARD_LAYOUT = {
   statCardHeight: 180,
-  publishedCardWidth: 1008,
   publishedCardHeight: 420,
-  recentPostsCardWidth: 380,
-  recentPostsCardHeight: 624,
-  recentPostsTopOffset: 82,
 } as const;
 
 function classifyStatus(status: string): StatusGroup | "other" {
@@ -110,26 +97,10 @@ export function DashboardWorkspace({
   const ready = buildStatusBreakdown(data.contentRows, "ready");
 
   return (
-    <div className="app-shell-fill dashboard-type bg-background font-inter text-ink transition-colors duration-500">
-      <main
-        className="mx-auto flex max-w-none shrink-0 flex-col"
-        style={{
-          width: FIXED_DASHBOARD_LAYOUT.mainWidth,
-          gap: FIXED_DASHBOARD_LAYOUT.cardGap,
-          padding: `${FIXED_DASHBOARD_LAYOUT.mainPaddingY}px ${FIXED_DASHBOARD_LAYOUT.mainPaddingX}px`,
-        }}
-      >
-        <div
-          className="grid items-start"
-          style={{
-            gap: FIXED_DASHBOARD_LAYOUT.cardGap,
-            gridTemplateColumns: `${FIXED_DASHBOARD_LAYOUT.leftColumnWidth}px ${FIXED_DASHBOARD_LAYOUT.rightColumnWidth}px`,
-          }}
-        >
-          <div
-            className="flex min-w-0 flex-col"
-            style={{ gap: FIXED_DASHBOARD_LAYOUT.cardGap }}
-          >
+    <div className="app-shell-fill dashboard-type overflow-x-hidden bg-background font-inter text-ink transition-colors duration-500">
+      <main className="mx-auto flex w-full max-w-[1460px] flex-col gap-4 overflow-x-hidden px-4 py-4 sm:gap-5 sm:px-5 sm:py-5 xl:gap-6 xl:px-6">
+        <div className="grid items-start gap-4 sm:gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(320px,380px)] xl:gap-6">
+          <div className="flex min-w-0 flex-col gap-4 sm:gap-5 xl:gap-6">
             <h1 className="dashboard-page-title text-ink">
               Good morning, {greetingName}
             </h1>
@@ -146,52 +117,35 @@ export function DashboardWorkspace({
               </p>
             ) : null}
 
-            <div
-              className="grid"
-              style={{
-                gap: FIXED_DASHBOARD_LAYOUT.cardGap,
-                gridTemplateColumns: `repeat(3, ${FIXED_DASHBOARD_LAYOUT.statCardWidth}px)`,
-              }}
-            >
+            <div className="grid gap-4 sm:gap-5 md:grid-cols-3 xl:gap-6">
               <StatusStatCard
                 label="Pending"
                 total={pending.total}
                 breakdown={pending.breakdown}
-                cardWidth={FIXED_DASHBOARD_LAYOUT.statCardWidth}
-                cardHeight={FIXED_DASHBOARD_LAYOUT.statCardHeight}
+                cardHeight={DASHBOARD_LAYOUT.statCardHeight}
               />
               <StatusStatCard
                 label="Draft"
                 total={draft.total}
                 breakdown={draft.breakdown}
-                cardWidth={FIXED_DASHBOARD_LAYOUT.statCardWidth}
-                cardHeight={FIXED_DASHBOARD_LAYOUT.statCardHeight}
+                cardHeight={DASHBOARD_LAYOUT.statCardHeight}
               />
               <StatusStatCard
                 label="Ready"
                 total={ready.total}
                 breakdown={ready.breakdown}
-                cardWidth={FIXED_DASHBOARD_LAYOUT.statCardWidth}
-                cardHeight={FIXED_DASHBOARD_LAYOUT.statCardHeight}
+                cardHeight={DASHBOARD_LAYOUT.statCardHeight}
               />
             </div>
 
             <PublishedChart
               accounts={data.accounts}
               rows={data.publishedChartRows}
-              cardWidth={FIXED_DASHBOARD_LAYOUT.publishedCardWidth}
-              cardHeight={FIXED_DASHBOARD_LAYOUT.publishedCardHeight}
+              cardHeight={DASHBOARD_LAYOUT.publishedCardHeight}
             />
           </div>
 
-          <div
-            className="relative min-w-0"
-            style={{
-              width: FIXED_DASHBOARD_LAYOUT.recentPostsCardWidth,
-              height: FIXED_DASHBOARD_LAYOUT.recentPostsCardHeight,
-              marginTop: FIXED_DASHBOARD_LAYOUT.recentPostsTopOffset,
-            }}
-          >
+          <div className="relative min-h-[520px] min-w-0 xl:mt-[82px] xl:min-h-[624px]">
             <RecentPostsPanel rows={data.contentRows} />
           </div>
         </div>
@@ -199,7 +153,7 @@ export function DashboardWorkspace({
         <MyAccountsCarousel accounts={data.accounts} />
 
         <div
-          className="grid items-start gap-6 lg:grid-cols-[300px_minmax(0,1fr)]"
+          className="grid items-start gap-4 sm:gap-5 lg:grid-cols-[300px_minmax(0,1fr)] xl:gap-6"
           style={{ gridAutoRows: CALENDAR_CARD_HEIGHT }}
         >
           <div style={{ height: CALENDAR_CARD_HEIGHT }}>

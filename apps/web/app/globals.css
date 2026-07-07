@@ -157,9 +157,10 @@ body {
 
 .app-shell-frame {
   --app-shell-padding: 0px;
-  --app-shell-panel-height: 100vh;
+  --app-shell-panel-height: 100dvh;
   gap: 0;
-  height: 100vh;
+  min-height: 100vh;
+  height: 100dvh;
   padding: 0;
   background: var(--app-shell-bg);
   overflow: hidden;
@@ -323,10 +324,24 @@ body {
 
 .dashboard-page-title {
   font-family: Georgia, "Times New Roman", serif;
-  font-size: 60px;
+  font-size: 40px;
   font-weight: 400;
-  line-height: 0.96;
-  letter-spacing: -0.04em;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+@media (min-width: 768px) {
+  .dashboard-page-title {
+    font-size: 52px;
+    line-height: 0.98;
+  }
+}
+
+@media (min-width: 1280px) {
+  .dashboard-page-title {
+    font-size: 60px;
+    line-height: 0.96;
+  }
 }
 
 .dashboard-card-title,

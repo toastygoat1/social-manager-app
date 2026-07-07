@@ -8,8 +8,8 @@ type StatusStatCardProps = {
   label: string;
   total: number;
   breakdown: Record<PostFormat, number>;
-  cardWidth: number;
-  cardHeight: number;
+  cardWidth?: number;
+  cardHeight?: number;
 };
 
 const ORDER: PostFormat[] = ["Post", "Carousel", "Reel", "Story"];
@@ -49,8 +49,8 @@ export function StatusStatCard({
 
   return (
     <div
-      className="relative flex flex-col rounded-[16px] border border-line bg-paper p-6"
-      style={{ width: cardWidth, height: cardHeight }}
+      className="relative flex w-full min-w-0 flex-col rounded-[16px] border border-line bg-paper p-6"
+      style={{ width: cardWidth ?? "100%", minHeight: cardHeight }}
     >
       <header className="flex items-start justify-between gap-3">
         <span className="dashboard-card-title text-ink">

@@ -19,8 +19,8 @@ export type PublishedBar = {
 type PublishedChartProps = {
   accounts: Account[];
   rows: ContentRow[];
-  cardWidth: number;
-  cardHeight: number;
+  cardWidth?: number;
+  cardHeight?: number;
 };
 
 type PublishedRange = "day" | "week" | "month" | "year";
@@ -351,8 +351,8 @@ export function PublishedChart({
 
   return (
     <section
-      className="flex flex-col gap-4 rounded-[16px] border border-line bg-paper p-6"
-      style={{ width: cardWidth, height: cardHeight }}
+      className="flex w-full min-w-0 flex-col gap-4 rounded-[16px] border border-line bg-paper p-6"
+      style={{ width: cardWidth ?? "100%", minHeight: cardHeight }}
     >
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>

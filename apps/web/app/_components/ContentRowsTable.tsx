@@ -479,7 +479,7 @@ export function ContentRowsTable({
   return (
     <section
       ref={sectionRef}
-      className="flex min-w-0 flex-col gap-3 overflow-visible rounded-[16px] border border-line bg-paper p-6"
+      className="flex min-w-0 flex-col gap-3 overflow-hidden rounded-[16px] border border-line bg-paper p-6"
     >
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
